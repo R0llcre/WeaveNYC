@@ -1,0 +1,45 @@
+%% WeaveNYC — P2P 同步流程时序图
+%% 来源：07_P2P_Node_Design.md §5-6 + 08_Data_Model.md §1
+
+sequenceDiagram
+    participant E as 边缘节点<br/>(PWA WebWorker)
+    participant A as Anchor 节点<br/>(libp2p 完整节点)
+    participant IPFS as Helia / IPFS<br/>(内容寻址存储)
+    participant C as 云端<br/>(PostgreSQL 索引)
+
+    Note over E,C: === 1. 边缘启动与节点发现 ===
+
+    E->>E: 生成 Ed25519 密钥对<br/>(每社区独立, 存 IndexedDB)
+    E->>A: WebSocket 连接<br/>libp2p Identify 握手
+    A-->>E: 返回引导节点列表
+    E->>A: 订阅 GossipSub 主题<br/>weavenyc/{community_id}/posts<br/>weavenyc/{community_id}/announcements
+
+    Note over E,C: === 2. 用户发帖 → P2P 同步 ===
+
+    E->>E: 本地创建帖子<br/>存入 IndexedDB
+    E->>E: 构建 PostSummaryDAG<br/>{ post_id, post_type, category,<br/>title_hash, location_zip,<br/>community_id, sig }
+
+    alt 用户选择同步
+        E->>A: GossipSub 发布<br/>topic: weavenyc/{community_id}/posts<br/>event: post.published
+        A->>A: 签名验证 (Ed25519)<br/>+ 规则引擎检查
+        A->>IPFS: Helia Pin<br/>存储 PostSummaryDAG
+        IPFS-->>A: CID (内容哈希)
+        A->>C: REST API 写入 PostgreSQL<br/>post record + ipfs_cid
+        C-->>A: OK
+    else 仅本地保存
+        E->>E: 保持在 IndexedDB<br/>不同步到网络
+    end
+
+    Note over E,C: === 3. 其他边缘接收更新 ===
+
+    A->>E: GossipSub 广播<br/>post.published event
+    E->>E: 验证签名<br/>更新本地 post_cache
+    E->>IPFS: 按需拉取完整 DAG<br/>(通过 CID)
+    IPFS-->>E: PostSummaryDAG 内容
+
+    Note over E,C: === 4. 离线恢复同步 ===
+
+    E->>E: 检测到重新上线
+    E->>A: 请求 last_sync_ts 之后的事件
+    A-->>E: 增量事件列表
+    E->>E: 批量更新 IndexedDB

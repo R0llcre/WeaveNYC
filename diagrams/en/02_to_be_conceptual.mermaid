@@ -1,0 +1,29 @@
+%% WeaveNYC — To-Be Conceptual: System Actors and Interactions
+%% Source: 06_Blueprints.md §2.1
+
+flowchart LR
+  subgraph Users ["User Layer"]
+    R[Resident App<br/>Help Seeker]
+    H[Helper App<br/>Provider]
+  end
+
+  subgraph Community ["Community Layer"]
+    A[Anchor Node<br/>+ Admin Console]
+  end
+
+  subgraph Cloud ["Cloud Layer"]
+    C[Cloud Intelligence<br/>Match / Safety / Notify]
+    D[(Directory DB<br/>Official Resources)]
+  end
+
+  R <-->|posts / matches| A
+  H <-->|posts / matches| A
+  A <-->|sync / aggregate| C
+  C <-->|read / write| D
+  D --> R
+
+  style R fill:#FFE0B2,stroke:#E65100
+  style H fill:#C8E6C9,stroke:#2E7D32
+  style A fill:#CE93D8,stroke:#6A1B9A
+  style C fill:#90CAF9,stroke:#1565C0
+  style D fill:#B0BEC5,stroke:#37474F

@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: weavenyc-postgres
+    environment:
+      POSTGRES_DB: weavenyc_dev
+      POSTGRES_USER: weavenyc
+      POSTGRES_PASSWORD: weavenyc
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weavenyc -d weavenyc_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - weavenyc-postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: weavenyc-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - weavenyc-redis-data:/data
+
+volumes:
+  weavenyc-postgres-data:
+  weavenyc-redis-data:

@@ -1,0 +1,43 @@
+%% WeaveNYC — 帖子生命周期状态机
+%% 来源：08_Data_Model.md §2.5 + 09_API_Spec.md §3
+
+stateDiagram-v2
+    [*] --> draft : 用户开始编辑
+
+    draft --> pending_review : 提交帖子
+
+    pending_review --> active : Anchor 批准 或 低风险自动通过
+    pending_review --> removed : Anchor 拒绝
+
+    active --> fulfilled : 双方确认完成
+    active --> closed : 发布者关闭 或 24h 自动过期
+    active --> removed : Anchor 因举报下架
+
+    fulfilled --> [*]
+    closed --> [*]
+    removed --> [*]
+
+    state draft {
+        [*] --> editing
+        editing : IndexedDB 本地存储
+        editing : 用户可多次编辑
+    }
+
+    state pending_review {
+        [*] --> in_queue
+        in_queue : 高风险类别强制审核
+        in_queue : 低风险自动批准
+    }
+
+    state active {
+        [*] --> matchable
+        matchable : 同步到 P2P 网络
+        matchable : 进入匹配引擎池
+        matchable : 默认 TTL 24h
+    }
+
+    state fulfilled {
+        [*] --> verified
+        verified : 触发声誉更新
+        verified : 见证人验证
+    }

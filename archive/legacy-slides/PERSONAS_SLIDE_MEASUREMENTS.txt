@@ -1,0 +1,302 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║          WeaveNYC: Three Personas Slide - EXACT MEASUREMENTS & SPECS          ║
+║                         (PptxGenJS, 10" × 5.625")                              ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+CANVAS DIMENSIONS
+═════════════════
+  Width:  10.0 inches
+  Height: 5.625 inches (16:9 widescreen)
+  Background: #F8F9FA (off-white, RGB 248/249/250)
+
+
+LAYOUT GRID (Zones)
+═══════════════════
+
+  0.35" ├─────────────────────────────────────────────┤
+        │ TITLE: "Target Users: Three Personas"      │ 0.55" height
+  0.90" ├─────────────────────────────────────────────┤
+        │ (spacing)                                    │ 0.15" gap
+  1.05" ├─────────────────────────────────────────────┤
+        │ FLOW STRIP: Seeker → Helper → Admin        │ 0.48" height
+        │ (Glass background, 15% transparency)        │
+  1.53" ├─────────────────────────────────────────────┤
+        │ (spacing)                                    │ 0.17" gap
+  1.70" ├─────────────────────────────────────────────┤
+        │                                             │
+        │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+        │  │ CARD 1   │  │ CARD 2   │  │ CARD 3   │  │ 3.00" height
+        │  │ (Seeker) │  │ (Helper) │  │ (Admin)  │  │
+        │  │          │  │          │  │          │  │
+        │  │ [Content]│  │ [Content]│  │ [Content]│  │
+        │  │          │  │          │  │          │  │
+        │  └──────────┘  └──────────┘  └──────────┘  │
+        │                                             │
+  4.70" ├─────────────────────────────────────────────┤
+        │ (spacing)                                    │ 0.65" gap
+  5.35" ├─────────────────────────────────────────────┤
+        │ FOOTER: "WeaveNYC · Proposal"  PAGE: "5"   │ 0.22" height
+  5.57" └─────────────────────────────────────────────┘
+
+
+TITLE ELEMENT
+═════════════
+  Position:      X= 0.50" | Y= 0.35"
+  Dimensions:    W= 9.00" | H= 0.55"
+  Text:          "Target Users: Three Personas"
+  Font:          Georgia, 36pt, Bold
+  Color:         #2A3F5F (dark slate blue)
+  Alignment:     Left, Top
+  Line spacing:  Default
+
+
+FLOW STRIP (Visual Connector)
+══════════════════════════════
+
+  Background Shape:
+  ─────────────────
+    Type:        Rounded rectangle (corner radius = 0.08")
+    Position:    X= 0.50" | Y= 1.05"
+    Dimensions:  W= 9.00" | H= 0.48"
+    Fill:        #FFFFFF (white) @ 15% transparency
+    Border:      1pt solid #E0E0E0 (light gray)
+    Z-Order:     Behind text
+
+  Flow Text:
+  ──────────
+    Position:    X= 0.50" | Y= 1.11"
+    Dimensions:  W= 9.00" | H= 0.36"
+    Text:        "Seeker → requests help → Helper → governed by → Anchor Admin"
+    Font:        Calibri, 13pt, Italic
+    Color:       #5A6C7D (slate blue)
+    Alignment:   Center (horizontal), Middle (vertical)
+    Padding:     6pt top/bottom (vertical centering within strip)
+
+
+CARD GRID LAYOUT
+════════════════
+
+  Card 1 (NEED SEEKER):
+  ───────────────────
+    Position:    X= 0.80" | Y= 1.70"
+    Dimensions:  W= 2.80" | H= 3.00"
+    Accent Color: #3A7BD5 (blue)
+
+  Card 2 (HELPER):
+  ───────────────
+    Position:    X= 4.40" | Y= 1.70"
+    Dimensions:  W= 2.80" | H= 3.00"
+    Accent Color: #3CB371 (green)
+
+  Card 3 (ANCHOR ADMIN):
+  ─────────────────────
+    Position:    X= 8.00" | Y= 1.70"
+    Dimensions:  W= 2.80" | H= 3.00"
+    Accent Color: #7C5CFC (purple)
+
+  ┌──────────┐  ┌──────────┐  ┌──────────┐
+  │ 0.80"    │  │ 4.40"    │  │ 8.00"    │  ← X positions
+  │ ← Card W →│  │ ← Card W →│  │ ← Card W →│
+  │ 2.80"    │  │ 2.80"    │  │ 2.80"    │
+  └──────────┘  └──────────┘  └──────────┘
+  0.80"     2.40"         4.40"      7.20"         8.00"      10.80" (off-canvas)
+   (left       (gap 1.60")           (gap 1.60")              (right margin)
+   margin)                                                     beyond slide
+
+
+INDIVIDUAL CARD STRUCTURE
+══════════════════════════
+  (Applying to all 3 cards with per-card X offset)
+
+  CARD BACKGROUND (Glass effect):
+  ────────────────────────────────
+    Type:       Rounded rectangle (corner radius = 0.12")
+    Fill:       #FFFFFF (white) @ 5% transparency
+    Border:     1.5pt solid #D8D8E8 (light purple-gray)
+    Shadow:     None
+
+  COLORED ACCENT BAR (Top of card):
+  ─────────────────────────────────
+    Type:       Solid rectangle, NO border
+    Position:   Top-left corner of card (relative: +0.00" X, +0.00" Y)
+    Dimensions: 2.80" W × 0.15" H (full width, thin bar)
+    Colors:
+      • Card 1: #3A7BD5 (blue)
+      • Card 2: #3CB371 (green)
+      • Card 3: #7C5CFC (purple)
+
+  PERSONA NAME (Title):
+  ────────────────────
+    Position:   X +0.15" | Y +0.25" (from card origin)
+    Dimensions: W= 2.50" | H= 0.35"
+    Text:       "Need Seeker" / "Helper" / "Anchor Admin"
+    Font:       Georgia, 16pt, Bold
+    Color:      #2A3F5F (dark slate)
+    Alignment:  Left, Top
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║                  ROW 1: WHO                                ║
+  ║  [Label] "Who" (Y +0.68", 10pt Bold, #7A8FA3)            ║
+  ║  [Content] "Low-income, immigrant, elderly..." (Y +0.88") ║
+  ║            Font: 9pt Regular, Color: #3A4A5A             ║
+  ║            W= 2.50", H= 0.60" (wraps text)               ║
+  ╠════════════════════════════════════════════════════════════╣
+  ║                  ROW 2: GOAL                               ║
+  ║  [Label] "Goal" (Y +1.52", 10pt Bold, #7A8FA3)           ║
+  ║  [Content] "Find food, childcare..." (Y +1.72")          ║
+  ║            Font: 9pt Regular, Color: #3A4A5A             ║
+  ║            W= 2.50", H= 0.60" (wraps text)               ║
+  ╠════════════════════════════════════════════════════════════╣
+  ║                  ROW 3: VALUE                              ║
+  ║  [Label] "Value" (Y +2.36", 10pt Bold, #7A8FA3)          ║
+  ║  [Content] "Actionable plan in <1 min..." (Y +2.56")     ║
+  ║            Font: 9pt Regular, Color: #3A4A5A             ║
+  ║            W= 2.50", H= 0.60" (wraps text)               ║
+  ╚════════════════════════════════════════════════════════════╝
+
+  INTERNAL CARD SPACING:
+  ──────────────────────
+    Left/right margins:  0.15"
+    Label to content:    0.20" (vertical gap)
+    Row to row:          0.14" (vertical gap)
+    Total usable width:  2.80" - 0.30" = 2.50"
+    Total usable height: 3.00" - 0.15" (accent) = 2.85"
+
+
+FOOTER ELEMENTS
+═══════════════
+
+  Footer Text (Left):
+  ───────────────────
+    Position:    X= 0.50" | Y= 5.35"
+    Dimensions:  W= 5.00" | H= 0.22"
+    Text:        "WeaveNYC  ·  Midterm Proposal"
+    Font:        Calibri, 9pt
+    Color:       #999999 (light gray)
+    Alignment:   Left
+
+  Slide Number (Right):
+  ─────────────────────
+    Position:    X= 9.00" | Y= 5.35"
+    Dimensions:  W= 0.50" | H= 0.22"
+    Text:        "5"
+    Font:        Calibri, 9pt
+    Color:       #999999 (light gray)
+    Alignment:   Right
+
+
+COLOR PALETTE (By Function)
+════════════════════════════
+
+  Background Colors:
+  ──────────────────
+    Slide BG:          #F8F9FA (off-white)     RGB: 248, 249, 250
+    Card BG:           #FFFFFF (white)         RGB: 255, 255, 255
+    White (ref):       #FFFFFF                 RGB: 255, 255, 255
+
+  Accent Colors (Persona Bars):
+  ──────────────────────────────
+    Seeker (blue):     #3A7BD5                 RGB: 58, 123, 213
+    Helper (green):    #3CB371                 RGB: 60, 179, 113
+    Admin (purple):    #7C5CFC                 RGB: 124, 92, 252
+
+  Text Colors:
+  ────────────
+    Titles:            #2A3F5F (dark slate)    RGB: 42, 63, 95
+    Label text:        #7A8FA3 (muted slate)   RGB: 122, 143, 163
+    Body text:         #3A4A5A (medium slate)  RGB: 58, 74, 90
+    Flow text:         #5A6C7D (slate blue)    RGB: 90, 108, 125
+    Footer:            #999999 (gray)          RGB: 153, 153, 153
+
+  Border Colors:
+  ──────────────
+    Card border:       #D8D8E8 (light purple)  RGB: 216, 216, 232
+    Strip border:      #E0E0E0 (light gray)    RGB: 224, 224, 224
+
+
+TYPOGRAPHY MATRIX
+═══════════════════
+
+  Element                Font      Size  Weight   Color
+  ────────────────────────────────────────────────────────────
+  Slide Title            Georgia   36pt  Bold     #2A3F5F
+  Flow Strip Text        Calibri   13pt  Italic   #5A6C7D
+  Persona Name           Georgia   16pt  Bold     #2A3F5F
+  Row Label (Who/Goal..) Calibri   10pt  Bold     #7A8FA3
+  Row Content            Calibri    9pt  Regular  #3A4A5A
+  Footer                 Calibri    9pt  Regular  #999999
+
+
+TRANSPARENCY SPECIFICATIONS
+════════════════════════════
+
+  Card Background:       5% transparency   (opacity: 95%)
+  Flow Strip Background: 15% transparency  (opacity: 85%)
+
+  Effect: Creates subtle glass/frosted appearance when layered over
+          light background. Text remains fully opaque (0% transparency).
+
+
+SHAPE SUMMARY
+══════════════
+
+  Rounded Rectangles:
+  ──────────────────
+    1× Flow strip background (radius: 0.08")
+    3× Card backgrounds (radius: 0.12" each)
+    Total: 4 shapes
+
+  Solid Rectangles:
+  ─────────────────
+    3× Accent bars (no rounded corners)
+    Total: 3 shapes
+
+  Text Boxes:
+  ───────────
+    1× Title
+    1× Flow text
+    3× Persona name labels
+    3× "Who" labels + 3× "Who" content = 6 text boxes
+    3× "Goal" labels + 3× "Goal" content = 6 text boxes
+    3× "Value" labels + 3× "Value" content = 6 text boxes
+    2× Footer elements
+    Total: 25 text boxes
+
+  Grand Total: 32 shapes
+
+
+FILE SPECIFICATIONS
+═════════════════════
+
+  Output File:      personas_slide_new.pptx
+  File Size:        ~67 KB (compressed)
+  Format:           Office Open XML (PPTX)
+  Tool:             PptxGenJS (Node.js)
+  Compatibility:    PowerPoint 2010+, Google Slides, LibreOffice
+
+
+IMPLEMENTATION NOTES
+═════════════════════
+
+  • All positions/dimensions in inches (not EMUs)
+  • Colors specified in hex format (#RRGGBB)
+  • Transparency: PptxGenJS scale is 0-100 (0=opaque, 100=transparent)
+  • Fonts: Georgia, Calibri (standard Microsoft Office fonts)
+  • No images, only vector shapes and text
+  • Slide order: This is slide 5 in presentation deck
+  • Master slide: Uses CUSTOM layout (10" × 5.625")
+
+
+DESIGN RATIONALE
+═════════════════
+
+  ✓ Three equal-width cards promote fair comparison
+  ✓ Flow strip adds visual connection and system context
+  ✓ Glass transparency differentiates from solid design patterns
+  ✓ Color-coded accent bars enable instant persona recognition
+  ✓ Light background (#F8F9FA) contrasts with white cards
+  ✓ Structured content rows (Who/Goal/Value) enable quick scanning
+  ✓ Uniform spacing (0.8" margins) creates visual stability
+  ✓ Different from P1 (asymmetric), P2 (radial), P3 (grid)
+
+

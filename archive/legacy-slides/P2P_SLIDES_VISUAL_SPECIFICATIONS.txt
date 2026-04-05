@@ -1,0 +1,493 @@
+═══════════════════════════════════════════════════════════════════════════════
+P2P SLIDES (7 & 8) - LIQUID GLASS AESTHETIC VISUAL SPECIFICATIONS
+Layout Diagrams and Component Positioning
+═══════════════════════════════════════════════════════════════════════════════
+
+CANVAS DIMENSIONS
+─────────────────────────────────────────────────────────────────────────────
+Width:    10.0" (1440px @ 96dpi)
+Height:   5.625" (810px @ 96dpi)
+Aspect:   16:9 (widescreen)
+DPI:      96 pixels/inch
+
+Top-Left Origin: (0, 0)
+Bottom-Right Corner: (10.0, 5.625)
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 7: NODE COMPLEMENTARITY - LAYOUT DIAGRAM
+═══════════════════════════════════════════════════════════════════════════════
+
+OVERVIEW (Front View):
+
+    0"         2.8"       5.6"       8.4"      10"
+    ├──────────┼──────────┼──────────┼─────┤
+   0├─────────────────────────────────────────────
+    │ BACKGROUND BLOB LAYER (5 colored circles + white veil)
+    │
+  1"├─ EDGE NODE ──┬─ ANCHOR NODE ──┬─ CLOUD NODE ─
+    │ [Glass Card] │  [Glass Card]  │ [Glass Card]
+    │              │                 │
+    │ Header:      │  Header:        │ Header:
+    │ C7D2FE       │  DDD6FE         │ BAE6FD
+    │ "Edge Node"  │  "Anchor Node"  │ "Cloud Node"
+    │              │                 │
+    │ Content:     │  Content:       │ Content:
+    │ • Features   │  • Features     │ • Features
+    │ • Respons.   │  • Respons.     │ • Respons.
+    │              │                 │
+  5"├──────────────┴─────────────────┴──────────
+    │ GRADIENT OVERLAY + REFRACTION STRIPS
+
+B L O B   P L A C E M E N T:
+
+    Indigo Blob (C7D2FE)     Purple Blob (DDD6FE)
+    x=-0.8, y=-0.5          x=8.2, y=-0.3
+    size=3.8"               size=3.2"
+    transp=68 (32% opaque)  transp=65 (35% opaque)
+        ╱╲                                    ╱╲
+       ╱  ╲        Blue Blob (BAE6FD)        ╱  ╲
+      ╱    ╲       x=3.5, y=1.8             ╱    ╲
+     ╱      ╲      size=3.0"               ╱      ╲
+     ╲      ╱      transp=72 (28%)         ╲      ╱
+      ╲    ╱             ∘                  ╲    ╱
+       ╲  ╱                                  ╲  ╱
+        ╲╱                                    ╲╱
+                   Yellow Blob
+                   x=7.5, y=4.2
+                   size=2.8"
+                   transp=70 (30%)
+    Pink Blob (FBCFE8)
+    x=0.5, y=4.5
+    size=2.5"
+    transp=66 (34%)
+
+C A R D   L A Y O U T:
+
+CARD 1: EDGE NODE
+┌─────────────────────────────┐
+│ Header (C7D2FE @ 18%)       │  0.35" height
+├─────────────────────────────┤
+│ [5-Layer Glass Rendering]   │
+│                             │
+│ Content Section 1:          │  3.65" of content
+│  • Key Features             │
+│  • libp2p WebWorker         │
+│  • Offline support          │
+│                             │
+│ Content Section 2:          │
+│  • Responsibilities         │
+│  • Local data storage       │
+│  • Subscribe to topics      │
+│                             │
+│ [Shimmer Highlight]         │
+└─────────────────────────────┘
+x=0.5, y=1.0, w=2.8", h=4.0"
+
+CARD 2 & 3: (Same structure, different x positions and header colors)
+
+C O N N E C T I O N   E L E M E N T S:
+
+    Edge Node          Anchor Node        Cloud Node
+    ▌                  ▌                  ▌
+    │                  │                  │
+    │                  │                  │
+    │        →         │        →         │
+    │     (Line)       │     (Line)       │
+    │     (Arrow)      │     (Arrow)      │
+    │                  │                  │
+    ▌                  ▌                  ▌
+
+Line 1: x=3.3, y=2.8, w=0.3", h=0.08", color=C7D2FE, transp=40, rotate=-5°
+Arrow 1: x=3.5, y=2.7, text="→", color=BAE6FD, transp=40
+Line 2: x=6.4, y=2.8, w=0.3", h=0.08", color=DDD6FE, transp=40, rotate=5°
+Arrow 2: x=6.6, y=2.7, text="→", color=FDE68A, transp=40
+
+G R A D I E N T   O V E R L A Y:
+
+Canvas divided into 4 zones (left → right progression):
+┌──────────┬──────────┬──────────┬──────────┐
+│ transp   │ transp   │ transp   │ transp   │
+│    95    │    92    │    90    │    88    │
+│ (5%)     │ (8%)     │ (10%)    │ (12%)    │
+└──────────┴──────────┴──────────┴──────────┘
+    2.5"      2.5"      2.5"      2.5"
+
+Effect: Creates subtle visual flow from left (light) to right (slightly darker)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 8: SYNC PROTOCOL - LAYOUT DIAGRAM
+═══════════════════════════════════════════════════════════════════════════════
+
+OVERVIEW (Front View):
+
+    0"    3"          6"     7.2"     10"
+    ├─────┼──────────┼──────┼────────┤
+   0├───────────────────────────────────────
+    │ BACKGROUND BLOB LAYER (5 colored circles + white veil)
+    │
+  1"├─ GOSSIPSUB ─┬─ BOOTSTRAP ─┐ OVERVIEW
+    │   PROTOCOL  │   PROCESS   │ CARD
+    │             │             │ (Full
+    │ [Card1]     │ [Card3]     │ Height)
+    │             │             │
+  3"├─ CONSISTENCY ┬─ LIBP2P ────┤
+    │   & CONFLICT │  + HELIA    │
+    │             │             │
+    │ [Card2]     │ [Card4]     │
+  5"├─────────────┴─────────────┘
+    │ SEPARATORS + GLASS BADGES
+
+
+B L O B   P L A C E M E N T:
+
+    Purple Blob (DDD6FE)      Blue Blob (BAE6FD)
+    x=-1.0, y=-0.7           x=8.5, y=-0.2
+    size=3.5"                size=3.0"
+    transp=67 (33%)          transp=70 (30%)
+        ╱╲                                   ╱╲
+       ╱  ╲      Indigo Blob (C7D2FE)      ╱  ╲
+      ╱    ╲     x=3.0, y=1.5             ╱    ╲
+     ╱      ╲    size=3.2"               ╱      ╲
+     ╲      ╱    transp=68 (32%)         ╲      ╱
+      ╲    ╱           ∘                  ╲    ╱
+       ╲  ╱                                ╲  ╱
+        ╲╱                                  ╲╱
+                  Yellow Blob
+                  x=5.5, y=4.0
+                  size=2.9"
+                  transp=72 (28%)
+    Pink Blob (FBCFE8)
+    x=0.2, y=4.3
+    size=2.4"
+    transp=65 (35%)
+
+C A R D   L A Y O U T:
+
+LEFT COLUMN (3.0" × layout):
+
+┌─────────────────────────────┐
+│ GOSSIPSUB PROTOCOL          │  2.2"
+├─────────────────────────────┤
+│ [5-Layer Glass]             │
+│ Topics:                     │
+│ • weavenyc/posts            │
+│ • weavenyc/reports          │
+│ • weavenyc/announcements    │
+│                             │
+│ Event Envelope Structure:   │
+│ event_id | type | actor ... │
+└─────────────────────────────┘
+x=0.5, y=1.0
+
+┌─────────────────────────────┐
+│ CONSISTENCY & CONFLICT      │  1.9"
+├─────────────────────────────┤
+│ [5-Layer Glass]             │
+│ 1. Event Dedup (UUIDv7)     │
+│ 2. Post Versioning (CID)    │
+│ 3. Conflict Resolution      │
+│ 4. Tombstone Deletion       │
+└─────────────────────────────┘
+x=0.5, y=3.4
+
+CENTER COLUMN (3.0" × layout):
+
+┌─────────────────────────────┐
+│ BOOTSTRAP PROCESS           │  2.2"
+├─────────────────────────────┤
+│ [5-Layer Glass]             │
+│ 1. Connect to Anchor        │
+│ 2. Pull snapshot (CIDs)     │
+│ 3. Subscribe GossipSub      │
+│ 4. Incremental sync         │
+│ 5. Full participation       │
+└─────────────────────────────┘
+x=3.9, y=1.0
+
+┌─────────────────────────────┐
+│ LIBP2P + HELIA              │  1.9"
+├─────────────────────────────┤
+│ [5-Layer Glass]             │
+│ • Distributed peer network  │
+│ • IPFS integration          │
+│ • Content-addressed storage │
+│ • Decentralized backbone    │
+└─────────────────────────────┘
+x=3.9, y=3.4
+
+RIGHT COLUMN (2.6" × full):
+
+┌─────────────────────────────┐
+│ FULL SYSTEM OVERVIEW        │  4.3"
+├─────────────────────────────┤
+│ [5-Layer Glass - Full Ht]   │
+│                             │
+│ All nodes connect via       │
+│ libp2p GossipSub,           │
+│ maintaining eventual        │
+│ consistency through:        │
+│                             │
+│ • Versioning               │
+│ • Deduplication            │
+│ • Anchor-governed          │
+│   conflict resolution      │
+│                             │
+│ [Creates cohesive narrative]│
+└─────────────────────────────┘
+x=7.2, y=1.0
+
+S E P A R A T O R S:
+
+HORIZONTAL SEPARATOR (divides top & bottom-left sections):
+┌────────────────────┐
+│                    │
+│ GOSSIPSUB          │
+│ (top-left)         │
+├────────────────────┤  ← x=0.4, y=3.2, w=9.2", h=0.06"
+│                    │
+│ CONSISTENCY        │
+│ (bottom-left)      │
+└────────────────────┘
+
+VERTICAL SEPARATOR (divides center & right sections):
+│    BOOTSTRAP/     │ OVER │
+│    LIBP2P         │ VIEW │
+│ (left-center)    │(right)│
+                    ↑
+            x=7.0, y=1.0
+            w=0.04", h=4.3"
+
+G L A S S   B A D G E S:
+
+Three topic badges in header area:
+
+┌─────────┐  ┌─────────┐  ┌─────────┐
+│  Posts  │  │ Reports │  │Announce │
+└─────────┘  └─────────┘  └─────────┘
+   C7D2FE      DDD6FE       BAE6FD
+   x=0.8       x=2.2        x=3.6
+   y=0.3       y=0.3        y=0.3
+   w=1.2"      w=1.2"       w=1.2"
+   h=0.28"     h=0.28"      h=0.28"
+   transp=25   transp=25    transp=25
+
+G R A D I E N T   O V E R L A Y:
+
+Same as Slide 7:
+┌──────────┬──────────┬──────────┬──────────┐
+│ transp95 │ transp92 │ transp90 │ transp88 │
+│ (light)  │          │          │ (darker) │
+└──────────┴──────────┴──────────┴──────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+5-LAYER GLASS CARD - DETAILED SECTION VIEW
+═══════════════════════════════════════════════════════════════════════════════
+
+CROSS-SECTION (Side View - Not to Scale):
+
+Layer 1 (Outer Glow - Shadow effect):
+┌─────────────────────────────────────┐
+│ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ ← blur=18, offset y=6
+│ ░ (Shadow extends from card)       ░ │
+├─────────────────────────────────────┤
+
+Layer 2 (Main Glass Body):
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ← color=FFFFFF, transp=50
+│▓ (50% opaque white glass fill)     ▓│ ← KEY LAYER
+├─────────────────────────────────────┤
+
+Layer 3 (Glass Border):
+│╔═════════════════════════════════════╗ ← color=FFFFFF, width=1.5pt
+│║ (55% opaque white border)           ║ ← transp=45
+├─────────────────────────────────────┤
+
+Layer 4 (Top-Edge Light Catch):
+│ ─────────────────────────────────── ← (thin strip) transp=70 (30% opaque)
+│▓                                    ▓│ ← Light refraction effect
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+├─────────────────────────────────────┤
+
+Layer 5 (Inner Shimmer - Bottom):
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+│ ─────────────────────────────────── ← (thin strip) transp=55 (45% opaque)
+│║ (Bottom glow - inner shimmer)      ║ ← Subtle bottom accent
+└─────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+EXACT POSITIONING REFERENCE GRID
+═══════════════════════════════════════════════════════════════════════════════
+
+SLIDE 7: NODE COMPLEMENTARITY
+
+Element              Position (x, y)    Size (w, h)      Color
+────────────────────────────────────────────────────────────────────────────
+Blob 1 (Indigo)      (-0.8, -0.5)       3.8" × 3.8"      C7D2FE
+Blob 2 (Purple)      (8.2, -0.3)        3.2" × 3.2"      DDD6FE
+Blob 3 (Blue)        (3.5, 1.8)         3.0" × 3.0"      BAE6FD
+Blob 4 (Yellow)      (7.5, 4.2)         2.8" × 2.8"      FDE68A
+Blob 5 (Pink)        (0.5, 4.5)         2.5" × 2.5"      FBCFE8
+White Veil           (0, 0)             10" × 5.625"     FFFFFF
+
+Edge Node Card       (0.5, 1.0)         2.8" × 4.0"      FFFFFF/C7D2FE
+Anchor Node Card     (3.6, 1.0)         2.8" × 4.0"      FFFFFF/DDD6FE
+Cloud Node Card      (6.7, 1.0)         2.8" × 4.0"      FFFFFF/BAE6FD
+
+Connection Line 1    (3.3, 2.8)         0.3" × 0.08"     C7D2FE
+Arrow 1              (3.5, 2.7)         0.2" × 0.2"      BAE6FD
+Connection Line 2    (6.4, 2.8)         0.3" × 0.08"     DDD6FE
+Arrow 2              (6.6, 2.7)         0.2" × 0.2"      FDE68A
+
+Gradient Zone 1      (0, 0)             2.5" × 5.625"    FFFFFF (transp=95)
+Gradient Zone 2      (2.5, 0)           2.5" × 5.625"    FFFFFF (transp=92)
+Gradient Zone 3      (5.0, 0)           2.5" × 5.625"    FFFFFF (transp=90)
+Gradient Zone 4      (7.5, 0)           2.5" × 5.625"    FFFFFF (transp=88)
+
+────────────────────────────────────────────────────────────────────────────
+
+SLIDE 8: SYNC PROTOCOL
+
+Element              Position (x, y)    Size (w, h)      Color
+────────────────────────────────────────────────────────────────────────────
+Blob 1 (Purple)      (-1.0, -0.7)       3.5" × 3.5"      DDD6FE
+Blob 2 (Blue)        (8.5, -0.2)        3.0" × 3.0"      BAE6FD
+Blob 3 (Indigo)      (3.0, 1.5)         3.2" × 3.2"      C7D2FE
+Blob 4 (Yellow)      (5.5, 4.0)         2.9" × 2.9"      FDE68A
+Blob 5 (Pink)        (0.2, 4.3)         2.4" × 2.4"      FBCFE8
+White Veil           (0, 0)             10" × 5.625"     FFFFFF
+
+GossipSub Card       (0.5, 1.0)         3.0" × 2.2"      FFFFFF/DDD6FE
+Consistency Card     (0.5, 3.4)         3.0" × 1.9"      FFFFFF/C7D2FE
+Bootstrap Card       (3.9, 1.0)         3.0" × 2.2"      FFFFFF/FDE68A
+libp2p Card          (3.9, 3.4)         3.0" × 1.9"      FFFFFF/FBCFE8
+Overview Card        (7.2, 1.0)         2.6" × 4.3"      FFFFFF/BAE6FD
+
+H-Separator          (0.4, 3.2)         9.2" × 0.06"     FFFFFF (transp=60)
+V-Separator          (7.0, 1.0)         0.04" × 4.3"     FFFFFF (transp=65)
+
+Badge 1 (Posts)      (0.8, 0.3)         1.2" × 0.28"     C7D2FE
+Badge 2 (Reports)    (2.2, 0.3)         1.2" × 0.28"     DDD6FE
+Badge 3 (Announce)   (3.6, 0.3)         1.2" × 0.28"     BAE6FD
+
+Gradient Zone 1      (0, 0)             2.5" × 5.625"    FFFFFF (transp=95)
+Gradient Zone 2      (2.5, 0)           2.5" × 5.625"    FFFFFF (transp=92)
+Gradient Zone 3      (5.0, 0)           2.5" × 5.625"    FFFFFF (transp=90)
+Gradient Zone 4      (7.5, 0)           2.5" × 5.625"    FFFFFF (transp=88)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+TRANSPARENCY LAYERS - VISUAL HIERARCHY
+═══════════════════════════════════════════════════════════════════════════════
+
+Background Blobs (Most transparent):
+    C7D2FE, DDD6FE, BAE6FD, FDE68A, FBCFE8
+    Transparency: 62-72 (28-38% opaque)
+    Effect: Subtle, background elements
+
+    ↓
+
+Gradient Overlay Zones:
+    FFFFFF transp: 88-95 (5-12% opaque)
+    Effect: Subtle directional flow
+
+    ↓
+
+Glass Card Bodies (Medium-High opacity):
+    FFFFFF transp: 50 (50% opaque) ← KEY LAYER
+    Effect: Readable, glass appearance
+
+    ↓
+
+Header Bands (High opacity):
+    Color: C7D2FE, DDD6FE, BAE6FD, FDE68A, FBCFE8
+    Transparency: 18 (82% opaque)
+    Effect: Strong color identity
+
+    ↓
+
+Text/Content (Fully opaque):
+    Color: varies by context
+    Transparency: 0 (100% opaque)
+    Effect: Maximum readability
+
+
+═══════════════════════════════════════════════════════════════════════════════
+COLOR FIELD DISTRIBUTION
+═══════════════════════════════════════════════════════════════════════════════
+
+SLIDE 7: NODE COMPLEMENTARITY
+
+                    10"
+        ┌────────────────────┐
+        │   Blob: C7D2FE     │ 3.8"
+        │   (Indigo -        │
+        │    Edge)           │
+      0 │                    │ Blob: DDD6FE (Purple - Anchor)
+        │                    │      DDD6FE        BAE6FD
+        │   C7D2FE           │   (Anchor)         (Cloud)
+        │ ╭─────────────────╮│
+      1 │ │   ╭──────╮      ││  ╭──────╮
+        │ │   │EDGE  │      ││  │CLOUD │
+        │ │   │NODE  │  BAE6││  │NODE  │
+        │ │ ╭─┤▼─────┼──────┼─┤──┤─────┤
+      2 │ │ │ │►────►│▼     │ │  │     │
+        │ │ │ │      │      │ │  │     │
+    .625│ │ │ └──────┘   DDD│ │  └─────┘
+      3 │ │ │      FDE68A  │ │ FBCFE8  │
+        │ │ │     (Yellow) │ │ (Pink)  │
+      4 │ │ └──────────────┼─┤─────────┘
+        │ │                │ │
+      5 │ │ FBCFE8         │ │  FDE68A  │
+    .625│ │ (Pink)         │ │ (Yellow) │
+        └─┴────────────────┘─┴──────────┘
+        0              5"           10"
+
+Color zones show blob influence on card backgrounds
+
+
+SLIDE 8: SYNC PROTOCOL
+
+                    10"
+        ┌────────────────────────┐
+        │ DDD6FE    │   BAE6FD    │
+        │ (Purple)  │   (Blue)    │
+      0 │  GossipSub│             │ Overview
+        │           │ Bootstrap   │ Card
+      1 │  ┌─────┐  │  ┌─────┐    │ BAE6FD
+        │  │CARD1│  │  │CARD3│ ┌──┤─────┐
+      2 │  │     │  │  │     │ │  │      │
+        │  └─────┘  │  └─────┘ │  │      │
+        │           │          │  │      │
+    .625│  ┌─────┐  │  ┌─────┐ │  │      │
+      3 │  │CARD2│  │  │CARD4│ │  │      │
+        │  │     │  │  │     │ │  │      │
+      4 │  └─────┘  │  └─────┘ │  │      │
+        │           │          └──┤──────┘
+      5 │ C7D2FE    │  FDE68A     │FBCFE8
+    .625│ (Indigo)  │  (Yellow)   │(Pink)
+        └───────────┴────────────┬┴───────┘
+        0      3"      6"       7.2"    10"
+
+Color zones show distributed color palette
+
+
+═══════════════════════════════════════════════════════════════════════════════
+NEXT STEPS FOR VISUAL VERIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+1. PRINT this document and overlay on current slides
+2. MEASURE each card position with ruler (scale: 1/2" = actual position)
+3. VERIFY blob placement using grid overlay
+4. CHECK transparency rendering on different monitors
+5. COMPARE shadow effects with Slide 4 (approved version)
+6. TEST color contrast for text readability
+7. VALIDATE gradient flow from left to right
+8. CONFIRM all separators and connectors are visible but subtle
+
+═══════════════════════════════════════════════════════════════════════════════
+Version 1.0 | March 5, 2026

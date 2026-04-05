@@ -1,0 +1,46 @@
+%% WeaveNYC — User Identity Level State Machine
+%% Source: 18_Auth_Design.md §2
+
+stateDiagram-v2
+    [*] --> L0_Guest : First app open
+
+    state L0_Guest {
+        [*] --> guest_browsing
+        guest_browsing : Level 0 Guest
+        guest_browsing : Can browse official resources
+        guest_browsing : Can view public posts
+        guest_browsing : Cannot post or contact
+    }
+
+    state L1_Anonymous {
+        [*] --> anon_active
+        anon_active : Level 1 Anonymous
+        anon_active : Can post Request/Offer
+        anon_active : Can view match results
+        anon_active : Must verify before contact/chat
+        anon_active : Cannot access Anchor admin
+        anon_active : Device-bound Ed25519 key
+    }
+
+    state L2_Verified {
+        [*] --> verified_active
+        verified_active : Level 2 Verified
+        verified_active : All user features
+        verified_active : Priority match ranking
+        verified_active : Can serve as witness
+        verified_active : Phone/Email hash stored
+    }
+
+    state L3_Anchor {
+        [*] --> anchor_active
+        anchor_active : Level 3 Anchor Admin
+        anchor_active : Review posts/reports
+        anchor_active : Publish announcements
+        anchor_active : Configure community rules
+        anchor_active : Mandatory MFA TOTP
+    }
+
+    L0_Guest --> L1_Anonymous : Click Post or Contact
+    L1_Anonymous --> L2_Verified : Phone OTP verification
+    L2_Verified --> L3_Anchor : Anchor invite + TOTP setup
+    L0_Guest --> L2_Verified : Direct phone registration

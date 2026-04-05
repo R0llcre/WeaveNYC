@@ -1,0 +1,49 @@
+%% WeaveNYC — User Identity Level State Machine
+%% Source: 18_Auth_Design.md §2
+
+stateDiagram-v2
+    [*] --> L0_Guest : 首次打开 App
+
+    L0_Guest --> L1_Anonymous : 点击"发帖"或"联系"\n系统自动创建匿名会话\n（POST /v1/auth/anonymous）
+
+    L1_Anonymous --> L2_Verified : 手机 OTP 验证\n（POST /v1/auth/otp/verify）\n或邮箱 Magic Link
+
+    L2_Verified --> L3_Anchor : 收到 Anchor 邀请码\n+ 设置 TOTP\n+ 绑定社区组织
+
+    L0_Guest --> L2_Verified : 直接手机号注册\n跳过匿名阶段
+
+    note right of L0_Guest
+        Level 0：匿名访客
+        ─────────────────
+        ✓ 浏览官方资源
+        ✓ 查看公开帖子
+        ✗ 不能发帖/联系
+    end note
+
+    note right of L1_Anonymous
+        Level 1：匿名账户
+        ─────────────────
+        ✓ 发帖（Request/Offer）
+        ✓ 查看匹配结果
+        ✗ 联系/进入聊天前需先完成验证
+        ✗ 不能进 Anchor 管理
+        ◎ 设备绑定的 Ed25519 密钥
+    end note
+
+    note right of L2_Verified
+        Level 2：已验证账户
+        ─────────────────
+        ✓ 全部用户功能
+        ✓ 优先匹配排序
+        ✓ 可担任社区见证人
+        ◎ 手机号/邮箱 Hash 存储
+    end note
+
+    note right of L3_Anchor
+        Level 3：Anchor 管理员
+        ─────────────────
+        ✓ 审核帖子/举报
+        ✓ 发布社区公告
+        ✓ 配置社区规则
+        ◎ 强制 MFA（TOTP）
+    end note

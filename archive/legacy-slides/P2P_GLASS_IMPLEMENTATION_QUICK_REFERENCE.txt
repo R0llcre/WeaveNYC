@@ -1,0 +1,358 @@
+═══════════════════════════════════════════════════════════════════════════════
+P2P SLIDES (7 & 8) - LIQUID GLASS AESTHETIC
+Quick Reference Implementation Guide
+═══════════════════════════════════════════════════════════════════════════════
+
+COLOR PALETTE
+─────────────────────────────────────────────────────────────────────────────
+C7D2FE (Indigo)   - Transparency 62-72  | Edge Nodes, Consistency
+DDD6FE (Purple)   - Transparency 62-72  | Anchor Nodes, GossipSub
+BAE6FD (Blue)     - Transparency 62-72  | Cloud/P2P Layer, Technical
+FDE68A (Yellow)   - Transparency 62-72  | Activity, Bootstrap Process
+FBCFE8 (Pink)     - Transparency 62-72  | Community, Conflict Resolution
+
+HEADER BAND COLORS (All at transparency 18 = 82% opaque)
+─────────────────────────────────────────────────────────────────────────────
+Edge Node     → C7D2FE (Indigo)
+Anchor Node   → DDD6FE (Purple)
+Cloud Node    → BAE6FD (Blue)
+GossipSub     → DDD6FE (Purple)
+Bootstrap     → FDE68A (Yellow)
+Consistency   → C7D2FE (Indigo)
+libp2p+Helia  → FBCFE8 (Pink)
+Overview      → BAE6FD (Blue)
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 7: NODE COMPLEMENTARITY - EXACT SPECIFICATIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+BACKGROUND BLOBS (5 Total)
+─────────────────────────────────────────────────────────────────────────────
+Blob 1: x=-0.8,  y=-0.5,  size=3.8"  color=C7D2FE  transp=68  [Edge Layer]
+Blob 2: x=8.2,   y=-0.3,  size=3.2"  color=DDD6FE  transp=65  [Anchor]
+Blob 3: x=3.5,   y=1.8,   size=3.0"  color=BAE6FD  transp=72  [P2P]
+Blob 4: x=7.5,   y=4.2,   size=2.8"  color=FDE68A  transp=70  [Activity]
+Blob 5: x=0.5,   y=4.5,   size=2.5"  color=FBCFE8  transp=66  [Community]
+
+CONTENT CARDS (3 Cards, Left-to-Right)
+─────────────────────────────────────────────────────────────────────────────
+
+CARD 1: EDGE NODE (Left)
+  Position:   x=0.5,  y=1.0,  w=2.8",  h=4.0"
+  Header:     "Edge Node" | C7D2FE | transp=18
+  Subtext:    "PWA / Browser" | gray italic
+  Layers:     5-layer glass pattern (see below)
+  Sections:   Key Features | Responsibilities | Tech Details
+
+CARD 2: ANCHOR NODE (Center)
+  Position:   x=3.6,  y=1.0,  w=2.8",  h=4.0"
+  Header:     "Anchor Node" | DDD6FE | transp=18
+  Subtext:    "Community Organization (Node.js)" | gray italic
+  Layers:     5-layer glass pattern
+  Sections:   Key Features | Responsibilities | Tech Details
+
+CARD 3: CLOUD NODE (Right)
+  Position:   x=6.7,  y=1.0,  w=2.8",  h=4.0"
+  Header:     "Cloud Node" | BAE6FD | transp=18
+  Subtext:    "Cloud Backup & Relay" | gray italic
+  Layers:     5-layer glass pattern
+  Sections:   Key Features | Responsibilities | Integration
+
+CONNECTING ELEMENTS
+─────────────────────────────────────────────────────────────────────────────
+Line 1 (Edge→Anchor):  x=3.3,  y=2.8,  w=0.3",  h=0.08"  color=C7D2FE  transp=40
+Line 2 (Anchor→Cloud): x=6.4,  y=2.8,  w=0.3",  h=0.08"  color=DDD6FE  transp=40
+Arrow 1:               x=3.5,  y=2.7,  text="→"  color=BAE6FD  transp=40
+Arrow 2:               x=6.6,  y=2.7,  text="→"  color=FDE68A  transp=40
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 8: SYNC PROTOCOL - EXACT SPECIFICATIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+BACKGROUND BLOBS (5 Total)
+─────────────────────────────────────────────────────────────────────────────
+Blob 1: x=-1.0,  y=-0.7,  size=3.5"  color=DDD6FE  transp=67  [GossipSub]
+Blob 2: x=8.5,   y=-0.2,  size=3.0"  color=BAE6FD  transp=70  [Propagation]
+Blob 3: x=3.0,   y=1.5,   size=3.2"  color=C7D2FE  transp=68  [Consistency]
+Blob 4: x=5.5,   y=4.0,   size=2.9"  color=FDE68A  transp=72  [Velocity]
+Blob 5: x=0.2,   y=4.3,   size=2.4"  color=FBCFE8  transp=65  [Conflict]
+
+CONTENT CARDS (4 Cards in Grid)
+─────────────────────────────────────────────────────────────────────────────
+
+CARD 1: GOSSIPSUB EVENT PROTOCOL (Top-Left)
+  Position:   x=0.5,  y=1.0,  w=3.0",  h=2.2"
+  Header:     "GossipSub Event Protocol" | DDD6FE | transp=18
+  Layers:     5-layer glass pattern
+  Content:    Topics + Event Envelope structure
+
+CARD 2: CONSISTENCY & CONFLICT RESOLUTION (Bottom-Left)
+  Position:   x=0.5,  y=3.4,  w=3.0",  h=1.9"
+  Header:     "Consistency & Conflict Resolution" | C7D2FE | transp=18
+  Layers:     5-layer glass pattern
+  Content:    Event Dedup, Versioning, Conflict, Tombstone
+
+CARD 3: BOOTSTRAP PROCESS (Top-Right, Inner)
+  Position:   x=3.9,  y=1.0,  w=3.0",  h=2.2"
+  Header:     "Bootstrap Process" | FDE68A | transp=18
+  Layers:     5-layer glass pattern
+  Content:    New peer → Anchor → Snapshot → Subscribe → Sync
+
+CARD 4: LIBP2P + HELIA (Bottom-Right, Inner)
+  Position:   x=3.9,  y=3.4,  w=3.0",  h=1.9"
+  Header:     "libp2p + Helia" | FBCFE8 | transp=18
+  Layers:     5-layer glass pattern
+  Content:    Technical foundation & IPFS integration
+
+CARD 5: FULL SYSTEM OVERVIEW (Far-Right, Full Height)
+  Position:   x=7.2,  y=1.0,  w=2.6",  h=4.3"
+  Header:     "Full System Overview" | BAE6FD | transp=18
+  Layers:     5-layer glass pattern
+  Content:    Integration narrative (all pieces connecting)
+
+SEPARATORS
+─────────────────────────────────────────────────────────────────────────────
+Horizontal:  x=0.4,  y=3.2,  w=9.2",  h=0.06"  color=FFFFFF  transp=60
+Vertical:    x=7.0,  y=1.0,  w=0.04", h=4.3"  color=FFFFFF  transp=65
+
+═══════════════════════════════════════════════════════════════════════════════
+5-LAYER GLASS CARD PATTERN (Standard Template)
+═══════════════════════════════════════════════════════════════════════════════
+
+For any card at position (x, y) with dimensions (w, h):
+
+LAYER 1: OUTER GLOW HALO
+────────────────────────
+Position:     x-0.08,  y-0.08
+Size:         w+0.16,  h+0.16
+Fill:         NONE
+Shadow:       type='outer' | color='000000' | blur=18
+              offset={x:0, y:6} | angle=135 | opacity=0.05
+
+LAYER 2: MAIN GLASS BODY
+────────────────────────
+Position:     x,  y
+Size:         w,  h
+Fill:         color='FFFFFF' | transparency=50  ◄── KEY (50% opaque)
+Border:       NONE
+Radius:       0.15"
+
+LAYER 3: GLASS BORDER DEFINITION
+────────────────────────────────
+Position:     x,  y
+Size:         w,  h
+Fill:         NONE
+Border:       color='FFFFFF' | width=1.5pt | transparency=45
+Radius:       0.15"
+
+LAYER 4: TOP-EDGE LIGHT CATCH (Refraction simulation)
+──────────────────────────────────────────────────────
+Position:     x+0.05,  y+0.05
+Size:         w-0.10,  h=0.12"
+Fill:         color='FFFFFF' | transparency=70
+Border:       NONE
+Radius:       0.15"
+
+LAYER 5: INNER SHIMMER HIGHLIGHT (Bottom glow)
+───────────────────────────────────────────────
+Position:     x+0.10,  y+(h-0.25)
+Size:         w-0.20,  h=0.08"
+Fill:         color='FFFFFF' | transparency=55
+Border:       NONE
+
+═══════════════════════════════════════════════════════════════════════════════
+TRANSPARENCY VALUE REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+Transparency Setting → Opacity %  → Visual Effect
+────────────────────────────────────────────────────────
+transp=18            → 82% opaque → Header bands (strong color)
+transp=25            → 75% opaque → Glass badges
+transp=40            → 60% opaque → Connectors
+transp=45            → 55% opaque → Card borders
+transp=50            → 50% opaque → Main glass body ◄── KEY
+transp=55            → 45% opaque → Shimmer highlight
+transp=60            → 40% opaque → Separators
+transp=62-72         → 28-38%     → Background blobs
+transp=65-72         → 28-35%     → Blob variations
+transp=70            → 30% opaque → Top light catch
+transp=80-93         → 7-20%      → Subtle overlays
+
+RULE: Never use decimals. Always use INTEGER only.
+  CORRECT:   transparency: 50
+  WRONG:     transparency: 0.50
+
+═══════════════════════════════════════════════════════════════════════════════
+GLASS BADGE TEMPLATE (For topic labels)
+═══════════════════════════════════════════════════════════════════════════════
+
+Position:     x,  y
+Size:         w=1.2",  h=0.28"
+Corner Radius: 0.14"
+
+Background (glass body):
+  Fill:      color=BADGE_COLOR | transparency=25 (75% opaque)
+
+Border (optional):
+  Color:     BADGE_COLOR
+  Width:     0.5pt
+  transp:    40
+
+Text:
+  Content:   badge label
+  Font:      Calibri 8pt Bold
+  Color:     BADGE_COLOR (same as fill)
+  Align:     center | middle
+
+Shadow (optional):
+  type:      'outer' | blur=8 | offset={x:0, y:2} | opacity=0.03
+
+═══════════════════════════════════════════════════════════════════════════════
+FROSTED GLASS SEPARATOR TEMPLATE
+═══════════════════════════════════════════════════════════════════════════════
+
+HORIZONTAL (divides top/bottom sections)
+─────────────────────────────────────────
+Position:     x=0.4,  y=3.2 (or desired y)
+Size:         w=9.2",  h=0.06"
+Fill:         color='FFFFFF' | transparency=60 (40% opaque)
+Border:       NONE
+
+VERTICAL (divides left/right sections)
+──────────────────────────────────────
+Position:     x=7.0 (or desired x),  y=1.0
+Size:         w=0.04",  h=4.3"
+Fill:         color='FFFFFF' | transparency=65 (35% opaque)
+Border:       NONE
+
+═══════════════════════════════════════════════════════════════════════════════
+LIGHT REFRACTION STRIPS (Optional Enhancement)
+═══════════════════════════════════════════════════════════════════════════════
+
+VERTICAL STRIP (Left edge of primary card)
+───────────────────────────────────────────
+Position:     x=0.65,  y=1.2
+Size:         w=0.08",  h=3.9"
+Fill:         color='FFFFFF' | transparency=75 (25% opaque)
+
+HORIZONTAL STRIP (Top edge of card)
+────────────────────────────────────
+Position:     x=0.5,  y=1.05
+Size:         w=2.9",  h=0.06"
+Fill:         color='FFFFFF' | transparency=80 (20% opaque)
+
+═══════════════════════════════════════════════════════════════════════════════
+GRADIENT OVERLAY (Left-to-Right Flow)
+═══════════════════════════════════════════════════════════════════════════════
+
+Divide canvas into 4 zones (each 2.5" wide):
+
+Zone 1 (x=0-2.5"):      color='FFFFFF' | transp=95 (5% opaque, very light)
+Zone 2 (x=2.5-5.0"):    color='FFFFFF' | transp=92 (8% opaque, light)
+Zone 3 (x=5.0-7.5"):    color='FFFFFF' | transp=90 (10% opaque, medium)
+Zone 4 (x=7.5-10.0"):   color='FFFFFF' | transp=88 (12% opaque, darker)
+
+Effect: Subtle increase in opacity from left to right creates visual flow
+
+═══════════════════════════════════════════════════════════════════════════════
+CONNECTING LINES & ARROWS (P2P Flow)
+═══════════════════════════════════════════════════════════════════════════════
+
+FORMAT: Rectangle with rotation + Text arrow
+
+Line 1 Properties:
+  Type:      prs.ShapeType.rect
+  Position:  x, y
+  Size:      w (short) | h (thin, ~0.08")
+  Color:     Derived from source node
+  Transp:    40 (60% opaque for visibility)
+  Rotate:    -5 to +5 degrees for diagonal flow
+
+Arrow Text:
+  Glyph:     "→" (U+2192 RIGHT ARROW)
+  Position:  offset by +0.1-0.2"
+  Font:      Calibri or Segoe
+  Size:      14pt
+  Color:     Complementary to line
+  Transp:    40
+
+═══════════════════════════════════════════════════════════════════════════════
+APPROVED SHADOW FORMAT
+═══════════════════════════════════════════════════════════════════════════════
+
+Standard shadow for glass halos:
+{
+  type: 'outer',
+  color: '000000',        ◄── Black shadow
+  blur: 18,               ◄── Blur radius in points
+  offset: { x: 0, y: 6 }, ◄── Vertical offset downward
+  angle: 135,             ◄── Angle in degrees (bottom-right)
+  opacity: 0.05           ◄── Very subtle (5% of black)
+}
+
+Subtle shadow for badges:
+{
+  type: 'outer',
+  color: '000000',
+  blur: 8,
+  offset: { x: 0, y: 2 },
+  angle: 135,
+  opacity: 0.03
+}
+
+═══════════════════════════════════════════════════════════════════════════════
+IMPLEMENTATION CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+SLIDE 7: NODE COMPLEMENTARITY
+─────────────────────────────────────────────────────────────────────────────
+☐ Add 5 background blobs (x, y, size, color, transparency)
+☐ Apply white veil (transp=93)
+☐ Create Edge Node card (5 layers)
+☐ Create Anchor Node card (5 layers)
+☐ Create Cloud Node card (5 layers)
+☐ Add connection lines between nodes
+☐ Add directional arrows (→)
+☐ Apply gradient overlay
+☐ Add optional refraction strips
+☐ Test shadow rendering
+☐ Verify transparency across all elements
+
+SLIDE 8: SYNC PROTOCOL
+─────────────────────────────────────────────────────────────────────────────
+☐ Add 5 background blobs (x, y, size, color, transparency)
+☐ Apply white veil (transp=93)
+☐ Create GossipSub card (5 layers)
+☐ Create Bootstrap Process card (5 layers)
+☐ Create Consistency card (5 layers)
+☐ Create libp2p+Helia card (5 layers)
+☐ Create Overview card (5 layers, full height)
+☐ Add horizontal separator (transp=60)
+☐ Add vertical separator (transp=65)
+☐ Create topic glass badges (3-5 badges)
+☐ Apply gradient overlay
+☐ Test all transparency values
+☐ Verify visual flow and hierarchy
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMON MISTAKES TO AVOID
+═══════════════════════════════════════════════════════════════════════════════
+
+✗ Using transparency decimals (0.50 instead of 50)
+✗ Including "#" in color codes ('#C7D2FE' instead of 'C7D2FE')
+✗ Forgetting to add white veil overlay
+✗ Not layering all 5 glass components
+✗ Using wrong transparency for main body (must be exactly 50)
+✗ Positioning elements outside 10"×5.625" canvas
+✗ Inconsistent corner radius across cards
+✗ Shadow blur too high (obscures content)
+✗ Blobs with transparency too low (becomes opaque)
+✗ Text color not contrasting with background
+
+═══════════════════════════════════════════════════════════════════════════════
+VERSION HISTORY
+═══════════════════════════════════════════════════════════════════════════════
+v1.0   March 5, 2026   Initial specification based on Slide 4 approved pattern
+v1.1   [Pending]       Implementation notes and refinements after first pass
+
+═══════════════════════════════════════════════════════════════════════════════

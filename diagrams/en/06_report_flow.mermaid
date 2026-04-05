@@ -1,0 +1,25 @@
+%% WeaveNYC — Report and Moderation Flow
+%% Source: 07_P2P_Node_Design.md §4 Flow B
+
+sequenceDiagram
+    participant E1 as Reporter
+    participant A as Anchor Node<br/>(Community Admin)
+    participant E2 as Reported User
+
+    E1->>A: 1. Create report<br/>(post_id + reason + evidence_hash)
+    A->>A: 2. Enter review queue<br/>Prioritized (P0/P1/P2)
+
+    Note over A: P0 (Child safety/Violence/Scam): within 4h<br/>P1 (Harassment/Discrimination): within 24h<br/>P2 (Spam): within 72h
+
+    alt Decision: Remove / Ban
+        A->>A: 3a. moderation.decision (remove/ban)
+        A-->>E2: 3b. Notify: Content removed / Account frozen
+        A-->>E1: 3c. Notify: Report resolved
+    else Decision: Warning
+        A-->>E2: 3a. Notify: Warning + reason
+        A-->>E1: 3b. Notify: Report resolved
+    else Decision: Dismiss
+        A-->>E1: 3a. Notify: Report dismissed
+    end
+
+    A->>A: 4. Write to audit log

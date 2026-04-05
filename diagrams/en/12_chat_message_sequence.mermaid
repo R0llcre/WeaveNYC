@@ -1,0 +1,55 @@
+%% WeaveNYC — Chat Message Flow Sequence Diagram
+%% Source: 09_API_Spec.md §5 + 07_P2P_Node_Design.md §5.3
+
+sequenceDiagram
+    participant A as User A (Requester)
+    participant API as API Gateway
+    participant CHAT as Chat Service<br/>(WebSocket)
+    participant REDIS as Redis<br/>(Pub/Sub)
+    participant DB as PostgreSQL
+    participant B as User B (Helper)
+
+    Note over A,B: === 1. Create Contact Request (verified only) ===
+
+    A->>API: POST /v1/match/contact<br/>{ from_post_id, to_post_id }
+    API->>API: Verify auth level >= verified
+    API->>DB: Create ContactRequest<br/>status: pending
+    DB-->>API: contact_request_id
+    API-->>A: { contact_request_id,<br/>status: "pending" }
+    API->>REDIS: Publish notification<br/>channel: user:{B.id}
+    REDIS-->>B: Push Notification<br/>"Someone wants to connect"
+
+    Note over A,B: === 2. Accept Request and Open Conversation ===
+
+    B->>API: POST /v1/contact-requests/{id}/accept
+    API->>DB: Update ContactRequest<br/>status: accepted
+    API->>DB: Create Conversation<br/>participants: [A, B]<br/>contact_request_id
+    DB-->>API: conversation_id
+    API-->>B: { conversation_id,<br/>status: "accepted" }
+    API->>REDIS: Publish conversation.created
+    REDIS-->>A: "Your contact request was accepted"
+
+    Note over A,B: === 3. Real-Time Messaging (WebSocket) ===
+
+    A->>CHAT: WS Connect<br/>+ JWT Auth
+    B->>CHAT: WS Connect<br/>+ JWT Auth
+
+    A->>CHAT: Send Message<br/>{ conversation_id, body }
+    CHAT->>CHAT: Safety Detection<br/>(SSN/Phone/Address)
+
+    alt Sensitive info detected
+        CHAT-->>A: Warning: PII detected<br/>Please remove and resend
+    else Safety passed
+        CHAT->>DB: Store Message
+        CHAT->>REDIS: Publish<br/>channel: conv:{id}
+        REDIS-->>CHAT: Subscribe forward
+        CHAT-->>B: Real-time message received
+    end
+
+    Note over A,B: === 4. Close Conversation ===
+
+    A->>API: POST /v1/conversations/{id}/close
+    API->>DB: Update conversation status
+    API-->>A: OK
+    API->>REDIS: Notify B
+    REDIS-->>B: "Conversation closed"

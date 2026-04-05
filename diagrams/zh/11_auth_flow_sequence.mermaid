@@ -1,0 +1,37 @@
+%% WeaveNYC — 认证流程时序图
+%% 来源：18_Auth_Design.md §3 + 09_API_Spec.md §1
+
+sequenceDiagram
+    participant U as 用户 (PWA)
+    participant API as API 网关
+    participant DB as PostgreSQL
+    participant SMS as 短信服务商<br/>(Twilio)
+
+    Note over U,SMS: === 流程 A：匿名会话（30秒内获取价值）===
+
+    U->>API: POST /v1/auth/anonymous
+    API->>DB: 创建匿名用户记录<br/>(level = anonymous)
+    DB-->>API: user_id
+    API->>API: 签发 JWT (RS256)<br/>access_token (15min)<br/>refresh_token (7d)
+    API-->>U: { access_token,<br/>refresh_token,<br/>user }
+
+    Note over U,SMS: === 流程 B：手机号 OTP 升级为已验证 ===
+
+    U->>API: POST /v1/auth/otp/start<br/>{ phone: "+1516..." }
+    API->>API: 生成 6 位 OTP<br/>存入 Redis (TTL 5min)
+    API->>SMS: 发送 OTP 短信
+    SMS-->>U: 短信 "123456"
+    API-->>U: { challenge_id }
+
+    U->>API: POST /v1/auth/otp/verify<br/>{ challenge_id, code: "123456" }
+    API->>API: 校验 OTP
+    API->>DB: 更新 level 为 verified<br/>存储 phone_hash (SHA-256)
+    DB-->>API: OK
+    API->>API: 签发新 JWT<br/>(level: verified)
+    API-->>U: { access_token,<br/>refresh_token,<br/>user }
+
+    Note over U,SMS: === 流程 C：Token 刷新 ===
+
+    U->>API: POST /v1/auth/refresh<br/>{ refresh_token }
+    API->>API: 验证 refresh_token<br/>轮换：旧 token 失效
+    API-->>U: { new_access_token,<br/>new_refresh_token }

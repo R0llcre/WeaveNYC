@@ -1,0 +1,55 @@
+%% WeaveNYC — Chat Message Flow Sequence Diagram
+%% Source: 09_API_Spec.md §5 + 07_P2P_Node_Design.md §5.3
+
+sequenceDiagram
+    participant A as User A (Requester)
+    participant API as API Gateway
+    participant CHAT as Chat Service<br/>(WebSocket)
+    participant REDIS as Redis<br/>(Pub/Sub)
+    participant DB as PostgreSQL
+    participant B as User B (Helper)
+
+    Note over A,B: === 1. 发起联系请求（仅 verified） ===
+
+    A->>API: POST /v1/match/contact<br/>{ from_post_id, to_post_id }
+    API->>API: 校验身份 level >= verified
+    API->>DB: 创建 ContactRequest<br/>status: pending
+    DB-->>API: contact_request_id
+    API-->>A: { contact_request_id,<br/>status: "pending" }
+    API->>REDIS: 发布通知事件<br/>channel: user:{B.id}
+    REDIS-->>B: Push Notification<br/>"有人想联系你"
+
+    Note over A,B: === 2. 对方接受后创建会话 ===
+
+    B->>API: POST /v1/contact-requests/{id}/accept
+    API->>DB: 更新 ContactRequest<br/>status: accepted
+    API->>DB: 创建 Conversation<br/>participants: [A, B]<br/>contact_request_id
+    DB-->>API: conversation_id
+    API-->>B: { conversation_id,<br/>status: "accepted" }
+    API->>REDIS: 发布 conversation.created
+    REDIS-->>A: "你的联系请求已被接受"
+
+    Note over A,B: === 3. 实时消息（WebSocket） ===
+
+    A->>CHAT: WS Connect<br/>+ JWT Auth
+    B->>CHAT: WS Connect<br/>+ JWT Auth
+
+    A->>CHAT: Send Message<br/>{ conversation_id, body }
+    CHAT->>CHAT: 安全检测<br/>(SSN/电话/地址)
+
+    alt 检测到敏感信息
+        CHAT-->>A: Warning：检测到个人信息<br/>建议删除后重新发送
+    else 安全通过
+        CHAT->>DB: 存储 Message
+        CHAT->>REDIS: Publish<br/>channel: conv:{id}
+        REDIS-->>CHAT: Subscribe 转发
+        CHAT-->>B: 实时接收消息
+    end
+
+    Note over A,B: === 4. 关闭会话 ===
+
+    A->>API: POST /v1/conversations/{id}/close
+    API->>DB: 更新 Conversation 状态
+    API-->>A: OK
+    API->>REDIS: 通知 B
+    REDIS-->>B: "会话已关闭"

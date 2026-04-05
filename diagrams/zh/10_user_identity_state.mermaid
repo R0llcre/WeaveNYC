@@ -1,0 +1,46 @@
+%% WeaveNYC — 用户身份等级状态机
+%% 来源：18_Auth_Design.md §2
+
+stateDiagram-v2
+    [*] --> L0_Guest : 首次打开 App
+
+    state L0_Guest {
+        [*] --> guest_browsing
+        guest_browsing : Level 0 匿名访客
+        guest_browsing : 可浏览官方资源
+        guest_browsing : 可查看公开帖子
+        guest_browsing : 不能发帖或联系
+    }
+
+    state L1_Anonymous {
+        [*] --> anon_active
+        anon_active : Level 1 匿名账户
+        anon_active : 可发帖 Request/Offer
+        anon_active : 可查看匹配结果
+        anon_active : 联系/聊天前需先验证
+        anon_active : 不能进 Anchor 管理
+        anon_active : 设备绑定 Ed25519 密钥
+    }
+
+    state L2_Verified {
+        [*] --> verified_active
+        verified_active : Level 2 已验证账户
+        verified_active : 全部用户功能
+        verified_active : 优先匹配排序
+        verified_active : 可担任社区见证人
+        verified_active : 手机号/邮箱 Hash 存储
+    }
+
+    state L3_Anchor {
+        [*] --> anchor_active
+        anchor_active : Level 3 Anchor 管理员
+        anchor_active : 审核帖子/举报
+        anchor_active : 发布社区公告
+        anchor_active : 配置社区规则
+        anchor_active : 强制 MFA TOTP
+    }
+
+    L0_Guest --> L1_Anonymous : 点击发帖或联系
+    L1_Anonymous --> L2_Verified : 手机 OTP 验证
+    L2_Verified --> L3_Anchor : Anchor 邀请码 + TOTP
+    L0_Guest --> L2_Verified : 直接手机号注册

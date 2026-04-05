@@ -1,0 +1,25 @@
+%% WeaveNYC — Report & Moderation Flow: 举报与处置流程
+%% Source: 07_P2P_Node_Design.md §4 Flow B
+
+sequenceDiagram
+    participant E1 as Reporter<br/>(举报者)
+    participant A as Anchor Node<br/>(社区管理)
+    participant E2 as Target<br/>(被举报者)
+
+    E1->>A: 1. report.created<br/>(post_id + reason + evidence_hash)
+    A->>A: 2. 进入审核队列<br/>按优先级排序 (P0/P1/P2)
+
+    Note over A: P0 (儿童安全/暴力/诈骗): 4h 内处理<br/>P1 (骚扰/歧视): 24h 内处理<br/>P2 (垃圾信息): 72h 内处理
+
+    alt 决定: 下架/封禁
+        A->>A: 3a. moderation.decision (remove/ban)
+        A-->>E2: 3b. 通知: 内容已下架 / 账号已冻结
+        A-->>E1: 3c. 通知: 举报已处理
+    else 决定: 警告
+        A-->>E2: 3a. 通知: 警告 + 原因
+        A-->>E1: 3b. 通知: 举报已处理
+    else 决定: 驳回
+        A-->>E1: 3a. 通知: 举报不成立
+    end
+
+    A->>A: 4. 写入审计日志<br/>(event_type + ts + actor + community_id)

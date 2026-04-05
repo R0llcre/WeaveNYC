@@ -1,0 +1,29 @@
+%% WeaveNYC — 目标概念层：系统参与者与交互
+%% 来源：06_Blueprints.md §2.1
+
+flowchart LR
+  subgraph Users ["用户层"]
+    R[居民 App<br/>求助者]
+    H[帮助者 App<br/>提供者]
+  end
+
+  subgraph Community ["社区层"]
+    A[Anchor 节点<br/>+ 管理控制台]
+  end
+
+  subgraph Cloud ["云服务层"]
+    C[云端智能<br/>匹配 / 风控 / 通知]
+    D[(资源目录数据库<br/>官方资源)]
+  end
+
+  R <-->|帖子 / 匹配| A
+  H <-->|帖子 / 匹配| A
+  A <-->|同步 / 聚合| C
+  C <-->|读 / 写| D
+  D --> R
+
+  style R fill:#FFE0B2,stroke:#E65100
+  style H fill:#C8E6C9,stroke:#2E7D32
+  style A fill:#CE93D8,stroke:#6A1B9A
+  style C fill:#90CAF9,stroke:#1565C0
+  style D fill:#B0BEC5,stroke:#37474F

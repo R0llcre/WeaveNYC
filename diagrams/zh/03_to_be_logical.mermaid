@@ -1,0 +1,27 @@
+%% WeaveNYC — 目标逻辑层：服务与数据流
+%% 来源：06_Blueprints.md §2.2
+
+flowchart TB
+  UI[移动端 / PWA<br/>用户界面] --> LS[本地存储<br/>IndexedDB]
+  UI -->|创建帖子| APIGW[Anchor API<br/>社区网关]
+  APIGW --> MOD[审核队列<br/>内容审核]
+  APIGW --> IDX[社区索引<br/>帖子索引]
+  IDX --> MATCH[匹配引擎<br/>智能匹配]
+  MATCH --> APIGW
+  APIGW --> UI
+
+  ING[目录导入服务<br/>定时抓取] --> DIR[(资源数据库<br/>官方资源)]
+  DIR --> MATCH
+
+  UI -->|举报| REP[举报服务<br/>安全模块]
+  REP --> MOD
+
+  style UI fill:#FFE0B2,stroke:#E65100
+  style LS fill:#FFF9C4,stroke:#F9A825
+  style APIGW fill:#CE93D8,stroke:#6A1B9A
+  style MOD fill:#EF9A9A,stroke:#C62828
+  style IDX fill:#A5D6A7,stroke:#2E7D32
+  style MATCH fill:#90CAF9,stroke:#1565C0
+  style ING fill:#B0BEC5,stroke:#37474F
+  style DIR fill:#B0BEC5,stroke:#37474F
+  style REP fill:#EF9A9A,stroke:#C62828

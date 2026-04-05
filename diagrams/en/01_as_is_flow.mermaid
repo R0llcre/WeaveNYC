@@ -1,0 +1,15 @@
+%% WeaveNYC — As-Is Flow: How Residents Find Resources / Mutual Aid
+%% Source: 06_Blueprints.md §1.1
+
+flowchart LR
+  R[Resident<br/>Help Seeker] -->|search| P[Government Portals<br/>/ PDF Directories]
+  R -->|ask| W[WhatsApp / WeChat<br/>Social Groups]
+  H[Volunteer<br/>Helper] --> W
+  O[NGO / Church<br/>Community Org] -->|post info| P
+  P -->|listings| R
+
+  style R fill:#FFE0B2,stroke:#E65100
+  style H fill:#C8E6C9,stroke:#2E7D32
+  style O fill:#BBDEFB,stroke:#1565C0
+  style P fill:#F5F5F5,stroke:#616161
+  style W fill:#F5F5F5,stroke:#616161

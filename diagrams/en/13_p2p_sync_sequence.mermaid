@@ -1,0 +1,45 @@
+%% WeaveNYC — P2P Sync Flow Sequence Diagram
+%% Source: 07_P2P_Node_Design.md §5-6 + 08_Data_Model.md §1
+
+sequenceDiagram
+    participant E as Edge Node<br/>(PWA WebWorker)
+    participant A as Anchor Node<br/>(libp2p Full Node)
+    participant IPFS as Helia / IPFS<br/>(Content-Addressed)
+    participant C as Cloud<br/>(PostgreSQL Index)
+
+    Note over E,C: === 1. Edge Bootstrap and Node Discovery ===
+
+    E->>E: Generate Ed25519 key pair<br/>(per community, stored in IndexedDB)
+    E->>A: WebSocket connect<br/>libp2p Identify handshake
+    A-->>E: Return bootstrap node list
+    E->>A: Subscribe GossipSub topics<br/>weavenyc/{community_id}/posts<br/>weavenyc/{community_id}/announcements
+
+    Note over E,C: === 2. User Posts -> P2P Sync ===
+
+    E->>E: Create Post locally<br/>Store in IndexedDB
+    E->>E: Build PostSummaryDAG<br/>{ post_id, post_type, category,<br/>title_hash, location_zip,<br/>community_id, sig }
+
+    alt User opts in to sync
+        E->>A: GossipSub publish<br/>topic: weavenyc/{community_id}/posts<br/>event: post.published
+        A->>A: Verify signature (Ed25519)<br/>+ Rule engine check
+        A->>IPFS: Helia Pin<br/>Store PostSummaryDAG
+        IPFS-->>A: CID (content hash)
+        A->>C: REST API write to PostgreSQL<br/>post record + ipfs_cid
+        C-->>A: OK
+    else Local only
+        E->>E: Keep in IndexedDB<br/>Do not sync to network
+    end
+
+    Note over E,C: === 3. Other Edges Receive Updates ===
+
+    A->>E: GossipSub broadcast<br/>post.published event
+    E->>E: Verify signature<br/>Update local post_cache
+    E->>IPFS: Fetch full DAG on demand<br/>(via CID)
+    IPFS-->>E: PostSummaryDAG content
+
+    Note over E,C: === 4. Offline Recovery Sync ===
+
+    E->>E: Detect reconnection
+    E->>A: Request events after last_sync_ts
+    A-->>E: Incremental event list
+    E->>E: Batch update IndexedDB

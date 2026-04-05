@@ -1,0 +1,15 @@
+%% WeaveNYC — As-Is: 当前居民如何找资源/互助
+%% Source: 06_Blueprints.md §1.1
+
+flowchart LR
+  R[Resident<br/>求助者] -->|search| P[Portals / PDFs<br/>政府网站/PDF目录]
+  R -->|ask| W[WhatsApp / WeChat 群<br/>私域社交群]
+  H[Helper<br/>志愿者] --> W
+  O[NGO / Church<br/>社区组织] -->|post info| P
+  P -->|listings| R
+
+  style R fill:#FFE0B2,stroke:#E65100
+  style H fill:#C8E6C9,stroke:#2E7D32
+  style O fill:#BBDEFB,stroke:#1565C0
+  style P fill:#F5F5F5,stroke:#616161
+  style W fill:#F5F5F5,stroke:#616161

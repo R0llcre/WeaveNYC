@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+.DS_Store
+package-lock.json
+.env
+.env.local
+.env.*.local
+.next
+dist
+coverage
+*.log
+docker-data

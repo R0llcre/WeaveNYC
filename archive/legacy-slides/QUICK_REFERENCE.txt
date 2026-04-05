@@ -1,0 +1,213 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WeaveNYC Cover Slide - Quick Reference Card
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FORMAT: 10" × 5.625" (16:9) | PptxGenJS | Premium Liquid Glass Aesthetic
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COLOR PALETTE (Hex Codes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Primary Accents:
+  #2563EB  Deep Azure (trust, tech, foundation)
+  #0EA5E9  Bright Sky Blue (openness, community)
+  #06B6D4  Cyan (innovation, digital)
+  #F59E0B  Amber (warmth, human-centeredness)
+
+Text Colors:
+  #1F2937  Dark Gray (primary text)
+  #4B5563  Medium Gray (secondary text)
+  #9CA3AF  Light Gray (metadata)
+  #FFFFFF  White (backgrounds)
+  #000000  Black (shadows)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BACKGROUND GRADIENT (4-Layer Ellipse System)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Layer 1: Azure Base       │ (x: -1,    y: 3,   w: 8, h: 8) │ #2563EB │ 85% transparent
+Layer 2: Sky Blue        │ (x: 6,     y: -1.5, w: 7, h: 7) │ #0EA5E9 │ 80% transparent
+Layer 3: Cyan            │ (x: 7.5,   y: 1.5,  w: 5, h: 5) │ #06B6D4 │ 75% transparent
+Layer 4: White Veil      │ (x: 0,     y: 0,    w: 10, h: 5.625) │ #FFFFFF │ 92% transparent
+
+KEY: High transparency + overlapping = smooth color gradient effect
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRIMARY GLASS CARD (Left side)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Position: X: 0.5"  Y: 0.5"  │  Size: 5.8" W × 4.625" H
+Fill: #FFFFFF with 12% transparency (= 88% opaque) ← KEY FOR GLASS EFFECT
+Rounded Corners: 0.2" (= 24pt)
+Border: 1pt #0EA5E9, 70% transparent (optional rim light)
+Shadow: blur 40pt, Y-offset 8pt, opacity 0.08
+
+CONTENT INSIDE (0.35" internal margin):
+  ◆ Logo                    │ x: 0.85", y: 0.75"   │ 28pt Georgia, #2563EB
+  WeaveNYC                  │ x: 0.85", y: 1.1"    │ 44pt Calibri Bold, #1F2937
+  织邻纽约                   │ x: 0.85", y: 1.6"    │ 18pt Georgia, #0EA5E9
+  [Tagline 12pt]            │ x: 0.85", y: 1.95"   │ Calibri Regular, #4B5563
+  [Divider line 1.2" long]  │ x: 0.85", y: 2.35"   │ #0EA5E9, 60% transparent
+  [Metadata 9pt]            │ x: 0.85", y: 2.55"   │ Calibri, #9CA3AF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECONDARY GLASS CARD - STATS (Right side)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Position: X: 6.5"  Y: 0.5"  │  Size: 3" W × 4.625" H
+Fill: #FFFFFF with 10% transparency (= 90% opaque)
+Rounded Corners: 0.167" (= 20pt)
+Shadow: blur 30pt, Y-offset 6pt, opacity 0.10
+
+SECTION HEADER:
+  "BY THE NUMBERS"  │ x: 6.8", y: 0.8" │ 11pt Calibri Bold, CAPS, #1F2937
+
+STATS GRID (3 columns):
+  Row 1: 3  │  5  │  57        │ 32pt Calibri Bold, centered
+             │                │ Colors: #2563EB, #0EA5E9, #06B6D4
+  Row 2: Personas │ Use Cases │ Stories  │ 9pt Calibri, #4B5563
+
+DIVIDER:  x: 6.8", y: 2.15"  │  2.4" wide  │  #0EA5E9, 60% transparent
+
+DIFFERENTIATORS (4 lines, starting y: 2.4"):
+  ✓ Local-First Design
+  ✓ P2P Data Sync
+  ✓ Progressive Auth
+  ✓ Multi-Cloud Ready
+  │ 9pt Calibri, #4B5563, line spacing 12pt
+
+BADGE (bottom-right):
+  "161 Points"  │ x: 8.0", y: 4.05"  │  0.9" × 0.35"
+                │ Rounded rect, #F59E0B, 80% transparent
+                │ 8pt Calibri Bold, #1F2937, centered
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FOOTER ACCENT BAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Position: X: 0.5"  Y: 5.125"  │  Size: 9" W × 0.4" H
+Left half (4.5" W):  #2563EB (Azure), 75% transparent
+Right half (4.5" W): #0EA5E9 (Sky Blue), 75% transparent
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TYPOGRAPHY HIERARCHY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Level 1 (Headline):    44pt Calibri Bold       Dark Gray    "WeaveNYC"
+Level 2 (Subheading):  18pt Georgia Regular    Sky Blue     "织邻纽约"
+Level 3 (Tagline):     12pt Calibri Regular    Med Gray     "Privacy-First..."
+Level 4 (Stats):       32pt Calibri Bold       Accent Color  "3", "5", "57"
+Level 5 (Labels):      9pt Calibri Regular     Med Gray     "Personas", etc.
+Level 6 (Metadata):    9pt Calibri Regular     Light Gray   "Kairan Shen..."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY TECHNICAL PRINCIPLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TRANSPARENCY:
+  • In PptxGenJS: transparency: 85 means 85% transparent (15% opaque)
+  • Glass card = high transparency (12% = very transparent)
+  • Background ellipses = very high transparency (75-92%)
+  • Dividers/accents = medium transparency (40-60%)
+
+SHADOWS (Glass Floating Effect):
+  • High blur radius (30-40pt) = soft, diffused shadow
+  • Small Y-offset (6-8pt) = card appears to float slightly above
+  • Very low opacity (0.08-0.10) = subtle, not harsh
+
+ROUNDED CORNERS:
+  • rectRadius: 0.2 inches = 24pt (primary cards)
+  • rectRadius: 0.167 inches = 20pt (secondary cards)
+  • PptxGenJS expects inches; convert: pt ÷ 96 = inches
+
+COLOR BLENDING:
+  • No native gradients in PPTX
+  • Solution: Overlapping transparent shapes
+  • Result: Smooth color transition
+
+Z-ORDER (Layer Depth):
+  • Add shapes in this order: Background → Containers → Text
+  • PptxGenJS renders in addition order (first added = bottom layer)
+  • Text always added last (top layer)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXPORT & TESTING CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Before finalizing:
+  ☐ All text renders correctly (fonts embedded)
+  ☐ Transparency values create smooth gradients (not banding)
+  ☐ Shadows appear soft, not harsh
+  ☐ Glass cards feel floating (not flat on background)
+  ☐ Stats column feels supporting, not competing
+  ☐ Overall composition feels spacious (not cramped)
+  ☐ All hex colors match spec exactly
+  ☐ Rounded corners render smoothly (not pixelated)
+  ☐ Chinese characters display correctly
+  ☐ Slide scans logically: title → subtitle → stats (2-3 seconds)
+
+Export settings:
+  • Format: .pptx (PowerPoint)
+  • Resolution: 300 DPI minimum
+  • Color space: RGB (not CMYK)
+  • Compression: None (preserve transparency)
+  • Font embedding: Enabled (Calibri + Georgia)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VISUAL AESTHETIC CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Does this feel "Apple"?
+  ☐ Generous whitespace (content < 50% of canvas)
+  ☐ Restrained color palette (4 accents, not rainbow)
+  ☐ Soft shadows (blur > 20pt)
+  ☐ Transparent layering (not opaque overlays)
+  ☐ Clean typography (only 2 fonts, sized carefully)
+  ☐ No decorative elements (every pixel has purpose)
+  ☐ Floating effect (cards elevated above background)
+  ☐ Smooth gradients (no banding or harsh lines)
+  ☐ Professional, premium feel
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILES CREATED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. COVER_SLIDE_DESIGN.md
+   → Comprehensive design specification with exact measurements
+   → All dimensions, colors, fonts, and positioning
+   → Rendering checklist and premium details
+
+2. COVER_SLIDE_IMPLEMENTATION.js
+   → Production-ready PptxGenJS code
+   → Copy-paste ready for immediate use
+   → Full comments explaining each section
+
+3. DESIGN_RATIONALE.md
+   → Philosophy and reasoning behind every design decision
+   → Visual breakdowns by section
+   → Comparison with alternatives
+   → Implementation tips and troubleshooting
+
+4. QUICK_REFERENCE.txt
+   → This file! Summary card for quick lookup
+   → All hex codes, dimensions, transparency values
+   → Checklists for validation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DESIGN SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Theme:        Premium Liquid Glass / Apple Glassmorphism
+Aesthetic:    Elegant, spacious, layered, translucent
+Main Element: 2 glass cards with floating shadow effect
+Differentiation: Bilingual (English + Chinese), premium typography
+Target Feel:  Would Apple use this in a keynote? YES.
+
+Key Innovation: Using high transparency + overlapping shapes to simulate
+                gradients without native gradient support.
+
+Ready to implement? Use COVER_SLIDE_IMPLEMENTATION.js
+Need rationale? See DESIGN_RATIONALE.md
+Want exact specs? Read COVER_SLIDE_DESIGN.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

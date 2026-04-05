@@ -1,0 +1,45 @@
+%% WeaveNYC — P2P Sync Flow Sequence Diagram
+%% Source: 07_P2P_Node_Design.md §5-6 + 08_Data_Model.md §1
+
+sequenceDiagram
+    participant E as Edge Node<br/>(User PWA WebWorker)
+    participant A as Anchor Node<br/>(libp2p Full Node)
+    participant IPFS as Helia / IPFS<br/>(Content-Addressed)
+    participant C as Cloud<br/>(PostgreSQL Index)
+
+    Note over E,C: === 1. Edge 启动 & 节点发现 ===
+
+    E->>E: 生成 Ed25519 密钥对<br/>(per community, 存 IndexedDB)
+    E->>A: WebSocket 连接<br/>libp2p Identify 握手
+    A-->>E: 返回 Bootstrap 节点列表
+    E->>A: 订阅 GossipSub Topics<br/>weavenyc/{community_id}/posts<br/>weavenyc/{community_id}/announcements
+
+    Note over E,C: === 2. 用户发帖 → P2P 同步 ===
+
+    E->>E: 本地创建 Post<br/>存入 IndexedDB
+    E->>E: 构建 PostSummaryDAG<br/>{ post_id, post_type, category,<br/>title_hash, location_zip,<br/>community_id, sig }
+
+    alt 用户选择 opt-in 同步
+        E->>A: GossipSub publish<br/>topic: weavenyc/{community_id}/posts<br/>event: post.published
+        A->>A: 签名验证 (Ed25519)<br/>+ 规则引擎检查
+        A->>IPFS: Helia Pin<br/>存储 PostSummaryDAG
+        IPFS-->>A: CID (内容哈希)
+        A->>C: REST API → 写入 PostgreSQL<br/>post record + ipfs_cid
+        C-->>A: OK
+    else 仅本地保存
+        E->>E: 保持在 IndexedDB<br/>不同步到网络
+    end
+
+    Note over E,C: === 3. 其他 Edge 接收更新 ===
+
+    A->>E: GossipSub broadcast<br/>post.published event
+    E->>E: 验证签名<br/>更新本地 post_cache
+    E->>IPFS: 按需拉取完整 DAG<br/>(通过 CID)
+    IPFS-->>E: PostSummaryDAG 内容
+
+    Note over E,C: === 4. 离线恢复同步 ===
+
+    E->>E: 检测到重新上线
+    E->>A: 请求 last_sync_ts 之后的事件
+    A-->>E: 增量事件列表
+    E->>E: 批量更新 IndexedDB

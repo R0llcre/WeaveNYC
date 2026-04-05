@@ -1,0 +1,37 @@
+%% WeaveNYC — Authentication Flow Sequence Diagram
+%% Source: 18_Auth_Design.md §3 + 09_API_Spec.md §1
+
+sequenceDiagram
+    participant U as User (PWA)
+    participant API as API Gateway
+    participant DB as PostgreSQL
+    participant SMS as SMS Provider<br/>(Twilio)
+
+    Note over U,SMS: === Flow A: Anonymous Session (value in 30s) ===
+
+    U->>API: POST /v1/auth/anonymous
+    API->>DB: Create anonymous user<br/>(level = anonymous)
+    DB-->>API: user_id
+    API->>API: Issue JWT (RS256)<br/>access_token (15min)<br/>refresh_token (7d)
+    API-->>U: { access_token,<br/>refresh_token,<br/>user }
+
+    Note over U,SMS: === Flow B: Phone OTP Upgrade to Verified ===
+
+    U->>API: POST /v1/auth/otp/start<br/>{ phone: "+1516..." }
+    API->>API: Generate 6-digit OTP<br/>Store in Redis (TTL 5min)
+    API->>SMS: Send OTP via SMS
+    SMS-->>U: SMS "123456"
+    API-->>U: { challenge_id }
+
+    U->>API: POST /v1/auth/otp/verify<br/>{ challenge_id, code: "123456" }
+    API->>API: Validate OTP
+    API->>DB: Update level to verified<br/>Store phone_hash (SHA-256)
+    DB-->>API: OK
+    API->>API: Issue new JWT<br/>(level: verified)
+    API-->>U: { access_token,<br/>refresh_token,<br/>user }
+
+    Note over U,SMS: === Flow C: Token Refresh ===
+
+    U->>API: POST /v1/auth/refresh<br/>{ refresh_token }
+    API->>API: Validate refresh_token<br/>Rotation: old token revoked
+    API-->>U: { new_access_token,<br/>new_refresh_token }

@@ -1,0 +1,21 @@
+import 'fastify';
+
+import type { AuthTokenClaims } from './types.js';
+import type { AppConfig } from './config.js';
+import type { RefreshTokenStore } from './lib/refresh-token-store.js';
+import type { UserStore } from './lib/user-store.js';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    config: AppConfig;
+    refreshTokenStore: RefreshTokenStore;
+    userStore: UserStore;
+    authenticate: (request: FastifyRequest) => Promise<void>;
+  }
+}
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: AuthTokenClaims;
+  }
+}

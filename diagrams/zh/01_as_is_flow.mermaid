@@ -1,0 +1,15 @@
+%% WeaveNYC — 现状流程：居民如何找资源/互助
+%% 来源：06_Blueprints.md §1.1
+
+flowchart LR
+  R[居民<br/>求助者] -->|搜索| P[政府网站 / PDF 目录<br/>公共门户]
+  R -->|求助| W[WhatsApp / 微信群<br/>私域社交群]
+  H[志愿者<br/>帮助者] --> W
+  O[NGO / 教会<br/>社区组织] -->|发布信息| P
+  P -->|资源列表| R
+
+  style R fill:#FFE0B2,stroke:#E65100
+  style H fill:#C8E6C9,stroke:#2E7D32
+  style O fill:#BBDEFB,stroke:#1565C0
+  style P fill:#F5F5F5,stroke:#616161
+  style W fill:#F5F5F5,stroke:#616161

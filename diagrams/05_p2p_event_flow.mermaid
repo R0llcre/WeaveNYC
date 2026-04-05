@@ -1,0 +1,27 @@
+%% WeaveNYC — P2P Event Flow: 用户发帖到匹配的事件驱动流程
+%% Source: 07_P2P_Node_Design.md §4 Flow A
+
+sequenceDiagram
+    participant E as Edge Node<br/>(用户手机)
+    participant A as Anchor Node<br/>(社区组织)
+    participant C as Cloud Match<br/>(匹配服务)
+    participant D as Directory DB<br/>(官方资源)
+
+    E->>E: 1. 本地创建 Request
+    E->>A: 2. post.published（opt-in 同步）
+
+    alt 高风险类别 (Childcare/Transportation)
+        A->>A: 3a. 放入审核队列
+        A-->>E: 3b. 通知: 等待 Anchor 审核
+        Note over A: Anchor 人工审核
+        A->>A: 3c. moderation.decision (approve)
+    else 低风险类别
+        A->>A: 3a. 直接标记为可匹配候选
+    end
+
+    A->>C: 4. 请求匹配 (候选摘要)
+    C->>D: 5. 查询官方资源 (ZIP + 类别)
+    D-->>C: 6. 返回官方资源列表
+    C->>C: 7. 计算 Top-3 行动方案
+    C-->>A: 8. 返回匹配结果
+    A-->>E: 9. 推送行动方案 (邻里 + 官方兜底)

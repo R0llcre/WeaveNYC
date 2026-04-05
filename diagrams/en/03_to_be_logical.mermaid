@@ -1,0 +1,27 @@
+%% WeaveNYC — To-Be Logical: Services and Data Flow
+%% Source: 06_Blueprints.md §2.2
+
+flowchart TB
+  UI[Mobile / PWA<br/>User Interface] --> LS[Local Store<br/>IndexedDB]
+  UI -->|create post| APIGW[Anchor API<br/>Community Gateway]
+  APIGW --> MOD[Moderation Queue<br/>Content Review]
+  APIGW --> IDX[Community Index<br/>Post Index]
+  IDX --> MATCH[Match Engine<br/>Smart Matching]
+  MATCH --> APIGW
+  APIGW --> UI
+
+  ING[Directory Ingestion<br/>Scheduled Crawl] --> DIR[(Directory DB<br/>Official Resources)]
+  DIR --> MATCH
+
+  UI -->|report| REP[Report Service<br/>Safety Module]
+  REP --> MOD
+
+  style UI fill:#FFE0B2,stroke:#E65100
+  style LS fill:#FFF9C4,stroke:#F9A825
+  style APIGW fill:#CE93D8,stroke:#6A1B9A
+  style MOD fill:#EF9A9A,stroke:#C62828
+  style IDX fill:#A5D6A7,stroke:#2E7D32
+  style MATCH fill:#90CAF9,stroke:#1565C0
+  style ING fill:#B0BEC5,stroke:#37474F
+  style DIR fill:#B0BEC5,stroke:#37474F
+  style REP fill:#EF9A9A,stroke:#C62828

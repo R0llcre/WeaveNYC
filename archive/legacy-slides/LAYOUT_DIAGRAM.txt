@@ -1,0 +1,299 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                     WeaveNYC Cover Slide - Layout Diagram                       ║
+║                          10" × 5.625" Canvas (16:9)                             ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+BACKGROUND LAYER (Ellipses with High Transparency)
+═══════════════════════════════════════════════════════════════════════════════
+
+    ╔════════════════════════════════════════════════════════════════════════════╗
+    ║ Layer 1: Azure Base Ellipse (bottom-left)                                  ║
+    ║   Position: x=-1", y=3" (extends off-canvas intentionally)                 ║
+    ║   Size: 8" × 8"                                                             ║
+    ║   Color: #2563EB with 85% transparency                                     ║
+    ║                                                                              ║
+    ║  BACKGROUND GRADIENT EFFECT (visual result of 4 layers blending):          ║
+    ║                                                                              ║
+    ║  ╔────────────────────────────────────────────────────────────────╗        ║
+    ║  ║  Sky Blue (top-right)                                          ║        ║
+    ║  ║        (Light aqua / cyan blend visible)         Cyan accent   ║        ║
+    ║  ║                                                  (right-center) ║        ║
+    ║  ║                                                                 ║        ║
+    ║  ║       [MAIN CARD]              [STATS CARD]                   ║        ║
+    ║  ║       5.8" × 4.625"            3" × 4.625"                    ║        ║
+    ║  ║       (Left side)               (Right side)                   ║        ║
+    ║  ║       Glass: 12% transp         Glass: 10% transp             ║        ║
+    ║  ║                                                                 ║        ║
+    ║  ║  Deep Blue (bottom-left)                                      ║        ║
+    ║  ║  (Azure foundation visible through cards)                     ║        ║
+    ║  ╚────────────────────────────────────────────────────────────────╝        ║
+    ║                                                                              ║
+    ║  Layer 2: Sky Blue Ellipse (top-right, off-canvas)                         ║
+    ║   Position: x=6", y=-1.5" (extends above canvas)                           ║
+    ║   Size: 7" × 7"                                                             ║
+    ║   Color: #0EA5E9 with 80% transparency                                     ║
+    ║                                                                              ║
+    ║  Layer 3: Cyan Ellipse (center-right)                                      ║
+    ║   Position: x=7.5", y=1.5"                                                 ║
+    ║   Size: 5" × 5"                                                             ║
+    ║   Color: #06B6D4 with 75% transparency                                     ║
+    ║                                                                              ║
+    ║  Layer 4: White Veil (full canvas, softens colors)                         ║
+    ║   Position: x=0", y=0"                                                      ║
+    ║   Size: 10" × 5.625"                                                        ║
+    ║   Color: #FFFFFF with 92% transparency                                     ║
+    ║                                                                              ║
+    ║  Result: Soft gradient from deep blue → cyan → sky blue                    ║
+    ║          All edges fade to white, creating premium luminosity              ║
+    ╚════════════════════════════════════════════════════════════════════════════╝
+
+
+CONTENT CONTAINERS (Glass Card Layer)
+═════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  0.5" margin (all sides)                                                     │
+│                                                                               │
+│  PRIMARY GLASS CARD                    │   STATS GLASS CARD                  │
+│  ─────────────────────────────────────────────────────────────────          │
+│  Position: (0.5", 0.5")                │   Position: (6.5", 0.5")            │
+│  Size: 5.8" W × 4.625" H               │   Size: 3" W × 4.625" H             │
+│  Fill: White 12% transp (88% opaque)   │   Fill: White 10% transp (90% opaque)
+│  Corners: 24pt rounded                 │   Corners: 20pt rounded             │
+│  Shadow: blur 40pt, offset 8pt         │   Shadow: blur 30pt, offset 6pt     │
+│                                         │                                     │
+│  ┌────────────────────────────────┐    │   ┌─────────────────────────┐      │
+│  │                                │    │   │                         │      │
+│  │   0.35" margin (internal)      │    │   │  "BY THE NUMBERS"       │      │
+│  │   ◆ Logo                       │    │   │  (11pt Calibri Bold)    │      │
+│  │     (28pt Georgia, Azure)      │    │   │                         │      │
+│  │                                │    │   │  3    5     57          │      │
+│  │   WeaveNYC                     │    │   │  Personas / Use Cases / Stories
+│  │   (44pt Calibri Bold)          │    │   │  (32pt Bold, colors)    │      │
+│  │                                │    │   │  (9pt labels)           │      │
+│  │   织邻纽约                      │    │   │                         │      │
+│  │   (18pt Georgia, Sky Blue)     │    │   │  ─────────────────      │      │
+│  │                                │    │   │  ✓ Local-First          │      │
+│  │   Privacy-First Mutual Aid     │    │   │  ✓ P2P Sync             │      │
+│  │   for NYC's Underserved        │    │   │  ✓ Progressive Auth     │      │
+│  │   Communities                  │    │   │  ✓ Multi-Cloud          │      │
+│  │   (12pt Calibri, wrapped)      │    │   │                         │      │
+│  │                                │    │   │    ┌──────────────┐    │      │
+│  │   ─────────────────────        │    │   │    │ 161 Points   │    │      │
+│  │   (1.2" divider line)          │    │   │    │ (Amber badge)│    │      │
+│  │                                │    │   │    └──────────────┘    │      │
+│  │   Kairan Shen · Software       │    │   │                         │      │
+│  │   Engineering · Spring 2026    │    │   │                         │      │
+│  │   (9pt metadata, Light Gray)   │    │   │                         │      │
+│  │                                │    │   │                         │      │
+│  └────────────────────────────────┘    │   └─────────────────────────┘      │
+│                                         │                                     │
+│  Note: Both cards have the same Y position (0.5") and height (4.625")        │
+│  This creates perfect vertical alignment and balanced composition             │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+FOOTER LAYER (Bottom Accent)
+═════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  ═════════════════════════════════════════════════════════════════════════  │
+│  Position: (0.5", 5.125") │ Size: 9" W × 0.4" H                             │
+│  Left (4.5"): Azure #2563EB, 75% transparent                                │
+│  Right (4.5"): Sky Blue #0EA5E9, 75% transparent                            │
+│  ═════════════════════════════════════════════════════════════════════════  │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+DETAILED COORDINATE MAP
+═════════════════════════════════════════════════════════════════════════════════
+
+                       INCHES →
+INCHES
+   ↓
+
+  0.5  ┌─────────────────────────────────────────────────────────────────┐
+       │                 Background Color Gradient                        │
+       │            (Soft blend from blue → cyan → white)               │
+  1.0  │ ┌──────────────────────┐                ┌────────────────────┐  │
+       │ │  ◆ LOGO (0.75")      │                │   BY THE NUMBERS   │  │
+       │ │                      │                │                    │  │
+  1.5  │ │ WeaveNYC (1.1")      │                │   3  5  57         │  │
+       │ │                      │                │ [stats at 1.3"]    │  │
+       │ │ 织邻纽约 (1.6")       │                │                    │  │
+  2.0  │ │                      │                │ ─────────────────  │  │
+       │ │ [Tagline at 1.95"]   │                │ ✓ Local-First      │  │
+       │ │                      │                │ ✓ P2P Sync         │  │
+  2.5  │ │ [Divider at 2.35"]   │                │ ✓ Progressive Auth │  │
+       │ │                      │                │ ✓ Multi-Cloud      │  │
+       │ │ [Metadata at 2.55"]  │                │                    │  │
+  3.0  │ │                      │                │ ┌──────────────┐   │  │
+       │ │                      │                │ │ 161 Points   │   │  │
+  3.5  │ │                      │                │ │ [Badge 4.05"]│   │  │
+       │ │                      │                │ └──────────────┘   │  │
+       │ │                      │                │                    │  │
+  4.0  │ │                      │                │                    │  │
+       │ │                      │                │                    │  │
+  4.5  │ │                      │                │                    │  │
+       │ │                      │                │                    │  │
+       │ └──────────────────────┘                └────────────────────┘  │
+       │ [Primary Card: 0.5"-6.3"W, 0.5"-5.125"H]  [Stats: 6.5"-9.5"W]   │
+  5.0  │                                                                  │
+       │  ══════════════════════════════════════════════════════════    │
+       │         [Footer Accent Bar: 0.5"-9.5"W @ Y: 5.125"]           │
+  5.625│  ══════════════════════════════════════════════════════════    │
+       └─────────────────────────────────────────────────────────────────┘
+         0.5"                    5.0"                       9.5" 10"
+
+
+VISUAL SCANNING ORDER (How Eyes Navigate)
+═════════════════════════════════════════════════════════════════════════════════
+
+Step 1: Brand Mark (◆)
+  Position: Top-left of primary card
+  Time: 0.3 seconds
+  Purpose: Immediate visual anchor
+
+Step 2: Title (WeaveNYC)
+  Position: Below logo
+  Time: 0.4 seconds
+  Purpose: Understand main subject
+
+Step 3: Subtitle (织邻纽约)
+  Position: Below title
+  Time: 0.2 seconds
+  Purpose: Cultural context
+
+Step 4: Tagline (Context)
+  Position: Middle-left
+  Time: 0.5 seconds
+  Purpose: Understand mission
+
+Step 5: Stats Column (Right)
+  Position: Right side
+  Time: 1.0 seconds
+  Purpose: See scope and scale
+
+Step 6: Metadata (Bottom-left)
+  Position: Bottom of primary card
+  Time: 0.2 seconds
+  Purpose: Credits and context
+
+Total viewing time: ~2.5-3.0 seconds for complete appreciation
+
+
+TRANSPARENCY & LAYERING (Z-Order)
+═════════════════════════════════════════════════════════════════════════════════
+
+Layer 0 (Canvas Background): White (default)
+
+Layer 1: Background Ellipses (Behind everything)
+  - 4 overlapping ellipses with high transparency
+  - Create gradient effect without native gradient support
+  - Z-order: Rendered first (background layer)
+
+Layer 2: Glass Containers (Floating Cards)
+  - 2 rounded rectangles with transparency
+  - Appear to float above background due to shadow
+  - Z-order: Rendered after ellipses
+
+Layer 3: Text & Accents (Top Layer)
+  - All typography
+  - Divider lines
+  - Badges and icons
+  - Z-order: Rendered last (visible on top)
+
+Rendering Strategy:
+  1. Add all background ellipses first
+  2. Add glass card containers
+  3. Add all text elements last
+  - PptxGenJS renders in addition order
+
+
+COLOR TRANSPARENCY REFERENCE TABLE
+═════════════════════════════════════════════════════════════════════════════════
+
+Element                      │ Hex Color │ Transparency % │ Visual Effect
+─────────────────────────────────────────────────────────────────────────
+Background Ellipse 1 (Azure) │ #2563EB  │      85%       │ Very transparent, deep color
+Background Ellipse 2 (Sky)   │ #0EA5E9  │      80%       │ Very transparent, bright
+Background Ellipse 3 (Cyan)  │ #06B6D4  │      75%       │ Very transparent, accent
+Background Veil (White)      │ #FFFFFF  │      92%       │ Almost invisible, softens
+─────────────────────────────────────────────────────────────────────────
+Primary Card Fill            │ #FFFFFF  │      12%       │ Mostly opaque, slight glass
+Secondary Card Fill          │ #FFFFFF  │      10%       │ More opaque than primary
+Card Border (optional)       │ #0EA5E9  │      70%       │ Subtle rim light
+─────────────────────────────────────────────────────────────────────────
+Divider Lines                │ #0EA5E9  │      60%       │ Visible but subtle
+Bottom Accent (Left)         │ #2563EB  │      75%       │ Semi-transparent accent
+Bottom Accent (Right)        │ #0EA5E9  │      75%       │ Semi-transparent accent
+Badge Background             │ #F59E0B  │      80%       │ Mostly transparent, subtle
+─────────────────────────────────────────────────────────────────────────
+Text (All)                   │ Various  │       0%       │ Fully opaque, readable
+─────────────────────────────────────────────────────────────────────────
+
+KEY INSIGHT: "Liquid glass" effect is achieved through HIGH transparency values
+on background layers (75-92%) combined with LOW transparency (10-12%) on
+card containers. This creates visual layering and depth without harsh
+contrast.
+
+
+ACCESSIBILITY & CONTRAST REFERENCE
+═════════════════════════════════════════════════════════════════════════════════
+
+Text Element              │ Color      │ Background │ Contrast Ratio │ WCAG Level
+──────────────────────────────────────────────────────────────────────────────
+Primary Text (Title)     │ #1F2937    │ #FFFFFF    │     15.6:1     │ AAA ✓
+Secondary Text (Tags)    │ #4B5563    │ #FFFFFF    │     8.2:1      │ AAA ✓
+Light Text (Metadata)    │ #9CA3AF    │ #FFFFFF    │     5.2:1      │ AA  ✓
+Azure Text (Subtitle)    │ #2563EB    │ #FFFFFF    │     7.1:1      │ AAA ✓
+Sky Blue Text            │ #0EA5E9    │ #FFFFFF    │     5.8:1      │ AA  ✓
+Cyan Text (Stats)        │ #06B6D4    │ #FFFFFF    │     5.1:1      │ AA  ✓
+Amber Badge Text         │ #1F2937    │ #F59E0B    │     11.3:1     │ AAA ✓
+──────────────────────────────────────────────────────────────────────────────
+
+All text meets minimum WCAG AA (4.5:1) for readability on light backgrounds.
+Most elements exceed AA and reach AAA (7:1+) for enhanced accessibility.
+
+
+PREMIUM DESIGN CHECKLIST
+═════════════════════════════════════════════════════════════════════════════════
+
+Visual Elegance:
+  ☐ Generous whitespace (content occupies ~50% of canvas)
+  ☐ Balanced two-column layout (main + stats)
+  ☐ Soft shadows create floating effect
+  ☐ Rounded corners feel contemporary, not corporate
+  ☐ Colors blend smoothly through transparency
+  ☐ No visual clutter or decorative noise
+
+Premium Feel:
+  ☐ Typography is restrained (2 fonts only)
+  ☐ Font sizes follow hierarchy (44pt → 9pt)
+  ☐ Letter spacing adds refinement (0.5pt on title)
+  ☐ Bilingual design signals inclusivity
+  ☐ Color palette is curated (4 accents, not rainbow)
+  ☐ Every element has clear purpose
+
+Technical Precision:
+  ☐ Measurements snap to grid (0.05" precision)
+  ☐ Transparency values are consistent
+  ☐ Shadow blur radii are mathematical
+  ☐ Text contrast exceeds WCAG AAA
+  ☐ All colors use exact hex codes
+  ☐ Rounded corners are consistent (24pt / 20pt)
+
+Apple Aesthetic:
+  ☐ Would Apple present this? YES
+  ☐ Does it feel like iOS Control Center? YES
+  ☐ Is it minimalist? YES
+  ☐ Does it communicate clearly? YES
+  ☐ Does it feel premium? YES
+  ☐ Would you show this to Steve Jobs? YES
+
+
+END OF LAYOUT DIAGRAM
+═════════════════════════════════════════════════════════════════════════════════

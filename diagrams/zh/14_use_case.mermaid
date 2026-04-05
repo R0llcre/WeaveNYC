@@ -1,0 +1,61 @@
+%% WeaveNYC — 系统用例图（4 角色 × 23 用例）
+%% 来源：02_PRD.md §5 + 03_User_Flows_And_Screens.md
+
+flowchart LR
+    GUEST(["访客 L0"])
+    USER(["用户 L1/L2"])
+    ANCHOR(["管理员 L3"])
+    SYSTEM(["系统"])
+
+    subgraph Browse ["浏览与搜索"]
+        UC1([浏览资源])
+        UC2([按邮编搜索])
+        UC3([查看详情])
+        UC4([拨号/导航])
+    end
+
+    subgraph Post ["互助帖子"]
+        UC5([发布请求])
+        UC6([发布提供])
+        UC7([语音输入])
+        UC8([编辑/关闭帖子])
+    end
+
+    subgraph Match ["匹配与聊天"]
+        UC9([查看 Top-3 建议])
+        UC10([刷新建议])
+        UC11([发起聊天])
+        UC12([发送消息])
+    end
+
+    subgraph Safety ["安全与治理"]
+        UC13([举报帖子/用户])
+        UC14([屏蔽用户])
+        UC15([审核队列])
+        UC16([处理举报])
+        UC17([发布公告])
+        UC18([配置规则])
+    end
+
+    subgraph Auto ["系统自动化"]
+        UC19([风险评估])
+        UC20([PII 检测])
+        UC21([资源导入])
+        UC22([帖子自动过期])
+        UC23([匹配引擎])
+    end
+
+    GUEST --> UC1 & UC2 & UC3 & UC4
+
+    USER --> UC5 & UC6 & UC7 & UC8
+    USER --> UC9 & UC10 & UC11 & UC12
+    USER --> UC13 & UC14
+
+    ANCHOR --> UC15 & UC16 & UC17 & UC18
+
+    SYSTEM --> UC19 & UC20 & UC21 & UC22 & UC23
+
+    style GUEST fill:#E8F5E9,stroke:#2E7D32
+    style USER fill:#FFE0B2,stroke:#E65100
+    style ANCHOR fill:#CE93D8,stroke:#6A1B9A
+    style SYSTEM fill:#90CAF9,stroke:#1565C0

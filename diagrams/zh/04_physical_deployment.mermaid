@@ -1,0 +1,74 @@
+%% WeaveNYC — 物理部署：多云部署拓扑
+%% 来源：06_Blueprints.md §2.3 + 19_Deployment_Guide.md §2
+
+flowchart LR
+  subgraph Edge ["边缘层（PWA + libp2p WebWorker）"]
+    U1[用户 PWA<br/>IndexedDB + Helia]
+    U2[用户 PWA<br/>IndexedDB + Helia]
+  end
+
+  subgraph Anchor ["Anchor 层（libp2p 完整节点）"]
+    AN[Anchor 节点<br/>Fastify + GossipSub<br/>+ Helia Pin]
+    AC[管理控制台<br/>Next.js]
+  end
+
+  subgraph AWS ["AWS"]
+    APIGW[Lambda<br/>API 网关]
+    MATCH[Lambda<br/>匹配引擎]
+    POSTS[Lambda<br/>帖子服务]
+    CHAT[ECS Fargate<br/>聊天 WebSocket]
+    RDS[(RDS PostgreSQL<br/>+ PostGIS)]
+    REDIS[ElastiCache<br/>Redis]
+    S3[(S3 备份)]
+  end
+
+  subgraph GCP ["GCP"]
+    CR[Cloud Run<br/>资源目录服务]
+    GCS[(Cloud Storage)]
+  end
+
+  subgraph Azure ["Azure"]
+    NOTIF[Functions<br/>通知服务]
+    SPEECH[Functions<br/>语音网关]
+  end
+
+  subgraph Vercel ["Vercel"]
+    PWA[Edge CDN<br/>PWA 前端]
+    ADMV[Edge CDN<br/>管理控制台]
+  end
+
+  U1 <-->|"WebRTC P2P"| U2
+  U1 <-->|WebSocket| AN
+  U2 <-->|WebSocket| AN
+  AC <-->|HTTPS| AN
+
+  AN <-->|REST| APIGW
+  APIGW --> MATCH
+  APIGW --> POSTS
+  APIGW --> CHAT
+  MATCH <--> RDS
+  POSTS <--> RDS
+  CHAT <--> REDIS
+  APIGW <--> REDIS
+  MATCH --> NOTIF
+  MATCH --> S3
+  CR --> GCS
+  CR --> RDS
+
+  style U1 fill:#FFE0B2,stroke:#E65100
+  style U2 fill:#FFE0B2,stroke:#E65100
+  style AN fill:#CE93D8,stroke:#6A1B9A
+  style AC fill:#CE93D8,stroke:#6A1B9A
+  style APIGW fill:#FFCC80,stroke:#EF6C00
+  style MATCH fill:#FFCC80,stroke:#EF6C00
+  style POSTS fill:#FFCC80,stroke:#EF6C00
+  style CHAT fill:#FFCC80,stroke:#EF6C00
+  style RDS fill:#FFE082,stroke:#F57F17
+  style REDIS fill:#FFE082,stroke:#F57F17
+  style S3 fill:#FFE082,stroke:#F57F17
+  style CR fill:#A5D6A7,stroke:#2E7D32
+  style GCS fill:#C8E6C9,stroke:#388E3C
+  style NOTIF fill:#90CAF9,stroke:#1565C0
+  style SPEECH fill:#90CAF9,stroke:#1565C0
+  style PWA fill:#E1BEE7,stroke:#7B1FA2
+  style ADMV fill:#E1BEE7,stroke:#7B1FA2

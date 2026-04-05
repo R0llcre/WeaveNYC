@@ -1,0 +1,163 @@
+%% WeaveNYC — Domain Entity Relationship Diagram
+%% Source: 08_Data_Model.md
+
+erDiagram
+    User ||--o{ Post : creates
+    User ||--o{ Report : submits
+    User ||--o{ CommunityMember : joins
+    Community ||--o{ CommunityMember : includes
+    User ||--o{ ContactRequest : requests
+    User ||--o{ ContactRequest : receives
+    User ||--o{ Conversation : participates
+    User ||--o{ Message : sends
+
+    Community ||--|{ Anchor : managed_by
+    Community ||--o{ Post : contains
+    Community ||--|| RuleSet : has
+    Community ||--o{ Announcement : contains
+
+    Anchor ||--o{ ModerationAction : performs
+
+    Post ||--o{ MatchSuggestion : generates
+    Post ||--o{ Report : receives
+    Post ||--o{ ContactRequest : from_post
+    Post ||--o{ ContactRequest : to_post
+
+    ResourceProvider ||--o{ MatchSuggestion : referenced_in
+
+    ContactRequest ||--o| Conversation : opens
+    Conversation ||--|{ Message : contains
+
+    Report ||--o| ModerationAction : resolved_by
+
+    User {
+        uuid user_id PK
+        string display_name
+        string[] preferred_languages
+        string home_zip
+        enum status "active|suspended|deleted"
+    }
+
+    Community {
+        uuid community_id PK
+        string name
+        string center_zip
+        enum join_policy "invite_only|open"
+    }
+
+    CommunityMember {
+        uuid user_id FK
+        uuid community_id FK
+        datetime joined_at
+    }
+
+    Anchor {
+        uuid anchor_id PK
+        uuid community_id FK
+        string org_name
+    }
+
+    Post {
+        uuid post_id PK
+        enum post_type "request|offer"
+        enum category "food|goods|childcare|companionship|translation|transportation|other"
+        string title
+        text body
+        enum language "en|es|zh"
+        string location_zip
+        enum privacy "community_only|public|anchor_mediated"
+        datetime expires_at
+        enum status "draft|pending_review|active|fulfilled|closed|removed"
+        enum risk_level "low|medium|high"
+        enum verification_state "unverified|verified_by_anchor|verified_by_witnesses"
+    }
+
+    ResourceProvider {
+        uuid provider_id PK
+        enum source "cfc_active|island_harvest|manual"
+        string source_ref
+        string name
+        enum type "pantry|soup_kitchen|cooling_center|other"
+        string address_text
+        string city
+        string state
+        string zip
+        string phone
+        json hours_json
+        string[] languages
+        text eligibility_notes
+        float lat
+        float lng
+        enum geo_precision "exact|rooftop|street|zip_centroid"
+        string dataset_version
+        enum status "active|inactive"
+        datetime last_seen_at
+        datetime last_verified_at
+    }
+
+    MatchSuggestion {
+        uuid suggestion_id PK
+        uuid request_post_id FK
+        enum candidate_type "neighbor_post|official_resource"
+        uuid candidate_id
+        float score
+        string[] reasons
+    }
+
+    ContactRequest {
+        uuid contact_request_id PK
+        uuid from_post_id FK
+        uuid to_post_id FK
+        uuid requester_user_id FK
+        uuid recipient_user_id FK
+        enum status "pending|accepted|rejected|expired|cancelled"
+        datetime expires_at
+    }
+
+    Conversation {
+        uuid conversation_id PK
+        uuid contact_request_id FK
+        uuid[] participants
+        datetime last_activity_at
+    }
+
+    Message {
+        uuid message_id PK
+        uuid conversation_id FK
+        uuid sender_user_id FK
+        text body
+        datetime sent_at
+        string[] safety_flags
+    }
+
+    Report {
+        uuid report_id PK
+        enum target_type "post|user|message"
+        uuid target_id
+        enum reason "harassment|scam|misinformation|unsafe_behavior|other"
+        enum status "new|in_review|resolved|dismissed"
+    }
+
+    ModerationAction {
+        uuid action_id PK
+        uuid report_id FK
+        uuid anchor_user_id FK
+        uuid community_id FK
+        string action_type
+        datetime created_at
+    }
+
+    Announcement {
+        uuid announcement_id PK
+        uuid community_id FK
+        string title
+        text body
+        datetime published_at
+    }
+
+    RuleSet {
+        uuid ruleset_id PK
+        string[] categories_require_review
+        int report_threshold
+        string[] blacklist_words
+    }

@@ -1,0 +1,61 @@
+%% WeaveNYC — Use Case Diagram
+%% Source: 02_PRD.md §5 + 03_User_Flows_And_Screens.md
+
+flowchart LR
+    GUEST(["Guest L0"])
+    USER(["User L1/L2"])
+    ANCHOR(["Anchor L3"])
+    SYSTEM(["System"])
+
+    subgraph Browse ["Browse and Search"]
+        UC1([Browse resources])
+        UC2([Search by ZIP])
+        UC3([View detail])
+        UC4([Call / Navigate])
+    end
+
+    subgraph Post ["Mutual Aid Posts"]
+        UC5([Post Request])
+        UC6([Post Offer])
+        UC7([Voice input])
+        UC8([Edit / Close post])
+    end
+
+    subgraph Match ["Match and Chat"]
+        UC9([View Top-3 suggestions])
+        UC10([Refresh suggestions])
+        UC11([Start chat])
+        UC12([Send messages])
+    end
+
+    subgraph Safety ["Safety and Governance"]
+        UC13([Report post/user])
+        UC14([Block user])
+        UC15([Review queue])
+        UC16([Handle reports])
+        UC17([Post announcement])
+        UC18([Configure rules])
+    end
+
+    subgraph Auto ["System Automation"]
+        UC19([Risk assessment])
+        UC20([PII detection])
+        UC21([Resource ingestion])
+        UC22([Auto-expire posts])
+        UC23([Match engine])
+    end
+
+    GUEST --> UC1 & UC2 & UC3 & UC4
+
+    USER --> UC5 & UC6 & UC7 & UC8
+    USER --> UC9 & UC10 & UC11 & UC12
+    USER --> UC13 & UC14
+
+    ANCHOR --> UC15 & UC16 & UC17 & UC18
+
+    SYSTEM --> UC19 & UC20 & UC21 & UC22 & UC23
+
+    style GUEST fill:#E8F5E9,stroke:#2E7D32
+    style USER fill:#FFE0B2,stroke:#E65100
+    style ANCHOR fill:#CE93D8,stroke:#6A1B9A
+    style SYSTEM fill:#90CAF9,stroke:#1565C0

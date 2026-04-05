@@ -1,0 +1,24 @@
+%% WeaveNYC — 用户旅程：首次打开到获取价值（30秒内）
+%% 来源：02_PRD.md §4 + 03_User_Flows.md
+
+flowchart TD
+    START([用户首次打开 App]) --> LANG[选择语言<br/>英 / 西 / 中]
+    LANG --> ZIP[输入 ZIP Code<br/>或允许近似定位]
+    ZIP --> HOME[首页：官方资源列表<br/>今天开放的食品柜/施粥处]
+
+    HOME --> |想要互助| POST[发布互助请求<br/>Request / Offer]
+    HOME --> |只看资源| DETAIL[资源详情页<br/>地址/电话/开放时间]
+
+    DETAIL --> CALL[一键拨号]
+    DETAIL --> NAV[一键导航]
+
+    POST --> |需轻量注册| REG[手机号 OTP<br/>或邮箱 Magic Link]
+    REG --> COMPOSE[填写请求<br/>类别 + 描述 + 位置]
+    COMPOSE --> MATCH[收到 3 个行动方案<br/>邻里匹配 + 官方兜底]
+
+    MATCH --> CONTACT[点击开始联系<br/>双方同意后建立聊天]
+
+    style START fill:#E8F5E9,stroke:#2E7D32
+    style HOME fill:#FFE0B2,stroke:#E65100
+    style MATCH fill:#BBDEFB,stroke:#1565C0
+    style CONTACT fill:#CE93D8,stroke:#6A1B9A

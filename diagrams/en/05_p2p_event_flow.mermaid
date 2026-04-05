@@ -1,0 +1,27 @@
+%% WeaveNYC — P2P Event Flow: Post to Match
+%% Source: 07_P2P_Node_Design.md §4
+
+sequenceDiagram
+    participant E as Edge Node<br/>(User Mobile)
+    participant A as Anchor Node<br/>(Community Org)
+    participant C as Cloud Match<br/>(Match Service)
+    participant D as Directory DB<br/>(Official Resources)
+
+    E->>E: 1. Create Request locally
+    E->>A: 2. post.published (opt-in sync)
+
+    alt High-risk category (Childcare/Transport)
+        A->>A: 3a. Add to review queue
+        A-->>E: 3b. Notify: Awaiting Anchor review
+        Note over A: Anchor manual review
+        A->>A: 3c. moderation.decision (approve)
+    else Low-risk category
+        A->>A: 3a. Mark as matchable directly
+    end
+
+    A->>C: 4. Request match (candidate summary)
+    C->>D: 5. Query resources (ZIP + category)
+    D-->>C: 6. Return resource list
+    C->>C: 7. Compute Top-3 action plans
+    C-->>A: 8. Return match results
+    A-->>E: 9. Push action plans (neighbor + official)
