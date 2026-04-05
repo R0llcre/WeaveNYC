@@ -10,3 +10,4 @@ dist
 coverage
 *.log
 docker-data
+*.tsbuildinfo
