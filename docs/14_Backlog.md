@@ -7,15 +7,23 @@
 > **优先级**：P0（上线必须）、P1（强烈推荐）、P2（后续迭代）
 >
 > **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
+>
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 pending`
+>
+> **状态标记**：
+> - `Completed (M0)`：已经落地，不再作为当前待办
+> - `Pending (M1+)`：保留在后续阶段继续实现
+>
+> 说明：只有显式标记为 `Completed (M0)` 的 story 才算已关闭。某些 M0 期间落过 shell / scaffold 的能力，如果 acceptance criteria 还没完整满足，仍保留为 `Pending (M1+)`。
 
 ---
 
-## Epic E0: Project Foundation（项目骨架）
+## Epic E0: Project Foundation（项目骨架）— Status: `Completed (M0)`
 
 > 里程碑：M0（Day 1-3）
 > 目标：monorepo 可跑、CI 通过、dev 环境可部署
 
-### E0-S1: Initialize monorepo with pnpm workspace — P0 · 3 SP
+### E0-S1: Initialize monorepo with pnpm workspace — P0 · 3 SP · `Completed (M0)`
 
 - As a developer, I can `pnpm install` and `pnpm dev` to start the entire project.
 - Acceptance:
@@ -26,7 +34,7 @@
   - `infra/docker-compose.yml` 存在且可启动 PostgreSQL + Redis
   - `infra/dev/jwt-private.pem`、`infra/dev/jwt-public.pem` 或等价的 dev key bootstrap 产物存在
 
-### E0-S2: CI/CD pipeline setup — P0 · 3 SP
+### E0-S2: CI/CD pipeline setup — P0 · 3 SP · `Completed (M0)`
 
 - As a developer, I can push to `main` and trigger automated lint + test + build.
 - Acceptance:
@@ -35,7 +43,7 @@
   - Docker compose 本地开发环境可启动（PostgreSQL + Redis）
   - 从全新 checkout 按 Contribution Guide 执行一次 bootstrap：`pnpm install` → `docker compose up -d` → `pnpm db:migrate` → `pnpm db:seed` → `pnpm dev`
 
-### E0-S3: Database migration infrastructure — P0 · 2 SP
+### E0-S3: Database migration infrastructure — P0 · 2 SP · `Completed (M0)`
 
 - As a developer, I can run `pnpm db:migrate` to apply schema changes.
 - Acceptance:
@@ -44,7 +52,7 @@
   - Seed 脚本可导入测试数据
   - `pnpm db:migrate` 和 `pnpm db:seed` 被纳入 M0 bootstrap 验证，而不是只作为独立脚本存在
 
-### E0-S4: Shared packages setup — P0 · 2 SP
+### E0-S4: Shared packages setup — P0 · 2 SP · `Completed (M0)`
 
 - As a developer, I can import shared types and utilities from `@weavenyc/shared`.
 - Acceptance:
@@ -54,12 +62,12 @@
 
 ---
 
-## Epic E1: Authentication & Identity（认证与身份）
+## Epic E1: Authentication & Identity（认证与身份）— Status: `In Progress`
 
 > 里程碑：M0-M1
 > 来源：[18_Auth_Design](./18_Auth_Design.md) + [09_API_Spec §1](./09_API_Spec.md)
 
-### E1-S1: Anonymous session endpoint — P0 · 2 SP
+### E1-S1: Anonymous session endpoint — P0 · 2 SP · `Completed (M0)`
 
 - As a guest, I can get a JWT without any registration so I can browse and interact.
 - Acceptance:
@@ -68,7 +76,7 @@
   - refresh_token 有效期 7 天
   - 数据库创建 `users` 记录（`level = anonymous`）
 
-### E1-S2: OTP phone verification — P0 · 3 SP
+### E1-S2: OTP phone verification — P0 · 3 SP · `Pending (M1+)`
 
 - As an anonymous user, I can verify my phone number to upgrade to L2 Verified.
 - Acceptance:
@@ -78,7 +86,7 @@
   - 签发新 JWT（level: verified）
   - 错误处理：OTP 过期、3 次错误后锁定 15min
 
-### E1-S3: Token refresh with rotation — P0 · 2 SP
+### E1-S3: Token refresh with rotation — P0 · 2 SP · `Pending (M1+)`
 
 - As a logged-in user, my session stays active through automatic token refresh.
 - Acceptance:
@@ -86,15 +94,16 @@
   - 旧 refresh_token 立即失效（rotation）
   - 检测 refresh_token 重放攻击 → 撤销该用户所有 token
 
-### E1-S4: JWT middleware and RBAC — P0 · 2 SP
+### E1-S4: JWT middleware and RBAC — P0 · 2 SP · `Pending (M1+)`
 
 - As a developer, all protected endpoints automatically validate JWT and enforce role checks.
+- 当前备注：M0 已经落地 JWT 验证和受保护路由样板；完整 `requireLevel(...)` RBAC helper 和角色守卫仍待补齐。
 - Acceptance:
   - Fastify 插件：解析 JWT RS256、注入 `req.user`
   - 权限守卫：`requireLevel("anonymous" | "verified" | "anchor")`
   - 未授权请求返回 401，权限不足返回 403
 
-### E1-S5: Anchor admin invitation flow — P1 · 3 SP
+### E1-S5: Anchor admin invitation flow — P1 · 3 SP · `Pending (M5)`
 
 - As a verified user, I can use an Anchor invitation code + setup TOTP to become L3 Admin.
 - Acceptance:
@@ -104,7 +113,7 @@
 
 ---
 
-## Epic E2: Official Resource Directory（官方资源目录）
+## Epic E2: Official Resource Directory（官方资源目录）— Status: `Next (M1)`
 
 > 里程碑：M1（Week 1-2）
 > 来源：[02_PRD §5.2](./02_PRD.md) + [04_Data_Sources](./04_Data_Sources.md)
@@ -516,20 +525,21 @@
 
 ---
 
-## Epic E9: PWA Infrastructure（PWA 基础设施）
+## Epic E9: PWA Infrastructure（PWA 基础设施）— Status: `In Progress`
 
 > 里程碑：M0-M1
 > 来源：[06_Blueprints](./06_Blueprints.md) + [02_PRD §6](./02_PRD.md)
 
-### E9-S1: PWA manifest and service worker — P0 · 2 SP
+### E9-S1: PWA manifest and service worker — P0 · 2 SP · `Pending (M1+)`
 
 - As a user, I can install WeaveNYC as a PWA on my home screen.
+- 当前备注：M0 已经落地 manifest、icon 和 service worker shell wiring；完整离线资源列表体验仍待资源目录完成后补齐。
 - Acceptance:
   - `manifest.json` 配置：name, icons, theme_color, display: standalone
   - Service Worker：缓存静态资源 + API 响应（stale-while-revalidate）
   - 离线时显示缓存的首页资源列表（graceful degradation）
 
-### E9-S2: IndexedDB local storage (Dexie.js) — P0 · 3 SP
+### E9-S2: IndexedDB local storage (Dexie.js) — P0 · 3 SP · `Pending (M1+)`
 
 - As a user, my drafts and preferences are saved locally.
 - Acceptance:
@@ -538,16 +548,17 @@
   - 语言偏好、ZIP、low-bandwidth 设置持久化
   - 设备 Ed25519 密钥对生成与存储
 
-### E9-S3: Redux Toolkit + TanStack Query setup — P0 · 2 SP
+### E9-S3: Redux Toolkit + TanStack Query setup — P0 · 2 SP · `Pending (M1+)`
 
 - As a developer, I have a consistent state management pattern.
+- 当前备注：M0 已经落地 auth slice 和 Query provider skeleton；完整 `community` / `ui` slice、query hooks 与 DevTools 集成仍待补齐。
 - Acceptance:
   - Redux Toolkit store：auth slice（user, token）、community slice、ui slice
   - TanStack Query：API hooks（`useResources`、`usePosts`、`useMatches` 等）
   - Stale-while-revalidate 策略：资源列表 5min、帖子 1min
   - DevTools 集成（Redux DevTools + React Query Devtools）
 
-### E9-S4: Onboarding flow — P0 · 2 SP
+### E9-S4: Onboarding flow — P0 · 2 SP · `Pending (M1+)`
 
 - As a first-time user, I can set up the app in under 30 seconds.
 - Acceptance:
@@ -683,7 +694,7 @@
 
 | Sprint | 里程碑 | Epics | 总 SP | 目标 |
 |--------|--------|-------|-------|------|
-| Sprint 0 (Day 1-3) | M0 | E0, E1-S1/S4, E9-S1/S3, E12-S1/S2 | ~22 SP | 骨架可跑，JWT 可用，healthcheck 可见 |
+| Sprint 0 (Day 1-3) | M0 | E0, E1-S1, auth / PWA shell subset, E12-S2 subset | ~22 SP | Completed: 骨架可跑，匿名会话可用，healthcheck 可见 |
 | Sprint 1 (Week 1-2) | M1 | E2, E1-S2/S3, E8-S1, E9-S2/S4, E12-S0 | ~33 SP | 资源目录 MVP 可用，smoke E2E 已跑通 |
 | Sprint 2 (Week 2-3) | M2 | E3 | ~22 SP | 发帖 + 社区 join + 社区 Feed |
 | Sprint 3 (Week 3-4) | M3 | E4, E4-S5 | ~14 SP | 匹配引擎 + 行动方案 + inbox/polling |

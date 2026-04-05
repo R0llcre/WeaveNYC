@@ -1,12 +1,13 @@
 # WeaveNYC — Implementation Plan (Phased Execution Roadmap)
 
-> 本文档用于 **排阶段、分时间、定产出**。它描述的是执行路线图，不表示仓库今天已经可运行；当前真实状态仍以 [00_Execution_Baseline](./00_Execution_Baseline.md) 为准。
+> 本文档用于 **排阶段、分时间、定产出**。当前仓库状态已经进入 `P0 completed / M0 completed / M1 pending`；`P0` 与 `M0` 在这里保留为已关闭阶段记录，真正的下一步只剩 `M1 official resource directory`。当前真值仍以 [00_Execution_Baseline](./00_Execution_Baseline.md) 和 [21_M0_Closeout](./21_M0_Closeout.md) 为准。
 
 ---
 
 ## 0) 怎么用这份计划
 
-- 先完成 `P0`，把入口、命名和契约冻结下来，再进入代码骨架阶段。
+- `P0` 和 `M0` 已经完成，不再作为待排阶段。
+- 当前执行从 `M1` 开始；`P0` 和 `M0` 只作为历史闭环记录保留。
 - 每个阶段都看 3 件事：做什么、阶段结束必须产出什么、满足什么门槛才能进入下一阶段。
 - `14_Backlog.md` 是任务池；本文件负责决定“现在先做哪一批”。
 
@@ -23,16 +24,16 @@
 
 ## 2) 阶段总览
 
-| 阶段 | 建议时长 | 目标 | 阶段产出 | 进入下一阶段门槛 |
-|------|----------|------|----------|------------------|
-| `P0` 文档冻结 | 0.5-1 天 | 统一入口、命名、契约 | 基线文档、阶段计划、命名决策、无 P1 文档冲突 | README / Baseline / API / Data Model / Backlog 对齐 |
-| `M0` 工程骨架 | 2-4 天 | 建立可协作的 monorepo skeleton | `apps/`、`services/`、`packages/`、`.env.example`、本地基础设施、`GET /healthz`、`GET /readyz`、CI stub | 新同学能按文档把项目拉起到“骨架运行”并看到 healthcheck |
-| `M1` 官方资源目录 | 5-7 天 | 保证“零冷启动价值” | 资源导入脚本、`resource_providers` 表、搜索/详情 API、PWA 首页列表 | 输入 ZIP 能看到真实资源卡片 |
-| `M2` 发帖与社区可见性 | 5-7 天 | 支持 Request/Offer 发布 | 发帖表单、Posts API、社区加入与 membership、可见性规则、生效的风控门槛 | 能先加入社区，再在同社区发布、查看、关闭帖子 |
-| `M3` 匹配与行动方案 | 4-6 天 | 对 Request 返回可行动方案 | 匹配服务、Top-3 结果页、官方资源兜底、解释标签 | 发布 request 后稳定得到 3 个建议 |
-| `M4` 联系与聊天安全 | 5-7 天 | 建立双向同意联系与会话 | `contact_requests`、accept/reject、会话列表、聊天、举报/拉黑、最小审核队列 API / manual triage | 未同意前不建会话，已同意后可实时聊天；pending_review 可先被清理 |
-| `M5` Anchor Admin + 试点准备 | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本 | 能跑通完整 demo 和 pilot rehearsal |
-| `M6` P2P 同步（仅在核心 MVP 完成后） | 1-2 周 | 做课程加分项 | Edge opt-in、Anchor pin/index、同步恢复 | 两设备可跨节点看到同一帖子 |
+| 阶段 | 状态 | 建议时长 | 目标 | 阶段产出 | 进入下一阶段门槛 |
+|------|------|----------|------|----------|------------------|
+| `P0` 文档冻结 | Completed | 0.5-1 天 | 统一入口、命名、契约 | 基线文档、阶段计划、命名决策、无 P1 文档冲突 | README / Baseline / API / Data Model / Backlog 对齐 |
+| `M0` 工程骨架 | Completed | 2-4 天 | 建立可协作的 monorepo skeleton | `apps/`、`services/`、`packages/`、`.env.example`、本地基础设施、`GET /healthz`、`GET /readyz`、CI stub | 新同学能按文档把项目拉起到“骨架运行”并看到 healthcheck |
+| `M1` 官方资源目录 | Pending | 5-7 天 | 保证“零冷启动价值” | 资源导入脚本、`resource_providers` 表、搜索/详情 API、PWA 首页列表 | 输入 ZIP 能看到真实资源卡片 |
+| `M2` 发帖与社区可见性 | Pending | 5-7 天 | 支持 Request/Offer 发布 | 发帖表单、Posts API、社区加入与 membership、可见性规则、生效的风控门槛 | 能先加入社区，再在同社区发布、查看、关闭帖子 |
+| `M3` 匹配与行动方案 | Pending | 4-6 天 | 对 Request 返回可行动方案 | 匹配服务、Top-3 结果页、官方资源兜底、解释标签 | 发布 request 后稳定得到 3 个建议 |
+| `M4` 联系与聊天安全 | Pending | 5-7 天 | 建立双向同意联系与会话 | `contact_requests`、accept/reject、会话列表、聊天、举报/拉黑、最小审核队列 API / manual triage | 未同意前不建会话，已同意后可实时聊天；pending_review 可先被清理 |
+| `M5` Anchor Admin + 试点准备 | Pending | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本 | 能跑通完整 demo 和 pilot rehearsal |
+| `M6` P2P 同步（仅在核心 MVP 完成后） | Optional | 1-2 周 | 做课程加分项 | Edge opt-in、Anchor pin/index、同步恢复 | 两设备可跨节点看到同一帖子 |
 
 > `M0-M5` 是 MVP critical path；`M6` 只在前面稳定后再排，不计入 MVP 必需项。
 
@@ -40,7 +41,7 @@
 
 ## 3) 分阶段执行
 
-### P0（Day 0-1）：文档冻结与命名统一
+### P0（Completed）：文档冻结与命名统一
 做什么：
 - 统一入口文档和阅读顺序
 - 定死 auth、post DTO、contact flow、resource schema
@@ -54,7 +55,7 @@
 进入下一阶段门槛：
 - 不再有“同一实体两种命名”或“同一接口两种行为”
 
-### M0（Day 1-4）：项目骨架可协作
+### M0（Completed）：项目骨架可协作
 做什么：
 - 初始化 monorepo
 - 建立 `apps/pwa`、`apps/anchor-admin`、`services/*`、`packages/shared`、`packages/db`
@@ -76,7 +77,7 @@
 - 匿名会话可签发 token，受保护路由可完成基础鉴权
 - bootstrap artifacts 在仓库中可直接找到
 
-### M1（Week 1-2）：官方资源目录 MVP
+### M1（Current Next Phase）：官方资源目录 MVP
 做什么：
 - 完成 OTP 升级与 refresh token rotation
 - 完成 `resource_providers`、`resource_change_logs`、`verification_logs`
@@ -186,7 +187,7 @@
 
 ## 4) 并行策略（2-3 人团队）
 
-- `P0-M0`：先少并行，优先消灭命名和契约分叉
+- `P0-M0`：已关闭，作为历史记录保留
 - `M1-M3`：前端、后端、数据导入可以并行推进
 - `M4-M5`：聊天安全、最小审核路径和 Anchor Admin 可以并行，但都依赖前面的 auth / posts / matching 稳定
 - `M6`：只在 M5 稳定后再拉出支线，且不计入 MVP 主线容量
@@ -195,6 +196,12 @@
 
 ## 5) 任务分解（Backlog 摘要）
 > 详细 user stories 见 [14_Backlog](./14_Backlog.md)。
+
+当前执行起点：
+
+- 从 `M1` 开始拉任务
+- 不再继续把 `E0`、`E1-S1` 这类已关闭的 M0 foundation stories 当作当前待办
+- 其余 auth / PWA platform story 是否已完成，一律以 [`14_Backlog.md`](./14_Backlog.md) 的当前状态标记为准
 
 - Data ingestion
   - PDF parser
