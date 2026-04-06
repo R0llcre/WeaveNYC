@@ -118,3 +118,194 @@ export type MagicLinkVerifyInput = {
   challengeId: string;
   token: string;
 };
+
+export type CommunityAccessEntry = 'invite_code' | 'qr_token';
+export type JoinPolicy = 'invite_only' | 'open';
+export type MembershipStatus = 'joined' | 'already_joined';
+export type PostType = 'request' | 'offer';
+export type PostCategory =
+  | 'food'
+  | 'goods'
+  | 'childcare'
+  | 'companionship'
+  | 'translation'
+  | 'transportation'
+  | 'other';
+export type PostPrivacy = 'community_only' | 'public' | 'anchor_mediated';
+export type PostStatus = 'draft' | 'pending_review' | 'active' | 'fulfilled' | 'closed' | 'removed';
+export type RiskLevel = 'low' | 'medium' | 'high';
+export type PostScope = 'community' | 'public';
+export type SpeechProvider = 'browser' | 'server_fallback';
+
+export type CommunitySummary = {
+  community_id: string;
+  name: string;
+  center_zip: string;
+  join_policy: JoinPolicy;
+};
+
+export type JoinedCommunity = {
+  community: CommunitySummary;
+  joinedAt: string;
+};
+
+export type CommunityJoinPreview = {
+  community: CommunitySummary;
+  joinToken: string;
+  entry: CommunityAccessEntry;
+  expiresInSeconds: number;
+};
+
+export type CommunityState = {
+  currentCommunityId: string | null;
+  joinedCommunities: JoinedCommunity[];
+  joinPreview: CommunityJoinPreview | null;
+};
+
+export type ContactPreference = {
+  in_app_chat?: boolean;
+  call?: boolean;
+  text?: boolean;
+  notes?: string;
+};
+
+export type CreatePostInput = {
+  communityId: string;
+  postType: PostType;
+  category: PostCategory;
+  title: string;
+  body: string;
+  language: SupportedLanguage;
+  locationZip: string;
+  privacy: PostPrivacy;
+  expiresAt: string;
+  contactPref?: ContactPreference;
+};
+
+export type UpdatePostInput = Partial<Omit<CreatePostInput, 'communityId' | 'postType'>>;
+
+export type PostSummary = {
+  post_id: string;
+  community_id: string;
+  post_type: PostType;
+  category: PostCategory;
+  title: string;
+  body: string;
+  language: SupportedLanguage;
+  location_zip: string;
+  privacy: PostPrivacy;
+  status: PostStatus;
+  risk_level: RiskLevel;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  is_owner: boolean;
+};
+
+export type PostDetail = PostSummary & {
+  contact_pref: ContactPreference | null;
+  actions: {
+    can_edit: boolean;
+    can_close: boolean;
+    can_delete: boolean;
+    can_review: boolean;
+  };
+};
+
+export type PostListInput = {
+  scope: PostScope;
+  communityId?: string;
+  postType?: PostType;
+  category?: PostCategory;
+  status?: PostStatus;
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type MyPostsInput = {
+  communityId?: string;
+  status?: PostStatus;
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type PostsResponse = {
+  items: PostSummary[];
+  next_cursor: string | null;
+};
+
+export type ReviewQueueItem = PostSummary & {
+  review_actions: Array<'approve' | 'reject' | 'request_more_info'>;
+};
+
+export type ReviewQueueResponse = {
+  items: ReviewQueueItem[];
+  next_cursor: string | null;
+};
+
+export type ReviewDecisionInput = {
+  decision: 'approve' | 'reject' | 'request_more_info';
+  notes?: string;
+};
+
+export type CommunityAccessResolveInput =
+  | {
+      inviteCode: string;
+      qrToken?: never;
+    }
+  | {
+      inviteCode?: never;
+      qrToken: string;
+    };
+
+export type CommunityAccessResolveResult = {
+  community: CommunitySummary;
+  join_token: string;
+  entry: CommunityAccessEntry;
+  expires_in_seconds: number;
+};
+
+export type JoinCommunityResult = {
+  community_id: string;
+  membership_status: MembershipStatus;
+  joined_at: string;
+};
+
+export type CreatePostResult = {
+  post_id: string;
+  status: PostStatus;
+  risk_level: RiskLevel;
+};
+
+export type PostDraftStep = 'type' | 'compose' | 'preview';
+
+export type PostDraftState = {
+  step: PostDraftStep;
+  postType: PostType | null;
+  category: PostCategory;
+  title: string;
+  body: string;
+  language: SupportedLanguage;
+  locationZip: string;
+  privacy: PostPrivacy;
+  expiresAt: string;
+  contactPref: {
+    inAppChat: boolean;
+    call: boolean;
+    text: boolean;
+    notes: string;
+  };
+};
+
+export type SpeechTranscribeInput = {
+  audio: Blob;
+  language: SupportedLanguage;
+  transcriptHint?: string;
+  fileName?: string;
+};
+
+export type SpeechTranscribeResult = {
+  transcript: string;
+  language: SupportedLanguage;
+  provider: SpeechProvider;
+};

@@ -3,6 +3,14 @@ import { pgEnum } from "drizzle-orm/pg-core";
 export const userStatusEnum = pgEnum("user_status", ["active", "suspended", "deleted"]);
 export const userLevelEnum = pgEnum("user_level", ["anonymous", "verified", "anchor"]);
 export const joinPolicyEnum = pgEnum("join_policy", ["invite_only", "open"]);
+export const communityAccessChannelEnum = pgEnum("community_access_channel", [
+  "invite_code",
+  "qr_token"
+]);
+export const communityAccessCodeStatusEnum = pgEnum("community_access_code_status", [
+  "active",
+  "revoked"
+]);
 export const postTypeEnum = pgEnum("post_type", ["request", "offer"]);
 export const categoryEnum = pgEnum("category", [
   "food",

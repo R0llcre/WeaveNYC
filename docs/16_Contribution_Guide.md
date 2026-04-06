@@ -1,6 +1,6 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：当前仓库真实可执行的 M1 完成态工作流。本文档只描述当前可运行命令和当前阶段真值。
+> 状态：`main` 的稳定基线仍是 M1；当前 `feature/m2-community-posts` 分支已经完成 community/posts/review/speech 的 M2 运行面，并通过 6-lane review gate。本文档只描述当前可运行命令和当前阶段真值。
 
 ---
 
@@ -48,10 +48,24 @@ pnpm dev
 - `GET /v1/me`
 - `GET /v1/resources`
 - `GET /v1/resources/:provider_id`
+- `POST /v1/community-access/resolve`
+- `POST /v1/communities/:community_id/join`
+- `POST /v1/posts`
+- `GET /v1/posts`
+- `GET /v1/posts/:post_id`
+- `GET /v1/posts/mine`
+- `PATCH /v1/posts/:post_id`
+- `POST /v1/posts/:post_id/close`
+- `DELETE /v1/posts/:post_id`
+- `GET /v1/admin/review_queue`
+- `POST /v1/admin/review_queue/:post_id/decision`
+- `POST /v1/speech/transcribe`
 - PWA 首页：language -> ZIP -> resources list -> detail -> bookmark
 - PWA `/verify`：OTP + magic-link fallback
 - PWA `/dev/m0`：保留 M0 debug
+- PWA `/community`、`/community/join`、`/posts/new`、`/posts/[postId]`、`/posts/mine`
 - Anchor Admin 首页：API health + login placeholder
+- Manual moderation helper：`pnpm dev:mint-anchor-token`
 
 ### 1.4 当前验证分层
 
@@ -104,7 +118,7 @@ cp .env.example .env.local
 
 ### 1.6 Bootstrap artifacts
 
-当前仓库必须同时存在以下产物，M1 才成立：
+当前仓库必须同时存在以下产物，当前 bootstrap 才成立：
 
 - `.env.example`
 - `docker-compose.yml`
@@ -128,7 +142,7 @@ weavenyc/
 ├── services/
 │   ├── api-gateway/
 │   ├── resource-directory/   # M1 ingestion / parse / CLI host
-│   ├── posts/                # placeholder
+│   ├── posts/                # M2 domain library (not a standalone runtime)
 │   ├── match/                # placeholder
 │   └── chat/                 # placeholder
 ├── packages/
@@ -153,7 +167,8 @@ weavenyc/
 
 - `services/api-gateway` 是当前唯一运行中的 HTTP 后端服务。
 - `services/resource-directory` 在 M1 已承载 real-source adapters、merge、geocoding、CLI smoke/import。
-- `posts`、`match`、`chat` 仍保留为后续阶段 skeleton。
+- `services/posts` 当前承载 community access、membership、posts、risk、visibility、minimal moderation 规则，但不单独启动。
+- `match`、`chat` 仍保留为后续阶段 skeleton。
 - `packages/db` 持有 schema、migration、seed、测试。
 
 ---
@@ -169,6 +184,7 @@ pnpm build
 pnpm test:smoke:real
 pnpm test:e2e
 pnpm test:live-sources
+pnpm dev:mint-anchor-token
 pnpm db:migrate
 pnpm db:seed
 pnpm resources:import:cfc
@@ -185,6 +201,7 @@ pnpm resources:import:island-harvest
 - `pnpm test:smoke:real`：真实 API smoke，需要 API gateway、PostgreSQL、Redis、seed 处于可用状态
 - `pnpm test:e2e`：fixture-backed Playwright browser smoke
 - `pnpm test:live-sources`：opt-in live-source smoke（不写库，只验证源可达 / parser shape / record count）
+- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，用于 M2 的 Swagger / curl review queue 操作
 - `pnpm resources:import:cfc` / `pnpm resources:import:island-harvest`：真实导入命令
 
 ---
@@ -218,6 +235,7 @@ pnpm resources:import:island-harvest
 - 如改动 live adapters，运行 `pnpm test:live-sources`
 - 如改动 DB schema，同步更新 migration / seed / 文档
 - 如改动 API 或数据模型，同步更新 [`08_Data_Model.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md) / [`09_API_Spec.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md)
+- 如改动 community/posts/review/speech 契约，同步更新 [`03_User_Flows_And_Screens.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md) / [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md) / [`18_Auth_Design.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md)
 - 如新增环境变量，同步更新 `.env.example`
 
 ---

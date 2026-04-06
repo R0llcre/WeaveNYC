@@ -21,6 +21,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const db = drizzle(pool, { schema });
+export type Database = typeof db;
 
 export async function checkDatabaseConnection(): Promise<boolean> {
   const client = await pool.connect();

@@ -2,5 +2,29 @@
   "name": "@weavenyc/posts",
   "version": "0.1.0",
   "private": true,
-  "description": "Placeholder package for the M2 posts service."
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "description": "M2 posts domain library for community join, visibility, risk, and moderation workflows.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "pnpm --dir ../.. exec vitest run services/posts/test/"
+  },
+  "dependencies": {
+    "@weavenyc/shared": "workspace:*",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "@types/pg": "^8.15.6",
+    "typescript": "^6.0.2",
+    "vitest": "^2.1.8"
+  }
 }

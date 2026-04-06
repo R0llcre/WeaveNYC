@@ -24,6 +24,7 @@ export function ResourceHome() {
   const dispatch = useAppDispatch();
   const preferences = useAppSelector((state) => state.preferences);
   const session = useAppSelector((state) => state.auth.session);
+  const community = useAppSelector((state) => state.community);
   const [openNow, setOpenNow] = useState(false);
   const [today, setToday] = useState(false);
   const [type, setType] = useState<ResourceFilterType>('all');
@@ -79,6 +80,7 @@ export function ResourceHome() {
             <span className="meta-chip">{sessionLabel}</span>
             {session ? <span className="meta-chip">{t('sessionIdChip', { userId: session.user.user_id })}</span> : null}
             {preferences.zipCode ? <span className="meta-chip">{t('zipChip', { zip: preferences.zipCode })}</span> : null}
+            {community.currentCommunityId ? <span className="meta-chip">{t('homeCommunityReady')}</span> : null}
           </div>
 
           <div className="actions">
@@ -155,6 +157,29 @@ export function ResourceHome() {
               {t('seeNearby')}
             </button>
           </form>
+        </section>
+
+        <section className="card card--community-cta">
+          <div className="section-head">
+            <div>
+              <h2>{t('communityTitle')}</h2>
+              <p className="card__subtitle">{t('homeCommunityCopy')}</p>
+            </div>
+          </div>
+          <div className="actions">
+            <Link className="button button--primary" href="/community/join">
+              {t('joinCommunityCta')}
+            </Link>
+            <Link className="button button--secondary" href="/posts/new?post_type=request">
+              {t('requestHelpCta')}
+            </Link>
+            <Link className="button button--secondary" href="/posts/new?post_type=offer">
+              {t('offerHelpCta')}
+            </Link>
+            <Link className="button button--secondary" href="/community">
+              {t('communityFeedHeading')}
+            </Link>
+          </div>
         </section>
 
         <section className="card card--results">

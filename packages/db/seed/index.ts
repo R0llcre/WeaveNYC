@@ -1,9 +1,11 @@
 import { eq } from "drizzle-orm";
+import { and, ne, sql } from "drizzle-orm";
 
 import type { Database } from "../src/client";
 import {
   anchors,
   communities,
+  communityAccessCodes,
   communityMembers,
   contactRequests,
   conversations,
@@ -85,6 +87,44 @@ export async function seedDatabase(db: Database) {
   ]).onConflictDoNothing();
 
   await db
+    .insert(communityAccessCodes)
+    .values([
+      {
+        accessCodeId: seedIds.inviteAccessCodeId,
+        communityId: seedIds.communityId,
+        channel: "invite_code",
+        code: "FARMINGDALE-HELP",
+        status: "active"
+      },
+      {
+        accessCodeId: seedIds.qrAccessCodeId,
+        communityId: seedIds.communityId,
+        channel: "qr_token",
+        code: "FARMINGDALE-QR",
+        status: "active"
+      }
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .update(communityAccessCodes)
+    .set({
+      communityId: seedIds.communityId,
+      code: "FARMINGDALE-HELP",
+      status: "active"
+    })
+    .where(eq(communityAccessCodes.accessCodeId, seedIds.inviteAccessCodeId));
+
+  await db
+    .update(communityAccessCodes)
+    .set({
+      communityId: seedIds.communityId,
+      code: "FARMINGDALE-QR",
+      status: "active"
+    })
+    .where(eq(communityAccessCodes.accessCodeId, seedIds.qrAccessCodeId));
+
+  await db
     .insert(anchors)
     .values({
       anchorId: seedIds.anchorId,
@@ -114,21 +154,18 @@ export async function seedDatabase(db: Database) {
       importCompletedAt: new Date("2026-04-04T10:05:00.000Z")
     })
     .onConflictDoUpdate({
-      target: datasetVersions.datasetVersion,
+      target: [datasetVersions.source, datasetVersions.datasetVersion],
       set: {
         activeRecordCount: 1,
         updatedAt: new Date()
       }
     });
 
-  await db
-    .insert(resourceProviders)
-    .values({
+  const resourceRows = [
+    {
       providerId: seedIds.providerId,
-      source: "cfc_active",
       sourceRef: "cfc_active:st-kilian-farmingdale",
       name: "St. Kilian Parish Social Ministry",
-      type: "pantry",
       addressText: "140 Elizabeth Street, Farmingdale, NY",
       city: "Farmingdale",
       state: "NY",
@@ -142,20 +179,96 @@ export async function seedDatabase(db: Database) {
       eligibilityNotes: "Call ahead for current requirements.",
       lat: 40.7326,
       lng: -73.4454,
-      geoPrecision: "street",
       contentHash: "demo_content_hash",
-      datasetVersion: "cfc_active_2026-04-04",
-      status: "active",
-      lastSeenAt: new Date("2026-04-04T10:05:00.000Z"),
-      lastVerifiedAt: new Date("2026-04-04T11:00:00.000Z")
-    })
-    .onConflictDoUpdate({
-      target: [resourceProviders.source, resourceProviders.sourceRef, resourceProviders.datasetVersion],
-      set: {
-        updatedAt: new Date(),
-        status: "active"
-      }
-    });
+    },
+    {
+      providerId: seedIds.providerId2,
+      sourceRef: "cfc_active:hope-for-the-future-farmingdale",
+      name: "Hope for the Future",
+      addressText: "131 Verdi Street, Farmingdale, NY",
+      city: "Farmingdale",
+      state: "NY",
+      zip: "11735",
+      phone: "(631)752-5771",
+      hoursJson: {
+        thu: "16:00-18:00"
+      },
+      languages: ["en"],
+      eligibilityNotes: "Evening pantry support.",
+      lat: 40.7132,
+      lng: -73.4172,
+      contentHash: "demo_content_hash_2",
+    },
+    {
+      providerId: seedIds.providerId3,
+      sourceRef: "cfc_active:st-martin-bethpage",
+      name: "St. Martin of Tours - Bethpage",
+      addressText: "208 Broadway, Bethpage, NY",
+      city: "Bethpage",
+      state: "NY",
+      zip: "11714",
+      phone: "(516)931-7332",
+      hoursJson: {
+        mon: "09:00-12:00",
+        thu: "09:00-12:00"
+      },
+      languages: ["en"],
+      eligibilityNotes: "Nearby pantry support.",
+      lat: 40.7383,
+      lng: -73.4792,
+      contentHash: "demo_content_hash_3",
+    }
+  ];
+
+  for (const resourceRow of resourceRows) {
+    await db
+      .update(resourceProviders)
+      .set({
+        status: "inactive",
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(resourceProviders.source, "cfc_active"),
+          eq(resourceProviders.sourceRef, resourceRow.sourceRef),
+          ne(resourceProviders.providerId, resourceRow.providerId),
+          sql`${resourceProviders.status} = 'active'`
+        )
+      );
+
+    await db
+      .insert(resourceProviders)
+      .values({
+        providerId: resourceRow.providerId,
+        source: "cfc_active",
+        sourceRef: resourceRow.sourceRef,
+        name: resourceRow.name,
+        type: "pantry",
+        addressText: resourceRow.addressText,
+        city: resourceRow.city,
+        state: resourceRow.state,
+        zip: resourceRow.zip,
+        phone: resourceRow.phone,
+        hoursJson: resourceRow.hoursJson,
+        languages: resourceRow.languages,
+        eligibilityNotes: resourceRow.eligibilityNotes,
+        lat: resourceRow.lat,
+        lng: resourceRow.lng,
+        geoPrecision: "street",
+        contentHash: resourceRow.contentHash,
+        datasetVersion: "cfc_active_2026-04-04",
+        status: "active",
+        lastSeenAt: new Date("2026-04-04T10:05:00.000Z"),
+        lastVerifiedAt: new Date("2026-04-04T11:00:00.000Z")
+      })
+      .onConflictDoUpdate({
+        target: [resourceProviders.source, resourceProviders.sourceRef, resourceProviders.datasetVersion],
+        set: {
+          updatedAt: new Date(),
+          status: "active"
+        }
+      });
+  }
 
   await db
     .insert(verificationLogs)
@@ -223,6 +336,26 @@ export async function seedDatabase(db: Database) {
         contactPref: {
           in_app_chat: true,
           call: false
+        }
+      },
+      {
+        postId: seedIds.pendingReviewPostId,
+        postType: "offer",
+        category: "transportation",
+        title: "Can drive a neighbor to the pantry",
+        body: "Verified helper can drive someone after school hours.",
+        language: "en",
+        locationZip: "11735",
+        privacy: "community_only",
+        expiresAt: new Date("2026-04-06T05:00:00.000Z"),
+        createdBy: seedIds.verifiedUserId,
+        communityId: seedIds.communityId,
+        status: "pending_review",
+        riskLevel: "high",
+        verificationState: "verified_by_anchor",
+        contactPref: {
+          in_app_chat: true,
+          call: true
         }
       }
     ])

@@ -8,13 +8,15 @@
     "start": "node dist/src/server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "pnpm --filter @weavenyc/resource-directory build && pnpm --dir ../.. exec vitest run services/api-gateway/test/"
+    "test": "pnpm --filter @weavenyc/resource-directory build && pnpm --filter @weavenyc/posts build && pnpm --dir ../.. exec vitest run services/api-gateway/test/"
   },
   "dependencies": {
+    "@weavenyc/posts": "workspace:*",
     "@weavenyc/resource-directory": "workspace:*",
     "@weavenyc/shared": "workspace:*",
     "@fastify/cors": "^11.1.0",
     "@fastify/jwt": "^9.1.0",
+    "@fastify/multipart": "^9.2.1",
     "@fastify/swagger": "^9.5.1",
     "@fastify/swagger-ui": "^5.2.3",
     "fastify": "^5.6.1",
