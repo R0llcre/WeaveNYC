@@ -1,0 +1,585 @@
+import { randomUUID } from 'node:crypto';
+
+import { Pool, type PoolClient } from 'pg';
+
+import { createContentHash, normalizeAddressKey } from "./address.js";
+import { mergeHours, isOpenNow, isOpenToday, toWeeklyHours } from "./hours.js";
+import type {
+  DatasetImportSummary,
+  HoursRecord,
+  NormalizedResourceRecord,
+  ResourceListItem,
+  ResourceSearchInput,
+  ResourceSearchResult,
+  ResourceSource
+} from "../types.js";
+
+export class ResourceImportRepository {
+  constructor(private readonly pool: Pool) {}
+
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+
+  async importDataset(input: {
+    source: ResourceSource;
+    sourceLabel: string;
+    sourceUrl: string;
+    datasetVersion: string;
+    records: NormalizedResourceRecord[];
+  }): Promise<DatasetImportSummary> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('begin');
+
+      await client.query(
+        `
+          update dataset_versions
+          set status = 'superseded',
+              updated_at = now()
+          where source = $1
+            and status = 'active'
+            and dataset_version <> $2
+        `,
+        [input.source, input.datasetVersion]
+      );
+
+      await client.query(
+        `
+          insert into dataset_versions (
+            dataset_version_id,
+            source,
+            dataset_version,
+            source_label,
+            source_url,
+            record_count,
+            active_record_count,
+            status,
+            checksum,
+            import_started_at,
+            import_completed_at,
+            created_at,
+            updated_at
+          )
+          values ($1, $2, $3, $4, $5, $6, 0, 'importing', null, now(), null, now(), now())
+          on conflict (source, dataset_version) do update
+            set source_label = excluded.source_label,
+                source_url = excluded.source_url,
+                record_count = excluded.record_count,
+                updated_at = now()
+        `,
+        [
+          randomUUID(),
+          input.source,
+          input.datasetVersion,
+          input.sourceLabel,
+          input.sourceUrl,
+          input.records.length
+        ]
+      );
+
+      const existingRows = await client.query<{
+        provider_id: string;
+        source_ref: string;
+        content_hash: string | null;
+      }>(
+        `
+          select provider_id, source_ref, content_hash
+          from resource_providers
+          where source = $1
+            and status = 'active'
+        `,
+        [input.source]
+      );
+
+      const previousByRef = new Map<string, {
+        provider_id: string;
+        source_ref: string;
+        content_hash: string | null;
+      }>(existingRows.rows.map((row) => [row.source_ref, row]));
+
+      await client.query(
+        `
+          update resource_providers
+          set status = 'inactive',
+              updated_at = now()
+          where source = $1
+            and status = 'active'
+        `,
+        [input.source]
+      );
+
+      let added = 0;
+      let updated = 0;
+
+      for (const record of input.records) {
+        const contentHash = createContentHash(record);
+        const existing = previousByRef.get(record.sourceRef);
+        const providerId = existing?.provider_id ?? randomUUID();
+        const changedFields = existing?.content_hash === contentHash ? [] : ['name', 'address_text', 'phone', 'hours_json'];
+        const changeType = !existing ? 'added' : existing.content_hash === contentHash ? null : 'updated';
+
+        await client.query(
+          `
+            insert into resource_providers (
+              provider_id,
+              source,
+              source_ref,
+              name,
+              type,
+              address_text,
+              city,
+              state,
+              zip,
+              phone,
+              hours_json,
+              languages,
+              eligibility_notes,
+              lat,
+              lng,
+              geo_precision,
+              content_hash,
+              dataset_version,
+              status,
+              last_seen_at,
+              created_at,
+              updated_at
+            )
+            values (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+              $11::jsonb, $12, $13, $14, $15, $16, $17, $18,
+              'active', now(), now(), now()
+            )
+            on conflict (provider_id) do update
+              set name = excluded.name,
+                  source = excluded.source,
+                  source_ref = excluded.source_ref,
+                  type = excluded.type,
+                  address_text = excluded.address_text,
+                  city = excluded.city,
+                  state = excluded.state,
+                  zip = excluded.zip,
+                  phone = excluded.phone,
+                  hours_json = excluded.hours_json,
+                  languages = excluded.languages,
+                  eligibility_notes = excluded.eligibility_notes,
+                  lat = excluded.lat,
+                  lng = excluded.lng,
+                  geo_precision = excluded.geo_precision,
+                  content_hash = excluded.content_hash,
+                  dataset_version = excluded.dataset_version,
+                  status = 'active',
+                  last_seen_at = now(),
+                  updated_at = now()
+          `,
+          [
+            providerId,
+            record.source,
+            record.sourceRef,
+            record.name,
+            record.type,
+            record.addressText,
+            record.city,
+            record.state,
+            record.zip,
+            record.phone,
+            JSON.stringify(record.hoursJson ?? {}),
+            record.languages,
+            record.eligibilityNotes,
+            record.lat,
+            record.lng,
+            record.geoPrecision,
+            contentHash,
+            input.datasetVersion
+          ]
+        );
+
+        if (!existing) {
+          added += 1;
+        } else if (existing.content_hash !== contentHash) {
+          updated += 1;
+        }
+
+        if (changeType) {
+          await this.insertChangeLog(client, {
+            source: record.source,
+            sourceRef: record.sourceRef,
+            datasetVersion: input.datasetVersion,
+            changeType,
+            changedFields,
+            contentHashBefore: existing?.content_hash ?? null,
+            contentHashAfter: contentHash
+          });
+        }
+
+        previousByRef.delete(record.sourceRef);
+      }
+
+      const removed = previousByRef.size;
+      for (const [sourceRef, previous] of previousByRef.entries()) {
+        await this.insertChangeLog(client, {
+          source: input.source,
+          sourceRef,
+          datasetVersion: input.datasetVersion,
+          changeType: 'removed',
+          changedFields: ['status'],
+          contentHashBefore: previous.content_hash,
+          contentHashAfter: null
+        });
+      }
+
+      await client.query(
+        `
+          update dataset_versions
+          set status = 'active',
+              active_record_count = $3,
+              import_completed_at = now(),
+              updated_at = now()
+          where source = $1
+            and dataset_version = $2
+        `,
+        [input.source, input.datasetVersion, input.records.length]
+      );
+
+      await client.query('commit');
+
+      return {
+        datasetVersion: input.datasetVersion,
+        source: input.source,
+        sourceUrl: input.sourceUrl,
+        recordCount: input.records.length,
+        activeRecordCount: input.records.length,
+        added,
+        updated,
+        removed
+      };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async insertChangeLog(
+    client: PoolClient,
+    input: {
+      source: string;
+      sourceRef: string;
+      datasetVersion: string;
+      changeType: string;
+      changedFields: string[];
+      contentHashBefore: string | null;
+      contentHashAfter: string | null;
+    }
+  ) {
+    await client.query(
+      `
+        insert into resource_change_logs (
+          change_log_id,
+          source,
+          source_ref,
+          dataset_version,
+          change_type,
+          changed_fields,
+          content_hash_before,
+          content_hash_after,
+          created_at
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, now())
+      `,
+      [
+        randomUUID(),
+        input.source,
+        input.sourceRef,
+        input.datasetVersion,
+        input.changeType,
+        input.changedFields,
+        input.contentHashBefore,
+        input.contentHashAfter
+      ]
+    );
+  }
+}
+
+type ResourceRow = {
+  provider_id: string;
+  source: string;
+  source_ref: string;
+  name: string;
+  type: ResourceListItem["type"];
+  address_text: string;
+  city: string | null;
+  state: string | null;
+  zip: string;
+  phone: string | null;
+  hours_json: Record<string, string | null> | null;
+  languages: string[] | null;
+  eligibility_notes: string | null;
+  lat: number | null;
+  lng: number | null;
+  geo_precision: ResourceListItem["geoPrecision"];
+  dataset_version: string;
+  source_label: string | null;
+  source_url: string | null;
+};
+
+type MergedResourceItem = ResourceListItem & {
+  providerIds: string[];
+};
+
+export class ResourceQueryRepository {
+  private static readonly searchRadiusMiles = 10;
+
+  constructor(private readonly pool: Pool) {}
+
+  async searchResources(
+    input: ResourceSearchInput,
+    zipCenter: { lat: number | null; lng: number | null }
+  ): Promise<ResourceSearchResult> {
+    const rows = await this.fetchActiveRows();
+    const merged = this.mergeRows(rows, zipCenter);
+    const filtered = merged.filter((item) => {
+      const matchesZip = item.zip === input.zip;
+      const withinRadius =
+        item.distanceMiles !== null && item.distanceMiles <= ResourceQueryRepository.searchRadiusMiles;
+
+      if (!matchesZip && !withinRadius) {
+        return false;
+      }
+
+      if (input.type && item.type !== input.type) {
+        return false;
+      }
+
+      if (input.today && !item.isOpenToday) {
+        return false;
+      }
+
+      if (input.openNow && !item.isOpenNow) {
+        return false;
+      }
+
+      return true;
+    });
+
+    filtered.sort((left, right) => {
+      if (left.isOpenNow !== right.isOpenNow) {
+        return left.isOpenNow ? -1 : 1;
+      }
+
+      if (left.distanceMiles !== null && right.distanceMiles !== null) {
+        if (left.distanceMiles !== right.distanceMiles) {
+          return left.distanceMiles - right.distanceMiles;
+        }
+      } else if (left.distanceMiles !== null) {
+        return -1;
+      } else if (right.distanceMiles !== null) {
+        return 1;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+
+    const limit = input.limit ?? 20;
+    const offset = decodeCursor(input.cursor);
+    const items = filtered.slice(offset, offset + limit);
+    const nextCursor = offset + limit < filtered.length ? encodeCursor(offset + limit) : null;
+
+    return {
+      items,
+      nextCursor,
+      sourceMode: "api"
+    };
+  }
+
+  async getResourceDetail(providerId: string, zipCenter?: {
+    lat: number | null;
+    lng: number | null;
+  }): Promise<ResourceListItem | null> {
+    const rows = await this.fetchActiveRows();
+    const merged = this.mergeRows(rows, zipCenter ?? { lat: null, lng: null });
+    const item = merged.find(
+      (entry) => entry.providerId === providerId || entry.providerIds.includes(providerId)
+    );
+    if (!item) {
+      return null;
+    }
+
+    return item.providerId === providerId
+      ? {
+          ...item,
+          requestedProviderId: null
+        }
+      : {
+          ...item,
+          requestedProviderId: providerId
+        };
+  }
+
+  private async fetchActiveRows() {
+    const result = await this.pool.query<ResourceRow>(
+      `
+        select
+          rp.provider_id,
+          rp.source,
+          rp.source_ref,
+          rp.name,
+          rp.type,
+          rp.address_text,
+          rp.city,
+          rp.state,
+          rp.zip,
+          rp.phone,
+          rp.hours_json,
+          rp.languages,
+          rp.eligibility_notes,
+          rp.lat,
+          rp.lng,
+          rp.geo_precision,
+          rp.dataset_version,
+          dv.source_label,
+          dv.source_url
+        from resource_providers rp
+        left join dataset_versions dv
+          on dv.source = rp.source
+         and dv.dataset_version = rp.dataset_version
+        where rp.status = 'active'
+      `
+    );
+
+    return result.rows;
+  }
+
+  private mergeRows(rows: ResourceRow[], zipCenter: { lat: number | null; lng: number | null }): MergedResourceItem[] {
+    const grouped = new Map<string, ResourceRow[]>();
+    for (const row of rows) {
+      const key = normalizeAddressKey(row.address_text, row.zip);
+      const group = grouped.get(key) ?? [];
+      group.push(row);
+      grouped.set(key, group);
+    }
+
+    return Array.from(grouped.values()).map((group) => {
+      const primary = (group.find((row) => row.source === "cfc_active") ?? group[0])!;
+      const mergedHours = group.reduce<HoursRecord | null>(
+        (accumulator, row) => mergeHours(accumulator, normalizeHours(row.hours_json)),
+        null
+      );
+      const languages = Array.from(
+        new Set(group.flatMap((row) => row.languages ?? []).filter(Boolean))
+      );
+      const notes = group
+        .map((row) => row.eligibility_notes)
+        .filter((value): value is string => Boolean(value))
+        .join(" | ") || null;
+      const lat =
+        primary.lat ?? group.find((row) => row.lat !== null && row.lng !== null)?.lat ?? null;
+      const lng =
+        primary.lng ?? group.find((row) => row.lat !== null && row.lng !== null)?.lng ?? null;
+      const distanceMiles =
+        lat !== null &&
+        lng !== null &&
+        zipCenter.lat !== null &&
+        zipCenter.lng !== null
+          ? haversineMiles(zipCenter.lat, zipCenter.lng, lat, lng)
+          : null;
+      const weeklyHours = toWeeklyHours(mergedHours);
+
+      return {
+        providerId: primary.provider_id,
+        providerIds: group.map((row) => row.provider_id),
+        name: primary.name,
+        type: primary.type,
+        address: primary.address_text,
+        city: primary.city,
+        state: primary.state,
+        zip: primary.zip,
+        phone: primary.phone ?? group.find((row) => row.phone)?.phone ?? null,
+        languages,
+        source: primary.source,
+        sourceLabel: primary.source_label,
+        sourceUrl: primary.source_url,
+        sourceDatasetVersion: primary.dataset_version,
+        notes,
+        distanceMiles,
+        isOpenToday: isOpenToday(mergedHours),
+        isOpenNow: isOpenNow(mergedHours),
+        geoPrecision: primary.geo_precision ?? "unknown",
+        weeklyHours
+      };
+    });
+  }
+}
+
+export class InvalidCursorError extends Error {
+  constructor(cursor: string) {
+    super(`Invalid cursor: ${cursor}`);
+    this.name = "InvalidCursorError";
+  }
+}
+
+export function createImportPool(connectionString: string): Pool {
+  return new Pool({
+    connectionString
+  });
+}
+
+function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+
+  return Number((2 * earthRadiusMiles * Math.asin(Math.sqrt(a))).toFixed(2));
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function encodeCursor(offset: number) {
+  return Buffer.from(String(offset), "utf8").toString("base64url");
+}
+
+function decodeCursor(cursor: string | null | undefined) {
+  if (!cursor) {
+    return 0;
+  }
+
+  try {
+    const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+    if (!/^\d+$/.test(decoded)) {
+      throw new InvalidCursorError(cursor);
+    }
+
+    const value = Number(decoded);
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new InvalidCursorError(cursor);
+    }
+
+    return value;
+  } catch {
+    throw new InvalidCursorError(cursor);
+  }
+}
+
+function normalizeHours(value: Record<string, string | null> | null): HoursRecord | null {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    mon: value.mon ?? null,
+    tue: value.tue ?? null,
+    wed: value.wed ?? null,
+    thu: value.thu ?? null,
+    fri: value.fri ?? null,
+    sat: value.sat ?? null,
+    sun: value.sun ?? null,
+    notes: value.notes ?? null
+  };
+}

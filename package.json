@@ -7,16 +7,25 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "predev": "pnpm --filter @weavenyc/shared build && pnpm --filter @weavenyc/test-utils build && pnpm --filter @weavenyc/db build",
+    "predev": "pnpm --filter @weavenyc/shared build && pnpm --filter @weavenyc/test-utils build && pnpm --filter @weavenyc/db build && pnpm --filter @weavenyc/resource-directory build",
     "dev": "pnpm --parallel --filter @weavenyc/pwa --filter @weavenyc/anchor-admin --filter @weavenyc/api-gateway dev",
-    "build": "pnpm --filter @weavenyc/shared build && pnpm --filter @weavenyc/test-utils build && pnpm --filter @weavenyc/db build && pnpm --filter @weavenyc/api-gateway build && pnpm --filter @weavenyc/pwa build && pnpm --filter @weavenyc/anchor-admin build",
+    "build": "pnpm --filter @weavenyc/shared build && pnpm --filter @weavenyc/test-utils build && pnpm --filter @weavenyc/db build && pnpm --filter @weavenyc/resource-directory build && pnpm --filter @weavenyc/api-gateway build && pnpm --filter @weavenyc/pwa build && pnpm --filter @weavenyc/anchor-admin build",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "pnpm --filter @weavenyc/shared typecheck && pnpm --filter @weavenyc/test-utils typecheck && pnpm --filter @weavenyc/db typecheck && pnpm --filter @weavenyc/api-gateway typecheck && pnpm --filter @weavenyc/pwa typecheck && pnpm --filter @weavenyc/anchor-admin typecheck",
-    "test": "vitest run",
+    "typecheck": "pnpm --filter @weavenyc/shared typecheck && pnpm --filter @weavenyc/test-utils typecheck && pnpm --filter @weavenyc/db typecheck && pnpm --filter @weavenyc/resource-directory typecheck && pnpm --filter @weavenyc/api-gateway typecheck && pnpm --filter @weavenyc/pwa typecheck && pnpm --filter @weavenyc/anchor-admin typecheck",
+    "test": "pnpm --filter @weavenyc/shared build && pnpm --filter @weavenyc/test-utils build && pnpm --filter @weavenyc/db build && pnpm --filter @weavenyc/resource-directory build && vitest run",
+    "test:e2e": "pnpm test:smoke:browser",
+    "test:smoke:browser": "playwright test",
+    "test:smoke:real": "tsx tests/smoke/real-api.ts",
+    "test:smoke:real-api": "tsx tests/smoke/real-api.ts",
+    "test:live-sources": "pnpm --filter @weavenyc/resource-directory resources:import:cfc -- --smoke && pnpm --filter @weavenyc/resource-directory resources:import:island-harvest -- --smoke",
     "db:migrate": "pnpm --filter @weavenyc/db db:migrate",
-    "db:seed": "pnpm --filter @weavenyc/db db:seed"
+    "db:seed": "pnpm --filter @weavenyc/db db:seed",
+    "resources:import:cfc": "pnpm --filter @weavenyc/resource-directory resources:import:cfc",
+    "resources:import:island-harvest": "pnpm --filter @weavenyc/resource-directory resources:import:island-harvest",
+    "resources:sync": "pnpm --filter @weavenyc/resource-directory resources:sync"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.2",
     "eslint": "^10.2.0",

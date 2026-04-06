@@ -2,5 +2,32 @@
   "name": "@weavenyc/resource-directory",
   "version": "0.1.0",
   "private": true,
-  "description": "Placeholder package for the M1 resource directory service."
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "description": "M1 resource ingestion library and CLI host for official directories.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "resources:import:cfc": "tsx src/cli.ts cfc-active",
+    "resources:import:island-harvest": "tsx src/cli.ts island-harvest",
+    "resources:sync": "tsx src/cli.ts sync",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "pnpm --dir ../.. exec vitest run services/resource-directory/test/"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "@types/pg": "^8.15.6",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.2",
+    "vitest": "^2.1.8"
+  }
 }

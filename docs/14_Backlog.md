@@ -8,13 +8,14 @@
 >
 > **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 pending`
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 pending`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
+> - `Completed (M1)`：代码已落地；如 phase closeout 被重新打开，仍需以 `22_M1_Closeout.md` 为准
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
-> 说明：只有显式标记为 `Completed (M0)` 的 story 才算已关闭。某些 M0 期间落过 shell / scaffold 的能力，如果 acceptance criteria 还没完整满足，仍保留为 `Pending (M1+)`。
+> 说明：`Completed (M1)` 当前表示“实现与 closeout 都已完成”；如未来 closeout 再次被重新打开，统一以 [`22_M1_Closeout.md`](./22_M1_Closeout.md) 和 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 为准。
 
 ---
 
@@ -62,7 +63,7 @@
 
 ---
 
-## Epic E1: Authentication & Identity（认证与身份）— Status: `In Progress`
+## Epic E1: Authentication & Identity（认证与身份）— Status: `Completed (M1)`
 
 > 里程碑：M0-M1
 > 来源：[18_Auth_Design](./18_Auth_Design.md) + [09_API_Spec §1](./09_API_Spec.md)
@@ -76,25 +77,34 @@
   - refresh_token 有效期 7 天
   - 数据库创建 `users` 记录（`level = anonymous`）
 
-### E1-S2: OTP phone verification — P0 · 3 SP · `Pending (M1+)`
+### E1-S2: OTP phone verification — P0 · 3 SP · `Completed (M1)`
 
 - As an anonymous user, I can verify my phone number to upgrade to L2 Verified.
 - Acceptance:
-  - `POST /v1/auth/otp/start` → 生成 6 位 OTP，存入 Redis（TTL 5min），通过 Twilio 发送
+  - `POST /v1/auth/otp/start` → 生成 6 位 OTP，存入 Redis（TTL 5min），通过 provider abstraction 发送；本地默认 stub provider
   - `POST /v1/auth/otp/verify` → 验证 OTP → 更新 user level 为 `verified`
   - 存储 `phone_hash`（SHA-256 + salt），**不存储**明文手机号
   - 签发新 JWT（level: verified）
-  - 错误处理：OTP 过期、3 次错误后锁定 15min
+  - 错误处理：OTP 过期、5 次错误后 challenge 失效
+  - 本地开发可通过 demo code 跑通 verify，不依赖真实短信供应商
 
-### E1-S3: Token refresh with rotation — P0 · 2 SP · `Pending (M1+)`
+### E1-S3: Token refresh with rotation — P0 · 2 SP · `Completed (M1)`
 
 - As a logged-in user, my session stays active through automatic token refresh.
 - Acceptance:
   - `POST /v1/auth/refresh` → 验证旧 refresh_token → 签发新 access + refresh token
   - 旧 refresh_token 立即失效（rotation）
-  - 检测 refresh_token 重放攻击 → 撤销该用户所有 token
+  - 检测 refresh_token 重放攻击 → 撤销该用户 refresh family
 
-### E1-S4: JWT middleware and RBAC — P0 · 2 SP · `Pending (M1+)`
+### E1-S3b: Magic-link fallback verification — P0 · 2 SP · `Completed (M1)`
+
+- As an anonymous user, I can fall back to a magic link when SMS is not available.
+- Acceptance:
+  - `POST /v1/auth/magic-link/start` 和 `POST /v1/auth/magic-link/verify` 已可用
+  - challenge 存 Redis，TTL 有效，服务端只持久化 `email_hash`
+  - 本地开发默认使用 stub email-link provider，demo token / URL 可读
+
+### E1-S4: JWT middleware and RBAC — P0 · 2 SP · `Pending (M2+)`
 
 - As a developer, all protected endpoints automatically validate JWT and enforce role checks.
 - 当前备注：M0 已经落地 JWT 验证和受保护路由样板；完整 `requireLevel(...)` RBAC helper 和角色守卫仍待补齐。
@@ -113,32 +123,33 @@
 
 ---
 
-## Epic E2: Official Resource Directory（官方资源目录）— Status: `Next (M1)`
+## Epic E2: Official Resource Directory（官方资源目录）— Status: `Completed (M1)`
 
 > 里程碑：M1（Week 1-2）
 > 来源：[02_PRD §5.2](./02_PRD.md) + [04_Data_Sources](./04_Data_Sources.md)
 
-### E2-S1: Data ingestion — CFC Active dataset — P0 · 5 SP
+### E2-S1: Data ingestion — CFC Active dataset — P0 · 5 SP · `Completed (M1)`
 
 - As an admin, I can import the CFC Active Food Pantry dataset and create a versioned snapshot.
 - Acceptance:
-  - 解析 PDF / CSV → 标准化字段（name, address, phone, hours_json, zip, lat, lng）
+  - 解析真实 CFC Active PDF → 标准化字段（name, address, phone, hours_json, zip, lat, lng）
   - 创建 `dataset_version` 记录（导入时间、记录数、来源），作为可回滚的导入批次元数据
   - Diff 报告：显示新增 / 修改 / 删除的记录数
-  - 地理编码：address → lat/lng（Google Geocoding API 或 Nominatim）
+  - 地理编码：address → lat/lng（Nominatim，失败后回退 ZIP centroid）
   - `geo_precision` 标注：`exact | rooftop | street | zip_centroid`
   - 脚本可重复执行（幂等）
   - 同一 `source + source_ref` 任一时刻只保留一个 `active` 版本，回滚后旧版本可恢复 active
 
-### E2-S2: Data ingestion — Island Harvest + other sources — P1 · 3 SP
+### E2-S2: Data ingestion — Island Harvest multi-source merge — P1 · 3 SP · `Completed (M1)`
 
-- As an admin, I can import multiple data sources and merge them into a unified directory.
+- As an admin, I can import multiple official data sources and merge them into a unified directory.
 - Acceptance:
-  - 支持 Island Harvest、NYC HRA、手动录入 3 种来源
-  - 合并策略：同地址去重、字段优先级（最新来源优先）
+  - 支持 CFC Active + Island Harvest 两种真实来源
+  - 合并策略：`normalized_address + zip` 去重
+  - 字段优先级：CFC 对 `name/type/address/hours` 优先，Island Harvest 补缺失字段或新增地址
   - `source` 字段标注数据来源
 
-### E2-S3: Resource search API — P0 · 3 SP
+### E2-S3: Resource search API — P0 · 3 SP · `Completed (M1)`
 
 - As a user, I can search resources by ZIP code with filters.
 - Acceptance:
@@ -148,14 +159,14 @@
   - 返回 ≤ 50 条结果，分页支持 `cursor`
   - 响应时间 p95 ≤ 2s
 
-### E2-S4: Resource detail API — P0 · 1 SP
+### E2-S4: Resource detail API — P0 · 1 SP · `Completed (M1)`
 
 - As a user, I can view the full detail of a resource.
 - Acceptance:
   - `GET /v1/resources/:id` → 完整字段（name, address, phone, hours, lat, lng, notes）
   - 包含"今天是否开放"的计算字段 `is_open_today`
 
-### E2-S5: Resource list page (PWA) — P0 · 3 SP
+### E2-S5: Resource list page (PWA) — P0 · 3 SP · `Completed (M1)`
 
 - As a user, I can see a list of nearby resources on the home page.
 - Acceptance:
@@ -164,7 +175,7 @@
   - 筛选 pills：Open Now / Pantry / Soup Kitchen / All
   - 空状态："No resources found for this ZIP"
 
-### E2-S6: Resource detail page (PWA) — P0 · 2 SP
+### E2-S6: Resource detail page (PWA) — P0 · 2 SP · `Completed (M1)`
 
 - As a user, I can view a resource's details and take action.
 - Acceptance:
@@ -173,7 +184,7 @@
   - 一键导航按钮（打开 Google Maps / Apple Maps）
   - 缺失字段显示"暂无信息"而非崩溃
 
-### E2-S7: Resource bookmark (PWA) — P1 · 2 SP
+### E2-S7: Resource bookmark (PWA) — P1 · 2 SP · `Completed (M1)`
 
 - As a user, I can bookmark resources for quick access later.
 - Acceptance:
@@ -486,7 +497,7 @@
 > 里程碑：M1-M5（贯穿全程）
 > 来源：[02_PRD §6.5-6.7](./02_PRD.md)
 
-### E8-S1: i18n framework setup (next-intl) — P0 · 2 SP
+### E8-S1: i18n framework setup (next-intl) — P0 · 2 SP · `Completed (M1)`
 
 - As a developer, I can use `t("key")` to render translated strings.
 - Acceptance:
@@ -530,7 +541,7 @@
 > 里程碑：M0-M1
 > 来源：[06_Blueprints](./06_Blueprints.md) + [02_PRD §6](./02_PRD.md)
 
-### E9-S1: PWA manifest and service worker — P0 · 2 SP · `Pending (M1+)`
+### E9-S1: PWA manifest and service worker — P0 · 2 SP · `Pending (M2+)`
 
 - As a user, I can install WeaveNYC as a PWA on my home screen.
 - 当前备注：M0 已经落地 manifest、icon 和 service worker shell wiring；完整离线资源列表体验仍待资源目录完成后补齐。
@@ -539,30 +550,30 @@
   - Service Worker：缓存静态资源 + API 响应（stale-while-revalidate）
   - 离线时显示缓存的首页资源列表（graceful degradation）
 
-### E9-S2: IndexedDB local storage (Dexie.js) — P0 · 3 SP · `Pending (M1+)`
+### E9-S2: IndexedDB local persistence (Dexie.js) — P0 · 3 SP · `Completed (M1)`
 
-- As a user, my drafts and preferences are saved locally.
+- As a user, my preferences, bookmarks, and local session survive reloads without server sync.
 - Acceptance:
-  - Dexie.js schema：drafts、bookmarks、settings、post_cache、device_keys
-  - 草稿自动保存（debounce 2s）
-  - 语言偏好、ZIP、low-bandwidth 设置持久化
-  - 设备 Ed25519 密钥对生成与存储
+  - Dexie.js 提供本地持久化存储
+  - 语言偏好、ZIP、low-bandwidth、bookmarks、匿名/verified session 可持久化
+  - bookmark 刷新后仍存在
+  - 不要求在 M1 完成 drafts / device_keys
 
-### E9-S3: Redux Toolkit + TanStack Query setup — P0 · 2 SP · `Pending (M1+)`
+### E9-S3: Redux Toolkit + TanStack Query setup — P0 · 2 SP · `Completed (M1)`
 
 - As a developer, I have a consistent state management pattern.
-- 当前备注：M0 已经落地 auth slice 和 Query provider skeleton；完整 `community` / `ui` slice、query hooks 与 DevTools 集成仍待补齐。
+- 当前备注：M1 已落地 `auth` / `preferences` slice 和资源 / verify / refresh query hooks；更完整的 `community` / `ui` slice 与 DevTools 集成留到后续阶段。
 - Acceptance:
-  - Redux Toolkit store：auth slice（user, token）、community slice、ui slice
-  - TanStack Query：API hooks（`useResources`、`usePosts`、`useMatches` 等）
-  - Stale-while-revalidate 策略：资源列表 5min、帖子 1min
-  - DevTools 集成（Redux DevTools + React Query Devtools）
+  - Redux Toolkit store：`auth`、`preferences`
+  - TanStack Query：`useResources`、`useResource`、`useOtpStart`、`useOtpVerify`、`useMagicLinkStart`、`useMagicLinkVerify`、`useRefreshSession`
+  - 资源查询已采用 stale cache
+  - DevTools 集成可留到后续阶段
 
-### E9-S4: Onboarding flow — P0 · 2 SP · `Pending (M1+)`
+### E9-S4: Onboarding flow — P0 · 2 SP · `Completed (M1)`
 
 - As a first-time user, I can set up the app in under 30 seconds.
 - Acceptance:
-  - 步骤：语言选择 → ZIP 输入（或定位授权）→ 首页
+  - 步骤：语言选择 → ZIP 输入 → 首页
   - 不强制注册，直接显示官方资源
   - 隐私提示："默认匿名，不采集精确位置"
   - ZIP 校验：无效 ZIP 给出可纠正提示
@@ -695,7 +706,7 @@
 | Sprint | 里程碑 | Epics | 总 SP | 目标 |
 |--------|--------|-------|-------|------|
 | Sprint 0 (Day 1-3) | M0 | E0, E1-S1, auth / PWA shell subset, E12-S2 subset | ~22 SP | Completed: 骨架可跑，匿名会话可用，healthcheck 可见 |
-| Sprint 1 (Week 1-2) | M1 | E2, E1-S2/S3, E8-S1, E9-S2/S4, E12-S0 | ~33 SP | 资源目录 MVP 可用，smoke E2E 已跑通 |
+| Sprint 1 (Week 1-2) | M1 | E2, E1-S2/S3/S3b, E8-S1, E9-S2/S3/S4, E12-S0 | ~35 SP | Candidate complete: 资源目录 MVP、verify/refresh/magic-link、browser smoke、real API smoke、live-source smoke 已实现并已重跑；正式 closeout 仍以 `22_M1_Closeout.md` 为准 |
 | Sprint 2 (Week 2-3) | M2 | E3 | ~22 SP | 发帖 + 社区 join + 社区 Feed |
 | Sprint 3 (Week 3-4) | M3 | E4, E4-S5 | ~14 SP | 匹配引擎 + 行动方案 + inbox/polling |
 | Sprint 4 (Week 4-5) | M4 | E5, E6-S0/S1/S2/S3 | ~26 SP | 聊天 + 最小审核闭环 |

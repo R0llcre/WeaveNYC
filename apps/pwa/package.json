@@ -13,7 +13,9 @@
     "@weavenyc/shared": "workspace:*",
     "@reduxjs/toolkit": "2.11.2",
     "@tanstack/react-query": "5.96.2",
+    "dexie": "^4.2.1",
     "next": "16.2.2",
+    "next-intl": "^4.5.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-redux": "^9.2.0"

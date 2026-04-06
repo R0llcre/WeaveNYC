@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   anonymousSessionRequestSchema,
   anonymousSessionResponseSchema,
-  jwtClaimsSchema
+  jwtClaimsSchema,
+  resourceListResponseSchema
 } from "./index";
 
 describe("@weavenyc/shared validators", () => {
@@ -37,5 +38,35 @@ describe("@weavenyc/shared validators", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts resource list responses", () => {
+    const parsed = resourceListResponseSchema.parse({
+      items: [
+        {
+          provider_id: "22222222-2222-4222-8222-222222222222",
+          name: "St. Kilian's Social Ministry",
+          type: "pantry",
+          address: "140 Elizabeth St., Farmingdale, NY 11735",
+          city: "Farmingdale",
+          state: "NY",
+          zip: "11735",
+          phone: "516-756-9656",
+          languages: ["en"],
+          source: "island_harvest",
+          source_label: "Island Harvest",
+          notes: null,
+          distance_miles: 0.1,
+          is_open_today: true,
+          is_open_now: false,
+          geo_precision: "street",
+          directions_url: "https://maps.apple.com/?q=St.%20Kilian"
+        }
+      ],
+      next_cursor: null,
+      source_mode: "api"
+    });
+
+    expect(parsed.items[0]?.zip).toBe("11735");
   });
 });

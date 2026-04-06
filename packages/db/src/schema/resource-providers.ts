@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   doublePrecision,
+  foreignKey,
   index,
   jsonb,
   pgEnum,
@@ -35,9 +37,7 @@ export const resourceProviders = pgTable(
     lng: doublePrecision("lng"),
     geoPrecision: varchar("geo_precision", { length: 20 }).default("zip_centroid"),
     contentHash: varchar("content_hash", { length: 64 }),
-    datasetVersion: varchar("dataset_version", { length: 50 })
-      .notNull()
-      .references(() => datasetVersions.datasetVersion),
+    datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
     status: resourceStatusEnum("status").notNull().default("active"),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
@@ -48,6 +48,14 @@ export const resourceProviders = pgTable(
     zipTypeIdx: index("idx_resources_zip_type").on(table.zip, table.type),
     sourceRefIdx: index("idx_resources_source_ref").on(table.source, table.sourceRef),
     datasetStatusIdx: index("idx_resources_dataset_status").on(table.datasetVersion, table.status),
+    sourceDatasetVersionFk: foreignKey({
+      columns: [table.source, table.datasetVersion],
+      foreignColumns: [datasetVersions.source, datasetVersions.datasetVersion],
+      name: "fk_resource_providers_source_dataset_version"
+    }),
+    activeSourceRefUq: uniqueIndex("uq_resources_active_source_ref")
+      .on(table.source, table.sourceRef)
+      .where(sql`${table.status} = 'active'`),
     sourceRefVersionUq: uniqueIndex("uq_resources_source_ref_version").on(
       table.source,
       table.sourceRef,

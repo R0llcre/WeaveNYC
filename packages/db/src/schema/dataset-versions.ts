@@ -25,7 +25,6 @@ export const datasetVersions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
-    datasetVersionUq: uniqueIndex("uq_dataset_versions_dataset_version").on(table.datasetVersion),
     datasetSourceUq: uniqueIndex("uq_dataset_versions_source_version").on(
       table.source,
       table.datasetVersion

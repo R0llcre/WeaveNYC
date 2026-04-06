@@ -1,14 +1,16 @@
+import { headers } from 'next/headers';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 import { Providers } from '@/components/providers';
+import { coerceSupportedLanguage } from '@/lib/i18n';
 import { PwaRegistration } from '@/components/pwa-registration';
 
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'WeaveNYC PWA',
-  description: 'M0 shell for API health checks and anonymous session bootstrap.',
+  description: 'WeaveNYC M1 resource finder with nearby official food support, local bookmarks, and lightweight verification.',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/icons/app-icon.svg',
@@ -29,11 +31,14 @@ type RootLayoutProps = {
   children: ReactNode;
 };
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const requestHeaders = await headers();
+  const initialLanguage = coerceSupportedLanguage(requestHeaders.get('accept-language'));
+
   return (
-    <html lang="en">
+    <html lang={initialLanguage} suppressHydrationWarning>
       <body>
-        <Providers>
+        <Providers initialLanguage={initialLanguage}>
           <PwaRegistration />
           {children}
         </Providers>

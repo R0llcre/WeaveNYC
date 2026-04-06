@@ -32,25 +32,35 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
       }
     },
     async (_request, reply) => {
-      const checks = {
-        postgres: true,
-        redis: true
-      };
-
       const [postgresResult, redisResult] = await Promise.allSettled([
         app.userStore.ping(),
         app.refreshTokenStore.ping()
       ]);
 
-      if (postgresResult.status === 'rejected') {
-        checks.postgres = false;
-      }
+      const checks = [
+        {
+          name: 'postgres',
+          status: postgresResult.status === 'fulfilled' ? 'ok' : 'degraded',
+          detail:
+            postgresResult.status === 'rejected'
+              ? postgresResult.reason instanceof Error
+                ? postgresResult.reason.message
+                : 'postgres unavailable'
+              : undefined
+        },
+        {
+          name: 'redis',
+          status: redisResult.status === 'fulfilled' ? 'ok' : 'degraded',
+          detail:
+            redisResult.status === 'rejected'
+              ? redisResult.reason instanceof Error
+                ? redisResult.reason.message
+                : 'redis unavailable'
+              : undefined
+        }
+      ];
 
-      if (redisResult.status === 'rejected') {
-        checks.redis = false;
-      }
-
-      const ready = checks.postgres && checks.redis;
+      const ready = checks.every((check) => check.status === 'ok');
       reply.code(ready ? 200 : 503);
 
       return {

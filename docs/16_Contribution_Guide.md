@@ -1,6 +1,6 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：当前仓库真实可执行的 M0 工作流。本文档不再描述 target-state 假命令。
+> 状态：当前仓库真实可执行的 M1 完成态工作流。本文档只描述当前可运行命令和当前阶段真值。
 
 ---
 
@@ -14,6 +14,7 @@
 | pnpm | 10.33.x | workspace 包管理器 |
 | Docker | 24.x+ | 本地 PostgreSQL / Redis |
 | Git | 2.40+ | 版本控制 |
+| `pdftotext` | Poppler | CFC live adapter 需要 |
 
 ### 1.2 Bootstrap 顺序
 
@@ -32,16 +33,47 @@ pnpm dev
 - API：`http://localhost:4000`
 - Swagger：`http://localhost:4000/docs`
 
-### 1.3 当前已验证的运行面
+只有当这条 bootstrap 链完整成功后，下面列出的运行面和 smoke 命令才算当前可执行真值。
+
+### 1.3 当前已实现的运行面
 
 - `GET /healthz`
 - `GET /readyz`
 - `POST /v1/auth/anonymous`
+- `POST /v1/auth/refresh`
+- `POST /v1/auth/otp/start`
+- `POST /v1/auth/otp/verify`
+- `POST /v1/auth/magic-link/start`
+- `POST /v1/auth/magic-link/verify`
 - `GET /v1/me`
-- PWA 首页：API health + anonymous session button
+- `GET /v1/resources`
+- `GET /v1/resources/:provider_id`
+- PWA 首页：language -> ZIP -> resources list -> detail -> bookmark
+- PWA `/verify`：OTP + magic-link fallback
+- PWA `/dev/m0`：保留 M0 debug
 - Anchor Admin 首页：API health + login placeholder
 
-### 1.4 环境变量
+### 1.4 当前验证分层
+
+- 默认 CI：
+  - `pnpm install --frozen-lockfile`
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm build`
+  - `docker compose up -d`
+  - `pnpm db:migrate`
+  - `pnpm db:seed`
+  - `pnpm test:smoke:real`
+  - `pnpm test:e2e`
+- Manual / opt-in：
+  - `pnpm test:live-sources`
+- 说明：
+  - `pnpm test:smoke:real` 直接打本地 Fastify，不走浏览器 route mock
+  - `pnpm test:e2e` 仍是 fixture-backed browser smoke
+  - `pnpm test:live-sources` 不进默认 CI
+
+### 1.5 环境变量
 
 仓库自带 `.env.example`。如需本地覆盖，复制一份：
 
@@ -69,9 +101,9 @@ cp .env.example .env.local
 - `.env.local` 已被忽略，不要提交真实密钥。
 - `infra/dev/*` 仅用于本地开发 bootstrap，不得用于生产。
 
-### 1.5 Bootstrap artifacts
+### 1.6 Bootstrap artifacts
 
-当前仓库必须同时存在以下产物，M0 才成立：
+当前仓库必须同时存在以下产物，M1 才成立：
 
 - `.env.example`
 - `docker-compose.yml`
@@ -80,6 +112,8 @@ cp .env.example .env.local
 - `infra/dev/jwt-public.pem`
 - `GET /healthz`
 - `GET /readyz`
+- `GET /v1/resources`
+- `GET /v1/resources/:provider_id`
 
 ---
 
@@ -92,7 +126,7 @@ weavenyc/
 │   └── anchor-admin/
 ├── services/
 │   ├── api-gateway/
-│   ├── resource-directory/   # placeholder
+│   ├── resource-directory/   # M1 ingestion / parse / CLI host
 │   ├── posts/                # placeholder
 │   ├── match/                # placeholder
 │   └── chat/                 # placeholder
@@ -116,8 +150,9 @@ weavenyc/
 
 说明：
 
-- `services/api-gateway` 是当前唯一运行中的后端服务。
-- 其余 4 个 service 目录在 M0 只保留 package skeleton + README。
+- `services/api-gateway` 是当前唯一运行中的 HTTP 后端服务。
+- `services/resource-directory` 在 M1 已承载 real-source adapters、merge、geocoding、CLI smoke/import。
+- `posts`、`match`、`chat` 仍保留为后续阶段 skeleton。
 - `packages/db` 持有 schema、migration、seed、测试。
 
 ---
@@ -130,8 +165,13 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm test:smoke:real
+pnpm test:e2e
+pnpm test:live-sources
 pnpm db:migrate
 pnpm db:seed
+pnpm resources:import:cfc
+pnpm resources:import:island-harvest
 ```
 
 命令真值：
@@ -141,6 +181,10 @@ pnpm db:seed
 - `pnpm typecheck`：workspace 级 TypeScript 校验
 - `pnpm test`：Vitest
 - `pnpm build`：先 build shared / db / test-utils，再 build API 和两个前端
+- `pnpm test:smoke:real`：真实 API smoke，需要 API gateway、PostgreSQL、Redis、seed 处于可用状态
+- `pnpm test:e2e`：fixture-backed Playwright browser smoke
+- `pnpm test:live-sources`：opt-in live-source smoke（不写库，只验证源可达 / parser shape / record count）
+- `pnpm resources:import:cfc` / `pnpm resources:import:island-harvest`：真实导入命令
 
 ---
 
@@ -168,6 +212,9 @@ pnpm db:seed
 - 运行 `pnpm typecheck`
 - 运行 `pnpm test`
 - 运行 `pnpm build`
+- 运行 `pnpm test:smoke:real`（如果改动 API/resource 验证路径或 CI glue）
+- 如改动前端主路径，运行 `pnpm test:e2e`
+- 如改动 live adapters，运行 `pnpm test:live-sources`
 - 如改动 DB schema，同步更新 migration / seed / 文档
 - 如改动 API 或数据模型，同步更新 [`08_Data_Model.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md) / [`09_API_Spec.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md)
 - 如新增环境变量，同步更新 `.env.example`
@@ -186,9 +233,11 @@ pnpm db:seed
 
 ## 7) 当前已知限制
 
-当前唯一显式接受的残余风险：
+当前显式接受的残余风险：
 
-- CI 默认不跑 Docker-backed DB integration
+- CI 默认不跑 live-source smoke
+- Browser smoke 仍使用 fixture-backed tests
+- CFC live adapter 依赖上游 PDF 结构和本地 `pdftotext`
 - [`packages/db/test/db.integration.test.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/packages/db/test/db.integration.test.ts) 目前为 opt-in
 
 除此之外，不要再把“仓库还不能 `pnpm dev`”或“当前只有 docs 没有代码”写进文档。

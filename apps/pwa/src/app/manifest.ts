@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'WeaveNYC',
     short_name: 'WeaveNYC',
-    description: 'M0 PWA shell for health checks and anonymous session bootstrap.',
+    description: 'WeaveNYC M1 resource finder with nearby official food support and lightweight verification.',
     start_url: '/',
     display: 'standalone',
     background_color: '#f8f4ed',

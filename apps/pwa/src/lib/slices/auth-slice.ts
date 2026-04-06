@@ -1,9 +1,9 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import type { AnonymousSessionResponse } from '@/lib/types';
+import type { AuthSession } from '@/lib/types';
 
 type AuthState = {
-  session: AnonymousSessionResponse | null;
+  session: AuthSession | null;
 };
 
 const initialState: AuthState = {
@@ -14,7 +14,10 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setSession(state, action: PayloadAction<AnonymousSessionResponse>) {
+    hydrateSession(state, action: PayloadAction<AuthSession | null | undefined>) {
+      state.session = action.payload ?? null;
+    },
+    setSession(state, action: PayloadAction<AuthSession>) {
       state.session = action.payload;
     },
     clearSession(state) {
@@ -23,5 +26,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearSession, setSession } = authSlice.actions;
+export const { clearSession, hydrateSession, setSession } = authSlice.actions;
 export const authReducer = authSlice.reducer;
