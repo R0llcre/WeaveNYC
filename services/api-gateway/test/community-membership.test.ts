@@ -106,4 +106,40 @@ describe('community access routes', () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it('prevents anchors from browsing community feeds outside their scoped communities', async () => {
+    const userStore = new InMemoryUserStore();
+    const anchor = createUserRecord({
+      userId: '33333333-3333-4333-8333-333333333333',
+      level: 'anchor',
+      role: 'anchor',
+      communityIds: ['55555555-5555-4555-8555-555555555555'],
+    });
+    userStore.users.set(anchor.userId, anchor);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const token = app.jwt.sign(
+      {
+        sub: anchor.userId,
+        level: anchor.level,
+        role: anchor.role,
+        community_ids: anchor.communityIds,
+      },
+      {
+        algorithm: 'RS256',
+        iss: app.config.jwt.issuer,
+        expiresIn: app.config.jwt.accessTokenTtl,
+      }
+    );
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/posts?scope=community&community_id=${community.community_id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
 });

@@ -9,7 +9,7 @@ import type {
   ReviewQueueResponse,
 } from '@weavenyc/shared';
 
-import { canViewPost, ensureActorCanPublish, isCommunityMember } from './policy.js';
+import { canViewPost, ensureActorCanPublish, getPostActions, isCommunityMember } from './policy.js';
 import { classifyPostRisk, requiresReview } from './risk.js';
 import type {
   CommunityMembershipResult,
@@ -23,6 +23,70 @@ import { PostsServiceError } from './types.js';
 
 function nowPlus(hours: number) {
   return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function decodeCursor(
+  cursor: string | null | undefined,
+): { createdAt: string; postId: string } | null {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+      createdAt?: string;
+      postId?: string;
+    };
+
+    if (!parsed.createdAt || !parsed.postId) {
+      throw new Error('invalid');
+    }
+
+    return {
+      createdAt: parsed.createdAt,
+      postId: parsed.postId,
+    };
+  } catch {
+    throw new PostsServiceError('Cursor is not valid', 'invalid_cursor');
+  }
+}
+
+function encodeCursor(post: PostRecord) {
+  return Buffer.from(
+    JSON.stringify({
+      createdAt: post.createdAt,
+      postId: post.postId,
+    }),
+    'utf8',
+  ).toString('base64url');
+}
+
+function sortByNewest(posts: PostRecord[]) {
+  return [...posts].sort((left, right) => {
+    if (left.createdAt === right.createdAt) {
+      return right.postId.localeCompare(left.postId);
+    }
+
+    return right.createdAt.localeCompare(left.createdAt);
+  });
+}
+
+function afterCursor(posts: PostRecord[], cursor: ReturnType<typeof decodeCursor>) {
+  if (!cursor) {
+    return posts;
+  }
+
+  return posts.filter((post) => {
+    if (post.createdAt < cursor.createdAt) {
+      return true;
+    }
+
+    if (post.createdAt > cursor.createdAt) {
+      return false;
+    }
+
+    return post.postId < cursor.postId;
+  });
 }
 
 function toDetail(actor: PostActor, post: PostRecord): PostDetail {
@@ -43,12 +107,7 @@ function toDetail(actor: PostActor, post: PostRecord): PostDetail {
     expires_at: post.expiresAt,
     is_owner: actor.userId === post.createdBy,
     contact_pref: post.contactPref,
-    actions: {
-      can_edit: actor.userId === post.createdBy,
-      can_close: actor.userId === post.createdBy && post.status === 'active',
-      can_delete: actor.userId === post.createdBy && post.status !== 'removed',
-      can_review: actor.role === 'anchor' && actor.communityIds.includes(post.communityId),
-    },
+    actions: getPostActions(actor, post),
   };
 }
 
@@ -112,7 +171,7 @@ export class InMemoryPostsService implements PostsService {
 
   async createPost(input: { actor: PostActor; request: CreatePostRequest }) {
     const membership = this.memberships.get(`${input.actor.userId}:${input.request.community_id}`);
-    if (!membership && !input.actor.communityIds.includes(input.request.community_id) && input.actor.role !== 'anchor') {
+    if (!membership && !input.actor.communityIds.includes(input.request.community_id)) {
       throw new PostsServiceError('Join the community before publishing', 'membership_required');
     }
 
@@ -149,7 +208,10 @@ export class InMemoryPostsService implements PostsService {
     };
   }
 
-  async listPosts(input: { actor: PostActor; scope: 'community' | 'public'; communityId?: string }) {
+  async listPosts(input: { actor: PostActor; scope: 'community' | 'public'; communityId?: string; postType?: PostRecord['postType']; category?: PostRecord['category']; status?: PostRecord['status']; cursor?: string | null; limit?: number }) {
+    const cursor = decodeCursor('cursor' in input ? (input as { cursor?: string | null }).cursor : null);
+    const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+
     if (input.scope === 'community') {
       if (!input.communityId) {
         throw new PostsServiceError('community_id is required for community scope', 'invalid_scope');
@@ -160,17 +222,55 @@ export class InMemoryPostsService implements PostsService {
       }
     }
 
-    const items = Array.from(this.posts.values())
-      .filter((post) =>
-        input.scope === 'public'
-          ? post.privacy === 'public' && post.status === 'active'
-          : post.communityId === input.communityId && post.privacy !== 'anchor_mediated' && post.status === 'active'
-      )
-      .map((post) => toDetail(input.actor, post));
+    const records = afterCursor(
+      sortByNewest(
+        Array.from(this.posts.values()).filter((post) => {
+          const notExpired = !post.expiresAt || post.expiresAt > new Date().toISOString();
+          if (!notExpired) {
+            return false;
+          }
+
+          if (input.scope === 'public') {
+            if (post.status !== 'active' || post.privacy !== 'public') {
+              return false;
+            }
+
+            if (input.communityId && post.communityId !== input.communityId) {
+              return false;
+            }
+          } else {
+            if (post.communityId !== input.communityId || post.privacy === 'anchor_mediated') {
+              return false;
+            }
+
+            if (input.actor.role === 'anchor') {
+              if ((input.status ?? 'active') !== post.status) {
+                return false;
+              }
+            } else if (post.status !== 'active') {
+              return false;
+            }
+          }
+
+          if (input.postType && post.postType !== input.postType) {
+            return false;
+          }
+
+          if (input.category && post.category !== input.category) {
+            return false;
+          }
+
+          return true;
+        }),
+      ),
+      cursor,
+    ).slice(0, limit + 1);
+
+    const items = records.map((post) => toDetail(input.actor, post));
 
     return {
-      items: items.map((detail) => toSummary(detail)),
-      next_cursor: null,
+      items: items.slice(0, limit).map((detail) => toSummary(detail)),
+      next_cursor: records.length > limit ? encodeCursor(records[limit]!) : null,
     } satisfies PostsListResponse;
   }
 
@@ -264,22 +364,55 @@ export class InMemoryPostsService implements PostsService {
     return toDetail(actor, post);
   }
 
-  async listMyPosts(input: { actor: PostActor }): Promise<MyPostsResponse> {
-    const items = Array.from(this.posts.values())
-      .filter((post) => post.createdBy === input.actor.userId)
-      .map((post) => toDetail(input.actor, post))
-      .map((detail) => toSummary(detail));
-    return { items, next_cursor: null };
+  async listMyPosts(input: { actor: PostActor; communityId?: string; status?: PostRecord['status']; cursor?: string | null; limit?: number }): Promise<MyPostsResponse> {
+    const cursor = decodeCursor('cursor' in input ? (input as { cursor?: string | null }).cursor : null);
+    const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+
+    const records = afterCursor(
+      sortByNewest(
+        Array.from(this.posts.values()).filter((post) => {
+          if (post.createdBy !== input.actor.userId) {
+            return false;
+          }
+
+          if (input.communityId && post.communityId !== input.communityId) {
+            return false;
+          }
+
+          if (input.status && post.status !== input.status) {
+            return false;
+          }
+
+          return true;
+        }),
+      ),
+      cursor,
+    ).slice(0, limit + 1);
+
+    return {
+      items: records.slice(0, limit).map((post) => toSummary(toDetail(input.actor, post))),
+      next_cursor: records.length > limit ? encodeCursor(records[limit]!) : null,
+    };
   }
 
   async listReviewQueue(input: ReviewQueueInput): Promise<ReviewQueueResponse> {
+    const cursor = decodeCursor(input.cursor);
+    const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+
     if (input.actor.role !== 'anchor' || !input.actor.communityIds.includes(input.communityId)) {
       throw new PostsServiceError('Only anchors can access the review queue', 'forbidden');
     }
 
-    const items = Array.from(this.posts.values())
-      .filter((post) => post.communityId === input.communityId && post.status === 'pending_review')
-      .map((post) => ({
+    const records = afterCursor(
+      sortByNewest(
+        Array.from(this.posts.values()).filter(
+          (post) => post.communityId === input.communityId && post.status === 'pending_review',
+        ),
+      ),
+      cursor,
+    ).slice(0, limit + 1);
+
+    const items = records.map((post) => ({
         ...toDetail(input.actor, post),
         review_actions: ['approve', 'reject', 'request_more_info'] as Array<
           'approve' | 'reject' | 'request_more_info'
@@ -290,7 +423,10 @@ export class InMemoryPostsService implements PostsService {
         void contact_pref;
         return item;
       });
-    return { items, next_cursor: null };
+    return {
+      items: items.slice(0, limit),
+      next_cursor: records.length > limit ? encodeCursor(records[limit]!) : null,
+    };
   }
 
   async decideReview(input: ReviewDecisionInput) {

@@ -41,6 +41,7 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   };
   let membershipJoined = false;
   let sequence = 1;
+  let viewerRole: 'member' | 'anchor' = 'member';
   const posts: PostRecord[] = [];
 
   const activeRequestId = '90000000-0000-4000-8000-000000000001';
@@ -140,10 +141,10 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
     return {
       ...post,
       actions: {
-        can_edit: post.is_owner,
-        can_close: post.is_owner && post.status !== 'removed',
-        can_delete: post.is_owner,
-        can_review: false,
+        can_edit: post.is_owner && (post.status === 'active' || post.status === 'pending_review'),
+        can_close: post.is_owner && post.status === 'active',
+        can_delete: post.is_owner && post.status !== 'removed',
+        can_review: viewerRole === 'anchor' && post.status === 'pending_review' && post.community_id === communityId,
       },
     };
   }
@@ -194,6 +195,8 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
         issued_via: 'anonymous',
       }),
     });
+
+    viewerRole = 'member';
   });
 
   await page.route('**/v1/auth/otp/start', async (route) => {
@@ -237,6 +240,8 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
         issued_via: 'otp',
       }),
     });
+
+    viewerRole = 'member';
   });
 
   await page.route('**/v1/community-access/resolve', async (route) => {
@@ -467,46 +472,46 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
 
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Create anonymous session' }).click();
+  await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Join community' }).first().click();
+  await page.getByTestId('join-community').first().click();
   await page.getByLabel('Invite code').fill('FARMINGDALE-HELP');
-  await page.getByRole('button', { name: 'Resolve community' }).click();
+  await page.getByTestId('resolve-community').click();
   await expect(page.getByText('Farmingdale Demo Community')).toBeVisible();
   await page.getByLabel('Invite code').fill('FARMINGDALE-HELP-CHANGED');
   await expect(page.getByText('Farmingdale Demo Community')).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Confirm join' })).not.toBeVisible();
+  await expect(page.getByTestId('confirm-join')).not.toBeVisible();
   await page.getByLabel('Invite code').fill('FARMINGDALE-HELP');
-  await page.getByRole('button', { name: 'Resolve community' }).click();
+  await page.getByTestId('resolve-community').click();
   await expect(page.getByText('Farmingdale Demo Community')).toBeVisible();
   await page.getByLabel('Invite code').fill('BAD-CODE');
-  await page.getByRole('button', { name: 'Resolve community' }).click();
+  await page.getByTestId('resolve-community').click();
   await expect(page.getByText('Farmingdale Demo Community')).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Confirm join' })).not.toBeVisible();
+  await expect(page.getByTestId('confirm-join')).not.toBeVisible();
   await page.getByLabel('Invite code').fill('FARMINGDALE-HELP');
-  await page.getByRole('button', { name: 'Resolve community' }).click();
+  await page.getByTestId('resolve-community').click();
   await expect(page.getByText('Farmingdale Demo Community')).toBeVisible();
-  await page.getByRole('button', { name: 'Confirm join' }).click();
+  await page.getByTestId('confirm-join').click();
   await expect(page.getByText('Current community: Farmingdale Demo Community')).toBeVisible();
 
   await page.goto('/community/join');
-  await page.getByRole('button', { name: 'QR token' }).click();
+  await page.getByTestId('join-mode-qr').click();
   await page.getByLabel('QR token or scanned payload').fill('FARMINGDALE-QR');
-  await page.getByRole('button', { name: 'Resolve community' }).click();
-  await page.getByRole('button', { name: 'Confirm join' }).click();
+  await page.getByTestId('resolve-community').click();
+  await page.getByTestId('confirm-join').click();
   await expect(page.getByText('Current community: Farmingdale Demo Community')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Request help' }).click();
+  await page.getByTestId('request-help').click();
   await expect(page.getByRole('heading', { name: 'Create a post' })).toBeVisible();
   await page.getByLabel('Title').fill('Need groceries tonight');
-  await page.getByRole('button', { name: 'Use browser speech' }).click();
+  await page.getByTestId('browser-speech').click();
   await page.getByLabel('Details').fill('Typed while listening');
   await expect(page.getByLabel('Details')).toHaveValue(/Typed while listening[\s\S]*Browser speech transcript/);
   await page.getByLabel('ZIP code').fill('11735');
   await page.getByLabel('Visibility').selectOption('public');
-  await page.getByRole('button', { name: 'Preview' }).last().click();
-  await page.getByRole('button', { name: 'Publish post' }).click();
+  await page.getByTestId('preview-post').click();
+  await page.getByTestId('publish-post').click();
   await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000001$/);
   await expect(page.getByText('Active')).toBeVisible();
 
@@ -535,8 +540,8 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
     buffer: Buffer.from('demo-audio'),
   });
   await expect(page.getByLabel('Details')).toHaveValue(/Fallback upload transcript/);
-  await page.getByRole('button', { name: 'Preview' }).last().click();
-  await page.getByRole('button', { name: 'Publish post' }).click();
+  await page.getByTestId('preview-post').click();
+  await page.getByTestId('publish-post').click();
   await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000002$/);
   await expect(page.getByText('Offer')).toBeVisible();
 

@@ -149,7 +149,13 @@ export function PostComposerScreen() {
           <section className="card card--verify">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <button className="button button--primary" disabled={creatingSession} onClick={() => void handleCreateSession()} type="button">
+              <button
+                className="button button--primary"
+                data-testid="create-session"
+                disabled={creatingSession}
+                onClick={() => void handleCreateSession()}
+                type="button"
+              >
                 {creatingSession ? t('creatingSession') : t('createSession')}
               </button>
             </div>
@@ -160,7 +166,7 @@ export function PostComposerScreen() {
           <section className="card card--verify">
             <div className="result-empty">
               <p>{t('composeNeedsCommunity')}</p>
-              <Link className="button button--primary" href="/community/join">
+              <Link className="button button--primary" data-testid="join-community" href="/community/join">
                 {t('joinCommunityCta')}
               </Link>
             </div>
@@ -193,10 +199,20 @@ export function PostComposerScreen() {
 
           {draft.step === 'type' ? (
             <div className="actions">
-              <button className={`button ${draft.postType === 'request' ? 'button--primary' : 'button--secondary'}`} onClick={() => dispatch(mergePostDraft({ postType: 'request', step: 'compose' }))} type="button">
+              <button
+                className={`button ${draft.postType === 'request' ? 'button--primary' : 'button--secondary'}`}
+                data-testid="select-request"
+                onClick={() => dispatch(mergePostDraft({ postType: 'request', step: 'compose' }))}
+                type="button"
+              >
                 {t('requestHelpCta')}
               </button>
-              <button className={`button ${draft.postType === 'offer' ? 'button--primary' : 'button--secondary'}`} onClick={() => dispatch(mergePostDraft({ postType: 'offer', step: 'compose' }))} type="button">
+              <button
+                className={`button ${draft.postType === 'offer' ? 'button--primary' : 'button--secondary'}`}
+                data-testid="select-offer"
+                onClick={() => dispatch(mergePostDraft({ postType: 'offer', step: 'compose' }))}
+                type="button"
+              >
                 {t('offerHelpCta')}
               </button>
             </div>
@@ -231,7 +247,13 @@ export function PostComposerScreen() {
               </label>
 
               <div className="actions">
-                <button className="button button--secondary" disabled={!supportsBrowserSpeechRecognition()} onClick={() => void handleBrowserSpeech()} type="button">
+                <button
+                  className="button button--secondary"
+                  data-testid="browser-speech"
+                  disabled={!supportsBrowserSpeechRecognition()}
+                  onClick={() => void handleBrowserSpeech()}
+                  type="button"
+                >
                   {t('speechBrowserAction')}
                 </button>
                 <button className="button button--secondary" onClick={() => audioInputRef.current?.click()} type="button">
@@ -296,12 +318,18 @@ export function PostComposerScreen() {
 
               <div className="actions">
                 {draft.step === 'compose' ? (
-                  <button className="button button--primary" onClick={() => dispatch(setDraftStep('preview'))} type="button">
+                  <button className="button button--primary" data-testid="preview-post" onClick={() => dispatch(setDraftStep('preview'))} type="button">
                     {t('composeStepPreview')}
                   </button>
                 ) : null}
                 {draft.step === 'preview' ? (
-                  <button className="button button--primary" disabled={createPostMutation.isPending || !draft.postType || !currentCommunity} onClick={() => void handlePublish()} type="button">
+                  <button
+                    className="button button--primary"
+                    data-testid="publish-post"
+                    disabled={createPostMutation.isPending || !draft.postType || !currentCommunity}
+                    onClick={() => void handlePublish()}
+                    type="button"
+                  >
                     {createPostMutation.isPending ? t('creatingSession') : t('composePublishAction')}
                   </button>
                 ) : null}

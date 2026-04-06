@@ -24,6 +24,7 @@ import type {
   ReviewDecisionInput,
   ReviewQueueInput,
 } from './types.js';
+import { PostsServiceError } from './types.js';
 
 const DEFAULT_LIMIT = 20;
 
@@ -75,9 +76,15 @@ function decodeCursor(cursor: string | null | undefined): CursorValue | null {
     return null;
   }
 
-  const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as CursorValue;
+  let parsed: CursorValue;
+  try {
+    parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as CursorValue;
+  } catch {
+    throw new PostsServiceError('Cursor is not valid', 'invalid_cursor');
+  }
+
   if (!parsed.createdAt || !parsed.postId) {
-    return null;
+    throw new PostsServiceError('Cursor is not valid', 'invalid_cursor');
   }
 
   return parsed;

@@ -206,27 +206,28 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await page.goto('/');
 
   await page.getByRole('button', { name: 'ES', exact: true }).click();
-  await page.getByRole('button', { name: 'Crear sesión anónima' }).click();
+  await expect(page.getByTestId('create-session')).toBeVisible();
+  await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
   await page.getByPlaceholder('11735').fill('11735');
-  await page.getByRole('button', { name: 'Ver recursos cercanos' }).click();
+  await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');
 
-  await page.getByRole('button', { name: 'Guardar' }).first().click();
+  await page.locator('[data-testid^="bookmark-"]').first().click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
 
-  await page.getByRole('link', { name: 'Ver detalles' }).first().click();
+  await page.locator('[data-testid^="resource-detail-"]').first().click();
   await expect(page.getByText('Horario semanal')).toBeVisible();
   await expect(page.getByText('Notas')).toBeVisible();
 
   await page.goto('/verify');
-  await expect(page.getByRole('heading', { name: 'Verifica tu sesión' })).toBeVisible();
-  await page.getByRole('button', { name: 'Enviar código' }).click();
+  await expect(page.getByTestId('verify-title')).toBeVisible();
+  await page.getByTestId('send-code').click();
   await expect(page.getByText('246810')).toBeVisible();
   await page.getByLabel('Código de verificación').fill('246810');
-  await page.getByRole('button', { name: 'Verificar código' }).click();
+  await page.getByTestId('verify-code').click();
   await expect(page.getByText('Esta sesión ya está verificada.')).toBeVisible();
 
   await page.goto('/');

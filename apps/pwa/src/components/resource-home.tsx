@@ -86,6 +86,7 @@ export function ResourceHome() {
           <div className="actions">
             <button
               className="button button--primary"
+              data-testid="create-session"
               disabled={submittingSession}
               onClick={() => void handleCreateAnonymousSession()}
               type="button"
@@ -153,7 +154,7 @@ export function ResourceHome() {
               <span>{t('lowBandwidth')}</span>
             </label>
 
-            <button className="button button--primary" type="submit">
+            <button className="button button--primary" data-testid="see-nearby" type="submit">
               {t('seeNearby')}
             </button>
           </form>
@@ -167,13 +168,13 @@ export function ResourceHome() {
             </div>
           </div>
           <div className="actions">
-            <Link className="button button--primary" href="/community/join">
+            <Link className="button button--primary" data-testid="join-community" href="/community/join">
               {t('joinCommunityCta')}
             </Link>
-            <Link className="button button--secondary" href="/posts/new?post_type=request">
+            <Link className="button button--secondary" data-testid="request-help" href="/posts/new?post_type=request">
               {t('requestHelpCta')}
             </Link>
-            <Link className="button button--secondary" href="/posts/new?post_type=offer">
+            <Link className="button button--secondary" data-testid="offer-help" href="/posts/new?post_type=offer">
               {t('offerHelpCta')}
             </Link>
             <Link className="button button--secondary" href="/community">
@@ -246,7 +247,11 @@ export function ResourceHome() {
                   </p>
 
                   <div className="actions actions--stack">
-                    <Link className="button button--secondary" href={`/resources/${resource.provider_id}`}>
+                    <Link
+                      className="button button--secondary"
+                      data-testid={`resource-detail-${resource.provider_id}`}
+                      href={`/resources/${resource.provider_id}`}
+                    >
                       {t('detailCta')}
                     </Link>
                     {resource.phone ? (
@@ -259,6 +264,7 @@ export function ResourceHome() {
                     </a>
                     <button
                       className={`button ${bookmarked ? 'button--primary' : 'button--secondary'}`}
+                      data-testid={`bookmark-${resource.provider_id}`}
                       onClick={() => dispatch(toggleBookmark(resource.provider_id))}
                       type="button"
                     >

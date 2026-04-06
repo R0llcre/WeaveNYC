@@ -113,6 +113,29 @@ describe('review queue routes', () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it('rejects malformed review queue cursors with 400s', async () => {
+    const userStore = new InMemoryUserStore();
+    const anchorUser = createUserRecord({
+      userId: '33333333-3333-4333-8333-333333333333',
+      level: 'anchor',
+      role: 'anchor',
+      communityIds: [communityId],
+    });
+    userStore.users.set(anchorUser.userId, anchorUser);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const anchorToken = signUser(app, anchorUser);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/admin/review_queue?community_id=${communityId}&cursor=abc`,
+      headers: { authorization: `Bearer ${anchorToken}` },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it('rejects review decisions for posts that are not pending review', async () => {
     const userStore = new InMemoryUserStore();
     const verifiedUser = createUserRecord({

@@ -183,7 +183,13 @@ export function CommunityJoinScreen() {
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
               <div className="actions">
-                <button className="button button--primary" disabled={creatingSession} onClick={() => void handleCreateSession()} type="button">
+                <button
+                  className="button button--primary"
+                  data-testid="create-session"
+                  disabled={creatingSession}
+                  onClick={() => void handleCreateSession()}
+                  type="button"
+                >
                   {creatingSession ? t('creatingSession') : t('createSession')}
                 </button>
                 <Link className="button button--secondary" href="/">
@@ -196,10 +202,20 @@ export function CommunityJoinScreen() {
 
         <section className="card card--verify">
           <div className="tab-row">
-            <button className={`pill ${mode === 'invite' ? 'pill--active' : ''}`} onClick={() => handleModeChange('invite')} type="button">
+            <button
+              className={`pill ${mode === 'invite' ? 'pill--active' : ''}`}
+              data-testid="join-mode-invite"
+              onClick={() => handleModeChange('invite')}
+              type="button"
+            >
               {t('joinInviteMode')}
             </button>
-            <button className={`pill ${mode === 'qr' ? 'pill--active' : ''}`} onClick={() => handleModeChange('qr')} type="button">
+            <button
+              className={`pill ${mode === 'qr' ? 'pill--active' : ''}`}
+              data-testid="join-mode-qr"
+              onClick={() => handleModeChange('qr')}
+              type="button"
+            >
               {t('joinQrMode')}
             </button>
           </div>
@@ -242,6 +258,7 @@ export function CommunityJoinScreen() {
           <div className="actions">
             <button
               className="button button--primary"
+              data-testid="resolve-community"
               disabled={!session?.access_token || resolveMutation.isPending || (mode === 'invite' ? !inviteCode.trim() : !qrToken.trim())}
               onClick={() => void handleResolve()}
               type="button"
@@ -268,7 +285,13 @@ export function CommunityJoinScreen() {
                 {t('zipChip', { zip: joinPreview.community.center_zip })} · {joinPreview.entry}
               </p>
               <div className="actions">
-                <button className="button button--primary" disabled={joinMutation.isPending} onClick={() => void handleJoin()} type="button">
+                <button
+                  className="button button--primary"
+                  data-testid="confirm-join"
+                  disabled={joinMutation.isPending}
+                  onClick={() => void handleJoin()}
+                  type="button"
+                >
                   {t('confirmJoinAction')}
                 </button>
               </div>

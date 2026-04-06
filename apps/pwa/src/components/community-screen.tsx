@@ -58,13 +58,13 @@ export function CommunityScreen() {
           <h1>{t('communityTitle')}</h1>
           <p>{t('communityCopy')}</p>
           <div className="actions">
-            <Link className="button button--primary" href="/community/join">
+            <Link className="button button--primary" data-testid="join-community" href="/community/join">
               {t('joinCommunityCta')}
             </Link>
-            <Link className="button button--secondary" href="/posts/new?post_type=request">
+            <Link className="button button--secondary" data-testid="request-help" href="/posts/new?post_type=request">
               {t('requestHelpCta')}
             </Link>
-            <Link className="button button--secondary" href="/posts/new?post_type=offer">
+            <Link className="button button--secondary" data-testid="offer-help" href="/posts/new?post_type=offer">
               {t('offerHelpCta')}
             </Link>
             <Link className="button button--secondary" href="/posts/mine">
@@ -77,7 +77,13 @@ export function CommunityScreen() {
           <section className="card card--verify">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <button className="button button--primary" disabled={creatingSession} onClick={() => void handleCreateSession()} type="button">
+              <button
+                className="button button--primary"
+                data-testid="create-session"
+                disabled={creatingSession}
+                onClick={() => void handleCreateSession()}
+                type="button"
+              >
                 {creatingSession ? t('creatingSession') : t('createSession')}
               </button>
             </div>
@@ -110,10 +116,20 @@ export function CommunityScreen() {
           ) : null}
 
           <div className="tab-row">
-            <button className={`pill ${tab === 'community' ? 'pill--active' : ''}`} onClick={() => setTab('community')} type="button">
+            <button
+              className={`pill ${tab === 'community' ? 'pill--active' : ''}`}
+              data-testid="community-tab"
+              onClick={() => setTab('community')}
+              type="button"
+            >
               {t('communityTab')}
             </button>
-            <button className={`pill ${tab === 'public' ? 'pill--active' : ''}`} onClick={() => setTab('public')} type="button">
+            <button
+              className={`pill ${tab === 'public' ? 'pill--active' : ''}`}
+              data-testid="public-tab"
+              onClick={() => setTab('public')}
+              type="button"
+            >
               {t('publicTab')}
             </button>
           </div>

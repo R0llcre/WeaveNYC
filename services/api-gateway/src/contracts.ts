@@ -414,6 +414,7 @@ export const createPostRequestSchema = {
 export const updatePostRequestSchema = {
   type: "object",
   additionalProperties: false,
+  minProperties: 1,
   properties: {
     category: {
       type: "string",

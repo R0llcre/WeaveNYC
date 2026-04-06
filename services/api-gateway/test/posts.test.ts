@@ -234,5 +234,63 @@ describe('post routes', () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(closeResponse.statusCode).toBe(400);
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: '/v1/posts/not-a-uuid',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(deleteResponse.statusCode).toBe(400);
+  });
+
+  it('rejects malformed cursors and empty post patches with 400s', async () => {
+    const userStore = new InMemoryUserStore();
+    const user = createUserRecord({ communityIds: [communityId] });
+    userStore.users.set(user.userId, user);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const token = signUser(app, user);
+
+    const cursorResponse = await app.inject({
+      method: 'GET',
+      url: `/v1/posts?scope=community&community_id=${communityId}&cursor=abc`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(cursorResponse.statusCode).toBe(400);
+
+    const mineCursorResponse = await app.inject({
+      method: 'GET',
+      url: '/v1/posts/mine?cursor=abc',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(mineCursorResponse.statusCode).toBe(400);
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/posts',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        community_id: communityId,
+        post_type: 'request',
+        category: 'food',
+        title: 'Need dinner',
+        body: 'Need dinner for tonight.',
+        language: 'en',
+        location_zip: '11735',
+        privacy: 'community_only',
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+      },
+    });
+    expect(createResponse.statusCode).toBe(200);
+
+    const emptyPatchResponse = await app.inject({
+      method: 'PATCH',
+      url: `/v1/posts/${createResponse.json().post_id as string}`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {},
+    });
+    expect(emptyPatchResponse.statusCode).toBe(400);
   });
 });

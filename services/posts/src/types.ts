@@ -147,6 +147,7 @@ export class PostsServiceError extends Error {
       | 'verified_required'
       | 'invalid_state'
       | 'invalid_scope'
+      | 'invalid_cursor'
   ) {
     super(message);
     this.name = 'PostsServiceError';
