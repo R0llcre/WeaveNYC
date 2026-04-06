@@ -17,6 +17,11 @@ export interface HoursRecord {
   notes?: string | null;
 }
 
+export interface HoursWindow {
+  opensAt: string;
+  closesAt: string;
+}
+
 export interface NormalizedResourceRecord {
   source: ResourceSource;
   sourceRef: string;
@@ -89,8 +94,7 @@ export interface ResourceListItem {
   geoPrecision: GeoPrecision;
   weeklyHours: Array<{
     day: string;
-    opensAt: string | null;
-    closesAt: string | null;
+    windows: HoursWindow[];
     closed: boolean;
   }>;
 }

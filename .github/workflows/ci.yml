@@ -44,6 +44,23 @@ jobs:
       - name: Start local infrastructure
         run: docker compose up -d
 
+      - name: Wait for local infrastructure
+        run: |
+          for container in weavenyc-postgres weavenyc-redis; do
+            for attempt in $(seq 1 30); do
+              status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")"
+              if [ "$status" = "healthy" ]; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                docker logs "$container" || true
+                echo "Container $container did not become healthy"
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
       - name: Apply migrations
         run: pnpm db:migrate
 

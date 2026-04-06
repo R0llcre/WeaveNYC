@@ -154,10 +154,8 @@ export async function runSeed(): Promise<void> {
             import_completed_at, created_at, updated_at
           )
           values ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, now(), now())
-          on conflict (dataset_version_id) do update
-            set source = excluded.source,
-                dataset_version = excluded.dataset_version,
-                source_label = excluded.source_label,
+          on conflict (source, dataset_version) do update
+            set source_label = excluded.source_label,
                 source_url = excluded.source_url,
                 record_count = excluded.record_count,
                 active_record_count = excluded.active_record_count,

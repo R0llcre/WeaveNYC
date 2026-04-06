@@ -11,7 +11,8 @@ import {
   InMemoryAuthAbuseStore,
   InMemoryRefreshTokenStore,
   InMemoryUserStore,
-  createTestApp
+  createTestApp,
+  createTestConfig,
 } from './helpers.js';
 
 describe('POST /v1/auth/anonymous', () => {
@@ -390,6 +391,39 @@ describe('POST /v1/auth/anonymous', () => {
     expect(verifyResponse.statusCode).toBe(200);
     expect(verifyResponse.json().user.level).toBe('verified');
     expect(challenge.demo_url).toContain(`challenge_id=${challenge.challenge_id}`);
+  });
+
+  it('derives the magic-link demo URL from runtime config', async () => {
+    const config = {
+      ...createTestConfig(),
+      pwaBaseUrl: 'https://pilot.weavenyc.example'
+    };
+    const { app } = await createTestApp({ config });
+    apps.push(app);
+
+    const session = (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/auth/anonymous',
+        payload: {
+          device_id: randomUUID()
+        }
+      })
+    ).json();
+
+    const startResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/magic-link/start',
+      headers: {
+        authorization: `Bearer ${session.access_token}`
+      },
+      payload: {
+        email: 'neighbor@example.com'
+      }
+    });
+
+    expect(startResponse.statusCode).toBe(200);
+    expect(startResponse.json().demo_url).toContain('https://pilot.weavenyc.example/verify?');
   });
 
   it('hashes identities with namespace, salt, and pepper inputs', () => {

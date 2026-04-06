@@ -98,7 +98,11 @@ export function ResourceDetailScreen({ providerId }: ResourceDetailScreenProps) 
               {resource.weekly_hours.map((entry) => (
                 <div className="hours-row" key={entry.day}>
                   <span>{dayLabels[entry.day]?.[language] ?? entry.day.toUpperCase()}</span>
-                  <strong>{entry.closed ? t('closedLabel') : `${entry.opens_at} - ${entry.closes_at}`}</strong>
+                  <strong>
+                    {entry.closed
+                      ? t('closedLabel')
+                      : entry.windows.map((window) => `${window.opens_at} - ${window.closes_at}`).join(" / ")}
+                  </strong>
                 </div>
               ))}
             </div>

@@ -61,6 +61,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().default('info'),
   API_HOST: z.string().default('0.0.0.0'),
   API_PORT: z.coerce.number().int().positive().default(4000),
+  PWA_PORT: z.coerce.number().int().positive().default(3000),
+  PWA_BASE_URL: z.string().url().optional(),
   DATABASE_URL: z.string().min(1).default('postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev'),
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   JWT_SIGNING_PRIVATE_KEY: z.string().default('./infra/dev/jwt-private.pem'),
@@ -80,6 +82,7 @@ export interface AppConfig {
   };
   databaseUrl: string;
   redisUrl: string;
+  pwaBaseUrl: string;
   jwt: {
     issuer: string;
     accessTokenTtl: string;
@@ -113,6 +116,7 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
     },
     databaseUrl: env.DATABASE_URL,
     redisUrl: env.REDIS_URL,
+    pwaBaseUrl: env.PWA_BASE_URL ?? `http://localhost:${env.PWA_PORT}`,
     jwt: {
       issuer: env.JWT_ISSUER,
       accessTokenTtl: env.JWT_ACCESS_TOKEN_TTL,

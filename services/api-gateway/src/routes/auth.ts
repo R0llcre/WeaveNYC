@@ -66,10 +66,10 @@ type MagicLinkVerifyBody = {
 };
 
 const smsProvider = new StubSmsProvider();
-const emailProvider = new StubEmailLinkProvider("http://localhost:3000");
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const authAbuseStore = getAuthAbuseStore(app);
+  const emailProvider = new StubEmailLinkProvider(app.config.pwaBaseUrl);
 
   app.post<{ Body: AnonymousAuthBody }>(
     "/v1/auth/anonymous",
