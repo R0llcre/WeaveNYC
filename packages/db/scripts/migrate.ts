@@ -8,6 +8,15 @@ import { getDbEnv } from "../src/env";
 
 const scriptDir = __dirname;
 const migrationsDir = path.resolve(scriptDir, "../migrations");
+const databaseReadyRetryableMessages = [
+  /connection terminated unexpectedly/i,
+  /database system is starting up/i,
+  /the database system is starting up/i,
+  /connect ECONNREFUSED/i,
+  /Connection refused/i,
+  /timeout expired/i,
+  /could not connect/i
+];
 
 export async function runMigrations(): Promise<void> {
   const pool = new Pool({
@@ -15,6 +24,7 @@ export async function runMigrations(): Promise<void> {
   });
 
   try {
+    await waitForDatabase(pool);
     await pool.query(`
       create table if not exists schema_migrations (
         filename text primary key,
@@ -59,6 +69,29 @@ export async function runMigrations(): Promise<void> {
   } finally {
     await pool.end();
   }
+}
+
+async function waitForDatabase(pool: Pool, attempts = 15, delayMs = 1000) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await pool.query("select 1");
+      return;
+    } catch (error) {
+      if (!isRetryableDatabaseError(error) || attempt === attempts) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+function isRetryableDatabaseError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return databaseReadyRetryableMessages.some((pattern) => pattern.test(error.message));
 }
 
 if (require.main === module) {

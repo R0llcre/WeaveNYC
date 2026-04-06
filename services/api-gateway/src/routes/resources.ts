@@ -100,8 +100,10 @@ export const resourceRoutes: FastifyPluginAsync = async (app) => {
         ...toResourceSummary(item),
         weekly_hours: item.weeklyHours.map((entry) => ({
           day: entry.day,
-          opens_at: entry.opensAt,
-          closes_at: entry.closesAt,
+          windows: entry.windows.map((window) => ({
+            opens_at: window.opensAt,
+            closes_at: window.closesAt
+          })),
           closed: entry.closed
         })),
         source_url: item.sourceUrl,

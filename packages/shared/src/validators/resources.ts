@@ -11,8 +11,12 @@ export const geoPrecisionSchema = z.enum([
 
 export const resourceHoursEntrySchema = z.object({
   day: z.string().min(1),
-  opens_at: z.string().min(1).nullable(),
-  closes_at: z.string().min(1).nullable(),
+  windows: z.array(
+    z.object({
+      opens_at: z.string().min(1),
+      closes_at: z.string().min(1)
+    })
+  ),
   closed: z.boolean()
 });
 

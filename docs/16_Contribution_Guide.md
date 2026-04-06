@@ -89,6 +89,7 @@ cp .env.example .env.local
 | `LOG_LEVEL` | `debug` | 本地日志级别 |
 | `API_PORT` | `4000` | API Gateway 端口 |
 | `PWA_PORT` | `3000` | PWA 端口 |
+| `PWA_BASE_URL` | `http://localhost:3000` | API 生成 magic-link demo URL 时使用的前端基地址 |
 | `ANCHOR_ADMIN_PORT` | `3001` | Anchor Admin 端口 |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:4000` | 前端请求 API 的基地址 |
 | `DATABASE_URL` | `postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev` | PostgreSQL 连接串 |

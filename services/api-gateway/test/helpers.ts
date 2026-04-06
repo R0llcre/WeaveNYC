@@ -324,13 +324,13 @@ export class InMemoryResourceDirectory implements ResourceDirectoryService {
         isOpenNow: false,
         geoPrecision: 'street',
         weeklyHours: [
-          { day: 'mon', opensAt: '09:00AM', closesAt: '12:00PM', closed: false },
-          { day: 'tue', opensAt: '09:00AM', closesAt: '12:00PM', closed: false },
-          { day: 'wed', opensAt: '09:00AM', closesAt: '12:00PM', closed: false },
-          { day: 'thu', opensAt: '09:00AM', closesAt: '12:00PM', closed: false },
-          { day: 'fri', opensAt: null, closesAt: null, closed: true },
-          { day: 'sat', opensAt: null, closesAt: null, closed: true },
-          { day: 'sun', opensAt: null, closesAt: null, closed: true }
+          { day: 'mon', windows: [{ opensAt: '09:00AM', closesAt: '12:00PM' }], closed: false },
+          { day: 'tue', windows: [{ opensAt: '09:00AM', closesAt: '12:00PM' }], closed: false },
+          { day: 'wed', windows: [{ opensAt: '09:00AM', closesAt: '12:00PM' }], closed: false },
+          { day: 'thu', windows: [{ opensAt: '09:00AM', closesAt: '12:00PM' }], closed: false },
+          { day: 'fri', windows: [], closed: true },
+          { day: 'sat', windows: [], closed: true },
+          { day: 'sun', windows: [], closed: true }
         ]
       },
       {
@@ -352,13 +352,13 @@ export class InMemoryResourceDirectory implements ResourceDirectoryService {
         isOpenNow: false,
         geoPrecision: 'street',
         weeklyHours: [
-          { day: 'mon', opensAt: null, closesAt: null, closed: true },
-          { day: 'tue', opensAt: null, closesAt: null, closed: true },
-          { day: 'wed', opensAt: null, closesAt: null, closed: true },
-          { day: 'thu', opensAt: '04:00PM', closesAt: '06:00PM', closed: false },
-          { day: 'fri', opensAt: null, closesAt: null, closed: true },
-          { day: 'sat', opensAt: null, closesAt: null, closed: true },
-          { day: 'sun', opensAt: null, closesAt: null, closed: true }
+          { day: 'mon', windows: [], closed: true },
+          { day: 'tue', windows: [], closed: true },
+          { day: 'wed', windows: [], closed: true },
+          { day: 'thu', windows: [{ opensAt: '04:00PM', closesAt: '06:00PM' }], closed: false },
+          { day: 'fri', windows: [], closed: true },
+          { day: 'sat', windows: [], closed: true },
+          { day: 'sun', windows: [], closed: true }
         ]
       },
       {
@@ -380,13 +380,13 @@ export class InMemoryResourceDirectory implements ResourceDirectoryService {
         isOpenNow: false,
         geoPrecision: 'street',
         weeklyHours: [
-          { day: 'mon', opensAt: null, closesAt: null, closed: true },
-          { day: 'tue', opensAt: '10:00AM', closesAt: '01:00PM', closed: false },
-          { day: 'wed', opensAt: null, closesAt: null, closed: true },
-          { day: 'thu', opensAt: '10:00AM', closesAt: '01:00PM', closed: false },
-          { day: 'fri', opensAt: null, closesAt: null, closed: true },
-          { day: 'sat', opensAt: null, closesAt: null, closed: true },
-          { day: 'sun', opensAt: null, closesAt: null, closed: true }
+          { day: 'mon', windows: [], closed: true },
+          { day: 'tue', windows: [{ opensAt: '10:00AM', closesAt: '01:00PM' }], closed: false },
+          { day: 'wed', windows: [], closed: true },
+          { day: 'thu', windows: [{ opensAt: '10:00AM', closesAt: '01:00PM' }], closed: false },
+          { day: 'fri', windows: [], closed: true },
+          { day: 'sat', windows: [], closed: true },
+          { day: 'sun', windows: [], closed: true }
         ]
       }
     ]
@@ -433,6 +433,7 @@ export function createTestConfig(): AppConfig {
     },
     databaseUrl: 'postgres://test:test@127.0.0.1:5432/test',
     redisUrl: 'redis://127.0.0.1:6379',
+    pwaBaseUrl: 'http://localhost:3000',
     jwt: {
       issuer: 'weavenyc-api-gateway-test',
       accessTokenTtl: '15m',
@@ -448,6 +449,7 @@ export function createTestConfig(): AppConfig {
 
 export async function createTestApp(options: {
   authAbuseStore?: AuthAbuseStore;
+  config?: AppConfig;
   userStore?: UserStore;
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
@@ -459,7 +461,7 @@ export async function createTestApp(options: {
 
   const app = await buildApp({
     authAbuseStore,
-    config: createTestConfig(),
+    config: options.config ?? createTestConfig(),
     userStore,
     refreshTokenStore,
     resourceDirectory,

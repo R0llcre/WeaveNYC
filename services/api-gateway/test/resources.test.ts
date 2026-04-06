@@ -135,7 +135,11 @@ describe("GET /v1/resources/:provider_id", () => {
           isOpenNow: false,
           geoPrecision: "street",
           weeklyHours: [
-            { day: "mon", opensAt: "09:00AM", closesAt: "12:00PM", closed: false },
+            {
+              day: "mon",
+              windows: [{ opensAt: "09:00AM", closesAt: "12:00PM" }],
+              closed: false
+            },
           ],
         };
       },
@@ -156,6 +160,11 @@ describe("GET /v1/resources/:provider_id", () => {
       requested_provider_id: "22222222-2222-4222-8222-222222222222",
       source: "cfc_active",
       source_dataset_version: "cfc_active_20260405T101500Z",
+    });
+    expect(response.json().weekly_hours[0]).toMatchObject({
+      day: "mon",
+      windows: [{ opens_at: "09:00AM", closes_at: "12:00PM" }],
+      closed: false,
     });
   });
 });

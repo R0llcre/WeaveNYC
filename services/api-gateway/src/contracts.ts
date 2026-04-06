@@ -277,11 +277,21 @@ export const resourceDetailSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["day", "opens_at", "closes_at", "closed"],
+        required: ["day", "windows", "closed"],
         properties: {
           day: { type: "string" },
-          opens_at: { type: ["string", "null"] },
-          closes_at: { type: ["string", "null"] },
+          windows: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["opens_at", "closes_at"],
+              properties: {
+                opens_at: { type: "string" },
+                closes_at: { type: "string" }
+              }
+            }
+          },
           closed: { type: "boolean" }
         }
       }

@@ -27,8 +27,10 @@ export type EndpointProbe = {
 
 export type ResourceHoursEntry = {
   day: string;
-  opens_at: string | null;
-  closes_at: string | null;
+  windows: Array<{
+    opens_at: string;
+    closes_at: string;
+  }>;
   closed: boolean;
 };
 

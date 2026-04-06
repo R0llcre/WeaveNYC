@@ -1,4 +1,4 @@
-import type { HoursRecord, WeekdayKey } from "../types.js";
+import type { HoursRecord, HoursWindow, WeekdayKey } from "../types.js";
 
 const dayMap: Record<string, WeekdayKey> = {
   mon: "mon",
@@ -82,59 +82,45 @@ export function mergeHours(primary: HoursRecord | null, secondary: HoursRecord |
 export function toWeeklyHours(hours: HoursRecord | null) {
   return weekdayOrder.map((day) => {
     const value = normalizeHoursValue(hours?.[day]);
-    const parsed = parseTimeRange(value);
+    const parsed = parseTimeWindows(value);
 
     return {
       day,
-      opensAt: parsed?.opensAt ?? null,
-      closesAt: parsed?.closesAt ?? null,
-      closed: parsed === null
+      windows: parsed.map((entry) => ({
+        opensAt: entry.opensAt,
+        closesAt: entry.closesAt
+      })),
+      closed: parsed.length === 0
     };
   });
 }
 
 export function isOpenToday(hours: HoursRecord | null, now = new Date()): boolean {
   const day = getCurrentWeekday(now);
-  return parseTimeRange(normalizeHoursValue(hours?.[day])) !== null;
+  return parseTimeWindows(normalizeHoursValue(hours?.[day])).length > 0;
 }
 
 export function isOpenNow(hours: HoursRecord | null, now = new Date()): boolean {
   const day = getCurrentWeekday(now);
-  const parsed = parseTimeRange(normalizeHoursValue(hours?.[day]));
-  if (!parsed) {
-    return false;
-  }
-
+  const parsed = parseTimeWindows(normalizeHoursValue(hours?.[day]));
   const minutes = getCurrentMinutes(now);
-  return minutes >= parsed.opensMinutes && minutes <= parsed.closesMinutes;
+  return parsed.some((entry) => minutes >= entry.opensMinutes && minutes <= entry.closesMinutes);
 }
 
-export function parseTimeRange(value: string | null) {
+export function parseTimeWindows(value: string | null): Array<HoursWindow & {
+  opensMinutes: number;
+  closesMinutes: number;
+}> {
   if (!value || value.toLowerCase() === "closed") {
-    return null;
+    return [];
   }
 
-  const firstSegment = value.split("/")[0] ?? value;
-  const normalized = firstSegment
-    .replace(/\s+/g, "")
-    .replace(/^(\d{1,2})-(\d{1,2}:\d{2}[AP]M)$/i, "$1:00$2");
-
-  const match = normalized.match(/^(\d{1,2}(?::\d{2})?[AP]M)-(\d{1,2}(?::\d{2})?[AP]M)$/i);
-  if (!match) {
-    return null;
-  }
-
-  const opensValue = match[1] ?? "";
-  const closesValue = match[2] ?? "";
-  const opensMinutes = toMinutes(opensValue);
-  const closesMinutes = toMinutes(closesValue);
-
-  return {
-    opensAt: normalizeClockLabel(opensValue),
-    closesAt: normalizeClockLabel(closesValue),
-    opensMinutes,
-    closesMinutes
-  };
+  return value
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => parseSingleTimeWindow(segment))
+    .filter((entry): entry is HoursWindow & { opensMinutes: number; closesMinutes: number } => entry !== null);
 }
 
 function getCurrentWeekday(now: Date): WeekdayKey {
@@ -174,6 +160,26 @@ function toMinutes(value: string) {
     hour += 12;
   }
   return hour * 60 + minute;
+}
+
+function parseSingleTimeWindow(value: string) {
+  const normalized = value
+    .replace(/\s+/g, "")
+    .replace(/^(\d{1,2})-(\d{1,2}:\d{2}[AP]M)$/i, "$1:00$2");
+
+  const match = normalized.match(/^(\d{1,2}(?::\d{2})?[AP]M)-(\d{1,2}(?::\d{2})?[AP]M)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const opensValue = match[1] ?? "";
+  const closesValue = match[2] ?? "";
+  return {
+    opensAt: normalizeClockLabel(opensValue),
+    closesAt: normalizeClockLabel(closesValue),
+    opensMinutes: toMinutes(opensValue),
+    closesMinutes: toMinutes(closesValue)
+  };
 }
 
 function normalizeClockLabel(value: string) {
