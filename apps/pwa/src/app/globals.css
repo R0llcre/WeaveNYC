@@ -116,6 +116,10 @@ a {
   padding: 24px;
 }
 
+.card--community-cta {
+  padding: 24px;
+}
+
 .card h2 {
   margin: 0 0 6px;
   font-size: 1.3rem;
@@ -361,12 +365,17 @@ a {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   min-height: 48px;
   border: 1px solid rgba(24, 33, 45, 0.12);
   border-radius: 16px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.94);
+}
+
+.field textarea {
+  resize: vertical;
 }
 
 .search-form,
@@ -406,6 +415,35 @@ a {
   background: var(--panel-strong);
 }
 
+.post-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(24, 33, 45, 0.08);
+  background: var(--panel-strong);
+}
+
+.post-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.post-card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.post-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.post-card__link {
+  text-decoration: none;
+}
+
 .resource-card h3 {
   margin: 0;
   font-size: 1.1rem;
@@ -442,9 +480,38 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.grid--two {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .hours-list {
   display: grid;
   gap: 10px;
+}
+
+.camera-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.camera-panel__video {
+  width: min(420px, 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(24, 33, 45, 0.08);
+  background: #101820;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-stack {
+  display: grid;
+  gap: 16px;
 }
 
 .hours-row {
@@ -457,6 +524,10 @@ a {
 
 @media (max-width: 900px) {
   .grid--detail {
+    grid-template-columns: 1fr;
+  }
+
+  .grid--two {
     grid-template-columns: 1fr;
   }
 }

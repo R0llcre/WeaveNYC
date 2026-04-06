@@ -13,6 +13,15 @@ export interface AuthTokenClaims {
   exp?: number;
 }
 
+export interface CommunityJoinTokenClaims {
+  sub: string;
+  community_id: string;
+  entry: "invite_code" | "qr_token";
+  scope: "community_join";
+  iat?: number;
+  exp?: number;
+}
+
 export interface AuthenticatedUserRecord {
   userId: string;
   level: UserLevel;

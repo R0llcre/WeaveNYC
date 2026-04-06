@@ -1,15 +1,15 @@
 # WeaveNYC
 
-状态：`M1 completed` -> `M2 pending`
+状态：`main = M1 completed` · `feature/m2-community-posts = M2 completed`
 
-WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。当前仓库的 **M1 已正式关闭**：official resource directory、CFC / Island Harvest adapters、资源搜索/详情、PWA 首页资源体验、OTP 升级、refresh rotation、magic-link fallback、real API smoke、fixture-backed browser smoke 都已经通过本轮 closeout 验证。下一阶段入口现在统一是 `M2`。
+WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 上的 **M1 已正式关闭**：official resource directory、CFC / Island Harvest adapters、资源搜索/详情、PWA 首页资源体验、OTP 升级、refresh rotation、magic-link fallback、real API smoke、fixture-backed browser smoke 都已经通过 closeout 验证。当前工作分支 `feature/m2-community-posts` 已完成 **M2 community join + posts + minimal review**，并通过 6-lane review gate，等待提交和合并。
 
 ---
 
 ## Root Layout
 
 - `apps/`：前端应用，包含 `pwa/` 和 `anchor-admin/`
-- `services/`：后端服务，`api-gateway/` 可运行，`resource-directory/` 是 M1 的导入/解析/CLI 宿主，`posts/`、`match/`、`chat/` 仍是后续阶段 placeholder
+- `services/`：后端服务，`api-gateway/` 可运行，`resource-directory/` 是 M1 的导入/解析/CLI 宿主，`posts/` 是 M2 domain library，`match/`、`chat/` 仍是后续阶段 placeholder
 - `packages/`：共享 contracts、数据库层、测试工具
 - `infra/`：本地基础设施和 dev bootstrap artifacts
 - `docker-compose.yml`：根目录 bootstrap 入口，和 `infra/docker-compose.yml` 保持一致
@@ -25,13 +25,14 @@ WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。当前�
 1. [docs/00_Execution_Baseline.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/00_Execution_Baseline.md)
 2. [docs/21_M0_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/21_M0_Closeout.md)
 3. [docs/22_M1_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/22_M1_Closeout.md)
-4. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
-5. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
-6. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
-7. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
-8. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-9. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
-10. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
+4. [docs/23_M2_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/23_M2_Closeout.md)
+5. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
+6. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
+7. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
+8. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
+9. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
+10. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
+11. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
 
 ---
 
@@ -52,7 +53,7 @@ Expected endpoints:
 - API: `http://localhost:4000`
 - Swagger: `http://localhost:4000/docs`
 
-Current runnable M1 surface:
+Current stable surface on `main`:
 
 - Only treat the items below as runnable after `docker compose up -d`, `pnpm db:migrate`, `pnpm db:seed`, and either `pnpm dev` or a started API process have all completed successfully.
 
@@ -73,11 +74,29 @@ Current runnable M1 surface:
 - Fixture-backed browser smoke: `pnpm test:e2e`
 - Opt-in live-source smoke: `pnpm test:live-sources`
 
+Current additional M2 surface on `feature/m2-community-posts`:
+
+- `POST /v1/community-access/resolve`
+- `POST /v1/communities/:community_id/join`
+- `POST /v1/posts`
+- `GET /v1/posts`
+- `GET /v1/posts/:post_id`
+- `GET /v1/posts/mine`
+- `PATCH /v1/posts/:post_id`
+- `POST /v1/posts/:post_id/close`
+- `DELETE /v1/posts/:post_id`
+- `GET /v1/admin/review_queue`
+- `POST /v1/admin/review_queue/:post_id/decision`
+- `POST /v1/speech/transcribe`
+- PWA routes: `/community`, `/community/join`, `/posts/new`, `/posts/[postId]`, `/posts/mine`
+- Dev helper: `pnpm dev:mint-anchor-token`
+
 Current verification split:
 
 - Default CI: `pnpm install --frozen-lockfile` -> `typecheck` -> `lint` -> `test` -> `build` -> docker bootstrap -> `pnpm test:smoke:real` -> `pnpm test:e2e`
 - Manual / opt-in: `pnpm test:live-sources`
-- Formal `M1 completed` status closed on `2026-04-06`; next phase is `M2 pending`
+- Formal `M1 completed` status closed on `2026-04-06`
+- Current branch status is `M2 completed`; merge to `main` will advance the baseline to `M2 completed / M3 pending`
 
 ---
 

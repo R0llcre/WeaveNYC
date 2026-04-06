@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
+import { InMemoryPostsService } from '@weavenyc/posts';
 import type { ResourceListItem, ResourceSearchInput, ResourceSearchResult } from '@weavenyc/resource-directory';
 
 import type { AppConfig } from '../src/config.js';
@@ -9,6 +10,7 @@ import { buildApp } from '../src/app.js';
 import type { AuthAbuseStore } from '../src/lib/identity.js';
 import type { RefreshTokenStore } from '../src/lib/refresh-token-store.js';
 import type { ResourceDirectoryService } from '../src/lib/resource-directory.js';
+import type { SpeechProvider } from '../src/lib/speech-providers.js';
 import type { UserStore } from '../src/lib/user-store.js';
 import type {
   AuthenticatedUserRecord,
@@ -423,6 +425,23 @@ export class InMemoryResourceDirectory implements ResourceDirectoryService {
   async close(): Promise<void> {}
 }
 
+export class InMemorySpeechProvider implements SpeechProvider {
+  async transcribe(input: {
+    audio: Buffer;
+    languageHint?: 'en' | 'es' | 'zh';
+    transcriptHint?: string;
+  }) {
+    const transcript = (input.transcriptHint ?? input.audio.toString('utf8')) || 'demo transcript';
+    return {
+      transcript,
+      language: input.languageHint ?? 'en',
+      provider: 'server_fallback' as const
+    };
+  }
+
+  async close(): Promise<void> {}
+}
+
 export function createTestConfig(): AppConfig {
   return {
     env: 'test',
@@ -450,30 +469,38 @@ export function createTestConfig(): AppConfig {
 export async function createTestApp(options: {
   authAbuseStore?: AuthAbuseStore;
   config?: AppConfig;
+  postsService?: InMemoryPostsService;
   userStore?: UserStore;
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
+  speechProvider?: SpeechProvider;
 } = {}) {
   const authAbuseStore = options.authAbuseStore ?? new InMemoryAuthAbuseStore();
+  const postsService = options.postsService ?? new InMemoryPostsService();
   const userStore = options.userStore ?? new InMemoryUserStore();
   const refreshTokenStore = options.refreshTokenStore ?? new InMemoryRefreshTokenStore();
   const resourceDirectory = options.resourceDirectory ?? new InMemoryResourceDirectory();
+  const speechProvider = options.speechProvider ?? new InMemorySpeechProvider();
 
   const app = await buildApp({
     authAbuseStore,
     config: options.config ?? createTestConfig(),
+    postsService,
     userStore,
     refreshTokenStore,
     resourceDirectory,
+    speechProvider,
     logger: false
   });
 
   return {
     app,
     authAbuseStore,
+    postsService,
     userStore,
     refreshTokenStore,
-    resourceDirectory
+    resourceDirectory,
+    speechProvider
   };
 }
 

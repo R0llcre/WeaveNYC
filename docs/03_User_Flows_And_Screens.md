@@ -75,8 +75,9 @@
 
 规则：
 - 第一次发帖先创建匿名会话（Anonymous Session），再继续写帖或发布
-- 发帖不要求先完成 OTP；只有在点击 Contact / Request contact / 进入聊天前才要求 verified
-- 如果用户没有当前社区 membership，先显示 Join community 流程再允许 `community_only` 发布
+- low / medium risk `Request` 可由 anonymous member 发布
+- `Offer` 和 high-risk `Request` / `Offer` 都要求 verified
+- 如果用户没有当前社区 membership，先进入 Join community 流程，再允许任何社区帖子发布
 
 ### Screen 6：Compose Post
 字段（必填除非说明）：
@@ -98,8 +99,9 @@
 CTA：Preview
 
 规则：
-- 草稿和首发都可以在匿名会话中完成
+- 草稿可以在匿名会话中完成
 - 默认 `community_only` 仅在用户已加入当前社区时可发布；否则提示先加入社区
+- 浏览器语音识别优先；失败时由用户触发音频上传 fallback 到 `/v1/speech/transcribe`
 
 ### Screen 7：Preview & Publish
 元素：
@@ -109,8 +111,8 @@ CTA：Preview
 - Secondary：Edit
 
 发布后状态：
-- Pending（待审核）
-- Active（已发布）
+- low / medium risk：Active（已发布）
+- high risk：Pending review（待审核）
 - Closed（已关闭）
 
 ---

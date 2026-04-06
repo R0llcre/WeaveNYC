@@ -314,3 +314,316 @@ export const resourceListResponseSchema = {
     source_mode: { type: "string", enum: ["api", "fixture"] }
   }
 } as const;
+
+export const communitySummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id", "name", "center_zip", "join_policy"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    name: { type: "string" },
+    center_zip: { type: "string", pattern: "^\\d{5}$" },
+    join_policy: { type: "string", enum: ["invite_only", "open"] }
+  }
+} as const;
+
+export const communityAccessResolveRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    invite_code: { type: "string", minLength: 1 },
+    qr_token: { type: "string", minLength: 1 }
+  },
+  anyOf: [{ required: ["invite_code"] }, { required: ["qr_token"] }]
+} as const;
+
+export const communityAccessResolveResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community", "join_token", "entry", "expires_in_seconds"],
+  properties: {
+    community: communitySummarySchema,
+    join_token: { type: "string" },
+    entry: { type: "string", enum: ["invite_code", "qr_token"] },
+    expires_in_seconds: { type: "number" }
+  }
+} as const;
+
+export const joinCommunityRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["join_token"],
+  properties: {
+    join_token: { type: "string" }
+  }
+} as const;
+
+export const joinCommunityResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id", "membership_status", "joined_at"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    membership_status: { type: "string", enum: ["joined", "already_joined"] },
+    joined_at: { type: "string", format: "date-time" }
+  }
+} as const;
+
+export const contactPreferenceSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    in_app_chat: { type: "boolean" },
+    call: { type: "boolean" },
+    text: { type: "boolean" },
+    notes: { type: "string", maxLength: 280 }
+  }
+} as const;
+
+export const createPostRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "community_id",
+    "post_type",
+    "category",
+    "title",
+    "body",
+    "language",
+    "location_zip",
+    "privacy",
+    "expires_at"
+  ],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    post_type: { type: "string", enum: ["request", "offer"] },
+    category: {
+      type: "string",
+      enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"]
+    },
+    title: { type: "string", minLength: 1, maxLength: 60 },
+    body: { type: "string", minLength: 1, maxLength: 3000 },
+    language: { type: "string", enum: ["en", "es", "zh"] },
+    location_zip: { type: "string", pattern: "^\\d{5}$" },
+    privacy: { type: "string", enum: ["community_only", "public", "anchor_mediated"] },
+    expires_at: { type: "string", format: "date-time" },
+    contact_pref: contactPreferenceSchema
+  }
+} as const;
+
+export const updatePostRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    category: {
+      type: "string",
+      enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"]
+    },
+    title: { type: "string", minLength: 1, maxLength: 60 },
+    body: { type: "string", minLength: 1, maxLength: 3000 },
+    language: { type: "string", enum: ["en", "es", "zh"] },
+    location_zip: { type: "string", pattern: "^\\d{5}$" },
+    privacy: { type: "string", enum: ["community_only", "public", "anchor_mediated"] },
+    expires_at: { type: "string", format: "date-time" },
+    contact_pref: contactPreferenceSchema
+  }
+} as const;
+
+export const createPostResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["post_id", "status", "risk_level"],
+  properties: {
+    post_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["draft", "pending_review", "active", "fulfilled", "closed", "removed"] },
+    risk_level: { type: "string", enum: ["low", "medium", "high"] }
+  }
+} as const;
+
+export const postSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "post_id",
+    "community_id",
+    "post_type",
+    "category",
+    "title",
+    "body",
+    "language",
+    "location_zip",
+    "privacy",
+    "status",
+    "risk_level",
+    "created_at",
+    "updated_at",
+    "expires_at",
+    "is_owner"
+  ],
+  properties: {
+    post_id: { type: "string", format: "uuid" },
+    community_id: { type: "string", format: "uuid" },
+    post_type: { type: "string", enum: ["request", "offer"] },
+    category: {
+      type: "string",
+      enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"]
+    },
+    title: { type: "string" },
+    body: { type: "string" },
+    language: { type: "string", enum: ["en", "es", "zh"] },
+    location_zip: { type: "string", pattern: "^\\d{5}$" },
+    privacy: { type: "string", enum: ["community_only", "public", "anchor_mediated"] },
+    status: { type: "string", enum: ["draft", "pending_review", "active", "fulfilled", "closed", "removed"] },
+    risk_level: { type: "string", enum: ["low", "medium", "high"] },
+    created_at: { type: "string", format: "date-time" },
+    updated_at: { type: "string", format: "date-time" },
+    expires_at: { type: "string", format: "date-time" },
+    is_owner: { type: "boolean" }
+  }
+} as const;
+
+export const postDetailSchema = {
+  ...postSummarySchema,
+  required: [...postSummarySchema.required, "contact_pref", "actions"],
+  properties: {
+    ...postSummarySchema.properties,
+    contact_pref: { anyOf: [contactPreferenceSchema, { type: "null" }] },
+    actions: {
+      type: "object",
+      additionalProperties: false,
+      required: ["can_edit", "can_close", "can_delete", "can_review"],
+      properties: {
+        can_edit: { type: "boolean" },
+        can_close: { type: "boolean" },
+        can_delete: { type: "boolean" },
+        can_review: { type: "boolean" }
+      }
+    }
+  }
+} as const;
+
+export const postParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["post_id"],
+  properties: {
+    post_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const postsQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["scope"],
+  properties: {
+    scope: { type: "string", enum: ["community", "public"] },
+    community_id: { type: "string", format: "uuid" },
+    post_type: { type: "string", enum: ["request", "offer"] },
+    category: {
+      type: "string",
+      enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"]
+    },
+    status: { type: "string", enum: ["draft", "pending_review", "active", "fulfilled", "closed", "removed"] },
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 }
+  }
+} as const;
+
+export const myPostsQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["draft", "pending_review", "active", "fulfilled", "closed", "removed"] },
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 }
+  }
+} as const;
+
+export const postsListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items", "next_cursor"],
+  properties: {
+    items: {
+      type: "array",
+      items: postSummarySchema
+    },
+    next_cursor: { type: ["string", "null"] }
+  }
+} as const;
+
+export const reviewQueueQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 }
+  }
+} as const;
+
+export const reviewQueueItemSchema = {
+  ...postSummarySchema,
+  required: [...postSummarySchema.required, "review_actions"],
+  properties: {
+    ...postSummarySchema.properties,
+    review_actions: {
+      type: "array",
+      items: { type: "string", enum: ["approve", "reject", "request_more_info"] }
+    }
+  }
+} as const;
+
+export const reviewQueueListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items", "next_cursor"],
+  properties: {
+    items: { type: "array", items: reviewQueueItemSchema },
+    next_cursor: { type: ["string", "null"] }
+  }
+} as const;
+
+export const reviewDecisionRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["decision"],
+  properties: {
+    decision: { type: "string", enum: ["approve", "reject", "request_more_info"] },
+    notes: { type: "string", minLength: 1, maxLength: 500 }
+  }
+} as const;
+
+export const reviewDecisionResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["post_id", "status", "decided_at"],
+  properties: {
+    post_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["draft", "pending_review", "active", "fulfilled", "closed", "removed"] },
+    decided_at: { type: "string", format: "date-time" }
+  }
+} as const;
+
+export const speechTranscribeRequestMetaSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    audio: { type: "string", format: "binary" },
+    language: { type: "string", enum: ["en", "es", "zh"] },
+    transcript_hint: { type: "string" }
+  }
+} as const;
+
+export const speechTranscribeResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["transcript", "language", "provider"],
+  properties: {
+    transcript: { type: "string" },
+    language: { type: "string", enum: ["en", "es", "zh"] },
+    provider: { type: "string", enum: ["browser", "server_fallback"] }
+  }
+} as const;

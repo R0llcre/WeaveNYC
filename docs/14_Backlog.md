@@ -8,11 +8,12 @@
 >
 > **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 pending`
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed on branch` · `M3 pending`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
 > - `Completed (M1)`：代码已落地；如 phase closeout 被重新打开，仍需以 `22_M1_Closeout.md` 为准
+> - `Completed (M2)`：代码与 6-lane review 已落地；当前仍以分支 closeout 真值为准，待合并回 `main`
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
 > 说明：`Completed (M1)` 当前表示“实现与 closeout 都已完成”；如未来 closeout 再次被重新打开，统一以 [`22_M1_Closeout.md`](./22_M1_Closeout.md) 和 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 为准。
@@ -194,63 +195,71 @@
 
 ---
 
-## Epic E3: Mutual Aid Posting（互助发布）
+## Epic E3: Mutual Aid Posting（互助发布）— Status: `Completed (M2)`
 
 > 里程碑：M2（Week 2-3）
 > 来源：[02_PRD §5.3](./02_PRD.md)
 
-### E3-S0: Community join and membership bootstrap — P0 · 3 SP
+### E3-S0: Community join and membership bootstrap — P0 · 3 SP · `Completed (M2)`
 
 - As a user, I can join a community with an invite code or QR so community-only content becomes available.
 - Acceptance:
-  - Invite code / QR resolves to a specific community
+  - `POST /v1/community-access/resolve` 接受 `invite_code` 或 `qr_token`
+  - resolve 返回绑定当前 user / community 的 `join_token`
+  - `POST /v1/communities/:community_id/join` 消费 `join_token`
   - 创建或复用 `community_members` 关系，且对重复加入保持幂等
   - 当前 community 会写入本地 session / profile context
   - `community_only` 帖子和社区 feed 在 membership 存在前保持隐藏
   - Join 入口可从 Onboarding、Community Home 或 Settings 进入
 
-### E3-S1: Create post API — P0 · 3 SP
+### E3-S1: Create post API — P0 · 3 SP · `Completed (M2)`
 
 - As a user (L1+), I can create a Request or Offer post.
 - Acceptance:
   - `POST /v1/posts` → 创建帖子
-  - 必填字段校验：`post_type`、`category`、`body`、`location_zip`
-  - 默认值：`privacy = community_only`、`expires_at = now + 24h`、`status = draft`
+  - 必填字段校验：`community_id`、`post_type`、`category`、`title`、`body`、`location_zip`
+  - 默认值：`privacy = community_only`、`expires_at = now + 24h`
+  - 发帖前必须已有 `community_id` membership
+  - low / medium risk `request`：anonymous member 可直接发布
+  - `offer` 和 high-risk `request` / `offer`：要求 verified
   - `risk_level` 自动计算：Childcare / Transportation → high；其他 → low/medium
   - high-risk 帖子 `status = pending_review`；low-risk 直接 `status = active`
 
-### E3-S2: Post CRUD API (list/detail/update/close) — P0 · 3 SP
+### E3-S2: Post CRUD API (list/detail/update/close) — P0 · 3 SP · `Completed (M2)`
 
 - As a user, I can view, edit, and close my posts.
 - Acceptance:
-  - `GET /v1/posts?community_id=...&status=active&category=food` → 分页列表
+  - `GET /v1/posts?scope=community&community_id=...&status=active&category=food` → 分页列表
   - `GET /v1/posts/:id` → 帖子详情
-  - `PATCH /v1/posts/:id` → 仅 owner 可编辑（draft/active 状态）
+  - `GET /v1/posts/mine` → 我的帖子列表
+  - `PATCH /v1/posts/:id` → 仅 owner 可编辑（active/pending_review 状态）
   - `POST /v1/posts/:id/close` → 关闭帖子（status → closed），退出匹配池
-  - 权限：owner 可编辑/关闭；Anchor 可 remove
+  - `DELETE /v1/posts/:id` → 软删除（status → removed）
+  - 权限：owner 可编辑/关闭/删除；Anchor 走 review queue decision
 
-### E3-S3: Post compose page (PWA) — P0 · 3 SP
+### E3-S3: Post compose page (PWA) — P0 · 3 SP · `Completed (M2)`
 
 - As a user, I can fill out and submit a mutual aid post.
 - Acceptance:
   - 表单字段：类型（Request/Offer）、类别下拉、描述文本框（≤ 280 字）、ZIP、有效期、隐私等级
   - 风险提示条：描述框上方 "请不要分享 SSN、护照或银行信息"
-  - 第一次发帖允许先写后注册 / 先写后加入社区；提交前若缺少 membership 或 verified 身份，则先导向 join / OTP
-  - 提交后跳转匹配结果页（Request）或社区 feed（Offer）
+  - 第一次发帖允许先创建匿名会话，再继续；提交前若缺少 membership 或 verified 身份，则先导向 join / OTP
+  - `Request` 发布后进入帖子详情 / 发布结果页，不提前跳 M3 匹配页
+  - `Offer` 发布后也进入帖子详情 / 发布结果页
   - 离线时自动保存草稿到 IndexedDB
 
-### E3-S4: Voice-to-text input — P1 · 5 SP
+### E3-S4: Voice-to-text input — P1 · 5 SP · `Completed (M2)`
 
 - As a user, I can speak instead of typing to describe my request.
 - Acceptance:
   - Tier 1：尝试端侧 Speech Recognition（`SpeechRecognition` Web API）
-  - Tier 2：fallback 到 `POST /v1/speech/transcribe`（Azure Speech / AWS Transcribe）
+  - Tier 2：用户可触发音频上传 fallback 到 `POST /v1/speech/transcribe`
   - 支持语言：en、es、zh
   - 识别结果填入描述框，用户可手动编辑
   - 用户可选择不使用语音（纯键盘输入）
   - 音频不持久化存储
 
-### E3-S5: My posts page (PWA) — P0 · 2 SP
+### E3-S5: My posts page (PWA) — P0 · 2 SP · `Completed (M2)`
 
 - As a user, I can see and manage all my posts.
 - Acceptance:
@@ -258,7 +267,7 @@
   - 每条帖子可执行：编辑（draft/active）、关闭、删除
   - 显示匹配数量 badge
 
-### E3-S6: Community feed page (PWA) — P0 · 3 SP
+### E3-S6: Community feed page (PWA) — P0 · 3 SP · `Completed (M2)`
 
 - As a user, I can browse active posts in my community.
 - Acceptance:
@@ -389,12 +398,13 @@
 > 里程碑：M4-M5
 > 来源：[02_PRD §5.6](./02_PRD.md) + [10_Security](./10_Security_Privacy_Threat_Model.md)
 
-### E6-S0: Minimal moderation queue API / manual triage — P0 · 2 SP
+### E6-S0: Minimal moderation queue API / manual triage — P0 · 2 SP · `Completed (M2)`
 
 - As an Anchor admin or ops user, I can clear `pending_review` posts before the full admin UI exists.
 - Acceptance:
-  - `GET /v1/admin/review_queue?community_id=...` 能列出待审帖子 / 举报
-  - `POST /v1/admin/review_queue/{post_id}/decision` 可通过 API 或内部手动脚本使用
+  - `GET /v1/admin/review_queue?community_id=...` 能列出待审帖子
+  - `POST /v1/admin/review_queue/{post_id}/decision` 可通过 API、Swagger 或内部手动脚本使用
+  - `pnpm dev:mint-anchor-token` 可生成非生产环境 anchor bearer token
   - 不要求独立 Web UI；先保证 pending_review 能在 M5 前被清理
   - 处理结果写入 `ModerationAction` 审计记录
 
@@ -420,7 +430,7 @@
 
 - As an Anchor admin, I can review and act on reported/flagged content.
 - Acceptance:
-  - `GET /v1/admin/review_queue?community_id=...&cursor=...` → 待审核列表（按优先级/时间排序）
+  - `GET /v1/admin/review_queue?community_id=...&cursor=...` → M2 先覆盖待审核帖子（按时间排序）
   - `POST /v1/admin/review_queue/{post_id}/decision` → `{ decision: "approve" | "reject" | "request_more_info", notes?: string }`
   - 每个操作创建 `ModerationAction` 审计记录（actor, timestamp, decision, reason）
   - 处理后至少在 app 内更新相关状态（review queue / inbox badge / detail state）；push 通知留给后续 `E10`

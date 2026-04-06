@@ -1,13 +1,13 @@
 # WeaveNYC — Implementation Plan (Phased Execution Roadmap)
 
-> 本文档用于 **排阶段、分时间、定产出**。当前仓库状态已经进入 `P0 completed / M0 completed / M1 completed / M2 pending`；`P0-M1` 是已关闭阶段记录，当前真值仍以 [00_Execution_Baseline](./00_Execution_Baseline.md) 为准。
+> 本文档用于 **排阶段、分时间、定产出**。当前仓库状态已经进入 `P0 completed / M0 completed / M1 completed / M2 completed on branch / M3 pending`；`P0-M2` 是已关闭阶段记录，当前真值仍以 [00_Execution_Baseline](./00_Execution_Baseline.md) 为准。
 
 ---
 
 ## 0) 怎么用这份计划
 
 - `P0`、`M0` 已经完成，不再作为待排阶段。
-- `M1` 已完成；当前应直接按 `M2` 分派时间和人力。
+- `M1`、`M2` 已完成；下一阶段是 `M3`。
 - 每个阶段都看 3 件事：做什么、阶段结束必须产出什么、满足什么门槛才能进入下一阶段。
 - `14_Backlog.md` 是任务池；本文件负责决定“现在先做哪一批”。
 
@@ -30,7 +30,7 @@
 | `P0` 文档冻结 | Completed | 0.5-1 天 | 统一入口、命名、契约 | 基线文档、阶段计划、命名决策、无 P1 文档冲突 | README / Baseline / API / Data Model / Backlog 对齐 |
 | `M0` 工程骨架 | Completed | 2-4 天 | 建立可协作的 monorepo skeleton | `apps/`、`services/`、`packages/`、`.env.example`、本地基础设施、`GET /healthz`、`GET /readyz`、CI stub | 新同学能按文档把项目拉起到“骨架运行”并看到 healthcheck |
 | `M1` 官方资源目录 | Completed | 5-7 天 | 保证“零冷启动价值”并完成真实验证收口 | CFC + Island Harvest adapters、`GET /v1/resources*`、PWA 首页/详情/收藏、OTP/refresh/magic-link fallback、real API smoke、docs truth | 真实 API smoke、fixture browser smoke、manual live-source split 清楚，且 6-lane rereview 无 material findings |
-| `M2` 发帖与社区可见性 | Pending | 5-7 天 | 支持 Request/Offer 发布 | 发帖表单、Posts API、社区加入与 membership、可见性规则、生效的风控门槛 | `M1` remediation 关闭后，能先加入社区，再在同社区发布、查看、关闭帖子 |
+| `M2` 发帖与社区可见性 | Completed on branch | 5-7 天 | 支持 Request/Offer 发布 | 发帖表单、Posts API、社区加入与 membership、可见性规则、生效的风控门槛、最小 review queue API、speech fallback | invite/QR join、生效的 Request/Offer gating、community/public/anchor_mediated visibility、manual moderation path、6-lane review gate 全部关闭 |
 | `M3` 匹配与行动方案 | Pending | 4-6 天 | 对 Request 返回可行动方案 | 匹配服务、Top-3 结果页、官方资源兜底、解释标签 | 发布 request 后稳定得到 3 个建议 |
 | `M4` 联系与聊天安全 | Pending | 5-7 天 | 建立双向同意联系与会话 | `contact_requests`、accept/reject、会话列表、聊天、举报/拉黑、最小审核队列 API / manual triage | 未同意前不建会话，已同意后可实时聊天；pending_review 可先被清理 |
 | `M5` Anchor Admin + 试点准备 | Pending | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本 | 能跑通完整 demo 和 pilot rehearsal |
@@ -110,26 +110,27 @@
 - real API smoke 与 fixture-backed browser smoke 的边界已清楚且默认 CI 可复现
 - live-source smoke 仍保留为 manual / opt-in
 
-### M2（Next Phase）：发帖 MVP（Request/Offer）
+### M2（Completed On Branch）：发帖 MVP（Request/Offer）
 
 做什么：
 
 - 接入已完成的匿名/verified 会话与社区加入
-- 先完成 `invite code / QR -> community_members` 的加入链路，再放开 `community_only`
-- 实现发帖表单、Posts API、我的帖子和社区 Feed
-- 接入高风险类别默认审核
+- 固定 `resolve -> join` 两步 community access
+- 实现发帖表单、Posts API、我的帖子和社区 / public Feed
+- 提供最小 review queue API 与 speech fallback，不等完整 Admin UI
 
 阶段产出：
 
-- 用户可创建/查看/编辑/关闭帖子
-- 用户可先加入社区，再进入社区 feed
-- 社区可见性和高风险审核规则生效
+- 用户可创建/查看/编辑/关闭/软删除帖子
+- 用户可先加入社区，再进入 community / public feed
+- 社区可见性、高风险审核、manual moderation path 生效
 
 进入下一阶段门槛：
 
-- 能发布 Food Request 并在列表看到
-- 能通过邀请码 / 二维码加入社区
-- 高风险帖子进入 `pending_review`
+- Invite code / QR 两条 community join 路径可用
+- low / medium risk `request` 可由 anonymous member 发布
+- verified `offer` 可发布，高风险帖子进入 `pending_review`
+- `GET /v1/admin/review_queue` + `POST /v1/admin/review_queue/{post_id}/decision` 可清理待审帖子
 
 ### M3（Week 3-4）：匹配引擎 + 行动方案
 

@@ -123,6 +123,10 @@ Request:
 }
 ```
 
+Notes:
+- 该接口仍属于后续完整 Anchor 登录流（M5），当前分支未实现
+- M2 的 manual review path 在非生产环境使用 `pnpm dev:mint-anchor-token` 生成临时 anchor bearer token
+
 ---
 
 ## 2) Official Resources
@@ -140,21 +144,49 @@ Response:
 ### 2.2 Resource Detail
 `GET /v1/resources/{provider_id}`
 
-### 2.3 Join Community
+### 2.3 Resolve Community Access
+`POST /v1/community-access/resolve`
+
+Request:
+```json
+{ "invite_code": "FARMINGDALE-HELP" }
+```
+
+或
+
+```json
+{ "qr_token": "FARMINGDALE-QR" }
+```
+
+Response:
+```json
+{
+  "community": {
+    "community_id": "44444444-4444-4444-8444-444444444444",
+    "name": "Farmingdale Demo Community",
+    "center_zip": "11735",
+    "join_policy": "invite_only"
+  },
+  "join_token": "jwt_...",
+  "entry": "invite_code",
+  "expires_in_seconds": 600
+}
+```
+
+### 2.4 Join Community
 `POST /v1/communities/{community_id}/join`
 
 Request:
 ```json
 {
-  "invite_code": "COMM-XXXXX",
-  "qr_token": "qr_..."
+  "join_token": "jwt_..."
 }
 ```
 
 Notes:
-- `invite_code` 或 `qr_token` 二选一即可，实际实现可只接收其中一种
+- `resolve -> join` 是固定两步流程，`join` 不再直接接收 `invite_code` / `qr_token`
 - 加入成功后，用户可以访问该社区的 `community_only` 内容
-- 如果已经是成员，接口应返回幂等成功结果
+- 如果已经是成员，接口返回幂等成功结果
 
 ---
 
@@ -164,11 +196,16 @@ Notes:
 `POST /v1/posts`
 
 > **字段说明**：HTTP DTO 与 [08_Data_Model §2.5 Post](./08_Data_Model.md) 保持同名。`post_type`、`location_zip`、`privacy`、`body` 等字段不做额外别名转换。
-> **认证说明**：该接口接受 anonymous JWT；发帖不要求先完成 OTP。只有 `Contact` / `chat` 相关接口要求 `level >= verified`。
+> **认证说明**：
+> - 该接口接受 anonymous JWT
+> - 发布前必须已有对应 `community_id` 的 membership
+> - low / medium risk `request` 可由 anonymous member 发布
+> - `offer` 和 high-risk `request` / `offer` 要求 `level >= verified`
 
 Request:
 ```json
 {
+  "community_id": "44444444-4444-4444-8444-444444444444",
   "post_type": "request",
   "category": "food",
   "title": "Need dinner for 2",
@@ -182,21 +219,35 @@ Request:
 ```
 Response:
 ```json
-{ "post_id": "p_...", "status": "pending_review", "risk_level": "low" }
+{ "post_id": "p_...", "status": "active", "risk_level": "low" }
 ```
 
 ### 3.2 List Posts (Feed)
-`GET /v1/posts?community_id=...&category=food&type=request&cursor=...`
+`GET /v1/posts?scope=community&community_id=...&category=food&post_type=request&cursor=...`
 Response:
 ```json
 { "items": [...], "next_cursor": "..." }
 ```
 
-### 3.3 Update Post
+Notes:
+- `scope=community` 需要 membership
+- `scope=public` 只返回 `privacy = public` 且 `status = active`
+- `anchor_mediated` 不进入普通 feed
+
+### 3.3 My Posts
+`GET /v1/posts/mine`
+
+### 3.4 Post Detail
+`GET /v1/posts/{post_id}`
+
+### 3.5 Update Post
 `PATCH /v1/posts/{post_id}`
 
-### 3.4 Close Post
+### 3.6 Close Post
 `POST /v1/posts/{post_id}/close`
+
+### 3.7 Delete Post
+`DELETE /v1/posts/{post_id}`
 
 ---
 

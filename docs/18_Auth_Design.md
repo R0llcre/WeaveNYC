@@ -24,13 +24,13 @@
 │  Level 1: Anonymous Account                            │
 │  ─ POST /v1/auth/anonymous → 获得 JWT                  │
 │  ─ 服务端生成 UUID user_id（无关联手机号/邮箱）         │
-│  ─ 能力：发帖、收藏、浏览匹配结果                      │
-│  ─ 限制：无法进入聊天、无法发高风险类别                  │
+│  ─ 能力：加入社区、发布 low/medium risk request、收藏、浏览匹配结果 │
+│  ─ 限制：无法发 offer、无法发 high-risk 帖子、无法进入聊天 │
 ├────────────────────────────────────────────────────────┤
 │  Level 2: Verified Account                             │
 │  ─ POST /v1/auth/otp/start → verify → 获得 JWT        │
 │  ─ 或 POST /v1/auth/magic-link/start → verify         │
-│  ─ 能力：聊天、发高风险类别、接收推送通知               │
+│  ─ 能力：发布 offer / high-risk 帖子、聊天、接收推送通知 │
 ├────────────────────────────────────────────────────────┤
 │  Level 3: Anchor Admin                                 │
 │  ─ Verified Account + Anchor 邀请码                    │
@@ -62,6 +62,8 @@ Client                          API Gateway
 - `device_id` 由客户端本地生成（IndexedDB），用于设备关联（非追踪）
 - `user_id` 使用 UUID（与 [20_DB_Schema_Reference](./20_DB_Schema_Reference.md) 保持一致）
 - Token 有效期：`access_token` 15 分钟，`refresh_token` 7 天
+- `POST /v1/community-access/resolve` / `POST /v1/communities/:community_id/join` 接受 anonymous JWT，不要求 verified
+- 发布权限真值：anonymous member 只能发 low/medium risk `request`；`offer` 和 high-risk 都要求 verified
 
 ### 3.2 手机号 OTP（Level 1 → Level 2）
 
@@ -120,6 +122,7 @@ POST /v1/auth/anchor/activate
 - 邀请码由平台管理员线下发放（MVP：手动生成）
 - 强制绑定 TOTP（Google Authenticator / Authy）
 - Anchor 账号的 JWT 包含 `role: "anchor"` 和 `community_id`
+- 该完整激活流留在后续阶段；当前 M2 的 manual moderation 先通过 `pnpm dev:mint-anchor-token` 生成非生产环境 bearer token
 
 ---
 

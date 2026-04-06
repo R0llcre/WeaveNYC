@@ -4,18 +4,23 @@
 
 ---
 
-## 1) 服务清单（MVP）
+## 1) 服务清单（当前 M2 运行面）
 
-**6 个后端微服务（Fastify + TypeScript）**：
+**当前唯一运行中的后端 HTTP 服务**：
 
 | 服务 | 职责 | 关键依赖 |
 |------|------|----------|
-| API Gateway | 路由、鉴权、限流 | PostgreSQL, Redis |
-| Resource Directory Service | 官方资源目录查询 | PostgreSQL (PostGIS) |
-| Posts Service | 互助帖子 CRUD | PostgreSQL |
-| Match Service | 匹配引擎 | PostgreSQL, Posts Service, Directory Service |
-| Chat Service | 聊天消息（WebSocket） | PostgreSQL / Redis Pub/Sub |
-| Notification Service | 推送/短信/邮件 | Twilio / FCM / SES |
+| API Gateway | 路由、鉴权、限流、resource/posts/review/speech HTTP 接口 | PostgreSQL, Redis |
+
+**当前仓库内的非独立 runtime 包**：
+
+| 包 | 当前形态 | 说明 |
+|----|----------|------|
+| `services/resource-directory` | library + CLI host | M1/M2 仍通过 API Gateway 暴露查询能力，不单独部署 |
+| `services/posts` | domain library | M2 的 community join / posts / review 逻辑挂在 API Gateway 下 |
+| `services/match` | skeleton | 目标态服务，M3 以后再接入 |
+| `services/chat` | skeleton | 目标态服务，M4 以后再接入 |
+| `services/notifications` | not started | 目标态能力，当前未部署 |
 
 **前端应用（Next.js + TypeScript，不计入微服务数量）**：
 
@@ -45,8 +50,8 @@
 ## 3) 监控面板（Dashboard）
 
 ### 3.1 Golden Signals
-- **Latency**：p50, p95, p99（按服务拆分）
-- **Traffic**：req/s, active users/hour, WebSocket connections
+- **Latency**：p50, p95, p99（当前以 API Gateway 为主，后续按服务拆分）
+- **Traffic**：req/s, active users/hour
 - **Errors**：5xx rate, 4xx rate（按 endpoint 拆分）
 - **Saturation**：CPU %, memory %, DB connection pool usage, disk I/O
 
@@ -88,7 +93,7 @@
 {
   "timestamp": "2026-02-22T10:30:00Z",
   "level": "info",
-  "service": "posts-service",
+  "service": "api-gateway",
   "request_id": "req_abc123",
   "user_id_hash": "sha256:7f3a...",
   "endpoint": "POST /v1/posts",
@@ -123,8 +128,9 @@ loki-cli query '{} |= "req_abc123"' --since=24h
 loki-cli query '{} |= "sha256:7f3a"' --since=7d
 ```
 
-### 4.4 Distributed Tracing（Phase 2）
-- 使用 OpenTelemetry SDK 在各服务入口注入 trace context
+### 4.4 Distributed Tracing（Target State）
+- 当前 M2 只有 API Gateway 一个运行中的后端服务；若接入 tracing，先在 API Gateway 上统一打点
+- 后续在真正拆出独立服务后，再使用 OpenTelemetry SDK 在各服务入口注入 trace context
 - 关键链路追踪：`用户发帖 → 风险检测 → 审核 → 匹配 → 通知`
 - 采样率：MVP 阶段可 100%，流量大时降至 10%
 
@@ -178,13 +184,14 @@ groups:
         annotations:
           summary: "Anchor review queue backlog > 50 for 24h"
 
-      - alert: MatchServiceDown
-        expr: up{service="match-service"} == 0
-        for: 2m
-        labels:
-          severity: P1
-        annotations:
-          summary: "Match service is down"
+      # Target-state alert: enable only after match-service becomes a real deployment
+      # - alert: MatchServiceDown
+      #   expr: up{service="match-service"} == 0
+      #   for: 2m
+      #   labels:
+      #     severity: P1
+      #   annotations:
+      #     summary: "Match service is down"
 ```
 
 ### 5.3 告警通知渠道配置
@@ -295,13 +302,17 @@ groups:
 
 **修复 Actions**:
 1. 检查 Anchor Admin UI 部署状态
-2. 通过 API 直接处理紧急审核：
+2. 在非生产环境先生成临时 anchor token：
+   ```bash
+   pnpm dev:mint-anchor-token
+   ```
+3. 通过 API 直接处理紧急审核：
    ```bash
    curl -X POST https://api.weavenyc.local/v1/admin/review_queue/{post_id}/decision \
      -H "Authorization: Bearer $ADMIN_TOKEN" \
      -d '{"decision": "approve", "notes": "emergency bypass"}'
    ```
-3. 通知 Anchor 使用备用渠道（Slack/电话）报告紧急情况
+4. 通知 Anchor 使用备用渠道（Slack/电话）报告紧急情况
 
 ---
 

@@ -10,7 +10,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'WeaveNYC PWA',
-  description: 'WeaveNYC M1 resource finder with nearby official food support, local bookmarks, and lightweight verification.',
+  description: 'WeaveNYC community mutual-aid PWA with nearby official resources, community posts, and lightweight verification.',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/icons/app-icon.svg',

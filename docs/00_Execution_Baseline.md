@@ -1,21 +1,22 @@
-# WeaveNYC — Execution Baseline (M1 Complete -> M2)
+# WeaveNYC — Execution Baseline (M2 Complete On Branch)
 
 状态：`CANONICAL`
 
-目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M2 前置决策写成单一基线，避免继续引用 pre-M1 口径，也避免在进入 `M2` 后再次漂移 M1 closeout 真值。
+目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M2 决策写成单一基线，避免继续引用 pre-M1 口径，也避免在 M2 closeout 后再次漂移真值。
 
 ---
 
 ## 1) 当前仓库真实状态
 
-- 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 M1 complete monorepo**。
+- 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
+- `main` 的稳定基线仍是 `M1 completed`；当前工作分支 `feature/m2-community-posts` 已完成 M2 的 community/posts/review/speech surface，并通过 6-lane review gate。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
-- 当前可运行的 M1 服务面：
+- 当前可运行的稳定服务面（`main`）：
   - PWA：`http://localhost:3000`
   - Anchor Admin：`http://localhost:3001`
   - API Gateway：`http://localhost:4000`
   - Swagger：`http://localhost:4000/docs`
-- 当前已验证的 API 面：
+- 当前已验证的稳定 API 面（`main`）：
   - `GET /healthz`
   - `GET /readyz`
   - `POST /v1/auth/anonymous`
@@ -27,6 +28,19 @@
   - `GET /v1/me`
   - `GET /v1/resources`
   - `GET /v1/resources/:provider_id`
+- 当前分支额外接线的 M2 API 面：
+  - `POST /v1/community-access/resolve`
+  - `POST /v1/communities/:community_id/join`
+  - `POST /v1/posts`
+  - `GET /v1/posts`
+  - `GET /v1/posts/:post_id`
+  - `GET /v1/posts/mine`
+  - `PATCH /v1/posts/:post_id`
+  - `POST /v1/posts/:post_id/close`
+  - `DELETE /v1/posts/:post_id`
+  - `GET /v1/admin/review_queue`
+  - `POST /v1/admin/review_queue/:post_id/decision`
+  - `POST /v1/speech/transcribe`
 - 当前真实 bootstrap 顺序：
 
 ```bash
@@ -48,14 +62,14 @@ pnpm dev
 | `P0` | `completed` | 入口、命名、契约已冻结 |
 | `M0` | `completed` | monorepo skeleton、本地基础设施、匿名 auth 最小闭环、CI stub 已落地 |
 | `M1` | `completed` | 资源目录、扩展认证、real API smoke、fixture browser smoke、6-lane rereview 已完成 |
-| `M2` | `pending` | 下一阶段是 posting + community visibility |
-| `M3-M5` | `planned` | 继续按 phased roadmap 推进 |
+| `M2` | `completed_on_branch` | 当前工作分支已完成 posting + community visibility，并等待合并 |
+| `M3-M5` | `planned` | 下一阶段从 `M3` 开始推进 |
 | `M6` | `optional` | 仅在 MVP 主线稳定后进入 |
 
 结论：
 
-- 当前可以对外表述 `M1 completed`。
-- 当前唯一主线已切换为 `M2 posting + community visibility`。
+- `main` 当前仍应对外表述 `M1 completed`，直到本分支合并。
+- 当前工作分支已经完成 `M2 community join + posts + minimal review`，下一阶段是 `M3 pending`。
 
 ---
 
@@ -106,12 +120,13 @@ pnpm dev
 
 1. 本文档（`00_Execution_Baseline.md`）
 2. `README.md`
-3. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-4. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-5. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
-6. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
-7. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
-8. 历史材料：`archive/`
+3. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+4. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+5. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+6. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
+7. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+8. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
+9. 历史材料：`archive/`
 
 ---
 
@@ -120,7 +135,10 @@ pnpm dev
 ### 6.1 社区加入机制
 
 - `M2` 采用 **邀请码 / 二维码加入社区**。
-- 实现路径固定为：邀请码 / 二维码 -> 创建 `community_members` -> 开放 `community_only` feed / post visibility。
+- 实现路径固定为：
+  - `POST /v1/community-access/resolve` 接受 `invite_code` 或 `qr_token`
+  - 返回绑定当前 user / community 的短期 `join_token`
+  - `POST /v1/communities/:community_id/join` 消费 `join_token` 并创建 / 复用 `community_members`
 - 不做开放社区搜索加入。
 - `community_only` 是默认可见性，但前提是用户已经加入某个社区。
 
@@ -132,10 +150,15 @@ pnpm dev
 - 升级路径：
   - 主路径：手机号 OTP
   - 备选路径：邮箱 magic link
+- 权限真值：
+  - anonymous member 可发布 low / medium risk `request`
+  - `offer` 必须 `level >= verified`
+  - high-risk `request` / `offer` 都要求 `level >= verified` 且进入 `pending_review`
+- `POST /v1/community-access/resolve` / `POST /v1/communities/:community_id/join` 接受 anonymous JWT，不要求 verified。
 - Token 策略冻结为：
   - `access_token`：15 分钟
   - `refresh_token`：7 天
-- Anchor 激活接口冻结为：`POST /v1/auth/anchor/activate`
+- Anchor 完整激活接口仍冻结为：`POST /v1/auth/anchor/activate`；M2 的 manual moderation 先通过 `pnpm dev:mint-anchor-token` + Swagger/curl 走通。
 
 ### 6.3 聊天建联
 
@@ -189,7 +212,7 @@ pnpm dev
 
 ## 8) 下一步唯一入口
 
-当前下一阶段已进入 `M2 posting + community visibility` 规划入口。
+当前工作分支已进入 `M2 posting + community visibility` 实现阶段。
 
 M2 入口文档固定从以下四份开始：
 

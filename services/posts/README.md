@@ -1,6 +1,7 @@
 # Posts Service
 
-M0 status: placeholder package only.
+M2 status: domain library only.
 
-This service boundary is reserved for request and offer post workflows that
-begin in M2. No runtime or transport wiring is shipped in M0.
+This package owns the community access, membership join, posts, risk, visibility,
+and minimal moderation rules used by `services/api-gateway`. It does not ship a
+standalone runtime in M2.

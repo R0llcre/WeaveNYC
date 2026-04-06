@@ -167,3 +167,176 @@ export type ResourceSearchRequest = {
   limit?: number;
   cursor?: string | null;
 };
+
+export type SupportedLanguage = "en" | "es" | "zh";
+
+export type JoinPolicy = "invite_only" | "open";
+
+export type CommunityAccessEntry = "invite_code" | "qr_token";
+
+export type MembershipStatus = "joined" | "already_joined";
+
+export type PostType = "request" | "offer";
+
+export type PostCategory =
+  | "food"
+  | "goods"
+  | "childcare"
+  | "companionship"
+  | "translation"
+  | "transportation"
+  | "other";
+
+export type PrivacyOption = "community_only" | "public" | "anchor_mediated";
+
+export type PostStatus = "draft" | "pending_review" | "active" | "fulfilled" | "closed" | "removed";
+
+export type RiskLevel = "low" | "medium" | "high";
+
+export type PostScope = "community" | "public";
+
+export type ReviewDecision = "approve" | "reject" | "request_more_info";
+
+export type SpeechProvider = "browser" | "server_fallback";
+
+export type CommunitySummary = {
+  community_id: string;
+  name: string;
+  center_zip: string;
+  join_policy: JoinPolicy;
+};
+
+export type CommunityAccessResolveRequest =
+  | {
+      invite_code: string;
+      qr_token?: never;
+    }
+  | {
+      invite_code?: never;
+      qr_token: string;
+    };
+
+export type CommunityAccessResolveResponse = {
+  community: CommunitySummary;
+  join_token: string;
+  entry: CommunityAccessEntry;
+  expires_in_seconds: number;
+};
+
+export type JoinCommunityRequest = {
+  join_token: string;
+};
+
+export type JoinCommunityResponse = {
+  community_id: string;
+  membership_status: MembershipStatus;
+  joined_at: string;
+};
+
+export type ContactPreference = {
+  in_app_chat?: boolean;
+  call?: boolean;
+  text?: boolean;
+  notes?: string;
+};
+
+export type CreatePostRequest = {
+  community_id: string;
+  post_type: PostType;
+  category: PostCategory;
+  title: string;
+  body: string;
+  language: SupportedLanguage;
+  location_zip: string;
+  privacy: PrivacyOption;
+  expires_at: string;
+  contact_pref?: ContactPreference;
+};
+
+export type CreatePostResponse = {
+  post_id: string;
+  status: PostStatus;
+  risk_level: RiskLevel;
+};
+
+export type UpdatePostRequest = Partial<Omit<CreatePostRequest, "community_id" | "post_type">>;
+
+export type PostActions = {
+  can_edit: boolean;
+  can_close: boolean;
+  can_delete: boolean;
+  can_review: boolean;
+};
+
+export type PostSummary = {
+  post_id: string;
+  community_id: string;
+  post_type: PostType;
+  category: PostCategory;
+  title: string;
+  body: string;
+  language: SupportedLanguage;
+  location_zip: string;
+  privacy: PrivacyOption;
+  status: PostStatus;
+  risk_level: RiskLevel;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  is_owner: boolean;
+};
+
+export type PostDetail = PostSummary & {
+  contact_pref: ContactPreference | null;
+  actions: PostActions;
+};
+
+export type PostsListRequest = {
+  scope: PostScope;
+  community_id?: string;
+  post_type?: PostType;
+  category?: PostCategory;
+  status?: PostStatus;
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type PostMineRequest = {
+  community_id?: string;
+  status?: PostStatus;
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type PostsListResponse = {
+  items: PostSummary[];
+  next_cursor: string | null;
+};
+
+export type MyPostsResponse = PostsListResponse;
+
+export type ReviewQueueItem = PostSummary & {
+  review_actions: ReviewDecision[];
+};
+
+export type ReviewQueueResponse = {
+  items: ReviewQueueItem[];
+  next_cursor: string | null;
+};
+
+export type ReviewDecisionRequest = {
+  decision: ReviewDecision;
+  notes?: string;
+};
+
+export type ReviewDecisionResponse = {
+  post_id: string;
+  status: PostStatus;
+  decided_at: string;
+};
+
+export type SpeechTranscribeResponse = {
+  transcript: string;
+  language: SupportedLanguage;
+  provider: SpeechProvider;
+};
