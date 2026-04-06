@@ -3,7 +3,7 @@ import type { PostDetail, UserLevel } from '@weavenyc/shared';
 import type { PostActor, PostRecord } from './types.js';
 
 export function isCommunityMember(actor: PostActor, communityId: string) {
-  return actor.communityIds.includes(communityId) || actor.role === 'anchor';
+  return actor.communityIds.includes(communityId);
 }
 
 export function ensureActorCanPublish(actor: PostActor, post: Pick<PostRecord, 'communityId' | 'postType' | 'riskLevel'>) {

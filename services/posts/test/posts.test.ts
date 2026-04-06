@@ -31,6 +31,13 @@ const anchorActor: PostActor = {
   communityIds: [community.community_id],
 };
 
+const foreignAnchorActor: PostActor = {
+  userId: '44444444-4444-4444-8444-444444444444',
+  level: 'anchor',
+  role: 'anchor',
+  communityIds: ['55555555-5555-4555-8555-555555555555'],
+};
+
 function createService() {
   const service = new InMemoryPostsService();
   service.communityAccessCodes.set('invite:FARMINGDALE-HELP', {
@@ -101,6 +108,27 @@ describe('InMemoryPostsService', () => {
           category: 'food',
           title: 'Need dinner',
           body: 'Need dinner for two tonight',
+          language: 'en',
+          location_zip: '11735',
+          privacy: 'community_only',
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+        },
+      })
+    ).rejects.toThrowError(PostsServiceError);
+  });
+
+  it('does not treat anchors as members of unrelated communities', async () => {
+    const service = createService();
+
+    await expect(
+      service.createPost({
+        actor: foreignAnchorActor,
+        request: {
+          community_id: community.community_id,
+          post_type: 'request',
+          category: 'food',
+          title: 'Need dinner',
+          body: 'Need dinner for tonight',
           language: 'en',
           location_zip: '11735',
           privacy: 'community_only',

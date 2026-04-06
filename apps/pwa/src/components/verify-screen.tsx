@@ -78,7 +78,7 @@ export function VerifyScreen() {
               {t('backHome')}
             </Link>
           </div>
-          <h1>{t('verifyTitle')}</h1>
+          <h1 data-testid="verify-title">{t('verifyTitle')}</h1>
           <p>{t('verifyCopy')}</p>
         </section>
 
@@ -117,6 +117,7 @@ export function VerifyScreen() {
                   <div className="actions">
                     <button
                       className="button button--primary"
+                      data-testid="send-code"
                       disabled={!session || otpStart.isPending}
                       onClick={() => otpStart.mutate({ phone })}
                       type="button"
@@ -135,6 +136,7 @@ export function VerifyScreen() {
                   </label>
                   <button
                     className="button button--primary"
+                    data-testid="verify-code"
                     disabled={!session || otpVerify.isPending || !otpStart.data}
                     onClick={() =>
                       otpVerify.mutate(
