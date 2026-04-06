@@ -9,7 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -24,9 +24,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
         run: pnpm typecheck
@@ -39,3 +40,41 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Start local infrastructure
+        run: docker compose up -d
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Seed database
+        run: pnpm db:seed
+
+      - name: Start API gateway
+        run: |
+          pnpm --filter @weavenyc/api-gateway start > /tmp/weavenyc-api.log 2>&1 &
+          echo $! > /tmp/weavenyc-api.pid
+
+      - name: Real API smoke
+        run: pnpm test:smoke:real
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser smoke
+        run: pnpm test:e2e
+
+      - name: Dump API gateway log on failure
+        if: failure()
+        run: cat /tmp/weavenyc-api.log || true
+
+      - name: Stop API gateway
+        if: always()
+        run: |
+          if [ -f /tmp/weavenyc-api.pid ]; then
+            kill "$(cat /tmp/weavenyc-api.pid)" || true
+          fi
+
+      - name: Stop local infrastructure
+        if: always()
+        run: docker compose down -v

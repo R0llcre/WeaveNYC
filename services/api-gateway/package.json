@@ -8,9 +8,11 @@
     "start": "node dist/src/server.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "pnpm --filter @weavenyc/resource-directory build && pnpm --dir ../.. exec vitest run services/api-gateway/test/"
   },
   "dependencies": {
+    "@weavenyc/resource-directory": "workspace:*",
+    "@weavenyc/shared": "workspace:*",
     "@fastify/cors": "^11.1.0",
     "@fastify/jwt": "^9.1.0",
     "@fastify/swagger": "^9.5.1",

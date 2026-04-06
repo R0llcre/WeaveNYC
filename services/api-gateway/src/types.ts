@@ -26,4 +26,5 @@ export interface StoredRefreshSession {
   level: UserLevel;
   role: UserRole;
   communityIds: string[];
+  familyId: string;
 }

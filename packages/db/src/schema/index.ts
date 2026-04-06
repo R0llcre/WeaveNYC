@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -82,7 +84,9 @@ export const users = pgTable("users", {
   preferredLanguages: text("preferred_languages").array(),
   homeZip: varchar("home_zip", { length: 10 }),
   phoneHash: varchar("phone_hash", { length: 64 }),
+  phoneHashSalt: varchar("phone_hash_salt", { length: 64 }),
   emailHash: varchar("email_hash", { length: 64 }),
+  emailHashSalt: varchar("email_hash_salt", { length: 64 }),
   level: userLevelEnum("level").notNull().default("anonymous"),
   status: userStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -189,9 +193,6 @@ export const datasetVersions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
-    datasetVersionUq: uniqueIndex("uq_dataset_versions_dataset_version").on(
-      table.datasetVersion
-    ),
     datasetSourceUq: uniqueIndex("uq_dataset_versions_source_version").on(
       table.source,
       table.datasetVersion
@@ -219,9 +220,7 @@ export const resourceProviders = pgTable(
     lng: doublePrecision("lng"),
     geoPrecision: varchar("geo_precision", { length: 20 }).default("zip_centroid"),
     contentHash: varchar("content_hash", { length: 64 }),
-    datasetVersion: varchar("dataset_version", { length: 50 })
-      .notNull()
-      .references(() => datasetVersions.datasetVersion),
+    datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
     status: resourceStatusEnum("status").notNull().default("active"),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
@@ -235,6 +234,14 @@ export const resourceProviders = pgTable(
       table.datasetVersion,
       table.status
     ),
+    sourceDatasetVersionFk: foreignKey({
+      columns: [table.source, table.datasetVersion],
+      foreignColumns: [datasetVersions.source, datasetVersions.datasetVersion],
+      name: "fk_resource_providers_source_dataset_version"
+    }),
+    activeSourceRefUq: uniqueIndex("uq_resources_active_source_ref")
+      .on(table.source, table.sourceRef)
+      .where(sql`${table.status} = 'active'`),
     sourceRefVersionUq: uniqueIndex("uq_resources_source_ref_version").on(
       table.source,
       table.sourceRef,
@@ -243,19 +250,27 @@ export const resourceProviders = pgTable(
   })
 );
 
-export const resourceChangeLogs = pgTable("resource_change_logs", {
-  changeLogId: uuid("change_log_id").primaryKey().defaultRandom(),
-  source: varchar("source", { length: 50 }).notNull(),
-  sourceRef: varchar("source_ref", { length: 200 }).notNull(),
-  datasetVersion: varchar("dataset_version", { length: 50 })
-    .notNull()
-    .references(() => datasetVersions.datasetVersion),
-  changeType: varchar("change_type", { length: 20 }).notNull(),
-  changedFields: text("changed_fields").array(),
-  contentHashBefore: varchar("content_hash_before", { length: 64 }),
-  contentHashAfter: varchar("content_hash_after", { length: 64 }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
+export const resourceChangeLogs = pgTable(
+  "resource_change_logs",
+  {
+    changeLogId: uuid("change_log_id").primaryKey().defaultRandom(),
+    source: varchar("source", { length: 50 }).notNull(),
+    sourceRef: varchar("source_ref", { length: 200 }).notNull(),
+    datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
+    changeType: varchar("change_type", { length: 20 }).notNull(),
+    changedFields: text("changed_fields").array(),
+    contentHashBefore: varchar("content_hash_before", { length: 64 }),
+    contentHashAfter: varchar("content_hash_after", { length: 64 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    sourceDatasetVersionFk: foreignKey({
+      columns: [table.source, table.datasetVersion],
+      foreignColumns: [datasetVersions.source, datasetVersions.datasetVersion],
+      name: "fk_resource_change_logs_source_dataset_version"
+    })
+  })
+);
 
 export const verificationLogs = pgTable("verification_logs", {
   verificationLogId: uuid("verification_log_id").primaryKey().defaultRandom(),

@@ -5,15 +5,26 @@ import fastifySwaggerUi from '@fastify/swagger-ui';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import { loadConfig, type AppConfig } from './config.js';
+import {
+  createRedisAuthAbuseStore,
+  type AuthAbuseStore
+} from './lib/identity.js';
+import {
+  createPgResourceDirectoryService,
+  type ResourceDirectoryService
+} from './lib/resource-directory.js';
 import { createRedisRefreshTokenStore, type RefreshTokenStore } from './lib/refresh-token-store.js';
 import { createPgUserStore, type UserStore } from './lib/user-store.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
+import { resourceRoutes } from './routes/resources.js';
 
 export interface BuildAppOptions {
+  authAbuseStore?: AuthAbuseStore;
   config?: AppConfig;
   refreshTokenStore?: RefreshTokenStore;
+  resourceDirectory?: ResourceDirectoryService;
   userStore?: UserStore;
   logger?: boolean;
 }
@@ -28,10 +39,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const refreshTokenStore =
     options.refreshTokenStore ??
     createRedisRefreshTokenStore(config.redisUrl, config.refreshTokenTtlSeconds);
+  const authAbuseStore =
+    options.authAbuseStore ?? createRedisAuthAbuseStore(config.redisUrl, config.identityHashPepper);
+  const resourceDirectory =
+    options.resourceDirectory ?? createPgResourceDirectoryService(config.databaseUrl);
 
   app.decorate('config', config);
   app.decorate('userStore', userStore);
   app.decorate('refreshTokenStore', refreshTokenStore);
+  app.decorate('authAbuseStore', authAbuseStore);
+  app.decorate('resourceDirectory', resourceDirectory);
 
   await app.register(fastifyCors, {
     origin(origin, callback) {
@@ -92,12 +109,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.addHook('onClose', async () => {
-    await Promise.all([app.userStore.close(), app.refreshTokenStore.close()]);
+    await Promise.all([
+      app.userStore.close(),
+      app.refreshTokenStore.close(),
+      authAbuseStore.close(),
+      app.resourceDirectory.close()
+    ]);
   });
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
   await app.register(meRoutes);
+  await app.register(resourceRoutes);
 
   return app;
 }

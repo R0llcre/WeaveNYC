@@ -6,6 +6,8 @@ export interface UserStore {
   ping(): Promise<void>;
   createAnonymousUser(deviceId: string): Promise<AuthenticatedUserRecord>;
   getAuthUserById(userId: string): Promise<AuthenticatedUserRecord | null>;
+  verifyUserPhone(userId: string, phoneHash: string, phoneHashSalt: string): Promise<AuthenticatedUserRecord | null>;
+  verifyUserEmail(userId: string, emailHash: string, emailHashSalt: string): Promise<AuthenticatedUserRecord | null>;
   close(): Promise<void>;
 }
 
@@ -85,6 +87,32 @@ export class PgUserStore implements UserStore {
     }
   }
 
+  async verifyUserPhone(
+    userId: string,
+    phoneHash: string,
+    phoneHashSalt: string
+  ): Promise<AuthenticatedUserRecord | null> {
+    return this.updateVerifiedIdentity(userId, {
+      hashColumn: 'phone_hash',
+      saltColumn: 'phone_hash_salt',
+      hashValue: phoneHash,
+      saltValue: phoneHashSalt
+    });
+  }
+
+  async verifyUserEmail(
+    userId: string,
+    emailHash: string,
+    emailHashSalt: string
+  ): Promise<AuthenticatedUserRecord | null> {
+    return this.updateVerifiedIdentity(userId, {
+      hashColumn: 'email_hash',
+      saltColumn: 'email_hash_salt',
+      hashValue: emailHash,
+      saltValue: emailHashSalt
+    });
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -109,6 +137,58 @@ export class PgUserStore implements UserStore {
       }
 
       throw error;
+    }
+  }
+
+  private async updateVerifiedIdentity(
+    userId: string,
+    identity: {
+      hashColumn: 'phone_hash' | 'email_hash';
+      saltColumn: 'phone_hash_salt' | 'email_hash_salt';
+      hashValue: string;
+      saltValue: string;
+    }
+  ): Promise<AuthenticatedUserRecord | null> {
+    const client = await this.pool.connect();
+
+    try {
+      const result = await client.query<{
+        user_id: string;
+        level: AuthenticatedUserRecord['level'];
+        status: AuthenticatedUserRecord['status'];
+      }>(
+        `
+          update users
+          set
+            ${identity.hashColumn} = $2,
+            ${identity.saltColumn} = $3,
+            level = case
+              when level = 'anonymous' then 'verified'::user_level
+              else level
+            end,
+            updated_at = now()
+          where user_id = $1
+          returning user_id, level, status
+        `,
+        [userId, identity.hashValue, identity.saltValue]
+      );
+
+      const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
+
+      const communityIds = await this.loadCommunityIds(client, row.user_id);
+
+      return {
+        userId: row.user_id,
+        level: row.level,
+        role: row.level === 'anchor' ? 'anchor' : 'user',
+        status: row.status,
+        communityIds
+      };
+    } finally {
+      client.release();
     }
   }
 }

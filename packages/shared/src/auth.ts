@@ -22,6 +22,18 @@ export type AccessTokenPayload = {
 
 export const accessTokenTtlSeconds = 15 * 60;
 export const refreshTokenTtlSeconds = 7 * 24 * 60 * 60;
+export const otpChallengeTtlSeconds = 10 * 60;
+export const magicLinkChallengeTtlSeconds = 15 * 60;
+export const otpCodeLength = 6;
+export const otpMaxAttempts = 5;
+export const otpCooldownSeconds = 60 * 60;
+export const anonymousAuthWindowSeconds = 60 * 60;
+export const anonymousAuthBurstLimit = 10;
+export const refreshAuthWindowSeconds = 60 * 60;
+export const refreshAuthBurstLimit = 30;
+export const otpStartWindowSeconds = 60 * 60;
+export const otpStartBurstLimit = 3;
+export const authIdentityHashPepperEnvVar = "IDENTITY_HASH_PEPPER";
 
 export const authLevelRank: Record<UserLevel, number> = {
   anonymous: 1,

@@ -1,6 +1,19 @@
 export * from "./auth";
 export * from "./contracts";
-export { jwtClaimsSchema } from "./validators/auth";
+export {
+  authErrorResponseSchema,
+  jwtClaimsSchema,
+  magicLinkStartRequestSchema,
+  magicLinkStartResponseSchema,
+  magicLinkVerifyRequestSchema,
+  magicLinkVerifyResponseSchema,
+  otpStartRequestSchema,
+  otpStartResponseSchema,
+  otpVerifyRequestSchema,
+  otpVerifyResponseSchema,
+  refreshSessionRequestSchema,
+  refreshSessionResponseSchema,
+} from "./validators/auth";
 export {
   anonymousAuthRequestSchema as anonymousSessionRequestSchema,
   anonymousAuthResponseSchema as anonymousSessionResponseSchema,
@@ -9,3 +22,13 @@ export {
   healthResponseSchema,
   readinessResponseSchema,
 } from "./validators/health";
+export {
+  resourceDetailQuerySchema,
+  geoPrecisionSchema,
+  resourceDetailSchema,
+  resourceHoursEntrySchema,
+  resourceListResponseSchema,
+  resourceSearchRequestSchema,
+  resourceSummarySchema,
+  resourceTypeSchema,
+} from "./validators/resources";

@@ -17,6 +17,23 @@ export type HealthcheckResponse = z.infer<typeof healthcheckResponseSchema>;
 export {
   anonymousAuthRequestSchema,
   anonymousAuthResponseSchema,
+  magicLinkStartRequestSchema,
+  magicLinkStartResponseSchema,
+  magicLinkVerifyRequestSchema,
+  magicLinkVerifyResponseSchema,
   meResponseSchema,
+  otpStartRequestSchema,
+  otpStartResponseSchema,
+  otpVerifyRequestSchema,
+  otpVerifyResponseSchema,
+  refreshSessionRequestSchema,
+  refreshSessionResponseSchema,
   sessionUserSchema,
 } from "./validators/auth";
+export {
+  resourceDetailQuerySchema,
+  resourceDetailSchema,
+  resourceListResponseSchema,
+  resourceSearchRequestSchema,
+  resourceSummarySchema,
+} from "./validators/resources";

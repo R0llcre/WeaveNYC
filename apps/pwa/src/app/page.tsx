@@ -1,5 +1,5 @@
-import { Dashboard } from '@/components/dashboard';
+import { ResourceHome } from '@/components/resource-home';
 
 export default function HomePage() {
-  return <Dashboard />;
+  return <ResourceHome />;
 }

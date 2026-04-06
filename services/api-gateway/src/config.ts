@@ -4,9 +4,27 @@ import { dirname, resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 
 import { z } from 'zod';
+import { authIdentityHashPepperEnvVar } from '@weavenyc/shared';
 
-const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const workspaceRoot = resolve(packageRoot, '../..');
+function findWorkspaceRoot(startDir: string) {
+  let currentDir = startDir;
+
+  while (true) {
+    if (existsSync(resolve(currentDir, 'pnpm-workspace.yaml'))) {
+      return currentDir;
+    }
+
+    const parentDir = resolve(currentDir, '..');
+    if (parentDir === currentDir) {
+      throw new Error(`Unable to locate pnpm workspace root from ${startDir}`);
+    }
+
+    currentDir = parentDir;
+  }
+}
+
+const moduleDir = dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = findWorkspaceRoot(moduleDir);
 
 function parseEnvFile(content: string): Record<string, string> {
   return content
@@ -49,7 +67,8 @@ const envSchema = z.object({
   JWT_SIGNING_PUBLIC_KEY: z.string().default('./infra/dev/jwt-public.pem'),
   JWT_ISSUER: z.string().default('weavenyc-api-gateway'),
   JWT_ACCESS_TOKEN_TTL: z.string().default('15m'),
-  REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7)
+  REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
+  [authIdentityHashPepperEnvVar]: z.string().min(1).default('weavenyc-dev-identity-pepper')
 });
 
 export interface AppConfig {
@@ -70,6 +89,7 @@ export interface AppConfig {
     publicKey: string;
   };
   refreshTokenTtlSeconds: number;
+  identityHashPepper: string;
 }
 
 export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promise<AppConfig> {
@@ -101,6 +121,7 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
       privateKey,
       publicKey
     },
-    refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_SECONDS
+    refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_SECONDS,
+    identityHashPepper: env[authIdentityHashPepperEnvVar]
   };
 }

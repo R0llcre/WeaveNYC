@@ -8,9 +8,14 @@ const ids = {
   verifiedUser: "16f59f73-fb26-46fb-8d34-5cd3f9e58f72",
   anchorUser: "cbc6629a-cbe3-460f-a560-5c60a96e2f31",
   anchorOrg: "4f859c0c-0c7f-497b-8780-a0be6dfec856",
-  datasetVersion: "4f65db57-e341-418d-b8b3-5c1bf0e4e761",
-  provider: "ba4d4aa2-d9c0-4638-b0c4-f40690e4c19d",
-  changeLog: "aab75a56-5044-4d0b-9c24-c2ae7b9dd5d6",
+  datasetVersionCfc: "4f65db57-e341-418d-b8b3-5c1bf0e4e761",
+  datasetVersionIsland: "5fb97d9f-6d0b-44a7-b2eb-2ab8d93c60e1",
+  providerCfcKilian: "ba4d4aa2-d9c0-4638-b0c4-f40690e4c19d",
+  providerIslandHope: "1ba3fdb0-9b96-4664-8a5c-0c053dd66811",
+  providerIslandBethpage: "ae06c84a-8f38-489b-9a2e-9478392a43a8",
+  providerIslandPowered: "70359750-e6f8-49d3-a51b-cd240255ef16",
+  changeLogCfc: "aab75a56-5044-4d0b-9c24-c2ae7b9dd5d6",
+  changeLogIsland: "84ac6478-d6d3-4b65-8d7f-a17d975f6ed3",
   verificationLog: "df85079a-fc7b-4af4-b4ff-fd5d3f56ec2a",
   requestPost: "cbcff840-c4d3-46da-ae82-d83c691d4b2c",
   offerPost: "9899b628-f624-4fd4-92ce-266cb14f0d84",
@@ -113,105 +118,245 @@ export async function runSeed(): Promise<void> {
       ]
     );
 
-    await pool.query(
-      `
-        insert into dataset_versions (
-          dataset_version_id, source, dataset_version, source_label, source_url,
-          record_count, active_record_count, status, checksum, import_started_at,
-          import_completed_at, created_at, updated_at
-        )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now())
-        on conflict (dataset_version) do update
-          set record_count = excluded.record_count,
-              active_record_count = excluded.active_record_count,
-              status = excluded.status,
-              checksum = excluded.checksum,
-              import_completed_at = excluded.import_completed_at,
-              updated_at = now();
-      `,
-      [
-        ids.datasetVersion,
-        "cfc_active",
-        "cfc_active_2026-02-26",
-        "NYC HRA Community Food Connection",
-        "https://www.nyc.gov/site/hra/help/snap-benefits-food-programs.page",
-        1,
-        1,
-        "active",
-        "6b9e633282fdd17d0f3a9964a2e9e6b99590200b6964d87bf1f71d058fbcc5bc",
-        new Date("2026-02-26T10:00:00Z"),
-        new Date("2026-02-26T10:15:00Z")
-      ]
-    );
+    const datasetRows = [
+      {
+        datasetVersionId: ids.datasetVersionCfc,
+        source: "cfc_active",
+        datasetVersion: "cfc_active_2026-02-26",
+        sourceLabel: "NYC HRA Community Food Connection",
+        sourceUrl: "https://www1.nyc.gov/assets/hra/downloads/pdf/services/efap/CFC_ACTIVE.pdf",
+        recordCount: 1,
+        activeRecordCount: 1,
+        checksum: "cfc_seed_20260405",
+        importStartedAt: new Date("2026-04-05T10:00:00Z"),
+        importCompletedAt: new Date("2026-04-05T10:05:00Z")
+      },
+      {
+        datasetVersionId: ids.datasetVersionIsland,
+        source: "island_harvest",
+        datasetVersion: "island_harvest_2026-04-05T101500Z",
+        sourceLabel: "Island Harvest Pantry Finder",
+        sourceUrl: "https://storerocket.io/api/user/n0pjnLgp6V/locations",
+        recordCount: 3,
+        activeRecordCount: 3,
+        checksum: "island_seed_20260405",
+        importStartedAt: new Date("2026-04-05T10:15:00Z"),
+        importCompletedAt: new Date("2026-04-05T10:20:00Z")
+      }
+    ];
 
-    await pool.query(
-      `
-        insert into resource_providers (
-          provider_id, source, source_ref, name, type, address_text, city, state, zip,
-          phone, hours_json, languages, eligibility_notes, lat, lng, geo_precision,
-          content_hash, dataset_version, status, last_seen_at, last_verified_at,
-          created_at, updated_at
-        )
-        values (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9,
-          $10, $11::jsonb, $12, $13, $14, $15, $16,
-          $17, $18, $19, now(), now(), now(), now()
-        )
-        on conflict (provider_id) do update
-          set name = excluded.name,
-              phone = excluded.phone,
-              hours_json = excluded.hours_json,
-              languages = excluded.languages,
-              eligibility_notes = excluded.eligibility_notes,
-              dataset_version = excluded.dataset_version,
-              status = excluded.status,
-              updated_at = now();
-      `,
-      [
-        ids.provider,
-        "cfc_active",
-        "cfc_active:st-kilian-farmingdale",
-        "St. Kilian Parish Social Ministry",
-        "pantry",
-        "140 Elizabeth Street, Farmingdale, NY",
-        "Farmingdale",
-        "NY",
-        "11735",
-        "516-756-9656",
-        JSON.stringify({ mon: "09:30-12:30", tue: "09:30-12:30" }),
-        ["en", "es"],
-        "Call ahead for current requirements.",
-        40.7326,
-        -73.4454,
-        "street",
-        "2c207d081738a662117d685941cee9dce67c7a260af1ddfd06c5641612554d7f",
-        "cfc_active_2026-02-26",
-        "active"
-      ]
-    );
+    for (const datasetRow of datasetRows) {
+      await pool.query(
+        `
+          insert into dataset_versions (
+            dataset_version_id, source, dataset_version, source_label, source_url,
+            record_count, active_record_count, status, checksum, import_started_at,
+            import_completed_at, created_at, updated_at
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9, $10, now(), now())
+          on conflict (dataset_version_id) do update
+            set source = excluded.source,
+                dataset_version = excluded.dataset_version,
+                source_label = excluded.source_label,
+                source_url = excluded.source_url,
+                record_count = excluded.record_count,
+                active_record_count = excluded.active_record_count,
+                status = excluded.status,
+                checksum = excluded.checksum,
+                import_started_at = excluded.import_started_at,
+                import_completed_at = excluded.import_completed_at,
+                updated_at = now();
+        `,
+        [
+          datasetRow.datasetVersionId,
+          datasetRow.source,
+          datasetRow.datasetVersion,
+          datasetRow.sourceLabel,
+          datasetRow.sourceUrl,
+          datasetRow.recordCount,
+          datasetRow.activeRecordCount,
+          datasetRow.checksum,
+          datasetRow.importStartedAt,
+          datasetRow.importCompletedAt
+        ]
+      );
+    }
 
-    await pool.query(
-      `
-        insert into resource_change_logs (
-          change_log_id, source, source_ref, dataset_version, change_type,
-          changed_fields, content_hash_before, content_hash_after, created_at
-        )
-        values ($1, $2, $3, $4, $5, $6, null, $7, now())
-        on conflict (change_log_id) do update
-          set change_type = excluded.change_type,
-              changed_fields = excluded.changed_fields,
-              content_hash_after = excluded.content_hash_after;
-      `,
-      [
-        ids.changeLog,
-        "cfc_active",
-        "cfc_active:st-kilian-farmingdale",
-        "cfc_active_2026-02-26",
-        "added",
-        ["name", "hours_json"],
-        "2c207d081738a662117d685941cee9dce67c7a260af1ddfd06c5641612554d7f"
-      ]
-    );
+    const resourceRows = [
+      {
+        providerId: ids.providerCfcKilian,
+        source: "cfc_active",
+        sourceRef: "cfc_active:st-kilian-farmingdale",
+        name: "St. Kilian Parish Social Ministry",
+        type: "pantry",
+        addressText: "140 Elizabeth Street, Farmingdale, NY",
+        city: "Farmingdale",
+        state: "NY",
+        zip: "11735",
+        phone: "516-756-9656",
+        hoursJson: { mon: "09:30AM-12:30PM", tue: "09:30AM-12:30PM" },
+        languages: ["en", "es"],
+        eligibilityNotes: "Official CFC listing. Call ahead for current requirements.",
+        lat: 40.7336226,
+        lng: -73.4429049,
+        geoPrecision: "street",
+        contentHash: "cfc_seed_st_kilian_hash",
+        datasetVersion: "cfc_active_2026-02-26"
+      },
+      {
+        providerId: ids.providerIslandHope,
+        source: "island_harvest",
+        sourceRef: "island_harvest:9109020",
+        name: "Hope for the Future",
+        type: "pantry",
+        addressText: "131 Verdi Street, Farmingdale, NY",
+        city: "Farmingdale",
+        state: "NY",
+        zip: "11735",
+        phone: "(631)752-5771",
+        hoursJson: { thu: "04:00PM-06:00PM" },
+        languages: ["en"],
+        eligibilityNotes: "Imported from Island Harvest pantry finder.",
+        lat: 40.7132143,
+        lng: -73.4172384,
+        geoPrecision: "street",
+        contentHash: "island_seed_hope_hash",
+        datasetVersion: "island_harvest_2026-04-05T101500Z"
+      },
+      {
+        providerId: ids.providerIslandBethpage,
+        source: "island_harvest",
+        sourceRef: "island_harvest:9109135",
+        name: "St. Martin of Tours - Bethpage",
+        type: "pantry",
+        addressText: "208 Broadway, Bethpage, NY",
+        city: "Bethpage",
+        state: "NY",
+        zip: "11714",
+        phone: "(516)931-7332",
+        hoursJson: { mon: "09:00AM-12:00PM", thu: "09:00AM-12:00PM" },
+        languages: ["en"],
+        eligibilityNotes: "Imported from Island Harvest pantry finder.",
+        lat: 40.7383388,
+        lng: -73.4792242,
+        geoPrecision: "street",
+        contentHash: "island_seed_bethpage_hash",
+        datasetVersion: "island_harvest_2026-04-05T101500Z"
+      },
+      {
+        providerId: ids.providerIslandPowered,
+        source: "island_harvest",
+        sourceRef: "island_harvest:9109073",
+        name: "Powered by Christ",
+        type: "pantry",
+        addressText: "138 N Linden Street, Massapequa, NY",
+        city: "Massapequa",
+        state: "NY",
+        zip: "11758",
+        phone: "(516)826-6044",
+        hoursJson: { fri: "10:00AM-11:00AM" },
+        languages: ["en"],
+        eligibilityNotes: "Imported from Island Harvest pantry finder.",
+        lat: 40.7042669,
+        lng: -73.4565542,
+        geoPrecision: "street",
+        contentHash: "island_seed_powered_hash",
+        datasetVersion: "island_harvest_2026-04-05T101500Z"
+      }
+    ];
+
+    for (const resourceRow of resourceRows) {
+      await pool.query(
+        `
+          insert into resource_providers (
+            provider_id, source, source_ref, name, type, address_text, city, state, zip,
+            phone, hours_json, languages, eligibility_notes, lat, lng, geo_precision,
+            content_hash, dataset_version, status, last_seen_at, last_verified_at,
+            created_at, updated_at
+          )
+          values (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9,
+            $10, $11::jsonb, $12, $13, $14, $15, $16,
+            $17, $18, 'active', now(), now(), now(), now()
+          )
+          on conflict (provider_id) do update
+            set name = excluded.name,
+                phone = excluded.phone,
+                hours_json = excluded.hours_json,
+                languages = excluded.languages,
+                eligibility_notes = excluded.eligibility_notes,
+                dataset_version = excluded.dataset_version,
+                status = 'active',
+                updated_at = now();
+        `,
+        [
+          resourceRow.providerId,
+          resourceRow.source,
+          resourceRow.sourceRef,
+          resourceRow.name,
+          resourceRow.type,
+          resourceRow.addressText,
+          resourceRow.city,
+          resourceRow.state,
+          resourceRow.zip,
+          resourceRow.phone,
+          JSON.stringify(resourceRow.hoursJson),
+          resourceRow.languages,
+          resourceRow.eligibilityNotes,
+          resourceRow.lat,
+          resourceRow.lng,
+          resourceRow.geoPrecision,
+          resourceRow.contentHash,
+          resourceRow.datasetVersion
+        ]
+      );
+    }
+
+    const changeLogs = [
+      {
+        changeLogId: ids.changeLogCfc,
+        source: "cfc_active",
+        sourceRef: "cfc_active:st-kilian-farmingdale",
+        datasetVersion: "cfc_active_2026-02-26",
+        changeType: "added",
+        changedFields: ["name", "hours_json"],
+        contentHashAfter: "cfc_seed_st_kilian_hash"
+      },
+      {
+        changeLogId: ids.changeLogIsland,
+        source: "island_harvest",
+        sourceRef: "island_harvest:9109020",
+        datasetVersion: "island_harvest_2026-04-05T101500Z",
+        changeType: "added",
+        changedFields: ["name", "address_text", "hours_json"],
+        contentHashAfter: "island_seed_hope_hash"
+      }
+    ];
+
+    for (const changeLog of changeLogs) {
+      await pool.query(
+        `
+          insert into resource_change_logs (
+            change_log_id, source, source_ref, dataset_version, change_type,
+            changed_fields, content_hash_before, content_hash_after, created_at
+          )
+          values ($1, $2, $3, $4, $5, $6, null, $7, now())
+          on conflict (change_log_id) do update
+            set change_type = excluded.change_type,
+                changed_fields = excluded.changed_fields,
+                content_hash_after = excluded.content_hash_after;
+        `,
+        [
+          changeLog.changeLogId,
+          changeLog.source,
+          changeLog.sourceRef,
+          changeLog.datasetVersion,
+          changeLog.changeType,
+          changeLog.changedFields,
+          changeLog.contentHashAfter
+        ]
+      );
+    }
 
     await pool.query(
       `
@@ -227,7 +372,7 @@ export async function runSeed(): Promise<void> {
       `,
       [
         ids.verificationLog,
-        ids.provider,
+        ids.providerCfcKilian,
         "anchor@weavenyc.local",
         "manual_review",
         "confirmed",
@@ -277,7 +422,7 @@ export async function runSeed(): Promise<void> {
           set score = excluded.score,
               reasons = excluded.reasons;
       `,
-      [ids.suggestion, ids.requestPost, ids.provider, 0.81, ["same_zip", "open_today"]]
+      [ids.suggestion, ids.requestPost, ids.providerCfcKilian, 0.81, ["same_zip", "open_today"]]
     );
 
     await pool.query(

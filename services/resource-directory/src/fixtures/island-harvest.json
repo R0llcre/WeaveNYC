@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "results": {
+    "locations": [
+      {
+        "id": 30000001,
+        "name": "St. Kilian Parish Social Ministry",
+        "lat": "40.7326",
+        "lng": "-73.4454",
+        "phone": null,
+        "address": "140 Elizabeth Street, Farmingdale, NY, 11735",
+        "address_line_1": "140 Elizabeth Street",
+        "city": "Farmingdale",
+        "state": "NY",
+        "postcode": "11735",
+        "timezone": "America/New_York",
+        "hours": {
+          "mon": "09:30-12:30",
+          "tue": "09:30-12:30",
+          "wed": null,
+          "thu": null,
+          "fri": null,
+          "sat": null,
+          "sun": null
+        },
+        "filters": [{ "id": 98426, "name": "Food Pantry" }],
+        "fields": [],
+        "callsToAction": [],
+        "obf_id": "fixtureKilian"
+      },
+      {
+        "id": 30000002,
+        "name": "Bethpage Pantry Outreach",
+        "lat": "40.7422",
+        "lng": "-73.4825",
+        "phone": "516-555-0175",
+        "address": "25 Hempstead Turnpike, Farmingdale, NY, 11735",
+        "address_line_1": "25 Hempstead Turnpike",
+        "city": "Farmingdale",
+        "state": "NY",
+        "postcode": "11735",
+        "timezone": "America/New_York",
+        "hours": {
+          "mon": "closed",
+          "tue": "11:00-14:00",
+          "wed": "closed",
+          "thu": "11:00-14:00",
+          "fri": "closed",
+          "sat": null,
+          "sun": null
+        },
+        "filters": [{ "id": 98426, "name": "Food Pantry" }],
+        "fields": [],
+        "callsToAction": [],
+        "obf_id": "fixtureBethpage"
+      }
+    ]
+  }
+}
