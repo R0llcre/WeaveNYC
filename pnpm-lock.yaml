@@ -17,6 +17,9 @@ importers:
       '@types/node':
         specifier: ^25.5.2
         version: 25.5.2
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       eslint:
         specifier: ^10.2.0
         version: 10.2.0
@@ -38,6 +41,9 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@25.5.2)
+      ws:
+        specifier: ^8.18.3
+        version: 8.20.0
 
   apps/anchor-admin:
     dependencies:

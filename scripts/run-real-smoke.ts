@@ -6,6 +6,7 @@ const workspaceRoot = process.cwd();
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const apiBaseUrl = (process.env.WEAVENYC_API_BASE_URL ?? "http://127.0.0.1:4000").replace(/\/$/, "");
 const startupTimeoutMs = 60_000;
+const externalStartupGraceMs = Number(process.env.WEAVENYC_SMOKE_EXTERNAL_STARTUP_GRACE_MS ?? "15000");
 
 async function isReady() {
   try {
@@ -55,6 +56,14 @@ async function main() {
   let serverChild: ChildProcess | null = null;
 
   try {
+    if (!(await isReady())) {
+      try {
+        await waitForReady(externalStartupGraceMs);
+      } catch {
+        // Fall through and bootstrap a local API process when no external server appears.
+      }
+    }
+
     if (!(await isReady())) {
       serverChild = spawnProcess(
         pnpmCommand,
