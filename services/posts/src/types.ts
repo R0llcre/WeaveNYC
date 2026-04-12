@@ -1,6 +1,12 @@
 import type {
+  AdminDashboardResponse,
+  Announcement,
+  AnnouncementCreateRequest,
+  AnnouncementUpdateRequest,
+  AnnouncementsResponse,
   CommunityAccessEntry,
   CommunityAccessResolveResponse,
+  CommunityRules,
   CommunitySummary,
   ContactPreference,
   CreatePostRequest,
@@ -23,6 +29,7 @@ export type PostActor = {
   level: UserLevel;
   role: UserRole;
   communityIds: string[];
+  anchorCommunityId?: string | null;
 };
 
 export type ResolveCommunityAccessInput = {
@@ -80,6 +87,47 @@ export type ReviewDecisionInput = {
   notes?: string;
 };
 
+export type AdminDashboardInput = {
+  actor: PostActor;
+  communityId: string;
+};
+
+export type CommunityRulesInput = {
+  actor: PostActor;
+  communityId: string;
+};
+
+export type UpdateCommunityRulesInput = {
+  actor: PostActor;
+  communityId: string;
+  rules: Omit<CommunityRules, "community_id" | "updated_at">;
+};
+
+export type ListAnnouncementsInput = {
+  actor: PostActor | null;
+  communityId: string;
+  includeDeleted?: boolean;
+};
+
+export type CreateAnnouncementInput = {
+  actor: PostActor;
+  communityId: string;
+  request: AnnouncementCreateRequest;
+};
+
+export type UpdateAnnouncementInput = {
+  actor: PostActor;
+  communityId: string;
+  announcementId: string;
+  request: AnnouncementUpdateRequest;
+};
+
+export type DeleteAnnouncementInput = {
+  actor: PostActor;
+  communityId: string;
+  announcementId: string;
+};
+
 export type ResolvedCommunityAccess = CommunityAccessResolveResponse;
 
 export type CommunityMembershipResult = JoinCommunityResponse;
@@ -109,6 +157,13 @@ export type PostsService = {
   listMyPosts(input: ListMyPostsInput): Promise<MyPostsResponse>;
   listReviewQueue(input: ReviewQueueInput): Promise<ReviewQueueResponse>;
   decideReview(input: ReviewDecisionInput): Promise<ReviewDecisionResponse>;
+  getAdminDashboard(input: AdminDashboardInput): Promise<AdminDashboardResponse>;
+  getCommunityRules(input: CommunityRulesInput): Promise<CommunityRules>;
+  updateCommunityRules(input: UpdateCommunityRulesInput): Promise<CommunityRules>;
+  listAnnouncements(input: ListAnnouncementsInput): Promise<AnnouncementsResponse>;
+  createAnnouncement(input: CreateAnnouncementInput): Promise<Announcement>;
+  updateAnnouncement(input: UpdateAnnouncementInput): Promise<Announcement>;
+  deleteAnnouncement(input: DeleteAnnouncementInput): Promise<Announcement>;
 };
 
 export type CommunityRecord = CommunitySummary;
@@ -146,6 +201,7 @@ export class PostsServiceError extends Error {
       | 'membership_required'
       | 'verified_required'
       | 'invalid_state'
+      | 'invalid_input'
       | 'invalid_scope'
       | 'invalid_cursor'
   ) {

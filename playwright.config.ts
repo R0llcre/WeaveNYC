@@ -9,10 +9,18 @@ export default defineConfig({
     headless: true,
     serviceWorkers: 'block'
   },
-  webServer: {
-    command: "pnpm --filter @weavenyc/pwa dev",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000
-  }
+  webServer: [
+    {
+      command: "pnpm --filter @weavenyc/pwa dev",
+      url: "http://127.0.0.1:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000
+    },
+    {
+      command: "pnpm --filter @weavenyc/anchor-admin dev",
+      url: "http://127.0.0.1:3001",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000
+    }
+  ]
 });

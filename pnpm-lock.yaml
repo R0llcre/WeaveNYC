@@ -200,6 +200,9 @@ importers:
 
   services/chat:
     dependencies:
+      '@weavenyc/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       pg:
         specifier: ^8.16.3
         version: 8.20.0

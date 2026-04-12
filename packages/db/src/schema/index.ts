@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
+  check,
   doublePrecision,
   foreignKey,
   index,
@@ -23,6 +25,16 @@ export const communityAccessChannelEnum = pgEnum("community_access_channel", [
   "qr_token"
 ]);
 export const communityAccessCodeStatusEnum = pgEnum("community_access_code_status", [
+  "active",
+  "revoked"
+]);
+export const anchorInviteStatusEnum = pgEnum("anchor_invite_status", [
+  "active",
+  "consumed",
+  "revoked"
+]);
+export const anchorStatusEnum = pgEnum("anchor_status", [
+  "pending_activation",
   "active",
   "revoked"
 ]);
@@ -69,7 +81,6 @@ export const contactRequestStatusEnum = pgEnum("contact_request_status", [
 export const conversationStatusEnum = pgEnum("conversation_status", ["active", "closed", "blocked"]);
 export const reportStatusEnum = pgEnum("report_status", [
   "new",
-  "in_review",
   "resolved",
   "dismissed"
 ]);
@@ -86,6 +97,11 @@ export const resolutionEnum = pgEnum("resolution", [
   "warn",
   "none"
 ]);
+export const announcementStatusEnum = pgEnum("announcement_status", ["active", "deleted"]);
+export const announcementPinStrategyEnum = pgEnum("announcement_pin_strategy", ["latest", "manual"]);
+const validCommunityRulesReviewCategoriesSql = sql`review_categories <@ array['food', 'goods', 'childcare', 'companionship', 'translation', 'transportation', 'other']::text[]`;
+const validCommunityRulesLanguagesSql = sql`language_preferences <@ array['en', 'es', 'zh']::text[]`;
+const validCommunityRulesThresholdSql = sql`auto_hide_report_threshold between 1 and 20`;
 
 export const users = pgTable("users", {
   userId: uuid("user_id").primaryKey().defaultRandom(),
@@ -154,16 +170,105 @@ export const communityAccessCodes = pgTable(
   })
 );
 
+export const anchorInvites = pgTable(
+  "anchor_invites",
+  {
+    anchorInviteId: uuid("anchor_invite_id").primaryKey().defaultRandom(),
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.communityId),
+    codeHash: varchar("code_hash", { length: 64 }).notNull(),
+    orgName: varchar("org_name", { length: 200 }),
+    status: anchorInviteStatusEnum("status").notNull().default("active"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    consumedByUserId: uuid("consumed_by_user_id").references(() => users.userId),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    codeHashUq: uniqueIndex("uq_anchor_invites_code_hash").on(table.codeHash),
+    communityStatusIdx: index("idx_anchor_invites_community_status").on(table.communityId, table.status, table.createdAt)
+  })
+);
+
+export const communityRulesets = pgTable(
+  "community_rulesets",
+  {
+    rulesetId: uuid("ruleset_id").primaryKey().defaultRandom(),
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.communityId),
+    reviewCategories: text("review_categories").array().notNull().default(sql`'{}'::text[]`),
+    autoHideReportThreshold: integer("auto_hide_report_threshold").notNull().default(3),
+    keywordBlocklist: text("keyword_blocklist").array().notNull().default(sql`'{}'::text[]`),
+    languagePreferences: text("language_preferences").array().notNull().default(sql`'{}'::text[]`),
+    announcementPinStrategy: announcementPinStrategyEnum("announcement_pin_strategy").notNull().default("latest"),
+    createdBy: uuid("created_by").references(() => users.userId),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    communityRulesetUq: uniqueIndex("uq_community_rulesets_community").on(table.communityId),
+    reviewCategoriesCheck: check(
+      "chk_community_rulesets_review_categories_valid",
+      validCommunityRulesReviewCategoriesSql
+    ),
+    languagePreferencesCheck: check(
+      "chk_community_rulesets_language_preferences_valid",
+      validCommunityRulesLanguagesSql
+    ),
+    autoHideThresholdCheck: check(
+      "chk_community_rulesets_auto_hide_report_threshold",
+      validCommunityRulesThresholdSql
+    )
+  })
+);
+
 export const anchors = pgTable("anchors", {
   anchorId: uuid("anchor_id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.userId),
   communityId: uuid("community_id")
     .notNull()
     .references(() => communities.communityId),
   orgName: varchar("org_name", { length: 200 }).notNull(),
   contact: varchar("contact", { length: 200 }),
+  status: anchorStatusEnum("status").notNull().default("pending_activation"),
+  totpSecretCiphertext: text("totp_secret_ciphertext"),
+  recoveryCodesHashes: text("recovery_codes_hashes").array(),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
+  lastMfaAt: timestamp("last_mfa_at", { withTimezone: true }),
   roleAssignments: jsonb("role_assignments"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
+}, (table) => ({
+  userIdx: uniqueIndex("uq_anchors_user").on(table.userId),
+  activeCommunityUq: uniqueIndex("uq_anchors_active_community").on(table.communityId).where(sql`${table.status} = 'active'`)
+}));
+
+export const announcements = pgTable(
+  "announcements",
+  {
+    announcementId: uuid("announcement_id").primaryKey().defaultRandom(),
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.communityId),
+    title: varchar("title", { length: 140 }).notNull(),
+    body: text("body").notNull(),
+    status: announcementStatusEnum("status").notNull().default("active"),
+    isPinned: boolean("is_pinned").notNull().default(false),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.userId),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true })
+  },
+  (table) => ({
+    communityPublishedIdx: index("idx_announcements_community_published_at").on(
+      table.communityId,
+      table.publishedAt
+    )
+  })
+);
 
 export const posts = pgTable(
   "posts",
@@ -491,6 +596,7 @@ export const reports = pgTable("reports", {
   targetId: uuid("target_id").notNull(),
   reason: reportReasonEnum("reason").notNull(),
   detailText: text("detail_text"),
+  conversationId: uuid("conversation_id").references(() => conversations.conversationId),
   reporterUserId: uuid("reporter_user_id")
     .notNull()
     .references(() => users.userId),
@@ -499,15 +605,14 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true })
 }, (table) => ({
-  communityCreatedIdx: index("idx_reports_community_created_at").on(table.communityId, table.createdAt)
+  communityCreatedIdx: index("idx_reports_community_created_at").on(table.communityId, table.createdAt),
+  communityStatusCreatedIdx: index("idx_reports_community_status_created_at").on(table.communityId, table.status, table.createdAt)
 }));
 
 export const moderationActions = pgTable("moderation_actions", {
   actionId: uuid("action_id").primaryKey().defaultRandom(),
   reportId: uuid("report_id").references(() => reports.reportId),
-  anchorUserId: uuid("anchor_user_id")
-    .notNull()
-    .references(() => users.userId),
+  anchorUserId: uuid("anchor_user_id").references(() => users.userId),
   communityId: uuid("community_id")
     .notNull()
     .references(() => communities.communityId),
@@ -516,14 +621,19 @@ export const moderationActions = pgTable("moderation_actions", {
   targetId: uuid("target_id").notNull(),
   reason: text("reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
+}, (table) => ({
+  reportIdx: index("idx_moderation_actions_report_id").on(table.reportId)
+}));
 
 export const schema = {
   users,
   communities,
   communityMembers,
   communityAccessCodes,
+  anchorInvites,
+  communityRulesets,
   anchors,
+  announcements,
   posts,
   datasetVersions,
   resourceProviders,

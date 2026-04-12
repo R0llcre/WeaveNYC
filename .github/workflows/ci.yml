@@ -46,7 +46,13 @@ jobs:
 
       - name: Wait for local infrastructure
         run: |
-          for container in weavenyc-postgres weavenyc-redis; do
+          for service in postgres redis; do
+            container="$(docker compose ps -q "$service")"
+            if [ -z "$container" ]; then
+              echo "Service $service is not running"
+              docker compose ps
+              exit 1
+            fi
             for attempt in $(seq 1 30); do
               status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")"
               if [ "$status" = "healthy" ]; then
@@ -54,7 +60,7 @@ jobs:
               fi
               if [ "$attempt" -eq 30 ]; then
                 docker logs "$container" || true
-                echo "Container $container did not become healthy"
+                echo "Service $service ($container) did not become healthy"
                 exit 1
               fi
               sleep 2

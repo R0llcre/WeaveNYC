@@ -6,6 +6,10 @@ export function isCommunityMember(actor: PostActor, communityId: string) {
   return actor.communityIds.includes(communityId);
 }
 
+export function isCommunityAnchor(actor: PostActor, communityId: string) {
+  return actor.role === 'anchor' && actor.anchorCommunityId === communityId;
+}
+
 export function ensureActorCanPublish(actor: PostActor, post: Pick<PostRecord, 'communityId' | 'postType' | 'riskLevel'>) {
   if (!isCommunityMember(actor, post.communityId)) {
     return 'membership_required' as const;
@@ -31,7 +35,7 @@ export function deriveVerificationState(level: UserLevel) {
 }
 
 export function canViewPost(actor: PostActor, post: PostRecord) {
-  if (actor.role === 'anchor' && actor.communityIds.includes(post.communityId)) {
+  if (isCommunityAnchor(actor, post.communityId)) {
     return true;
   }
 
@@ -56,7 +60,7 @@ export function canViewPost(actor: PostActor, post: PostRecord) {
 
 export function getPostActions(actor: PostActor, post: PostRecord): PostDetail['actions'] {
   const isOwner = actor.userId === post.createdBy;
-  const canReview = actor.role === 'anchor' && actor.communityIds.includes(post.communityId);
+  const canReview = isCommunityAnchor(actor, post.communityId);
 
   return {
     can_edit: isOwner && (post.status === 'active' || post.status === 'pending_review'),

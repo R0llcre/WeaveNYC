@@ -2,6 +2,7 @@ import 'fastify';
 
 import type { AuthTokenClaims } from './types.js';
 import type { AppConfig } from './config.js';
+import type { AuthenticatedUserRecord } from './types.js';
 import type { ChatService } from '@weavenyc/chat';
 import type { AuthAbuseStore } from './lib/identity.js';
 import type { ChatRealtimeHub } from './lib/chat-realtime.js';
@@ -13,6 +14,10 @@ import type { MatchService } from '@weavenyc/match';
 import type { PostsService } from '@weavenyc/posts';
 
 declare module 'fastify' {
+  interface FastifyRequest {
+    currentUser?: AuthenticatedUserRecord;
+  }
+
   interface FastifyInstance {
     config: AppConfig;
     authAbuseStore: AuthAbuseStore;

@@ -1,6 +1,6 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：`main` 的稳定基线是 M2；`feature/m4-chat-safety` 的 M3/M4 只作为 branch closeout 记录。本文档只描述当前可运行命令和当前 main-first 真值。
+> 状态：`main` 的稳定基线是 M4；`feature/m5-anchor-admin` 当前已 `M5 completed on branch`。本文档只描述当前可运行命令、M5 closeout 记录和当前 main-first 真值。
 
 ---
 
@@ -55,7 +55,7 @@ pnpm dev
 - PWA `/dev/m0`：保留 M0 debug
 - Anchor Admin 首页：API health + login placeholder
 
-当前 branch-local surface on `feature/m4-chat-safety`：
+当前 branch-local M5 additions on `feature/m5-anchor-admin`：
 
 - `POST /v1/community-access/resolve`
 - `POST /v1/communities/:community_id/join`
@@ -85,7 +85,15 @@ pnpm dev
 - PWA `/community`、`/community/join`、`/posts/new`、`/posts/[postId]`、`/posts/mine`
 - PWA `/posts/[postId]/matches`、`/inbox`、`/conversations/[conversationId]`
 - PWA `/contact-requests`：兼容性 redirect 到 `/inbox`
-- Manual moderation helper：`pnpm dev:mint-anchor-token`
+- Dev-only fallback helper：`pnpm dev:mint-anchor-token`
+
+M5 branch-local surface：
+
+- Anchor login / activation / TOTP step-up
+- Review queue 的 `Posts` / `Reports` 双 tab
+- `Announcements` 和 `Rules` 管理页
+- `Dashboard` 基础指标卡
+- PWA 社区首页的 announcement banner / list
 
 ### 1.4 当前验证分层
 
@@ -95,7 +103,7 @@ pnpm dev
   - `pnpm lint`
   - `pnpm test`
   - `pnpm build`
-- 当前 `feature/m4-chat-safety` branch-local gates：
+- 当前 `feature/m5-anchor-admin` closeout gates：
   - `docker compose up -d`
   - `pnpm db:migrate`
   - `pnpm db:seed`
@@ -103,10 +111,14 @@ pnpm dev
   - `pnpm test:e2e`
 - Manual / opt-in：
   - `pnpm test:live-sources`
+  - `pnpm dev:mint-anchor-token`
 - 说明：
   - `pnpm test:smoke:real` 直接打本地 Fastify，不走浏览器 route mock
+  - 若 `/readyz` 不可用，`pnpm test:smoke:real` 会先自启动 `api-gateway`
+  - `pnpm test:smoke:real` 只在 fresh `pnpm db:migrate` + `pnpm db:seed` 后通过时，才能计入当前 M5 closeout
   - `pnpm test:e2e` 仍是 fixture-backed browser smoke
   - `pnpm test:live-sources` 不进默认 CI
+  - `pnpm dev:mint-anchor-token` 只是 dev/debug fallback，不属于 M5 closeout 必经路径
 
 ### 1.5 环境变量
 
@@ -150,6 +162,43 @@ cp .env.example .env.local
 - `GET /readyz`
 - `GET /v1/resources`
 - `GET /v1/resources/:provider_id`
+
+### 1.7 M5 closeout path
+
+当前 `feature/m5-anchor-admin` 的 closeout 路径固定如下：
+
+```bash
+pnpm install
+docker compose up -d
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+pnpm test:smoke:real
+pnpm test:e2e
+```
+
+Manual / debug only：
+
+```bash
+pnpm dev:mint-anchor-token
+pnpm test:live-sources
+```
+
+Closeout / rehearsal 顺序：
+
+- verified 登录
+- Anchor activate + TOTP step-up
+- 打开 review queue，处理 pending posts / reports
+- 发布 announcement
+- 更新 rules
+- 回到 PWA `/community` 确认 announcement banner 可见
+
+注意：
+
+- `pnpm test:smoke:real` 必须基于同一轮 fresh `pnpm db:migrate` + `pnpm db:seed`
+- `pnpm dev:mint-anchor-token` 只用于 dev/debug fallback，不作为文档真值或 closeout gate
+
+当前 M5 closeout 与 review gate 记录在 [`docs/26_M5_Closeout.md`](./26_M5_Closeout.md)。
 
 ---
 
@@ -223,7 +272,7 @@ pnpm resources:import:island-harvest
 - `pnpm test:smoke:real`：真实 API smoke，需要 API gateway、PostgreSQL、Redis、seed 处于可用状态
 - `pnpm test:e2e`：fixture-backed Playwright browser smoke
 - `pnpm test:live-sources`：opt-in live-source smoke（不写库，只验证源可达 / parser shape / record count）
-- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，用于当前分支的 manual review / review queue 操作
+- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，仅用于当前分支的 dev/debug fallback
 - `pnpm resources:import:cfc` / `pnpm resources:import:island-harvest`：真实导入命令
 
 ---

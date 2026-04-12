@@ -186,6 +186,32 @@ describe('chat routes', () => {
     expect(response.json().safety_flags).toContain('sensitive_ssn');
   });
 
+  it('rejects websocket attachment for suspended users', async () => {
+    const { app, requesterToken, userStore } = await createChatFixture();
+    const requester = (userStore as InMemoryUserStore).users.get(requesterId);
+    if (!requester) {
+      throw new Error('expected requester fixture');
+    }
+    requester.status = 'suspended';
+
+    await app.listen({ host: '127.0.0.1', port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('expected a bound server address');
+    }
+
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${address.port}/v1/ws/chat?token=${encodeURIComponent(requesterToken)}`,
+    );
+    const closeEvent = await new Promise<CloseEvent>((resolve, reject) => {
+      socket.addEventListener('close', resolve, { once: true });
+      socket.addEventListener('error', () => reject(new Error('expected websocket close event')), { once: true });
+    });
+
+    expect(closeEvent.code).toBe(1008);
+    expect(closeEvent.reason).toBe('Inactive user');
+  });
+
   it('blocks the other user across all shared conversations and prevents future reads', async () => {
     const { app, chatRealtimeHub, chatRepository, requesterToken } = await createChatFixture();
     const realtimeHub = chatRealtimeHub as InMemoryChatRealtimeHub;

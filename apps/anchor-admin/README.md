@@ -1,16 +1,15 @@
-# Anchor Admin (M0)
+# Anchor Admin (M5)
 
-This package contains the M0 Anchor Admin shell.
+This package contains the M5 Anchor Admin shell.
 
-Current M0 scope:
+Current shell scope:
 
-- App Router scaffold
-- API health panel for `GET /healthz` and `GET /readyz`
-- Placeholder login page for future anchor authentication
+- App Router pages for `/`, `/login`, `/activate`, `/review`, `/announcements`, and `/rules`
+- Client-side auth context with in-memory access token and `sessionStorage` refresh token
+- 401-triggered refresh attempts and 4 hour idle timeout logout
+- Review queue tabs for posts and reports
+- Announcement CRUD UI
+- Community rules editor
+- Six-card dashboard overview
 
-Out of scope for M0:
-
-- Real anchor authentication
-- Review queue workflows
-- Resource moderation tools
-- Community management tools
+The package is intentionally UI-first. It expects the API gateway contracts for anchor activation, step-up login, moderation, announcements, and rules to exist in the backend.

@@ -1,3 +1,11 @@
+import type {
+  AdminReportQueueItem,
+  AdminReportQueueResponse,
+  ReportDecision,
+  ReportDecisionResponse,
+  ReportStatus as AdminReportQueueStatus,
+} from "@weavenyc/shared";
+
 export type ChatUserLevel = "anonymous" | "verified" | "anchor";
 
 export type ConversationStatus = "active" | "closed" | "blocked";
@@ -143,8 +151,12 @@ export type ReportRecord = {
   target_id: string;
   reason: ChatReportReason;
   detail_text: string | null;
+  conversation_id: string | null;
   reporter_user_id: string;
+  status: AdminReportQueueStatus;
+  resolution: "remove_post" | "suspend_user" | "warn" | "none" | null;
   created_at: string;
+  resolved_at: string | null;
 };
 
 export type SubmitReportInput = {
@@ -155,6 +167,22 @@ export type SubmitReportInput = {
   reason: ChatReportReason;
   detailText?: string | null;
   targetCommunityIds?: string[];
+};
+
+export type AdminReportQueueInput = {
+  actor: ChatActor;
+  communityId: string;
+  status?: AdminReportQueueStatus;
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type ReportDecisionInput = {
+  actor: ChatActor;
+  communityId: string;
+  reportId: string;
+  decision: ReportDecision;
+  notes?: string;
 };
 
 export type ChatSafetyInspection = {
@@ -246,9 +274,28 @@ export interface ChatRepository {
     targetId: string;
     reason: ChatReportReason;
     detailText: string | null;
+    conversationId: string | null;
     reporterUserId: string;
     createdAt: string;
   }): Promise<ReportRecord>;
+  listReportQueuePage(input: {
+    communityId: string;
+    status?: AdminReportQueueStatus;
+    cursor: string | null;
+    limit: number;
+  }): Promise<CursorPage<AdminReportQueueItem>>;
+  decideReport(input: {
+    communityId: string;
+    reportId: string;
+    decision: ReportDecision;
+    notes: string | null;
+    anchorUserId: string;
+    decidedAt: string;
+  }): Promise<ReportDecisionResponse | null>;
+  autoHidePostIfThresholdReached(input: {
+    communityId: string;
+    postId: string;
+  }): Promise<boolean>;
   getMessage(messageId: string, conversationId: string): Promise<ChatMessage | null>;
   getMessageContext(messageId: string): Promise<{
     message: ChatMessage;
@@ -268,6 +315,8 @@ export interface ChatService {
   closeConversation(input: CloseConversationInput): Promise<ConversationDetail>;
   blockUser(input: BlockUserInput): Promise<BlockUserResult>;
   submitReport(input: SubmitReportInput): Promise<ReportRecord>;
+  listReportQueue(input: AdminReportQueueInput): Promise<AdminReportQueueResponse>;
+  decideReport(input: ReportDecisionInput): Promise<ReportDecisionResponse>;
 }
 
 export class ChatServiceError extends Error {

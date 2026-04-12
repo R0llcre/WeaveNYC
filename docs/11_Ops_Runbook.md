@@ -4,7 +4,7 @@
 
 ---
 
-## 1) 服务清单（当前 M2 运行面）
+## 1) 服务清单（当前 M5 运行面 / rehearsal）
 
 **当前唯一运行中的后端 HTTP 服务**：
 
@@ -16,10 +16,10 @@
 
 | 包 | 当前形态 | 说明 |
 |----|----------|------|
-| `services/resource-directory` | library + CLI host | M1/M2 仍通过 API Gateway 暴露查询能力，不单独部署 |
+| `services/resource-directory` | library + CLI host | M1/M2/M5 仍通过 API Gateway 暴露查询能力，不单独部署 |
 | `services/posts` | domain library | M2 的 community join / posts / review 逻辑挂在 API Gateway 下 |
-| `services/match` | skeleton | 目标态服务，M3 以后再接入 |
-| `services/chat` | skeleton | 目标态服务，M4 以后再接入 |
+| `services/match` | domain library | M3 branch closeout：matching / contact requests / recipient inbox，不单独部署 |
+| `services/chat` | domain library | M4 branch closeout：conversations / messages / block / report / WebSocket，不单独部署 |
 | `services/notifications` | not started | 目标态能力，当前未部署 |
 
 **前端应用（Next.js + TypeScript，不计入微服务数量）**：
@@ -313,6 +313,22 @@ groups:
      -d '{"decision": "approve", "notes": "emergency bypass"}'
    ```
 4. 通知 Anchor 使用备用渠道（Slack/电话）报告紧急情况
+
+### 7.6 M5 pilot rehearsal path
+
+当 `feature/m5-anchor-admin` 需要复现 M5 试点演练时，按下面的顺序跑一遍：
+
+1. `pnpm install`
+2. `docker compose up -d`
+3. `pnpm db:migrate`
+4. `pnpm db:seed`
+5. `pnpm dev`
+6. 先完成 verified 登录，再做 Anchor activate + TOTP step-up
+7. 依次检查 `Review Queue`、`Announcements`、`Rules`、`Dashboard`
+8. 回到 PWA `/community` 确认 announcement banner / list 可见
+9. `pnpm db:migrate && pnpm db:seed`，把 smoke 依赖的 deterministic fixtures 刷回基线
+10. 运行 `pnpm test:smoke:real` 和 `pnpm test:e2e` 作为 rehearsal evidence
+11. `pnpm dev:mint-anchor-token` 仅作为非生产环境 fallback，不属于正式 rehearsal 主路径
 
 ---
 

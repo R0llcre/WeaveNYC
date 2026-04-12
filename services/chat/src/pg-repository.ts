@@ -1,4 +1,7 @@
+import type { AdminReportQueueItem, ReportDecisionResponse } from "@weavenyc/shared";
+
 import { encodeConversationCursor, encodeMessageCursor } from "./repository.js";
+import { ChatServiceError } from "./types.js";
 import type {
   BlockRecord,
   ChatMessage,
@@ -18,7 +21,16 @@ type PoolLike = {
     queryText: string,
     values?: unknown[],
   ): Promise<{ rows: T[]; rowCount?: number | null }>;
+  connect?(): Promise<TransactionClientLike>;
   end?(): Promise<void>;
+};
+
+type TransactionClientLike = {
+  query<T extends QueryResultRow = QueryResultRow>(
+    queryText: string,
+    values?: unknown[],
+  ): Promise<{ rows: T[]; rowCount?: number | null }>;
+  release?(): void;
 };
 
 type ConversationRow = {
@@ -64,8 +76,20 @@ type ReportRow = {
   target_id: string;
   reason: ChatReportReason;
   detail_text: string | null;
+  conversation_id: string | null;
   reporter_user_id: string;
+  status: "new" | "resolved" | "dismissed";
+  resolution: "remove_post" | "suspend_user" | "warn" | "none" | null;
   created_at: string;
+  resolved_at: string | null;
+};
+
+type ReportQueueRow = ReportRow & {
+  reporter_alias: string | null;
+  priority: "P0" | "P1" | "P2";
+  target_title: string | null;
+  body_preview: string | null;
+  related_user_id: string | null;
 };
 
 function mapConversation(row: ConversationRow): ConversationRecord {
@@ -125,13 +149,87 @@ function mapReport(row: ReportRow): ReportRecord {
     target_id: row.target_id,
     reason: row.reason,
     detail_text: row.detail_text,
+    conversation_id: row.conversation_id,
     reporter_user_id: row.reporter_user_id,
+    status: row.status,
+    resolution: row.resolution,
     created_at: row.created_at,
+    resolved_at: row.resolved_at,
+  };
+}
+
+function encodeReportCursor(row: { created_at: string; report_id: string }) {
+  return Buffer.from(
+    JSON.stringify({
+      createdAt: row.created_at,
+      reportId: row.report_id,
+    }),
+    "utf8",
+  ).toString("base64url");
+}
+
+function decodeReportCursor(cursor: string | null | undefined) {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
+      createdAt?: string;
+      reportId?: string;
+    };
+    if (!parsed.createdAt || !parsed.reportId) {
+      throw new Error("invalid");
+    }
+    return parsed;
+  } catch {
+    throw new Error("Report cursor is not valid");
+  }
+}
+
+function mapReportQueueItem(row: ReportQueueRow): AdminReportQueueItem {
+  return {
+    report_id: row.report_id,
+    community_id: row.community_id,
+    target_type: row.target_type,
+    target_id: row.target_id,
+    reason: row.reason,
+    status: row.status,
+    created_at: row.created_at,
+    reporter_user_id: row.reporter_user_id,
+    reporter_alias: row.reporter_alias ?? "Neighbor",
+    priority: row.priority,
+    conversation_id: row.conversation_id,
+    target_summary: {
+      title: row.target_title ?? "Untitled report target",
+      body_preview: row.body_preview,
+      related_user_id: row.related_user_id,
+    },
+    evidence_description: row.detail_text,
   };
 }
 
 export class PgChatRepository implements ChatRepository {
   constructor(private readonly pool: PoolLike) {}
+
+  private async withTransaction<T>(operation: (client: TransactionClientLike) => Promise<T>) {
+    if (!this.pool.connect) {
+      return operation(this.pool);
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const result = await operation(client);
+      await client.query("commit");
+      return result;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
 
   async close() {
     if ("end" in this.pool && typeof this.pool.end === "function") {
@@ -486,6 +584,7 @@ export class PgChatRepository implements ChatRepository {
     targetId: string;
     reason: ChatReportReason;
     detailText: string | null;
+    conversationId: string | null;
     reporterUserId: string;
     createdAt: string;
   }) {
@@ -497,11 +596,26 @@ export class PgChatRepository implements ChatRepository {
           target_id,
           reason,
           detail_text,
+          conversation_id,
           reporter_user_id,
+          status,
+          resolution,
           created_at
         )
-        values ($1, $2, $3, $4, $5, $6, $7::timestamptz)
-        returning report_id, community_id, target_type, target_id, reason, detail_text, reporter_user_id, created_at
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz)
+        returning
+          report_id,
+          community_id,
+          target_type,
+          target_id,
+          reason,
+          detail_text,
+          conversation_id,
+          reporter_user_id,
+          status,
+          resolution,
+          created_at,
+          resolved_at
       `,
       [
         input.communityId,
@@ -509,11 +623,377 @@ export class PgChatRepository implements ChatRepository {
         input.targetId,
         input.reason,
         input.detailText,
+        input.conversationId,
         input.reporterUserId,
+        "new",
+        null,
         input.createdAt,
       ],
     );
     return mapReport(result.rows[0]!);
+  }
+
+  async listReportQueuePage(input: {
+    communityId: string;
+    status?: "new" | "resolved" | "dismissed";
+    cursor: string | null;
+    limit: number;
+  }): Promise<CursorPage<AdminReportQueueItem>> {
+    const cursor = decodeReportCursor(input.cursor);
+    const params: unknown[] = [input.communityId];
+    const conditions = ["r.community_id = $1"];
+
+    if (input.status) {
+      params.push(input.status);
+      conditions.push(`r.status = $${params.length}`);
+    } else {
+      conditions.push(`r.status = 'new'`);
+    }
+
+    if (cursor) {
+      params.push(cursor.createdAt, cursor.reportId);
+      conditions.push(`(r.created_at, r.report_id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`);
+    }
+
+    params.push(input.limit + 1);
+    const result = await this.pool.query<ReportQueueRow>(
+      `
+        select
+          r.report_id,
+          r.community_id,
+          r.target_type,
+          r.target_id,
+          r.reason,
+          r.detail_text,
+          r.conversation_id,
+          r.reporter_user_id,
+          r.status,
+          r.resolution,
+          r.created_at,
+          r.resolved_at,
+          reporter.display_name as reporter_alias,
+          case
+            when r.reason in ('unsafe_behavior', 'scam', 'harassment') then 'P0'
+            when r.reason = 'misinformation' then 'P1'
+            else 'P2'
+          end as priority,
+          case
+            when r.target_type = 'post' then p.title
+            when r.target_type = 'user' then coalesce(target_user.display_name, 'User')
+            when r.target_type = 'message' then 'Message report'
+            else null
+          end as target_title,
+          case
+            when r.target_type = 'post' then left(p.body, 280)
+            when r.target_type = 'message' then left(m.body, 280)
+            else null
+          end as body_preview,
+          case
+            when r.target_type = 'post' then p.created_by
+            when r.target_type = 'user' then target_user.user_id
+            when r.target_type = 'message' then m.sender_user_id
+            else null
+          end as related_user_id
+        from reports r
+        join users reporter
+          on reporter.user_id = r.reporter_user_id
+        left join posts p
+          on r.target_type = 'post'
+         and p.post_id = r.target_id
+        left join users target_user
+          on r.target_type = 'user'
+         and target_user.user_id = r.target_id
+        left join messages m
+          on r.target_type = 'message'
+         and m.message_id = r.target_id
+        where ${conditions.join(" and ")}
+        order by r.created_at desc, r.report_id desc
+        limit $${params.length}
+      `,
+      params,
+    );
+
+    const rows = result.rows;
+    const next = rows.length > input.limit ? rows.pop() ?? null : null;
+    return {
+      items: rows.map(mapReportQueueItem),
+      nextCursor: next ? encodeReportCursor(next) : null,
+    };
+  }
+
+  async decideReport(input: {
+    communityId: string;
+    reportId: string;
+    decision: "dismiss" | "warn" | "remove_post" | "suspend_user";
+    notes: string | null;
+    anchorUserId: string;
+    decidedAt: string;
+  }): Promise<ReportDecisionResponse | null> {
+    return this.withTransaction(async (client) => {
+      const target = await client.query<ReportQueueRow>(
+        `
+          select
+            r.report_id,
+            r.community_id,
+            r.target_type,
+            r.target_id,
+            r.reason,
+            r.detail_text,
+            r.conversation_id,
+            r.reporter_user_id,
+            r.status,
+            r.resolution,
+            r.created_at,
+            r.resolved_at,
+            reporter.display_name as reporter_alias,
+            case
+              when r.reason in ('unsafe_behavior', 'scam', 'harassment') then 'P0'
+              when r.reason = 'misinformation' then 'P1'
+              else 'P2'
+            end as priority,
+            case
+              when r.target_type = 'post' then p.title
+              when r.target_type = 'user' then coalesce(target_user.display_name, 'User')
+              when r.target_type = 'message' then 'Message report'
+              else null
+            end as target_title,
+            case
+              when r.target_type = 'post' then left(p.body, 280)
+              when r.target_type = 'message' then left(m.body, 280)
+              else null
+            end as body_preview,
+            case
+              when r.target_type = 'post' then p.created_by
+              when r.target_type = 'user' then target_user.user_id
+              when r.target_type = 'message' then m.sender_user_id
+              else null
+            end as related_user_id
+          from reports r
+          join users reporter on reporter.user_id = r.reporter_user_id
+          left join posts p on r.target_type = 'post' and p.post_id = r.target_id
+          left join users target_user on r.target_type = 'user' and target_user.user_id = r.target_id
+          left join messages m on r.target_type = 'message' and m.message_id = r.target_id
+          where r.community_id = $1
+            and r.report_id = $2
+          limit 1
+          for update of r
+        `,
+        [input.communityId, input.reportId],
+      );
+
+      const report = target.rows[0];
+      if (!report) {
+        return null;
+      }
+
+      if (report.status === "resolved" || report.status === "dismissed") {
+        return {
+          report_id: report.report_id,
+          status: report.status,
+          resolution: report.resolution ?? "none",
+          decided_at: report.resolved_at ?? report.created_at,
+        };
+      }
+
+      if (input.decision === "remove_post" && report.target_type !== "post") {
+        throw new ChatServiceError("remove_post is only valid for post reports", "invalid_input");
+      }
+
+      const nextStatus = input.decision === "dismiss" ? "dismissed" : "resolved";
+      const resolution = input.decision === "dismiss" ? "none" : input.decision;
+      const moderationTargetType =
+        input.decision === "suspend_user" ? "user" : report.target_type;
+      const moderationTargetId =
+        input.decision === "suspend_user" ? report.related_user_id ?? report.target_id : report.target_id;
+      const affectedUserId = input.decision === "suspend_user" ? moderationTargetId : null;
+
+      if (input.decision === "remove_post") {
+        await client.query(
+          `
+            update posts
+            set status = 'removed',
+                updated_at = $2::timestamptz
+            where post_id = $1
+          `,
+          [report.target_id, input.decidedAt],
+        );
+      }
+
+      if (input.decision === "suspend_user") {
+        await client.query(
+          `
+            update users
+            set status = 'suspended',
+                updated_at = $2::timestamptz
+            where user_id = $1
+          `,
+          [moderationTargetId, input.decidedAt],
+        );
+      }
+
+      await client.query(
+        `
+          update reports
+          set status = $2,
+              resolution = $3,
+              resolved_at = $4::timestamptz
+          where report_id = $1
+        `,
+        [input.reportId, nextStatus, resolution, input.decidedAt],
+      );
+
+      await client.query(
+        `
+          insert into moderation_actions (
+            report_id,
+            anchor_user_id,
+            community_id,
+            action_type,
+            target_type,
+            target_id,
+            reason,
+            created_at
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)
+        `,
+        [
+          input.reportId,
+          input.anchorUserId,
+          input.communityId,
+          input.decision,
+          moderationTargetType,
+          moderationTargetId,
+          input.notes,
+          input.decidedAt,
+        ],
+      );
+
+      return {
+        report_id: input.reportId,
+        status: nextStatus,
+        resolution,
+        decided_at: input.decidedAt,
+        affected_user_id: affectedUserId,
+      };
+    });
+  }
+
+  async autoHidePostIfThresholdReached(input: { communityId: string; postId: string }): Promise<boolean> {
+    return this.withTransaction(async (client) => {
+      const thresholdResult = await client.query<{ threshold: number }>(
+        `
+          select coalesce(cr.auto_hide_report_threshold, 3)::int as threshold
+          from communities c
+          left join community_rulesets cr on cr.ruleset_id = c.ruleset_id
+          where c.community_id = $1
+          limit 1
+        `,
+        [input.communityId],
+      );
+      const threshold = thresholdResult.rows[0]?.threshold ?? 3;
+
+      const countResult = await client.query<{ report_count: number }>(
+        `
+          select count(*)::int as report_count
+          from reports
+          where community_id = $1
+            and target_type = 'post'
+            and target_id = $2
+            and status not in ('dismissed', 'resolved')
+        `,
+        [input.communityId, input.postId],
+      );
+
+      if ((countResult.rows[0]?.report_count ?? 0) < threshold) {
+        return false;
+      }
+
+      const result = await client.query<{ post_id: string }>(
+        `
+          update posts
+          set status = 'removed',
+              updated_at = now()
+          where post_id = $1
+            and status in ('active', 'pending_review')
+          returning post_id
+        `,
+        [input.postId],
+      );
+      if (Number(result.rowCount ?? 0) === 0) {
+        return false;
+      }
+
+      const reportResult = await client.query<{ report_id: string }>(
+        `
+          select report_id
+          from reports
+          where community_id = $1
+            and target_type = 'post'
+            and target_id = $2
+            and status not in ('dismissed', 'resolved')
+          order by created_at desc, report_id desc
+        `,
+        [input.communityId, input.postId],
+      );
+      const anchorResult = await client.query<{ anchor_user_id: string }>(
+        `
+          select user_id as anchor_user_id
+          from anchors
+          where community_id = $1
+            and status = 'active'
+          order by activated_at asc nulls last, anchor_id asc
+          limit 1
+        `,
+        [input.communityId],
+      );
+
+      await client.query(
+        `
+          update reports
+          set status = 'resolved',
+              resolution = 'remove_post',
+              resolved_at = now()
+          where community_id = $1
+            and target_type = 'post'
+            and target_id = $2
+            and status not in ('dismissed', 'resolved')
+        `,
+        [input.communityId, input.postId],
+      );
+
+      const openReportIds = reportResult.rows.map((row) => row.report_id);
+      const anchorUserId = anchorResult.rows[0]?.anchor_user_id ?? null;
+      if (openReportIds.length > 0) {
+        await client.query(
+          `
+            insert into moderation_actions (
+              report_id,
+              anchor_user_id,
+              community_id,
+              action_type,
+              target_type,
+              target_id,
+              reason,
+              created_at
+            )
+            select
+              report_id,
+              $1,
+              $2,
+              'remove_post',
+              'post',
+              $3,
+              'auto_hide_report_threshold',
+              now()
+            from reports
+            where report_id = any($4::uuid[])
+          `,
+          [anchorUserId, input.communityId, input.postId, openReportIds],
+        );
+      }
+
+      return true;
+    });
   }
 
   async getMessage(messageId: string, conversationId: string) {

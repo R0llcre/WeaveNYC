@@ -75,6 +75,14 @@ type ChromeMessages = {
   offerHelpCta: string;
   communityTitle: string;
   communityCopy: string;
+  communityAnnouncementsHeading: string;
+  communityAnnouncementsCopy: string;
+  communityAnnouncementsBannerLabel: string;
+  communityAnnouncementsListHeading: string;
+  communityAnnouncementsEmpty: string;
+  communityAnnouncementsMoreEmpty: string;
+  communityAnnouncementsNoCommunity: string;
+  communityAnnouncementsPinnedLabel: string;
   communityFeedHeading: string;
   communityNoMembership: string;
   communityTab: string;
@@ -306,6 +314,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     offerHelpCta: 'Offer help',
     communityTitle: 'Community lane',
     communityCopy: 'Join with an invite code or QR, switch between community and public posts, and keep your own requests and offers in one place.',
+    communityAnnouncementsHeading: 'Community announcements',
+    communityAnnouncementsCopy: 'Latest updates for {communityName} appear here first.',
+    communityAnnouncementsBannerLabel: 'Latest update',
+    communityAnnouncementsListHeading: 'Earlier updates',
+    communityAnnouncementsEmpty: 'No announcements yet for this community.',
+    communityAnnouncementsMoreEmpty: 'No earlier announcements yet.',
+    communityAnnouncementsNoCommunity: 'Join or switch to a community to see announcements.',
+    communityAnnouncementsPinnedLabel: 'Pinned',
     communityFeedHeading: 'Community feed',
     communityNoMembership: 'Join a community first to unlock community-only requests and offers.',
     communityTab: 'Community',
@@ -535,6 +551,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     offerHelpCta: 'Ofrecer ayuda',
     communityTitle: 'Canal comunitario',
     communityCopy: 'Únete con un código o QR, cambia entre publicaciones comunitarias y públicas, y sigue tus propios pedidos y ofertas.',
+    communityAnnouncementsHeading: 'Anuncios de la comunidad',
+    communityAnnouncementsCopy: 'Las últimas novedades de {communityName} aparecen aquí primero.',
+    communityAnnouncementsBannerLabel: 'Última novedad',
+    communityAnnouncementsListHeading: 'Novedades anteriores',
+    communityAnnouncementsEmpty: 'Todavía no hay anuncios para esta comunidad.',
+    communityAnnouncementsMoreEmpty: 'Todavía no hay anuncios anteriores.',
+    communityAnnouncementsNoCommunity: 'Únete o cambia a una comunidad para ver anuncios.',
+    communityAnnouncementsPinnedLabel: 'Fijado',
     communityFeedHeading: 'Feed comunitario',
     communityNoMembership: 'Primero únete a una comunidad para ver y publicar posts comunitarios.',
     communityTab: 'Comunidad',
@@ -764,6 +788,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     offerHelpCta: '发布帮助',
     communityTitle: '社区主线',
     communityCopy: '通过邀请码或二维码加入社区，在社区帖和公开帖之间切换，并集中查看自己的求助与帮助帖子。',
+    communityAnnouncementsHeading: '社区公告',
+    communityAnnouncementsCopy: '{communityName} 的最新通知会优先显示在这里。',
+    communityAnnouncementsBannerLabel: '最新通知',
+    communityAnnouncementsListHeading: '更早的通知',
+    communityAnnouncementsEmpty: '这个社区还没有公告。',
+    communityAnnouncementsMoreEmpty: '暂无更早的公告。',
+    communityAnnouncementsNoCommunity: '加入或切换到一个社区后即可查看公告。',
+    communityAnnouncementsPinnedLabel: '置顶',
     communityFeedHeading: '社区帖子流',
     communityNoMembership: '先加入一个社区，才能查看和发布社区内帖子。',
     communityTab: '社区',

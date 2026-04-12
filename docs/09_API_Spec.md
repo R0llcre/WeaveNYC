@@ -1,6 +1,6 @@
 # WeaveNYC — API Spec (HTTP Surface, Main-First)
 
-目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；M5/M6、Anchor Admin 和 P2P 相关内容统一放到文末的 future appendix / notes。
+目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；M5 相关内容统一放到 branch-local appendix / notes，M6/P2P 相关内容统一放到文末的 future appendix / notes。
 
 约定：
 - HTTP Base URL（示例）：`https://api.weavenyc.local`
@@ -116,16 +116,31 @@ Response:
 
 Request:
 ```json
+{ "invite_code": "WEAVE-ANCHOR-11735" }
+```
+
+Response:
+```json
 {
-  "invite_code": "ANC-XXXXX",
-  "totp_secret": "base32...",
-  "org_name": "St. Kilian Parish"
+  "activation_id": "550e8400-e29b-41d4-a716-446655440099",
+  "community": {
+    "community_id": "44444444-4444-4444-8444-444444444444",
+    "name": "Farmingdale Demo Community",
+    "center_zip": "11735",
+    "join_policy": "invite_only"
+  },
+  "otpauth_uri": "otpauth://totp/WeaveNYC%20Anchor:St.%20Kilian...",
+  "recovery_codes": ["ABCD-EFGH", "IJKL-MNOP"],
+  "expires_in_seconds": 600
 }
 ```
 
 Notes:
-- 该接口仍属于后续完整 Anchor 登录流（M5），当前只作为 future appendix 记录，不属于 current main surface
-- M2 的 manual review path 在非生产环境使用 `pnpm dev:mint-anchor-token` 生成临时 anchor bearer token
+- 该接口属于 `feature/m5-anchor-admin` 的 M5 closeout surface；它尚未改变 `main` 的 canonical surface，但已是当前分支已验证的真实接口面
+- 前置条件：当前会话必须 `level >= verified`
+- 客户端不上传 `totp_secret`；TOTP secret 由服务端生成，只在这里通过 `otpauth_uri` 返回一次
+- 完整流程固定为：`activate -> activate/confirm -> session/start -> session/verify`
+- 非生产环境的 manual debug/recovery path 仍可使用 `pnpm dev:mint-anchor-token` 生成临时 anchor bearer token
 
 ---
 
@@ -506,23 +521,93 @@ Notes:
 
 ---
 
-## Future Appendix A: Anchor Admin API
+## Appendix A: M5 Anchor Admin API（completed on branch）
 
-### 7.1 Review Queue
-`GET /v1/admin/review_queue?community_id=...&cursor=...`
+> 以下接口是 `feature/m5-anchor-admin` 已实现、已验证并已通过 6-lane review gate 的接口面。它们仍不属于 `main` canonical surface；在变更合回 `main` 之前，这里记录的是当前 branch-local runtime truth。
 
-### 7.2 Approve / Reject
-`POST /v1/admin/review_queue/{post_id}/decision`
+### 7.1 Anchor Activate
+`POST /v1/auth/anchor/activate`
+
 Request:
 ```json
-{ "decision": "approve", "notes": "OK" }
+{ "invite_code": "WEAVE-ANCHOR-11735" }
 ```
 
-### 7.3 Update Community Rules
+Response:
+```json
+{
+  "activation_id": "550e8400-e29b-41d4-a716-446655440099",
+  "community": {
+    "community_id": "44444444-4444-4444-8444-444444444444",
+    "name": "Farmingdale Demo Community",
+    "center_zip": "11735",
+    "join_policy": "invite_only"
+  },
+  "otpauth_uri": "otpauth://totp/WeaveNYC%20Anchor:St.%20Kilian...",
+  "recovery_codes": ["ABCD-EFGH", "IJKL-MNOP"],
+  "expires_in_seconds": 600
+}
+```
+
+### 7.2 Anchor Activate Confirm
+`POST /v1/auth/anchor/activate/confirm`
+
+Request:
+```json
+{
+  "activation_id": "550e8400-e29b-41d4-a716-446655440099",
+  "totp_code": "123456"
+}
+```
+
+### 7.3 Anchor Session Start
+`POST /v1/auth/anchor/session/start`
+
+Request:
+```json
+{ "community_id": "44444444-4444-4444-8444-444444444444" }
+```
+
+### 7.4 Anchor Session Verify
+`POST /v1/auth/anchor/session/verify`
+
+Request:
+```json
+{
+  "challenge_id": "550e8400-e29b-41d4-a716-446655440100",
+  "totp_code": "123456"
+}
+```
+
+### 7.5 Review Queue
+`GET /v1/admin/review_queue?community_id=...&cursor=...`
+
+### 7.6 Report Queue
+`GET /v1/admin/report_queue?community_id=...&status=...&cursor=...`
+
+### 7.7 Approve / Reject Post
+`POST /v1/admin/review_queue/{post_id}/decision`
+
+### 7.8 Decision on Report
+`POST /v1/admin/report_queue/{report_id}/decision`
+
+### 7.9 Admin Dashboard
+`GET /v1/admin/communities/{community_id}/dashboard`
+
+### 7.10 Get Community Rules
+`GET /v1/admin/communities/{community_id}/rules`
+
+### 7.11 Update Community Rules
 `PUT /v1/admin/communities/{community_id}/rules`
 
-### 7.4 Create Announcement
+### 7.12 Read Community Announcements
+`GET /v1/communities/{community_id}/announcements`
+
+### 7.13 Manage Community Announcements
+`GET /v1/admin/communities/{community_id}/announcements?include_deleted=true|false`
 `POST /v1/admin/communities/{community_id}/announcements`
+`PATCH /v1/admin/communities/{community_id}/announcements/{announcement_id}`
+`DELETE /v1/admin/communities/{community_id}/announcements/{announcement_id}`
 
 ---
 

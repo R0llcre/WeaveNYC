@@ -4,7 +4,7 @@ import type { ChatRealtimeEvent } from "@weavenyc/shared";
 
 type SocketLike = {
   send(data: string): void;
-  close(): void;
+  close(code?: number, reason?: string): void;
   readyState?: number;
 };
 
@@ -12,6 +12,7 @@ export interface ChatRealtimeHub {
   publishToUsers(userIds: string[], event: ChatRealtimeEvent): Promise<void>;
   attachConnection(userId: string, socket: SocketLike): void;
   detachConnection(userId: string, socket: SocketLike): void;
+  disconnectUser(userId: string, reason?: string): void;
   close(): Promise<void>;
 }
 
@@ -92,6 +93,26 @@ export class RedisChatRealtimeHub implements ChatRealtimeHub {
     }
   }
 
+  disconnectUser(userId: string, reason = "Access revoked") {
+    const sockets = this.connections.get(userId);
+    if (!sockets) {
+      return;
+    }
+
+    for (const socket of sockets) {
+      try {
+        socket.close(1008, reason);
+      } catch {
+        try {
+          socket.close();
+        } catch {
+          // ignore close errors from broken sockets
+        }
+      }
+    }
+    this.connections.delete(userId);
+  }
+
   async publishToUsers(userIds: string[], event: ChatRealtimeEvent) {
     await this.ready;
     const uniqueUserIds = [...new Set(userIds)];
@@ -126,6 +147,26 @@ export class InMemoryChatRealtimeHub implements ChatRealtimeHub {
     if (sockets.size === 0) {
       this.connections.delete(userId);
     }
+  }
+
+  disconnectUser(userId: string, reason = "Access revoked") {
+    const sockets = this.connections.get(userId);
+    if (!sockets) {
+      return;
+    }
+
+    for (const socket of sockets) {
+      try {
+        socket.close(1008, reason);
+      } catch {
+        try {
+          socket.close();
+        } catch {
+          // ignore close errors from broken sockets
+        }
+      }
+    }
+    this.connections.delete(userId);
   }
 
   async publishToUsers(userIds: string[], event: ChatRealtimeEvent) {

@@ -43,7 +43,8 @@
 | 帖子索引 | `posts` | 结构化字段（从 IPFS 同步），用于匹配引擎查询 |
 | 匹配结果 | `match_suggestions` | 匹配引擎输出，关联 request_post_id |
 | 用户账户 | `users` | 基础信息（user_id、display_name、home_zip），不存敏感信息 |
-| 社区/Anchor | `communities`, `anchors` | 社区元数据、规则配置 |
+| 社区/Anchor | `communities`, `community_access_codes`, `anchor_invites`, `anchors` | 社区元数据、加入入口、Anchor 激活与会话归属 |
+| 规则/公告 | `community_rulesets`, `announcements` | 社区审核规则、公告 banner 与公告列表 |
 | 导入批次 | `dataset_versions` | 官方资源导入批次元数据（来源、记录数、状态） |
 | 社区成员关系 | `community_members` | 用户与社区的 membership 关系（联合主键 `(user_id, community_id)`） |
 | 建联请求 | `contact_requests` | 双向同意前的联系请求状态机 |
@@ -89,17 +90,53 @@ Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Clou
 - `name` (Farmingdale, Queens-Astoria, Bronx-MottHaven...)
 - `center_zip` (string)
 - `join_policy` (invite_only, open)
-- `ruleset_id` (uuid)
+- `ruleset_id` (uuid, 指向当前生效的 `community_rulesets.ruleset_id`)
 - `members` (via `community_members`)
 - `community_members` 不允许同一用户重复加入同一社区
 
 ### 2.3 Anchor
 字段：
 - `anchor_id` (uuid)
+- `user_id` (uuid, optional until activation confirm)
 - `community_id` (uuid)
 - `org_name` (string)
 - `contact` (string, optional)
+- `status` (pending_activation, active, revoked)
+- `totp_secret_ciphertext` (text, server-encrypted)
+- `recovery_codes_hashes` (string[])
+- `activated_at`, `last_mfa_at`
 - `role_assignments` (admins/mods)
+
+### 2.3.1 AnchorInvite
+字段：
+- `anchor_invite_id` (uuid)
+- `community_id` (uuid)
+- `code_hash` (string, 单次使用，不存明文)
+- `status` (active, consumed, revoked)
+- `expires_at` (optional)
+- `consumed_by_user_id`, `consumed_at`
+- `created_at`
+
+### 2.3.2 CommunityRuleset
+字段：
+- `ruleset_id` (uuid)
+- `community_id` (uuid, unique)
+- `review_categories` (string[])
+- `auto_hide_report_threshold` (int, 1-20)
+- `keyword_blocklist` (string[])
+- `language_preferences` (en, es, zh)
+- `announcement_pin_strategy` (latest, manual)
+- `created_by`, `created_at`, `updated_at`
+
+### 2.3.3 Announcement
+字段：
+- `announcement_id` (uuid)
+- `community_id` (uuid)
+- `title`, `body`
+- `status` (active, deleted)
+- `is_pinned` (boolean)
+- `created_by`
+- `published_at`, `updated_at`, `deleted_at`
 
 ### 2.4 ResourceProvider（官方资源点）
 字段：
@@ -179,15 +216,15 @@ Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Clou
 - `reason` (harassment, scam, misinformation, unsafe_behavior, other)
 - `detail_text` (optional)
 - `reporter_user_id`
-- `status` (new, in_review, resolved, dismissed)
+- `status` (new, resolved, dismissed)
 - `resolution` (remove_post, suspend_user, warn, none)
 
 字段（ModerationAction）：
 - `action_id`
 - `report_id`
-- `anchor_user_id`
+- `anchor_user_id` (optional for system-triggered moderation)
 - `community_id`
-- `action_type` (approve, reject, warn, ban)
+- `action_type` (approve, reject, request_more_info, dismiss, warn, remove_post, suspend_user)
 - `target_type`
 - `target_id`
 - `reason` (optional)
@@ -208,7 +245,6 @@ Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Clou
 - `created_at`
 
 约束：
-- `dataset_version` 全局唯一
 - 每个 `(source, dataset_version)` 只允许 1 条批次记录
 
 ### 2.10 ResourceChangeLog & VerificationLog

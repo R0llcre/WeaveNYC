@@ -29,6 +29,7 @@ const anchorActor: PostActor = {
   level: 'anchor',
   role: 'anchor',
   communityIds: [community.community_id],
+  anchorCommunityId: community.community_id,
 };
 
 const foreignAnchorActor: PostActor = {
@@ -36,6 +37,7 @@ const foreignAnchorActor: PostActor = {
   level: 'anchor',
   role: 'anchor',
   communityIds: ['55555555-5555-4555-8555-555555555555'],
+  anchorCommunityId: '55555555-5555-4555-8555-555555555555',
 };
 
 function createService() {

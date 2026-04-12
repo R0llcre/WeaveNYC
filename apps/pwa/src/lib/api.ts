@@ -46,6 +46,8 @@ import type {
   ContactRequestInboxResponse,
   CommunityAccessResolveInput,
   CommunityAccessResolveResult,
+  CommunityAnnouncement,
+  CommunityAnnouncementsResponse,
   CreatePostInput,
   CreatePostResult,
   EndpointProbe,
@@ -77,6 +79,94 @@ import type {
 
 const DEFAULT_API_BASE_URL = "http://localhost:4000";
 const DEVICE_ID_STORAGE_KEY = "weavenyc.device_id";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function toCommunityAnnouncement(value: unknown): CommunityAnnouncement | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const announcementId =
+    typeof value.announcement_id === "string"
+      ? value.announcement_id
+      : typeof value.announcementId === "string"
+        ? value.announcementId
+        : null;
+  const communityId =
+    typeof value.community_id === "string"
+      ? value.community_id
+      : typeof value.communityId === "string"
+        ? value.communityId
+        : null;
+  const title = typeof value.title === "string" ? value.title : null;
+  const body = typeof value.body === "string" ? value.body : null;
+
+  if (!announcementId || !communityId || !title || !body) {
+    return null;
+  }
+
+  return {
+    announcement_id: announcementId,
+    community_id: communityId,
+    title,
+    body,
+    is_pinned:
+      typeof value.is_pinned === "boolean"
+        ? value.is_pinned
+        : typeof value.pinned === "boolean"
+          ? value.pinned
+          : false,
+    status: typeof value.status === "string" ? value.status : null,
+    published_at:
+      typeof value.published_at === "string"
+        ? value.published_at
+        : typeof value.publishedAt === "string"
+          ? value.publishedAt
+          : null,
+    updated_at:
+      typeof value.updated_at === "string"
+        ? value.updated_at
+        : typeof value.updatedAt === "string"
+          ? value.updatedAt
+          : null,
+    created_at:
+      typeof value.created_at === "string"
+        ? value.created_at
+        : typeof value.createdAt === "string"
+          ? value.createdAt
+          : null,
+  };
+}
+
+function parseCommunityAnnouncementsResponse(input: unknown): CommunityAnnouncementsResponse {
+  const rawItems = Array.isArray(input)
+    ? input
+    : isRecord(input)
+      ? Array.isArray(input.items)
+        ? input.items
+        : Array.isArray(input.announcements)
+          ? input.announcements
+          : null
+      : null;
+
+  if (!rawItems) {
+    throw new Error("Invalid community announcements response.");
+  }
+
+  const items = rawItems
+    .map((item) => toCommunityAnnouncement(item))
+    .filter((item): item is CommunityAnnouncement => Boolean(item));
+
+  const nextCursor = isRecord(input) && typeof input.next_cursor === "string" ? input.next_cursor : null;
+
+  return {
+    items,
+    next_cursor: nextCursor,
+  };
+}
 
 export function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
@@ -268,6 +358,37 @@ export async function searchResources(input: ResourceQueryInput): Promise<Resour
 export async function getResource(providerId: string, zip?: string): Promise<ResourceDetail> {
   const suffix = zip ? `?zip=${encodeURIComponent(zip)}` : "";
   return requestJson(`/v1/resources/${providerId}${suffix}`, {}, resourceDetailSchema);
+}
+
+export async function listCommunityAnnouncements(
+  accessToken: string,
+  communityId: string,
+): Promise<CommunityAnnouncementsResponse> {
+  try {
+    return await requestJson(
+      `/v1/communities/${communityId}/announcements`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      {
+        parse: parseCommunityAnnouncementsResponse,
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("HTTP 404") || error.message.includes("Unexpected end of JSON input"))
+    ) {
+      return {
+        items: [],
+        next_cursor: null,
+      };
+    }
+
+    throw error;
+  }
 }
 
 export async function resolveCommunityAccess(
@@ -771,6 +892,7 @@ export type {
   ConversationMessagesResponse,
   ConversationsListResponse,
   ContactRequestInboxResponse,
+  CommunityAnnouncementsResponse,
   MatchContactResult,
   MatchResultsResponse,
   PostDetail,

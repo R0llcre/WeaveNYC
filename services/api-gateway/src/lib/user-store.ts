@@ -1,6 +1,16 @@
+import { randomUUID } from 'node:crypto';
+
 import { Pool, type PoolClient } from 'pg';
 
-import type { AuthenticatedUserRecord } from '../types.js';
+import type {
+  AnchorAdminRecord,
+  AnchorInviteRecord,
+  AuthenticatedUserRecord
+} from '../types.js';
+
+function toIso(value: Date | string) {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
 
 export interface UserStore {
   ping(): Promise<void>;
@@ -8,6 +18,20 @@ export interface UserStore {
   getAuthUserById(userId: string): Promise<AuthenticatedUserRecord | null>;
   verifyUserPhone(userId: string, phoneHash: string, phoneHashSalt: string): Promise<AuthenticatedUserRecord | null>;
   verifyUserEmail(userId: string, emailHash: string, emailHashSalt: string): Promise<AuthenticatedUserRecord | null>;
+  findAnchorInviteByCodeHash(codeHash: string): Promise<AnchorInviteRecord | null>;
+  getActiveAnchorByUser(userId: string, communityId: string): Promise<AnchorAdminRecord | null>;
+  activateAnchor(input: {
+    userId: string;
+    inviteId: string;
+    totpSecretCiphertext: string;
+    recoveryCodesHashes: string[];
+    activatedAt: string;
+  }): Promise<AuthenticatedUserRecord | null>;
+  recordAnchorMfa(input: {
+    userId: string;
+    communityId: string;
+    occurredAt: string;
+  }): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -37,13 +61,15 @@ export class PgUserStore implements UserStore {
 
       const row = insertResult.rows[0];
       const communityIds = await this.loadCommunityIds(client, row.user_id);
+      const anchorCommunityId = await this.loadAnchorCommunityId(client, row.user_id);
 
       return {
         userId: row.user_id,
         level: row.level,
         role: 'user',
         status: row.status,
-        communityIds
+        communityIds,
+        anchorCommunityId
       };
     } finally {
       client.release();
@@ -74,13 +100,15 @@ export class PgUserStore implements UserStore {
       }
 
       const communityIds = await this.loadCommunityIds(client, row.user_id);
+      const anchorCommunityId = await this.loadAnchorCommunityId(client, row.user_id);
 
       return {
         userId: row.user_id,
         level: row.level,
         role: row.level === 'anchor' ? 'anchor' : 'user',
         status: row.status,
-        communityIds
+        communityIds,
+        anchorCommunityId
       };
     } finally {
       client.release();
@@ -113,6 +141,262 @@ export class PgUserStore implements UserStore {
     });
   }
 
+  async findAnchorInviteByCodeHash(codeHash: string): Promise<AnchorInviteRecord | null> {
+    const result = await this.pool.query<{
+      invite_id: string;
+      org_name: string | null;
+      community_id: string;
+      name: string;
+      center_zip: string;
+      join_policy: "invite_only" | "open";
+    }>(
+      `
+        select
+          ai.anchor_invite_id as invite_id,
+          ai.org_name,
+          c.community_id,
+          c.name,
+          c.center_zip,
+          c.join_policy
+        from anchor_invites ai
+        join communities c
+          on c.community_id = ai.community_id
+        where ai.code_hash = $1
+          and ai.status = 'active'
+          and (ai.expires_at is null or ai.expires_at > now())
+        limit 1
+      `,
+      [codeHash]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      inviteId: row.invite_id,
+      orgName: row.org_name ?? row.name,
+      community: {
+        communityId: row.community_id,
+        name: row.name,
+        centerZip: row.center_zip,
+        joinPolicy: row.join_policy
+      }
+    };
+  }
+
+  async getActiveAnchorByUser(userId: string, communityId: string): Promise<AnchorAdminRecord | null> {
+    const result = await this.pool.query<{
+      anchor_id: string;
+      user_id: string;
+      community_id: string;
+      org_name: string;
+      status: "pending_activation" | "active" | "revoked";
+      totp_secret_ciphertext: string | null;
+      recovery_codes_hashes: string[] | null;
+      activated_at: Date | string | null;
+      last_mfa_at: Date | string | null;
+    }>(
+      `
+        select
+          anchor_id,
+          user_id,
+          community_id,
+          org_name,
+          status,
+          totp_secret_ciphertext,
+          recovery_codes_hashes,
+          activated_at,
+          last_mfa_at
+        from anchors
+        where user_id = $1
+          and community_id = $2
+          and status = 'active'
+        limit 1
+      `,
+      [userId, communityId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      anchorId: row.anchor_id,
+      userId: row.user_id,
+      communityId: row.community_id,
+      orgName: row.org_name,
+      status: row.status,
+      totpSecretCiphertext: row.totp_secret_ciphertext,
+      recoveryCodesHashes: row.recovery_codes_hashes ?? [],
+      activatedAt: row.activated_at ? toIso(row.activated_at) : null,
+      lastMfaAt: row.last_mfa_at ? toIso(row.last_mfa_at) : null
+    };
+  }
+
+  async activateAnchor(input: {
+    userId: string;
+    inviteId: string;
+    totpSecretCiphertext: string;
+    recoveryCodesHashes: string[];
+    activatedAt: string;
+  }): Promise<AuthenticatedUserRecord | null> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("begin");
+      const inviteResult = await client.query<{
+        anchor_invite_id: string;
+        community_id: string;
+        org_name: string | null;
+      }>(
+        `
+          select
+            anchor_invite_id,
+            community_id,
+            org_name
+          from anchor_invites
+          where anchor_invite_id = $1
+            and status = 'active'
+            and (expires_at is null or expires_at > now())
+          for update
+        `,
+        [input.inviteId]
+      );
+
+      const invite = inviteResult.rows[0];
+      if (!invite) {
+        await client.query("rollback");
+        return null;
+      }
+
+      const existingAnchorResult = await client.query<{ user_id: string }>(
+        `
+          select user_id
+          from anchors
+          where community_id = $1
+            and status = 'active'
+          for update
+        `,
+        [invite.community_id]
+      );
+      const displacedAnchorUserId = existingAnchorResult.rows[0]?.user_id ?? null;
+
+      await client.query(
+        `
+          update users
+          set level = 'anchor',
+              updated_at = now()
+          where user_id = $1
+        `,
+        [input.userId]
+      );
+
+      await client.query(
+        `
+          insert into community_members (user_id, community_id, joined_at)
+          values ($1, $2, now())
+          on conflict (user_id, community_id) do nothing
+        `,
+        [input.userId, invite.community_id]
+      );
+
+      await client.query(
+        `
+          insert into anchors (
+            anchor_id,
+            user_id,
+            community_id,
+            org_name,
+            status,
+            totp_secret_ciphertext,
+            recovery_codes_hashes,
+            activated_at,
+            last_mfa_at,
+            created_at
+          )
+          values ($1, $2, $3, $4, 'active', $5, $6, $7, $7, now())
+          on conflict (community_id) where status = 'active'
+          do update
+          set
+            user_id = excluded.user_id,
+            org_name = excluded.org_name,
+            status = 'active',
+            totp_secret_ciphertext = excluded.totp_secret_ciphertext,
+            recovery_codes_hashes = excluded.recovery_codes_hashes,
+            activated_at = excluded.activated_at,
+            last_mfa_at = excluded.last_mfa_at
+        `,
+        [
+          randomUUID(),
+          input.userId,
+          invite.community_id,
+          invite.org_name ?? "Community Anchor",
+          input.totpSecretCiphertext,
+          input.recoveryCodesHashes,
+          input.activatedAt
+        ]
+      );
+
+      await client.query(
+        `
+          update anchor_invites
+          set status = 'consumed',
+              consumed_by_user_id = $2,
+              consumed_at = now()
+          where anchor_invite_id = $1
+        `,
+        [input.inviteId, input.userId]
+      );
+
+      if (displacedAnchorUserId && displacedAnchorUserId !== input.userId) {
+        await client.query(
+          `
+            update users
+            set level = 'verified',
+                updated_at = now()
+            where user_id = $1
+              and level = 'anchor'
+              and not exists (
+                select 1
+                from anchors
+                where user_id = $1
+                  and status = 'active'
+              )
+          `,
+          [displacedAnchorUserId]
+        );
+      }
+
+      await client.query("commit");
+      return this.getAuthUserById(input.userId);
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async recordAnchorMfa(input: {
+    userId: string;
+    communityId: string;
+    occurredAt: string;
+  }): Promise<void> {
+    await this.pool.query(
+      `
+        update anchors
+        set last_mfa_at = $3
+        where user_id = $1
+          and community_id = $2
+          and status = 'active'
+      `,
+      [input.userId, input.communityId, input.occurredAt]
+    );
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -134,6 +418,31 @@ export class PgUserStore implements UserStore {
       const code = (error as { code?: string }).code;
       if (code === '42P01') {
         return [];
+      }
+
+      throw error;
+    }
+  }
+
+  private async loadAnchorCommunityId(client: PoolClient, userId: string): Promise<string | null> {
+    try {
+      const result = await client.query<{ community_id: string }>(
+        `
+          select community_id
+          from anchors
+          where user_id = $1
+            and status = 'active'
+          order by created_at desc
+          limit 1
+        `,
+        [userId]
+      );
+
+      return result.rows[0]?.community_id ?? null;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === '42P01' || code === '42703') {
+        return null;
       }
 
       throw error;
@@ -179,13 +488,15 @@ export class PgUserStore implements UserStore {
       }
 
       const communityIds = await this.loadCommunityIds(client, row.user_id);
+      const anchorCommunityId = await this.loadAnchorCommunityId(client, row.user_id);
 
       return {
         userId: row.user_id,
         level: row.level,
         role: row.level === 'anchor' ? 'anchor' : 'user',
         status: row.status,
-        communityIds
+        communityIds,
+        anchorCommunityId
       };
     } finally {
       client.release();

@@ -1,10 +1,10 @@
 # WeaveNYC — M4 Closeout
 
-状态：`M4 completed on branch / M5 pending`
+状态：`M4 completed on branch`
 
 日期：`2026-04-11`
 
-说明：本文档只记录 `feature/m4-chat-safety` 的 branch-local closeout；canonical baseline 仍然是 `main = M2 completed`。
+说明：本文档记录 `M4` closeout；当前本地 canonical baseline 已收口到 `main = M4 completed`。M5 的 branch-local 真值见 [`26_M5_Closeout.md`](./26_M5_Closeout.md)。
 
 ---
 

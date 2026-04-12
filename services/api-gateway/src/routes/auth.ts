@@ -1,9 +1,22 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
-import { otpChallengeTtlSeconds, magicLinkChallengeTtlSeconds, otpMaxAttempts } from "@weavenyc/shared";
+import {
+  anchorActivationChallengeTtlSeconds,
+  anchorSessionChallengeTtlSeconds,
+  magicLinkChallengeTtlSeconds,
+  otpChallengeTtlSeconds,
+  otpMaxAttempts,
+  totpMaxAttempts
+} from "@weavenyc/shared";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 
 import {
+  anchorActivateConfirmRequestSchema,
+  anchorActivateRequestSchema,
+  anchorActivateResponseSchema,
+  anchorSessionStartRequestSchema,
+  anchorSessionStartResponseSchema,
+  anchorSessionVerifyRequestSchema,
   anonymousAuthRequestSchema,
   anonymousAuthResponseSchema,
   errorResponseSchema,
@@ -17,8 +30,10 @@ import {
 } from "../contracts.js";
 import {
   buildStoredRefreshSession,
+  type StoredAnchorChallenge,
   type StoredIdentityChallenge
 } from "../lib/refresh-token-store.js";
+import { decryptSecret, encryptSecret } from "../lib/secret-cipher.js";
 import { createOpaqueRefreshToken, signAccessToken } from "../lib/tokens.js";
 import {
   type AuthAbuseStore,
@@ -32,6 +47,7 @@ import {
   normalizeEmail,
   normalizePhoneNumber
 } from "../lib/identity.js";
+import { buildOtpAuthUri, generateRecoveryCodes, generateTotpSecret, verifyTotpCode } from "../lib/totp.js";
 import {
   createMagicLinkToken,
   StubEmailLinkProvider,
@@ -63,6 +79,24 @@ type MagicLinkStartBody = {
 type MagicLinkVerifyBody = {
   challenge_id: string;
   token: string;
+};
+
+type AnchorActivateBody = {
+  invite_code: string;
+};
+
+type AnchorActivateConfirmBody = {
+  activation_id: string;
+  totp_code: string;
+};
+
+type AnchorSessionStartBody = {
+  community_id: string;
+};
+
+type AnchorSessionVerifyBody = {
+  challenge_id: string;
+  totp_code: string;
 };
 
 const smsProvider = new StubSmsProvider();
@@ -126,10 +160,50 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+      const currentUser =
+        refreshInspection.status === "active"
+          ? await app.userStore.getAuthUserById(refreshInspection.session.userId)
+          : null;
+      if (refreshInspection.status === "active" && (!currentUser || currentUser.status !== "active")) {
+        await app.refreshTokenStore.revokeUserSessions(refreshInspection.session.userId);
+        reply.code(401);
+        return {
+          message: "Refresh token is not valid"
+        };
+      }
+
+      const refreshUser =
+        refreshInspection.status === "active" && currentUser
+          ? buildRefreshSessionUser(currentUser, refreshInspection.session)
+          : null;
+      if (refreshInspection.status === "active" && !refreshUser) {
+        await app.refreshTokenStore.revokeUserSessions(refreshInspection.session.userId);
+        reply.code(401);
+        return {
+          message: "Refresh token is not valid"
+        };
+      }
+
+      const nextRefreshSession =
+        refreshInspection.status === "active" && refreshUser
+          ? buildStoredRefreshSession({
+              userId: refreshUser.userId,
+              level: refreshUser.level,
+              role: refreshUser.role,
+              communityIds: refreshUser.communityIds,
+              anchorCommunityId: refreshUser.anchorCommunityId ?? null,
+              mfaVerifiedAt: refreshUser.mfaVerifiedAt,
+              lastActivityAt:
+                refreshUser.level === "anchor" ? new Date().toISOString() : undefined,
+              familyId: refreshInspection.session.familyId
+            })
+          : undefined;
+
       const nextRefreshToken = createOpaqueRefreshToken();
       const rotation = await app.refreshTokenStore.rotateSession(
         request.body.refresh_token,
-        nextRefreshToken
+        nextRefreshToken,
+        nextRefreshSession
       );
 
       if (rotation.status !== "rotated") {
@@ -148,7 +222,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           level: rotation.session.level,
           role: rotation.session.role,
           status: "active",
-          communityIds: rotation.session.communityIds
+          communityIds: rotation.session.communityIds,
+          anchorCommunityId: rotation.session.anchorCommunityId,
+          mfaVerifiedAt: rotation.session.mfaVerifiedAt
         }),
         refresh_token: nextRefreshToken,
         issued_via: "refresh",
@@ -403,6 +479,264 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return issueSessionResponse(app, user, "magic_link", true);
     }
   );
+
+  app.post<{ Body: AnchorActivateBody }>(
+    "/v1/auth/anchor/activate",
+    {
+      schema: {
+        summary: "Start anchor activation with an invite code and TOTP enrollment",
+        tags: ["auth"],
+        security: [{ bearerAuth: [] }],
+        body: anchorActivateRequestSchema,
+        response: {
+          200: anchorActivateResponseSchema,
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema
+        }
+      },
+      preHandler: [app.authenticate]
+    },
+    async (request, reply) => {
+      const currentUser = request.currentUser;
+      if (!currentUser || currentUser.level === "anonymous") {
+        reply.code(403);
+        return { message: "Verification is required before anchor activation" };
+      }
+
+      const invite = await app.userStore.findAnchorInviteByCodeHash(hashAnchorInviteCode(request.body.invite_code));
+      if (!invite) {
+        reply.code(404);
+        return { message: "Anchor invite code is not valid" };
+      }
+
+      const existingAnchor = await app.userStore.getActiveAnchorByUser(currentUser.userId, invite.community.communityId);
+      if (existingAnchor) {
+        reply.code(400);
+        return { message: "Anchor is already activated for this community" };
+      }
+
+      const challengeId = randomUUID();
+      const secret = generateTotpSecret();
+      const recoveryCodes = generateRecoveryCodes();
+      const challenge: StoredAnchorChallenge = {
+        challengeId,
+        kind: "anchor_activate",
+        userId: currentUser.userId,
+        communityId: invite.community.communityId,
+        inviteId: invite.inviteId,
+        secret,
+        recoveryCodesHashes: recoveryCodes.map(hashRecoveryCode),
+        expiresAt: Date.now() + anchorActivationChallengeTtlSeconds * 1000,
+        attemptsRemaining: totpMaxAttempts
+      };
+
+      await app.refreshTokenStore.createAnchorActivationChallenge(challenge);
+      return {
+        activation_id: challengeId,
+        community: {
+          community_id: invite.community.communityId,
+          name: invite.community.name,
+          center_zip: invite.community.centerZip,
+          join_policy: invite.community.joinPolicy
+        },
+        otpauth_uri: buildOtpAuthUri({
+          issuer: "WeaveNYC Anchor",
+          accountName: `${invite.orgName} (${currentUser.userId.slice(-6)})`,
+          secret
+        }),
+        recovery_codes: recoveryCodes,
+        expires_in_seconds: anchorActivationChallengeTtlSeconds
+      };
+    }
+  );
+
+  app.post<{ Body: AnchorActivateConfirmBody }>(
+    "/v1/auth/anchor/activate/confirm",
+    {
+      schema: {
+        summary: "Confirm anchor activation with a TOTP code",
+        tags: ["auth"],
+        security: [{ bearerAuth: [] }],
+        body: anchorActivateConfirmRequestSchema,
+        response: {
+          200: anonymousAuthResponseSchema,
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema
+        }
+      },
+      preHandler: [app.authenticate]
+    },
+    async (request, reply) => {
+      const currentUser = request.currentUser;
+      if (!currentUser || currentUser.level === "anonymous") {
+        reply.code(403);
+        return { message: "Verification is required before anchor activation" };
+      }
+
+      const challengeResult = await app.refreshTokenStore.verifyAnchorChallenge({
+        challengeId: request.body.activation_id,
+        kind: "anchor_activate",
+        userId: currentUser.userId,
+        code: request.body.totp_code,
+        verifier: verifyTotpCode
+      });
+
+      if (challengeResult.status === "forbidden") {
+        reply.code(403);
+        return { message: "Anchor activation challenge does not belong to this user" };
+      }
+
+      if (challengeResult.status !== "verified") {
+        reply.code(400);
+        return { message: "Anchor activation challenge is not valid" };
+      }
+
+      const activatedAt = new Date().toISOString();
+      const user = await app.userStore.activateAnchor({
+        userId: currentUser.userId,
+        inviteId: challengeResult.challenge.inviteId ?? "",
+        totpSecretCiphertext: encryptSecret(
+          challengeResult.challenge.secret,
+          app.config.anchorTotpEncryptionKey
+        ),
+        recoveryCodesHashes: challengeResult.challenge.recoveryCodesHashes ?? [],
+        activatedAt
+      });
+
+      if (!user) {
+        reply.code(404);
+        return { message: "Anchor invite is not valid" };
+      }
+
+      await app.refreshTokenStore.revokeUserSessions(currentUser.userId);
+      await app.userStore.recordAnchorMfa({
+        userId: currentUser.userId,
+        communityId: challengeResult.challenge.communityId,
+        occurredAt: activatedAt
+      });
+      return issueSessionResponse(app, {
+        ...user,
+        anchorCommunityId: challengeResult.challenge.communityId,
+        mfaVerifiedAt: activatedAt
+      }, "anchor_activate");
+    }
+  );
+
+  app.post<{ Body: AnchorSessionStartBody }>(
+    "/v1/auth/anchor/session/start",
+    {
+      schema: {
+        summary: "Start a TOTP step-up challenge for an existing anchor",
+        tags: ["auth"],
+        security: [{ bearerAuth: [] }],
+        body: anchorSessionStartRequestSchema,
+        response: {
+          200: anchorSessionStartResponseSchema,
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema
+        }
+      },
+      preHandler: [app.authenticate]
+    },
+    async (request, reply) => {
+      const currentUser = request.currentUser;
+      if (!currentUser || currentUser.level === "anonymous") {
+        reply.code(403);
+        return { message: "Verification is required before opening an anchor session" };
+      }
+
+      const anchor = await app.userStore.getActiveAnchorByUser(currentUser.userId, request.body.community_id);
+      if (!anchor?.totpSecretCiphertext) {
+        reply.code(404);
+        return { message: "Anchor account not found for this community" };
+      }
+
+      const challengeId = randomUUID();
+      await app.refreshTokenStore.createAnchorSessionChallenge({
+        challengeId,
+        kind: "anchor_session",
+        userId: currentUser.userId,
+        communityId: request.body.community_id,
+        secret: decryptSecret(anchor.totpSecretCiphertext, app.config.anchorTotpEncryptionKey),
+        expiresAt: Date.now() + anchorSessionChallengeTtlSeconds * 1000,
+        attemptsRemaining: totpMaxAttempts
+      });
+
+      return {
+        challenge_id: challengeId,
+        expires_in_seconds: anchorSessionChallengeTtlSeconds
+      };
+    }
+  );
+
+  app.post<{ Body: AnchorSessionVerifyBody }>(
+    "/v1/auth/anchor/session/verify",
+    {
+      schema: {
+        summary: "Verify a TOTP step-up challenge and mint an anchor session",
+        tags: ["auth"],
+        security: [{ bearerAuth: [] }],
+        body: anchorSessionVerifyRequestSchema,
+        response: {
+          200: anonymousAuthResponseSchema,
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema
+        }
+      },
+      preHandler: [app.authenticate]
+    },
+    async (request, reply) => {
+      const currentUser = request.currentUser;
+      if (!currentUser || currentUser.level === "anonymous") {
+        reply.code(403);
+        return { message: "Verification is required before opening an anchor session" };
+      }
+
+      const challengeResult = await app.refreshTokenStore.verifyAnchorChallenge({
+        challengeId: request.body.challenge_id,
+        kind: "anchor_session",
+        userId: currentUser.userId,
+        code: request.body.totp_code,
+        verifier: verifyTotpCode
+      });
+
+      if (challengeResult.status === "forbidden") {
+        reply.code(403);
+        return { message: "Anchor session challenge does not belong to this user" };
+      }
+
+      if (challengeResult.status !== "verified") {
+        reply.code(400);
+        return { message: "Anchor session challenge is not valid" };
+      }
+
+      const user = await app.userStore.getAuthUserById(currentUser.userId);
+      if (!user) {
+        reply.code(404);
+        return { message: "User not found" };
+      }
+
+      const occurredAt = new Date().toISOString();
+      await app.refreshTokenStore.revokeUserSessions(currentUser.userId);
+      await app.userStore.recordAnchorMfa({
+        userId: currentUser.userId,
+        communityId: challengeResult.challenge.communityId,
+        occurredAt
+      });
+
+      return issueSessionResponse(app, {
+        ...user,
+        role: "anchor",
+        level: "anchor",
+        anchorCommunityId: challengeResult.challenge.communityId,
+        mfaVerifiedAt: occurredAt
+      }, "anchor_session");
+    }
+  );
 };
 
 function getAuthAbuseStore(app: FastifyInstance): AuthAbuseStore {
@@ -412,17 +746,21 @@ function getAuthAbuseStore(app: FastifyInstance): AuthAbuseStore {
 async function issueSessionResponse(
   app: FastifyInstance,
   user: AuthenticatedUserRecord,
-  issuedVia: "anonymous" | "otp" | "magic_link" | "refresh",
+  issuedVia: "anonymous" | "otp" | "magic_link" | "refresh" | "anchor_activate" | "anchor_session",
   fallback?: boolean
 ) {
   const refreshToken = createOpaqueRefreshToken();
+  const now = new Date().toISOString();
   await app.refreshTokenStore.createSession(
     refreshToken,
     buildStoredRefreshSession({
       userId: user.userId,
       level: user.level,
       role: user.role,
-      communityIds: user.communityIds
+      communityIds: user.communityIds,
+      anchorCommunityId: user.anchorCommunityId ?? null,
+      mfaVerifiedAt: user.mfaVerifiedAt,
+      lastActivityAt: user.level === "anchor" ? now : undefined
     })
   );
 
@@ -436,4 +774,43 @@ async function issueSessionResponse(
       level: user.level
     }
   };
+}
+
+function buildRefreshSessionUser(
+  currentUser: AuthenticatedUserRecord,
+  storedSession: ReturnType<typeof buildStoredRefreshSession>,
+): AuthenticatedUserRecord | null {
+  if (storedSession.level === "anchor") {
+    if (
+      !storedSession.mfaVerifiedAt ||
+      !currentUser.anchorCommunityId ||
+      currentUser.anchorCommunityId !== storedSession.anchorCommunityId
+    ) {
+      return null;
+    }
+
+    return {
+      ...currentUser,
+      level: "anchor",
+      role: "anchor",
+      anchorCommunityId: currentUser.anchorCommunityId,
+      mfaVerifiedAt: storedSession.mfaVerifiedAt,
+    };
+  }
+
+  return {
+    ...currentUser,
+    level: storedSession.level,
+    role: storedSession.role,
+    anchorCommunityId: null,
+    mfaVerifiedAt: undefined,
+  };
+}
+
+function hashAnchorInviteCode(inviteCode: string) {
+  return createHash("sha256").update(inviteCode.trim().toUpperCase()).digest("hex");
+}
+
+function hashRecoveryCode(code: string) {
+  return createHash("sha256").update(code.trim().toUpperCase()).digest("hex");
 }

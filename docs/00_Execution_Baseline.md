@@ -2,14 +2,14 @@
 
 状态：`CANONICAL`
 
-目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M2-M4 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
+目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M0-M5 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
 
 ---
 
 ## 1) 当前仓库真实状态
 
 - 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
-- `main` 仍然是 canonical baseline，当前稳定基线为 `M2 completed`；`feature/m4-chat-safety` 的 M3/M4 进度只作为 branch closeout 记录，不覆盖 main 口径。
+- `main` 仍然是 canonical baseline，当前稳定基线为 `M4 completed`；`feature/m5-anchor-admin` 已完成 M5 closeout，但在变更合回 `main` 之前，这个结果仍只作为 branch-local 真值存在，不覆盖 `main` 的 merge 状态。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
 - 当前可运行的共享服务面：
   - PWA：`http://localhost:3000`
@@ -76,15 +76,15 @@ pnpm dev
 | `M0` | `completed` | monorepo skeleton、本地基础设施、匿名 auth 最小闭环、CI stub 已落地 |
 | `M1` | `completed` | 资源目录、扩展认证、real API smoke、fixture browser smoke、6-lane rereview 已完成 |
 | `M2` | `completed` | community join、posting、visibility、minimal review、speech fallback 已冻结 |
-| `M3` | `implemented_on_branch` | branch closeout：matching + contact requests + recipient inbox |
-| `M4` | `completed_on_branch` | branch closeout：live chat、message send/read、inbox、block/report、sensitive-content interception、WebSocket realtime |
-| `M5` | `planned` | 下一阶段继续做 Anchor Admin / pilot |
-| `M6` | `optional` | 仅在 MVP 主线稳定后进入 |
+| `M3` | `completed` | matching、Top-3 suggestions、contact requests、recipient inbox 已完成 |
+| `M4` | `completed` | live chat、message send/read、block/report、WebSocket realtime 已完成 |
+| `M5` | `completed_on_branch` | Anchor Admin、report queue、announcements、rules、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已关闭 |
+| `M6` | `optional_next_phase` | 是否启动取决于 M5 分支合回 `main` 之后的下一轮排期决策 |
 
 结论：
 
-- 当前 workspace 的 canonical 阶段真值应表述为：`main = M2 completed`。
-- 当前工作分支的 M3-M4 范围收口为 branch-closeout 记录：matching、一次刷新、`contact_request`、canonical `/inbox`、accept/reject、live conversations、message send/read、block/report、message safety。
+- 当前 workspace 的 canonical 阶段真值应表述为：`main = M4 completed`。
+- 当前工作分支的最新阶段真值应表述为：`feature/m5-anchor-admin = M5 completed on branch`。
 
 ---
 
@@ -103,8 +103,9 @@ pnpm dev
 - PWA 首页已切到 M1 资源发现入口，`/verify` 与 `/dev/m0` 已拆分
 - 当前验证命令分层：
   - canonical `main` baseline：`pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`
-  - branch-local `feature/m4-chat-safety`：`pnpm test:smoke:real`、`pnpm test:e2e`
-  - manual / opt-in：`pnpm test:live-sources`
+  - branch-local `feature/m5-anchor-admin` closeout：`pnpm db:migrate`、`pnpm db:seed`、`pnpm test:smoke:real`、`pnpm test:e2e`
+  - `pnpm test:smoke:real` 只有在同一轮 fresh `db:migrate` + `db:seed` 后通过，才可计入 M5 closeout
+  - manual / opt-in：`pnpm test:live-sources`、`pnpm dev:mint-anchor-token`
 
 当前显式接受的残余风险：
 
@@ -123,12 +124,13 @@ pnpm dev
 5. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
 6. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
 7. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
-7. `01_Vision_And_Principles.md`
-8. `02_PRD.md`
-9. `03_User_Flows_And_Screens.md`
-10. `13_Implementation_Plan.md`
-11. `14_Backlog.md`
-12. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+8. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
+9. `01_Vision_And_Principles.md`
+10. `02_PRD.md`
+11. `03_User_Flows_And_Screens.md`
+12. `13_Implementation_Plan.md`
+13. `14_Backlog.md`
+14. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
 
 ---
 
@@ -138,15 +140,16 @@ pnpm dev
 
 1. 本文档（`00_Execution_Baseline.md`）
 2. `README.md`
-3. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
-4. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
-5. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
-6. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-7. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-8. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
-9. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
-10. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
-11. 历史材料：`archive/`
+3. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
+4. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
+5. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
+6. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+7. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+8. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+9. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
+10. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+11. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
+12. 历史材料：`archive/`
 
 ---
 
@@ -178,7 +181,8 @@ pnpm dev
 - Token 策略冻结为：
   - `access_token`：15 分钟
   - `refresh_token`：7 天
-- Anchor 完整激活接口仍冻结为：`POST /v1/auth/anchor/activate`；M2 的 manual moderation 先通过 `pnpm dev:mint-anchor-token` + Swagger/curl 走通。
+- Anchor Admin 主链路已经切到真实 M5 激活流：verified session -> `POST /v1/auth/anchor/activate` -> `POST /v1/auth/anchor/activate/confirm` -> `POST /v1/auth/anchor/session/start` -> `POST /v1/auth/anchor/session/verify`。
+- `pnpm dev:mint-anchor-token` 仅保留为 dev/debug fallback，不属于 M5 pilot rehearsal 或 closeout 主路径。
 
 ### 6.3 聊天与建联
 
@@ -250,8 +254,8 @@ pnpm dev
 
 ## 8) 下一步唯一入口
 
-当前 `feature/m4-chat-safety` 分支已经完成 `M3 matching + inbox` 与 `M4 live chat + safety`，相关细节已在 `24_M3_Closeout.md` / `25_M4_Closeout.md` 中记录。
-main-first 口径下，`M4` 之后的下一阶段入口固定为 `M5 Anchor Admin + pilot prep`。
+当前 `feature/m5-anchor-admin` 分支承接了 `M5 Anchor Admin + pilot rehearsal` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md` 与 `26_M5_Closeout.md`。
+main-first 口径下，下一步是决定是否先把当前 `M5` 分支合回 `main`；`M6` 属于后续可选阶段，不再被未关闭的 M5 gate 阻塞。
 
 1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
 2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)

@@ -11,6 +11,16 @@ export const communityAccessCodeStatusEnum = pgEnum("community_access_code_statu
   "active",
   "revoked"
 ]);
+export const anchorInviteStatusEnum = pgEnum("anchor_invite_status", [
+  "active",
+  "consumed",
+  "revoked"
+]);
+export const anchorStatusEnum = pgEnum("anchor_status", [
+  "pending_activation",
+  "active",
+  "revoked"
+]);
 export const postTypeEnum = pgEnum("post_type", ["request", "offer"]);
 export const categoryEnum = pgEnum("category", [
   "food",
@@ -51,7 +61,7 @@ export const contactRequestStatusEnum = pgEnum("contact_request_status", [
   "expired",
   "cancelled"
 ]);
-export const reportStatusEnum = pgEnum("report_status", ["new", "in_review", "resolved", "dismissed"]);
+export const reportStatusEnum = pgEnum("report_status", ["new", "resolved", "dismissed"]);
 export const reportReasonEnum = pgEnum("report_reason", [
   "harassment",
   "scam",
@@ -60,3 +70,5 @@ export const reportReasonEnum = pgEnum("report_reason", [
   "other"
 ]);
 export const resolutionEnum = pgEnum("resolution", ["remove_post", "suspend_user", "warn", "none"]);
+export const announcementStatusEnum = pgEnum("announcement_status", ["active", "deleted"]);
+export const announcementPinStrategyEnum = pgEnum("announcement_pin_strategy", ["latest", "manual"]);

@@ -30,6 +30,11 @@ export const chatSocketRoutes: FastifyPluginAsync = async (app) => {
         return;
       }
 
+      if (user.status !== "active") {
+        socket.close(1008, "Inactive user");
+        return;
+      }
+
       app.chatRealtimeHub.attachConnection(user.userId, socket);
       socket.send(
         JSON.stringify({

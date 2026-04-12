@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  adminReportQueueResponseSchema,
   anonymousSessionRequestSchema,
   anonymousSessionResponseSchema,
   jwtClaimsSchema,
@@ -80,5 +81,34 @@ describe("@weavenyc/shared validators", () => {
 
     expect(parsed.target_type).toBe("post");
     expect(parsed.conversation_id).toBeUndefined();
+  });
+
+  it("rejects admin report queue items with deprecated in_review status", () => {
+    const parsed = adminReportQueueResponseSchema.safeParse({
+      items: [
+        {
+          report_id: "44444444-4444-4444-8444-444444444444",
+          community_id: "55555555-5555-4555-8555-555555555555",
+          target_type: "post",
+          target_id: "66666666-6666-4666-8666-666666666666",
+          reason: "unsafe_behavior",
+          status: "in_review",
+          created_at: "2026-04-12T12:00:00.000Z",
+          reporter_user_id: "77777777-7777-4777-8777-777777777777",
+          reporter_alias: "Reporter",
+          priority: "P0",
+          conversation_id: null,
+          target_summary: {
+            title: "Needs manual review",
+            body_preview: "Context preview",
+            related_user_id: null,
+          },
+          evidence_description: null,
+        },
+      ],
+      next_cursor: null,
+    });
+
+    expect(parsed.success).toBe(false);
   });
 });

@@ -1,8 +1,8 @@
 # WeaveNYC
 
-状态：`main = M2 completed (canonical baseline)` · `feature/m4-chat-safety = M4 completed on branch`
+状态：`main = M4 completed (canonical baseline)` · `feature/m5-anchor-admin = M5 completed on branch`
 
-WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 仍是唯一 canonical baseline。当前工作分支 `feature/m4-chat-safety` 的 M3/M4 进度只在各自 closeout 文档里作为 branch status 记录，不作为主线基线；当前 branch 已完成的内容包括 matching、recipient inbox、live chat、block/report、sensitive-content interception 和 WebSocket realtime。
+WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 仍是唯一 canonical baseline，当前主线已收口到 `M4 completed`。当前工作分支 `feature/m5-anchor-admin` 已完成 M5：Anchor Admin、公告、规则、dashboard、pilot rehearsal、branch-local validation 和 6-lane review gate 都已关闭；在变更合回 `main` 之前，`M5 completed` 仍只作为 branch-local 真值记录在 closeout 文档中。
 
 ---
 
@@ -28,13 +28,14 @@ WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` �
 4. [docs/23_M2_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/23_M2_Closeout.md)
 5. [docs/24_M3_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/24_M3_Closeout.md)
 6. [docs/25_M4_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/25_M4_Closeout.md)
-7. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
-8. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
-9. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
-10. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
-11. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-12. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
-13. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
+7. [docs/26_M5_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/26_M5_Closeout.md)
+8. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
+9. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
+10. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
+11. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
+12. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
+13. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
+14. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
 
 ---
 
@@ -74,7 +75,7 @@ Current stable surface on `main`:
 - Anchor Admin home with API health + login placeholder
 - Opt-in live-source smoke: `pnpm test:live-sources`
 
-Branch-local surface on `feature/m4-chat-safety`:
+Branch-local M5 additions on `feature/m5-anchor-admin`:
 
 - `POST /v1/community-access/resolve`
 - `POST /v1/communities/:community_id/join`
@@ -103,15 +104,34 @@ Branch-local surface on `feature/m4-chat-safety`:
 - `GET /v1/ws/chat?token=...`
 - PWA routes: `/posts/[postId]/matches`, `/inbox`, `/conversations/[conversationId]`
 - Legacy compatibility redirect: `/contact-requests` -> `/inbox`
-- Dev helper: `pnpm dev:mint-anchor-token`
+- Dev-only fallback helper: `pnpm dev:mint-anchor-token`
+
+M5 branch-local surface on `feature/m5-anchor-admin`:
+
+- `POST /v1/auth/anchor/activate`
+- `POST /v1/auth/anchor/activate/confirm`
+- `POST /v1/auth/anchor/session/start`
+- `POST /v1/auth/anchor/session/verify`
+- `GET /v1/admin/review_queue?community_id=...&cursor=...`
+- `GET /v1/admin/report_queue?community_id=...&status=...&cursor=...`
+- `POST /v1/admin/review_queue/:post_id/decision`
+- `POST /v1/admin/report_queue/:report_id/decision`
+- `GET /v1/admin/communities/:community_id/dashboard`
+- `GET /v1/admin/communities/:community_id/rules`
+- `PUT /v1/admin/communities/:community_id/rules`
+- `GET /v1/admin/communities/:community_id/announcements`
+- `POST /v1/admin/communities/:community_id/announcements`
+- `PATCH /v1/admin/communities/:community_id/announcements/:announcement_id`
+- `DELETE /v1/admin/communities/:community_id/announcements/:announcement_id`
 
 Current verification split:
 
 - Canonical `main` baseline gates: `pnpm install --frozen-lockfile` -> `typecheck` -> `lint` -> `test` -> `build`
-- Branch-local `feature/m4-chat-safety` gates: docker bootstrap -> `pnpm test:smoke:real` -> `pnpm test:e2e`
-- Manual / opt-in: `pnpm test:live-sources`
+- Branch-local `feature/m5-anchor-admin` closeout gates: `pnpm db:migrate` -> `pnpm db:seed` -> `pnpm test:smoke:real` -> `pnpm test:e2e`
+- `pnpm test:smoke:real` self-starts `api-gateway` when `/readyz` is unavailable, and only counts after a fresh `pnpm db:migrate` + `pnpm db:seed` on the current local database.
+- Manual / opt-in: `pnpm test:live-sources`, `pnpm dev:mint-anchor-token`
 - Formal `M1 completed` status closed on `2026-04-06`
-- Current branch status is `M4 completed on branch`; that progress is recorded in branch closeout docs and does not change the canonical `main` baseline
+- Current branch status is `M5 completed on branch`; branch closeout truth lives in `docs/26_M5_Closeout.md`
 
 ---
 
@@ -123,8 +143,8 @@ Current verification split:
 4. `M2` 发帖与社区可见性
 5. `M3` 匹配与行动方案
 6. `M4` 联系、聊天与安全
-7. `M5` Anchor Admin 与试点准备
-8. `M6` P2P 同步（可选加分）
+7. `M5` Anchor Admin 与试点准备（completed on branch）
+8. `M6` P2P 同步（optional after M5 merge / next-phase decision）
 
 详细内容见 [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)。
 

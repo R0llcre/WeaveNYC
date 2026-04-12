@@ -92,7 +92,7 @@ Client                          API Gateway              SMS Provider
 **安全细节**：
 - 验证码 6 位数字，有效期 5 分钟
 - 同一手机号 Rate limit：3 次/小时
-- 手机号存储为 `SHA-256(phone + salt)` 哈希，不存明文
+- 手机号存储为 `HMAC-SHA256(IDENTITY_HASH_PEPPER, salt + ":" + normalized_phone)`，同时持久化随机 salt；不存明文
 - 用途：仅用于验证身份和防滥用，不用于推送（推送走 Push Notification Token）
 
 ### 3.3 邮箱 Magic Link（备选 Level 1 → Level 2）
@@ -106,23 +106,22 @@ POST /v1/auth/magic-link/start
 ```
 
 - Magic link token 有效期：15 分钟，一次性使用
-- 邮箱存储为哈希，同手机号
+- 邮箱存储与手机号一致：`HMAC-SHA256(IDENTITY_HASH_PEPPER, salt + ":" + normalized_email)` + 随机 salt
 
 ### 3.4 Anchor Admin 激活（Level 2 → Level 3）
 
 ```
 POST /v1/auth/anchor/activate
-{
-  "invite_code": "ANC-XXXXX",       // 由平台管理员生成
-  "totp_secret": "base32...",       // TOTP 设置
-  "org_name": "St. Kilian Parish"
-}
+{ "invite_code": "WEAVE-ANCHOR-11735" }
 ```
 
-- 邀请码由平台管理员线下发放（MVP：手动生成）
-- 强制绑定 TOTP（Google Authenticator / Authy）
-- Anchor 账号的 JWT 包含 `role: "anchor"` 和 `community_id`
-- 该完整激活流留在后续阶段；当前 M2 的 manual moderation 先通过 `pnpm dev:mint-anchor-token` 生成非生产环境 bearer token
+- 前置：当前会话必须已经是 `verified`
+- 邀请码由平台管理员线下发放（MVP：手动生成，服务端只存 hash）
+- 服务端生成 TOTP secret，并在 activate 响应中一次性返回 `otpauth_uri` 和 recovery codes
+- 客户端随后调用 `POST /v1/auth/anchor/activate/confirm`，提交 `{ activation_id, totp_code }`
+- 已激活 anchor 的登录主线固定为：现有 verified first factor -> `POST /v1/auth/anchor/session/start` -> `POST /v1/auth/anchor/session/verify`
+- Anchor 账号的 JWT 包含 `role: "anchor"`、`anchor_community_id`、`mfa_verified_at`
+- `pnpm dev:mint-anchor-token` 仅保留为非生产环境 fallback，不是 M5 主验收路径
 
 ---
 
@@ -157,8 +156,9 @@ POST /v1/auth/refresh
 
 | 存储位置 | 内容 | 安全措施 |
 |----------|------|----------|
-| 内存（Redux Store） | access_token | 页面关闭即失效 |
-| IndexedDB（Dexie.js） | refresh_token | HttpOnly 不适用 PWA；加密存储 |
+| 内存（Redux Store / Auth Context） | access_token | 页面关闭即失效 |
+| IndexedDB（Dexie.js） | PWA refresh_token | PWA 继续走本地加密存储 |
+| sessionStorage | Anchor Admin refresh_token | Admin step-up session 使用 sessionStorage，浏览器 tab 关闭即清空 |
 | IndexedDB（Dexie.js） | Ed25519 私钥 | 仅用于 P2P 签名，不离开设备 |
 
 ---
@@ -267,9 +267,9 @@ function requireCommunity(communityIdParam: string) {
 
 ### 7.3 Anchor MFA
 
-- 登录时：密码（或 OTP）+ TOTP 二次验证
-- 高危操作（封禁/规则变更）：再次输入 TOTP
-- 会话超时：Anchor 后台 30 分钟无操作自动登出
+- 登录时：verified session（OTP 或 magic-link）+ TOTP 二次验证
+- 当前 M5 不引入 password-based Anchor 登录
+- 会话超时：Anchor 后台 4 小时无操作自动登出
 
 ---
 

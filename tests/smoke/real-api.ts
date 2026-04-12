@@ -1,11 +1,12 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import process from 'node:process';
 
 import { Pool } from 'pg';
-import { seedIds } from '../../packages/db/seed/fixtures.js';
+import { seedIds, seedValues } from '../../packages/db/seed/fixtures.js';
 import { loadConfig } from '../../services/api-gateway/src/config.js';
-import { mintDevAccessToken } from '../../services/api-gateway/src/lib/dev-access-tokens.js';
 import { clearRedisAuthAbuseKeys } from '../../services/api-gateway/src/lib/identity.js';
+
+const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 type AuthSessionResponse = {
   access_token: string;
@@ -75,15 +76,100 @@ type PostDetailResponse = {
 
 type ReviewQueueResponse = {
   items: Array<{
+    report_id?: string;
     post_id: string;
     title: string;
     status: string;
+    community_id?: string;
+    reason?: string;
+    priority?: string;
   }>;
 };
 
 type ReviewDecisionResponse = {
   post_id: string;
   status: string;
+};
+
+type AnchorActivateResponse = {
+  activation_id: string;
+  community: {
+    community_id: string;
+    name: string;
+    center_zip: string;
+    join_policy: string;
+  };
+  otpauth_uri: string;
+  recovery_codes: string[];
+  expires_in_seconds: number;
+};
+
+type AnchorSessionStartResponse = {
+  challenge_id: string;
+  expires_in_seconds: number;
+};
+
+type AnchorSessionVerifyResponse = AuthSessionResponse;
+
+type AdminReportQueueResponse = {
+  items: Array<{
+    report_id: string;
+    community_id: string;
+    target_type: 'post' | 'user' | 'message';
+    target_id: string;
+    reason: string;
+    status: 'new' | 'resolved' | 'dismissed';
+    created_at: string;
+    reporter_user_id: string;
+    reporter_alias: string;
+    priority: 'P0' | 'P1' | 'P2';
+    conversation_id: string | null;
+    evidence_description: string | null;
+  }>;
+  next_cursor: string | null;
+};
+
+type AdminReportDecisionResponse = {
+  report_id: string;
+  status: 'new' | 'resolved' | 'dismissed';
+  resolution: 'remove_post' | 'suspend_user' | 'warn' | 'none';
+  decided_at: string;
+};
+
+type CommunityRulesResponse = {
+  community_id: string;
+  review_categories: Array<'food' | 'goods' | 'childcare' | 'companionship' | 'translation' | 'transportation' | 'other'>;
+  auto_hide_report_threshold: number;
+  keyword_blocklist: string[];
+  language_preferences: Array<'en' | 'es' | 'zh'>;
+  announcement_pin_strategy: 'latest' | 'manual';
+  updated_at: string;
+};
+
+type AnnouncementCreateResponse = {
+  announcement_id: string;
+  community_id: string;
+  title: string;
+  body: string;
+  status: 'active' | 'deleted';
+  is_pinned: boolean;
+  published_at: string;
+  updated_at: string;
+  created_by: string;
+};
+
+type CommunityAnnouncementsApiResponse = {
+  items: Array<{
+    announcement_id: string;
+    community_id: string;
+    title: string;
+    body: string;
+    status: 'active' | 'deleted';
+    is_pinned: boolean;
+    published_at: string;
+    updated_at: string;
+    created_by: string;
+  }>;
 };
 
 type MatchResultsApiResponse = {
@@ -462,7 +548,87 @@ async function main() {
   assert(highRiskOffer.response.status === 200, `Expected high-risk offer create to return 200, got ${highRiskOffer.response.status}`);
   assert(highRiskOffer.body?.status === 'pending_review', `Expected high-risk offer to enter pending_review, got ${highRiskOffer.body?.status ?? '<missing>'}`);
 
-  const anchorToken = await mintAnchorToken();
+  const m5AnchorAnonymous = await createAnonymousSession();
+  const m5AnchorInvite = await createSmokeAnchorInvite();
+  await joinCommunityByInvite(m5AnchorAnonymous.body.access_token, seedIds.communityId, seedValues.communityInviteCode);
+  const m5AnchorOtpStart = await fetchJson<OtpStartResponse>('/v1/auth/otp/start', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m5AnchorAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      phone: `+1519${runId.slice(-7)}`,
+    }),
+  });
+  assert(m5AnchorOtpStart.response.status === 200, `Expected M5 anchor OTP start to return 200, got ${m5AnchorOtpStart.response.status}`);
+  assert(Boolean(m5AnchorOtpStart.body?.demo_code), 'Expected M5 anchor OTP start to include demo_code');
+
+  const m5AnchorVerified = await fetchJson<AuthSessionResponse>('/v1/auth/otp/verify', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m5AnchorAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      challenge_id: m5AnchorOtpStart.body.challenge_id,
+      code: m5AnchorOtpStart.body.demo_code,
+    }),
+  });
+  assert(m5AnchorVerified.response.status === 200, `Expected M5 anchor OTP verify to return 200, got ${m5AnchorVerified.response.status}`);
+  assert(m5AnchorVerified.body?.user.level === 'verified', `Expected M5 anchor OTP verify to return verified, got ${m5AnchorVerified.body?.user.level ?? '<missing>'}`);
+
+  const anchorActivation = await fetchJson<AnchorActivateResponse>('/v1/auth/anchor/activate', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m5AnchorVerified.body.access_token}`,
+    },
+    body: JSON.stringify({
+      invite_code: m5AnchorInvite.inviteCode,
+    }),
+  });
+  assert(anchorActivation.response.status === 200, `Expected anchor activation to return 200, got ${anchorActivation.response.status}`);
+  assert(anchorActivation.body?.community.community_id === seedIds.communityId, 'Anchor activation returned the wrong community');
+
+  const anchorTotpSecret = readTotpSecret(anchorActivation.body.otpauth_uri);
+  const anchorConfirm = await fetchJson<AuthSessionResponse>('/v1/auth/anchor/activate/confirm', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m5AnchorVerified.body.access_token}`,
+    },
+    body: JSON.stringify({
+      activation_id: anchorActivation.body.activation_id,
+      totp_code: generateTotpCode(anchorTotpSecret),
+    }),
+  });
+  assert(anchorConfirm.response.status === 200, `Expected anchor activation confirm to return 200, got ${anchorConfirm.response.status}`);
+  assert(anchorConfirm.body?.user.level === 'anchor', `Expected confirmed anchor level, got ${anchorConfirm.body?.user.level ?? '<missing>'}`);
+  assert(anchorConfirm.body?.issued_via === 'anchor_activate', `Expected issued_via=anchor_activate, got ${anchorConfirm.body?.issued_via ?? '<missing>'}`);
+
+  const anchorStepUpStart = await fetchJson<AnchorSessionStartResponse>('/v1/auth/anchor/session/start', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${anchorConfirm.body.access_token}`,
+    },
+    body: JSON.stringify({
+      community_id: seedIds.communityId,
+    }),
+  });
+  assert(anchorStepUpStart.response.status === 200, `Expected anchor session start to return 200, got ${anchorStepUpStart.response.status}`);
+
+  const anchorStepUp = await fetchJson<AnchorSessionVerifyResponse>('/v1/auth/anchor/session/verify', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${anchorConfirm.body.access_token}`,
+    },
+    body: JSON.stringify({
+      challenge_id: anchorStepUpStart.body.challenge_id,
+      totp_code: generateTotpCode(anchorTotpSecret),
+    }),
+  });
+  assert(anchorStepUp.response.status === 200, `Expected anchor session verify to return 200, got ${anchorStepUp.response.status}`);
+  assert(anchorStepUp.body?.user.level === 'anchor', `Expected anchor session verify to keep anchor level, got ${anchorStepUp.body?.user.level ?? '<missing>'}`);
+  assert(anchorStepUp.body?.issued_via === 'anchor_session', `Expected issued_via=anchor_session, got ${anchorStepUp.body?.issued_via ?? '<missing>'}`);
+
+  const anchorToken = anchorStepUp.body.access_token;
   const reviewQueue = await fetchJson<ReviewQueueResponse>(`/v1/admin/review_queue?community_id=${seedIds.communityId}`, {
     headers: {
       authorization: `Bearer ${anchorToken}`,
@@ -483,6 +649,74 @@ async function main() {
   });
   assert(approveDecision.response.status === 200, `Expected review decision to return 200, got ${approveDecision.response.status}`);
   assert(approveDecision.body?.status === 'active', `Expected approved review decision to activate the post, got ${approveDecision.body?.status ?? '<missing>'}`);
+
+  const reportQueue = await fetchJson<AdminReportQueueResponse>(`/v1/admin/report_queue?community_id=${seedIds.communityId}`, {
+    headers: {
+      authorization: `Bearer ${anchorToken}`,
+    },
+  });
+  assert(reportQueue.response.status === 200, `Expected report queue to return 200, got ${reportQueue.response.status}`);
+  const seedReport = reportQueue.body?.items.find((item) => item.report_id === seedIds.reportId);
+  assert(seedReport, 'Report queue did not include the seeded report');
+
+  const reportDecision = await fetchJson<AdminReportDecisionResponse>(`/v1/admin/report_queue/${seedIds.reportId}/decision`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${anchorToken}`,
+    },
+    body: JSON.stringify({
+      decision: 'warn',
+      notes: 'Warning issued during smoke test',
+    }),
+  });
+  assert(reportDecision.response.status === 200, `Expected report decision to return 200, got ${reportDecision.response.status}`);
+  assert(reportDecision.body?.resolution === 'warn', `Expected report resolution warn, got ${reportDecision.body?.resolution ?? '<missing>'}`);
+  assert(reportDecision.body?.status === 'resolved', `Expected report status resolved, got ${reportDecision.body?.status ?? '<missing>'}`);
+
+  const rulesUpdate = await fetchJson<CommunityRulesResponse>(`/v1/admin/communities/${seedIds.communityId}/rules`, {
+    method: 'PUT',
+    headers: {
+      authorization: `Bearer ${anchorToken}`,
+    },
+    body: JSON.stringify({
+      review_categories: ['goods'],
+      auto_hide_report_threshold: 2,
+      keyword_blocklist: ['cash only'],
+      language_preferences: ['en', 'es', 'zh'],
+      announcement_pin_strategy: 'manual',
+    }),
+  });
+  assert(rulesUpdate.response.status === 200, `Expected rules update to return 200, got ${rulesUpdate.response.status}`);
+  assert(
+    rulesUpdate.body?.review_categories.includes('goods'),
+    `Expected rules update to include goods, got ${rulesUpdate.body?.review_categories.join(', ') ?? '<missing>'}`,
+  );
+
+  const announcementTitle = `M5 smoke announcement ${runId}`;
+  const publishAnnouncement = await fetchJson<AnnouncementCreateResponse>(`/v1/admin/communities/${seedIds.communityId}/announcements`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${anchorToken}`,
+    },
+    body: JSON.stringify({
+      title: announcementTitle,
+      body: 'M5 smoke announcement body.',
+      is_pinned: true,
+    }),
+  });
+  assert(publishAnnouncement.response.status === 200, `Expected announcement publish to return 200, got ${publishAnnouncement.response.status}`);
+  assert(publishAnnouncement.body?.title === announcementTitle, 'Announcement publish returned the wrong title');
+
+  const communityAnnouncements = await fetchJson<CommunityAnnouncementsApiResponse>(`/v1/communities/${seedIds.communityId}/announcements`, {
+    headers: {
+      authorization: `Bearer ${anchorToken}`,
+    },
+  });
+  assert(communityAnnouncements.response.status === 200, `Expected community announcement read-side to return 200, got ${communityAnnouncements.response.status}`);
+  assert(
+    communityAnnouncements.body?.items.some((item) => item.announcement_id === publishAnnouncement.body.announcement_id),
+    'Community read-side did not include the published announcement',
+  );
 
   const publicFeed = await fetchJson<PostsListResponse>('/v1/posts?scope=public', {
     headers: {
@@ -1010,6 +1244,10 @@ async function main() {
           'GET /v1/me (200)',
           'POST /v1/auth/magic-link/start',
           'POST /v1/auth/magic-link/verify',
+          'POST /v1/auth/anchor/activate',
+          'POST /v1/auth/anchor/activate/confirm',
+          'POST /v1/auth/anchor/session/start',
+          'POST /v1/auth/anchor/session/verify',
           'POST /v1/posts (M3 requester request)',
           'GET /v1/posts/:post_id/matches',
           'GET /v1/posts/:post_id/matches?refresh=true',
@@ -1024,6 +1262,11 @@ async function main() {
           'POST /v1/conversations/:conversation_id/messages',
           'GET /v1/conversations/:conversation_id/messages',
           'GET /v1/ws/chat?token=...',
+          'GET /v1/admin/report_queue',
+          'POST /v1/admin/report_queue/:report_id/decision',
+          'PUT /v1/admin/communities/:community_id/rules',
+          'POST /v1/admin/communities/:community_id/announcements',
+          'GET /v1/communities/:community_id/announcements',
           'POST /v1/reports',
           'POST /v1/blocks',
           'POST /v1/conversations/:conversation_id/close (blocked -> 409)',
@@ -1107,6 +1350,50 @@ async function createSmokeCommunity() {
   };
 }
 
+async function createSmokeAnchorInvite() {
+  const config = await loadConfig();
+  const pool = new Pool({
+    connectionString: config.databaseUrl,
+  });
+  const inviteCode = `M5-ANCHOR-${runId}`;
+
+  try {
+    await pool.query(
+      `
+        insert into anchor_invites (
+          anchor_invite_id,
+          community_id,
+          code_hash,
+          org_name,
+          status,
+          created_at
+        )
+        values ($1, $2, $3, $4, 'active', now())
+        on conflict (code_hash) do update
+        set
+          community_id = excluded.community_id,
+          org_name = excluded.org_name,
+          status = 'active',
+          expires_at = null,
+          consumed_by_user_id = null,
+          consumed_at = null
+      `,
+      [
+        randomUUID(),
+        seedIds.communityId,
+        hashInviteCode(inviteCode),
+        'St. Kilian Parish Social Ministry',
+      ],
+    );
+  } finally {
+    await pool.end();
+  }
+
+  return {
+    inviteCode,
+  };
+}
+
 async function joinCommunityByInvite(accessToken: string, communityId: string, inviteCode: string) {
   const resolveInvite = await fetchJson<CommunityResolveResponse>('/v1/community-access/resolve', {
     method: 'POST',
@@ -1132,14 +1419,52 @@ async function joinCommunityByInvite(accessToken: string, communityId: string, i
   return joinInvite.body;
 }
 
-async function mintAnchorToken() {
-  const config = await loadConfig();
-  return mintDevAccessToken(config, {
-    sub: seedIds.anchorUserId,
-    level: 'anchor',
-    role: 'anchor',
-    community_ids: [seedIds.communityId],
-  });
+function hashInviteCode(inviteCode: string) {
+  return createHash('sha256').update(inviteCode.trim().toUpperCase()).digest('hex');
+}
+
+function readTotpSecret(otpauthUri: string) {
+  const url = new URL(otpauthUri);
+  const secret = url.searchParams.get('secret');
+  assert(Boolean(secret), 'TOTP secret missing from otpauth URI');
+  return secret!;
+}
+
+function generateTotpCode(secret: string, now = Date.now()) {
+  const decoded = decodeBase32(secret);
+  const counter = Math.floor(now / 1000 / 30);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+  const digest = createHmac('sha1', decoded).update(counterBuffer).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const binary =
+    ((digest[offset] & 0x7f) << 24) |
+    ((digest[offset + 1] & 0xff) << 16) |
+    ((digest[offset + 2] & 0xff) << 8) |
+    (digest[offset + 3] & 0xff);
+
+  return String(binary % 1_000_000).padStart(6, '0');
+}
+
+function decodeBase32(value: string) {
+  const normalized = value.toUpperCase().replace(/=+$/g, '').replace(/[^A-Z2-7]/g, '');
+  let bits = 0;
+  let buffer = 0;
+  const bytes: number[] = [];
+
+  for (const char of normalized) {
+    const index = base32Alphabet.indexOf(char);
+    assert(index >= 0, 'Invalid base32 secret');
+    buffer = (buffer << 5) | index;
+    bits += 5;
+
+    if (bits >= 8) {
+      bytes.push((buffer >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(bytes);
 }
 
 function futureIso(hoursAhead: number) {

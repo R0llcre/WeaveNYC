@@ -52,6 +52,9 @@ export type PostScope = (typeof postScopes)[number];
 export const reviewDecisions = ["approve", "reject", "request_more_info"] as const;
 export type ReviewDecision = (typeof reviewDecisions)[number];
 
+export const reviewPriorityLabels = ["P0", "P1", "P2"] as const;
+export type ReviewPriorityLabel = (typeof reviewPriorityLabels)[number];
+
 export const speechProviders = ["browser", "server_fallback"] as const;
 export type SpeechProvider = (typeof speechProviders)[number];
 
@@ -97,6 +100,21 @@ export const reportReasons = [
   "other",
 ] as const;
 export type ReportReason = (typeof reportReasons)[number];
+
+export const reportStatuses = ["new", "resolved", "dismissed"] as const;
+export type ReportStatus = (typeof reportStatuses)[number];
+
+export const reportDecisions = ["dismiss", "warn", "remove_post", "suspend_user"] as const;
+export type ReportDecision = (typeof reportDecisions)[number];
+
+export const announcementStatuses = ["active", "deleted"] as const;
+export type AnnouncementStatus = (typeof announcementStatuses)[number];
+
+export const announcementPinStrategies = ["latest", "manual"] as const;
+export type AnnouncementPinStrategy = (typeof announcementPinStrategies)[number];
+
+export const anchorSessionIssuedViaValues = ["anonymous", "otp", "magic_link", "refresh", "anchor_activate", "anchor_session"] as const;
+export type AnchorSessionIssuedVia = (typeof anchorSessionIssuedViaValues)[number];
 
 export const messageSafetyFlags = [
   "sensitive_ssn",

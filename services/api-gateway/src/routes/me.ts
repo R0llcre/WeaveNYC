@@ -18,7 +18,7 @@ export const meRoutes: FastifyPluginAsync = async (app) => {
       preHandler: [app.authenticate]
     },
     async (request, reply) => {
-      const user = await app.userStore.getAuthUserById(request.user.sub);
+      const user = request.currentUser ?? (await app.userStore.getAuthUserById(request.user.sub));
 
       if (!user) {
         reply.code(404);
@@ -32,7 +32,9 @@ export const meRoutes: FastifyPluginAsync = async (app) => {
           user_id: user.userId,
           level: user.level,
           role: user.role,
-          community_ids: user.communityIds
+          community_ids: user.communityIds,
+          anchor_community_id: request.user.anchor_community_id,
+          mfa_verified_at: request.user.mfa_verified_at
         }
       };
     }

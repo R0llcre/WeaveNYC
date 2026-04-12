@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import type { AdminReportQueueItem, ReportDecisionResponse } from "@weavenyc/shared";
+
 import {
   decodeConversationCursor,
   decodeMessageCursor,
@@ -8,6 +10,7 @@ import {
   sortConversations,
   sortMessagesDescending,
 } from "./repository.js";
+import { ChatServiceError } from "./types.js";
 import type {
   BlockRecord,
   ChatMessage,
@@ -65,6 +68,8 @@ export class InMemoryChatRepository implements ChatRepository {
   readonly blocks = new Map<string, BlockRecord>();
   readonly reports = new Map<string, ReportRecord>();
   readonly postCommunityIds = new Map<string, string>();
+  readonly postOwners = new Map<string, string>();
+  readonly userStatuses = new Map<string, "active" | "suspended" | "deleted">();
 
   async close() {}
 
@@ -81,6 +86,14 @@ export class InMemoryChatRepository implements ChatRepository {
 
   seedPostCommunityId(postId: string, communityId: string) {
     this.postCommunityIds.set(postId, communityId);
+  }
+
+  seedPostOwner(postId: string, userId: string) {
+    this.postOwners.set(postId, userId);
+  }
+
+  seedUserStatus(userId: string, status: "active" | "suspended" | "deleted") {
+    this.userStatuses.set(userId, status);
   }
 
   async listConversationsPage(input: {
@@ -263,6 +276,7 @@ export class InMemoryChatRepository implements ChatRepository {
     targetId: string;
     reason: ChatReportReason;
     detailText: string | null;
+    conversationId: string | null;
     reporterUserId: string;
     createdAt: string;
   }) {
@@ -273,11 +287,148 @@ export class InMemoryChatRepository implements ChatRepository {
       target_id: input.targetId,
       reason: input.reason,
       detail_text: input.detailText,
+      conversation_id: input.conversationId,
       reporter_user_id: input.reporterUserId,
+      status: "new",
+      resolution: null,
       created_at: input.createdAt,
+      resolved_at: null,
     };
     this.reports.set(report.report_id, report);
     return report;
+  }
+
+  async listReportQueuePage(input: {
+    communityId: string;
+    status?: "new" | "resolved" | "dismissed";
+    cursor: string | null;
+    limit: number;
+  }): Promise<CursorPage<AdminReportQueueItem>> {
+    const items = Array.from(this.reports.values())
+      .filter((report) => report.community_id === input.communityId)
+      .filter((report) => (input.status ? report.status === input.status : report.status === "new"))
+      .sort((left, right) => {
+        if (left.created_at === right.created_at) {
+          return right.report_id.localeCompare(left.report_id);
+        }
+        return right.created_at.localeCompare(left.created_at);
+      });
+
+    const sliced = items.slice(0, input.limit);
+    return {
+      items: sliced.map((report) => ({
+        report_id: report.report_id,
+        community_id: report.community_id,
+        target_type: report.target_type,
+        target_id: report.target_id,
+        reason: report.reason,
+        status: report.status,
+        created_at: report.created_at,
+        reporter_user_id: report.reporter_user_id,
+        reporter_alias: "Neighbor",
+        priority:
+          report.reason === "unsafe_behavior" || report.reason === "scam" || report.reason === "harassment"
+            ? "P0"
+            : report.reason === "misinformation"
+              ? "P1"
+              : "P2",
+        conversation_id: report.conversation_id,
+        target_summary: {
+          title: report.target_type === "post" ? "Reported post" : report.target_type === "user" ? "Reported user" : "Reported message",
+          body_preview: report.detail_text,
+          related_user_id:
+            report.target_type === "post"
+              ? this.postOwners.get(report.target_id) ?? null
+              : report.target_type === "user"
+                ? report.target_id
+                : null,
+        },
+        evidence_description: report.detail_text,
+      })),
+      nextCursor: items.length > sliced.length ? sliced[sliced.length - 1]?.report_id ?? null : null,
+    };
+  }
+
+  async decideReport(input: {
+    communityId: string;
+    reportId: string;
+    decision: "dismiss" | "warn" | "remove_post" | "suspend_user";
+    notes: string | null;
+    anchorUserId: string;
+    decidedAt: string;
+  }): Promise<ReportDecisionResponse | null> {
+    void input.notes;
+    void input.anchorUserId;
+    const report = this.reports.get(input.reportId);
+    if (!report || report.community_id !== input.communityId) {
+      return null;
+    }
+
+    if (report.status === "resolved" || report.status === "dismissed") {
+      return {
+        report_id: report.report_id,
+        status: report.status,
+        resolution: report.resolution ?? "none",
+        decided_at: report.resolved_at ?? report.created_at,
+      };
+    }
+
+    if (input.decision === "remove_post" && report.target_type !== "post") {
+      throw new ChatServiceError("remove_post is only valid for post reports", "invalid_input");
+    }
+
+    report.status = input.decision === "dismiss" ? "dismissed" : "resolved";
+    report.resolution = input.decision === "dismiss" ? "none" : input.decision;
+    report.resolved_at = input.decidedAt;
+    this.reports.set(report.report_id, report);
+
+    let affectedUserId: string | null = null;
+    if (input.decision === "suspend_user") {
+      affectedUserId =
+        report.target_type === "post"
+          ? this.postOwners.get(report.target_id) ?? report.target_id
+          : report.target_id;
+      this.userStatuses.set(affectedUserId, "suspended");
+    }
+
+    return {
+      report_id: report.report_id,
+      status: report.status,
+      resolution: report.resolution ?? "none",
+      decided_at: input.decidedAt,
+      affected_user_id: affectedUserId,
+    };
+  }
+
+  async autoHidePostIfThresholdReached(input: { communityId: string; postId: string }) {
+    const reportCount = Array.from(this.reports.values()).filter(
+      (report) =>
+        report.community_id === input.communityId &&
+        report.target_type === "post" &&
+        report.target_id === input.postId &&
+        report.status !== "dismissed" &&
+        report.status !== "resolved",
+    ).length;
+    if (reportCount < 3) {
+      return false;
+    }
+
+    for (const report of this.reports.values()) {
+      if (
+        report.community_id === input.communityId &&
+        report.target_type === "post" &&
+        report.target_id === input.postId &&
+        report.status !== "dismissed" &&
+        report.status !== "resolved"
+      ) {
+        report.status = "resolved";
+        report.resolution = "remove_post";
+        report.resolved_at = new Date().toISOString();
+        this.reports.set(report.report_id, report);
+      }
+    }
+
+    return true;
   }
 
   async getMessage(messageId: string, conversationId: string) {

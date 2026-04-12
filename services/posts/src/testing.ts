@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import type {
+  AdminDashboardResponse,
+  Announcement,
+  AnnouncementsResponse,
+  CommunityRules,
   CommunityAccessResolveResponse,
   CreatePostRequest,
   MyPostsResponse,
@@ -9,15 +13,28 @@ import type {
   ReviewQueueResponse,
 } from '@weavenyc/shared';
 
-import { canViewPost, ensureActorCanPublish, getPostActions, isCommunityMember } from './policy.js';
-import { classifyPostRisk, requiresReview } from './risk.js';
+import {
+  canViewPost,
+  ensureActorCanPublish,
+  getPostActions,
+  isCommunityAnchor,
+  isCommunityMember,
+} from './policy.js';
+import { classifyPostRisk, findKeywordBlocklistMatch, requiresReview } from './risk.js';
 import type {
+  AdminDashboardInput,
+  CommunityRulesInput,
   CommunityMembershipResult,
+  CreateAnnouncementInput,
+  DeleteAnnouncementInput,
+  ListAnnouncementsInput,
   PostActor,
   PostRecord,
   PostsService,
   ReviewDecisionInput,
   ReviewQueueInput,
+  UpdateAnnouncementInput,
+  UpdateCommunityRulesInput,
 } from './types.js';
 import { PostsServiceError } from './types.js';
 
@@ -131,10 +148,48 @@ function toSummary(detail: PostDetail) {
   };
 }
 
+function defaultCommunityRules(communityId: string): CommunityRules {
+  return {
+    community_id: communityId,
+    review_categories: ['childcare', 'transportation'],
+    auto_hide_report_threshold: 3,
+    keyword_blocklist: [],
+    language_preferences: [],
+    announcement_pin_strategy: 'latest',
+    updated_at: new Date(0).toISOString(),
+  };
+}
+
+type DashboardMetricsSource = {
+  countAcceptedContactsThisWeek(communityId: string): number;
+  countReportsThisWeek(communityId: string): number;
+  countPendingReports(communityId: string): number;
+};
+
 export class InMemoryPostsService implements PostsService {
   readonly communityAccessCodes = new Map<string, CommunityAccessResolveResponse>();
   readonly memberships = new Map<string, CommunityMembershipResult>();
   readonly posts = new Map<string, PostRecord>();
+  readonly rules = new Map<string, CommunityRules>();
+  readonly announcements = new Map<string, Announcement>();
+  private dashboardMetricsSource: DashboardMetricsSource | null = null;
+
+  attachDashboardMetricsSource(source: DashboardMetricsSource) {
+    this.dashboardMetricsSource = source;
+  }
+
+  private assertAnchorActor(actor: PostActor, communityId: string) {
+    if (!isCommunityAnchor(actor, communityId)) {
+      throw new PostsServiceError('Only anchors can manage this community', 'forbidden');
+    }
+  }
+
+  private assertKeywordAllowed(value: string, blocklist: readonly string[]) {
+    const match = findKeywordBlocklistMatch(value, blocklist);
+    if (match) {
+      throw new PostsServiceError(`Blocked keyword detected: ${match}`, 'invalid_input');
+    }
+  }
 
   async ping() {}
   async close() {}
@@ -175,6 +230,8 @@ export class InMemoryPostsService implements PostsService {
       throw new PostsServiceError('Join the community before publishing', 'membership_required');
     }
 
+    const rules = this.rules.get(input.request.community_id) ?? defaultCommunityRules(input.request.community_id);
+    this.assertKeywordAllowed(`${input.request.title}\n${input.request.body}`, rules.keyword_blocklist);
     const riskLevel = classifyPostRisk(input.request);
     if ((input.request.post_type === 'offer' || riskLevel === 'high') && input.actor.level === 'anonymous') {
       throw new PostsServiceError('Verification is required for this post', 'verified_required');
@@ -192,7 +249,9 @@ export class InMemoryPostsService implements PostsService {
       language: input.request.language,
       locationZip: input.request.location_zip,
       privacy: input.request.privacy,
-      status: requiresReview(riskLevel) ? 'pending_review' : 'active',
+      status: requiresReview(riskLevel, input.request.category, rules.review_categories)
+        ? 'pending_review'
+        : 'active',
       riskLevel,
       expiresAt: input.request.expires_at || nowPlus(24),
       createdAt: now,
@@ -301,6 +360,11 @@ export class InMemoryPostsService implements PostsService {
       throw new PostsServiceError('Only active or pending review posts can be updated', 'invalid_state');
     }
 
+    const rules = this.rules.get(post.communityId) ?? defaultCommunityRules(post.communityId);
+    this.assertKeywordAllowed(
+      `${input.request.title ?? post.title}\n${input.request.body ?? post.body}`,
+      rules.keyword_blocklist,
+    );
     const updated: PostRecord = {
       ...post,
       category: input.request.category ?? post.category,
@@ -328,7 +392,9 @@ export class InMemoryPostsService implements PostsService {
       throw new PostsServiceError('Verification is required for this post', 'verified_required');
     }
 
-    updated.status = requiresReview(updated.riskLevel) ? 'pending_review' : 'active';
+    updated.status = requiresReview(updated.riskLevel, updated.category, rules.review_categories)
+      ? 'pending_review'
+      : 'active';
     this.posts.set(updated.postId, updated);
     return toDetail(input.actor, updated);
   }
@@ -399,7 +465,7 @@ export class InMemoryPostsService implements PostsService {
     const cursor = decodeCursor(input.cursor);
     const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
 
-    if (input.actor.role !== 'anchor' || !input.actor.communityIds.includes(input.communityId)) {
+    if (!isCommunityAnchor(input.actor, input.communityId)) {
       throw new PostsServiceError('Only anchors can access the review queue', 'forbidden');
     }
 
@@ -439,7 +505,7 @@ export class InMemoryPostsService implements PostsService {
       throw new PostsServiceError('Only anchors can review posts', 'forbidden');
     }
 
-    if (!input.actor.communityIds.includes(post.communityId)) {
+    if (!isCommunityAnchor(input.actor, post.communityId)) {
       throw new PostsServiceError('Anchor does not belong to this community', 'forbidden');
     }
 
@@ -460,5 +526,118 @@ export class InMemoryPostsService implements PostsService {
       status: post.status,
       decided_at: new Date().toISOString(),
     };
+  }
+
+  async getAdminDashboard(input: AdminDashboardInput): Promise<AdminDashboardResponse> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const communityPosts = Array.from(this.posts.values()).filter((post) => post.communityId === input.communityId);
+
+    return {
+      community_id: input.communityId,
+      posts_this_week_request_count: communityPosts.filter(
+        (post) => post.postType === 'request' && new Date(post.createdAt).getTime() >= oneWeekAgo,
+      ).length,
+      posts_this_week_offer_count: communityPosts.filter(
+        (post) => post.postType === 'offer' && new Date(post.createdAt).getTime() >= oneWeekAgo,
+      ).length,
+      accepted_contacts_this_week_count:
+        this.dashboardMetricsSource?.countAcceptedContactsThisWeek(input.communityId) ?? 0,
+      reports_this_week_count: this.dashboardMetricsSource?.countReportsThisWeek(input.communityId) ?? 0,
+      pending_post_review_count: communityPosts.filter((post) => post.status === 'pending_review').length,
+      pending_report_count: this.dashboardMetricsSource?.countPendingReports(input.communityId) ?? 0,
+    };
+  }
+
+  async getCommunityRules(input: CommunityRulesInput): Promise<CommunityRules> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    return this.rules.get(input.communityId) ?? defaultCommunityRules(input.communityId);
+  }
+
+  async updateCommunityRules(input: UpdateCommunityRulesInput): Promise<CommunityRules> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const nextRules: CommunityRules = {
+      community_id: input.communityId,
+      ...input.rules,
+      updated_at: new Date().toISOString(),
+    };
+    this.rules.set(input.communityId, nextRules);
+    return nextRules;
+  }
+
+  async listAnnouncements(input: ListAnnouncementsInput): Promise<AnnouncementsResponse> {
+    if (input.actor) {
+      const isScopedAnchor = isCommunityAnchor(input.actor, input.communityId);
+      const isMember = input.actor.communityIds.includes(input.communityId);
+      if (!isScopedAnchor && !isMember) {
+        throw new PostsServiceError('Community membership is required', 'membership_required');
+      }
+    }
+
+    const items = Array.from(this.announcements.values())
+      .filter((announcement) => announcement.community_id === input.communityId)
+      .filter((announcement) => input.includeDeleted || announcement.status === 'active')
+      .sort((left, right) => right.published_at.localeCompare(left.published_at));
+    return { items };
+  }
+
+  async createAnnouncement(input: CreateAnnouncementInput): Promise<Announcement> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const rules = this.rules.get(input.communityId) ?? defaultCommunityRules(input.communityId);
+    this.assertKeywordAllowed(`${input.request.title}\n${input.request.body}`, rules.keyword_blocklist);
+
+    const announcement: Announcement = {
+      announcement_id: randomUUID(),
+      community_id: input.communityId,
+      title: input.request.title,
+      body: input.request.body,
+      status: 'active',
+      is_pinned: input.request.is_pinned ?? false,
+      created_by: input.actor.userId,
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    this.announcements.set(announcement.announcement_id, announcement);
+    return announcement;
+  }
+
+  async updateAnnouncement(input: UpdateAnnouncementInput): Promise<Announcement> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const announcement = this.announcements.get(input.announcementId);
+    if (!announcement || announcement.community_id !== input.communityId) {
+      throw new PostsServiceError('Announcement not found', 'not_found');
+    }
+
+    const rules = this.rules.get(input.communityId) ?? defaultCommunityRules(input.communityId);
+    this.assertKeywordAllowed(
+      `${input.request.title ?? announcement.title}\n${input.request.body ?? announcement.body}`,
+      rules.keyword_blocklist,
+    );
+
+    const updated: Announcement = {
+      ...announcement,
+      title: input.request.title ?? announcement.title,
+      body: input.request.body ?? announcement.body,
+      is_pinned: input.request.is_pinned ?? announcement.is_pinned,
+      updated_at: new Date().toISOString(),
+    };
+    this.announcements.set(updated.announcement_id, updated);
+    return updated;
+  }
+
+  async deleteAnnouncement(input: DeleteAnnouncementInput): Promise<Announcement> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const announcement = this.announcements.get(input.announcementId);
+    if (!announcement || announcement.community_id !== input.communityId) {
+      throw new PostsServiceError('Announcement not found', 'not_found');
+    }
+
+    const deleted: Announcement = {
+      ...announcement,
+      status: 'deleted',
+      updated_at: new Date().toISOString(),
+    };
+    this.announcements.set(deleted.announcement_id, deleted);
+    return deleted;
   }
 }

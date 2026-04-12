@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 
 import { z } from 'zod';
-import { authIdentityHashPepperEnvVar } from '@weavenyc/shared';
+import { anchorTotpEncryptionKeyEnvVar, authIdentityHashPepperEnvVar } from '@weavenyc/shared';
 
 function findWorkspaceRoot(startDir: string) {
   let currentDir = startDir;
@@ -26,6 +26,7 @@ function findWorkspaceRoot(startDir: string) {
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = findWorkspaceRoot(moduleDir);
 const devIdentityHashPepper = 'weavenyc-dev-identity-pepper';
+const devAnchorTotpEncryptionKey = 'weavenyc-dev-anchor-totp-encryption-key';
 
 function parseEnvFile(content: string): Record<string, string> {
   return content
@@ -71,7 +72,8 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().default('weavenyc-api-gateway'),
   JWT_ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
-  [authIdentityHashPepperEnvVar]: z.string().min(1).optional()
+  [authIdentityHashPepperEnvVar]: z.string().min(1).optional(),
+  [anchorTotpEncryptionKeyEnvVar]: z.string().min(1).optional()
 });
 
 export interface AppConfig {
@@ -94,6 +96,7 @@ export interface AppConfig {
   };
   refreshTokenTtlSeconds: number;
   identityHashPepper: string;
+  anchorTotpEncryptionKey: string;
 }
 
 export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promise<AppConfig> {
@@ -104,17 +107,30 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
   });
   const sourceIdentityPepper = source[authIdentityHashPepperEnvVar]?.trim();
   const workspaceIdentityPepper = workspaceEnv[authIdentityHashPepperEnvVar]?.trim();
+  const sourceAnchorTotpKey = source[anchorTotpEncryptionKeyEnvVar]?.trim();
+  const workspaceAnchorTotpKey = workspaceEnv[anchorTotpEncryptionKeyEnvVar]?.trim();
   const identityHashPepper =
     env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
       ? sourceIdentityPepper ?? workspaceIdentityPepper
       : sourceIdentityPepper;
+  const anchorTotpEncryptionKey =
+    env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
+      ? sourceAnchorTotpKey ?? workspaceAnchorTotpKey
+      : sourceAnchorTotpKey;
 
   if (!identityHashPepper) {
     throw new Error(`Missing required environment variable: ${authIdentityHashPepperEnvVar}`);
   }
 
+  if (!anchorTotpEncryptionKey) {
+    throw new Error(`Missing required environment variable: ${anchorTotpEncryptionKeyEnvVar}`);
+  }
+
   if (env.NODE_ENV === 'production' && identityHashPepper === devIdentityHashPepper) {
     throw new Error(`${authIdentityHashPepperEnvVar} must not use the checked-in development/test sample in production`);
+  }
+  if (env.NODE_ENV === 'production' && anchorTotpEncryptionKey === devAnchorTotpEncryptionKey) {
+    throw new Error(`${anchorTotpEncryptionKeyEnvVar} must not use the checked-in development/test sample in production`);
   }
   const privateKeyPath = resolve(workspaceRoot, env.JWT_SIGNING_PRIVATE_KEY);
   const publicKeyPath = resolve(workspaceRoot, env.JWT_SIGNING_PUBLIC_KEY);
@@ -142,6 +158,7 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
       publicKey
     },
     refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_SECONDS,
-    identityHashPepper
+    identityHashPepper,
+    anchorTotpEncryptionKey
   };
 }

@@ -24,12 +24,14 @@ import { createRedisRefreshTokenStore, type RefreshTokenStore } from './lib/refr
 import { createStubSpeechProvider, type SpeechProvider } from './lib/speech-providers.js';
 import { createPgUserStore, type UserStore } from './lib/user-store.js';
 import { authRoutes } from './routes/auth.js';
+import { adminCommunityRoutes } from './routes/admin-community.js';
 import { communityAccessRoutes } from './routes/community-access.js';
 import { healthRoutes } from './routes/health.js';
 import { matchRoutes } from './routes/match.js';
 import { meRoutes } from './routes/me.js';
 import { postRoutes } from './routes/posts.js';
 import { reviewQueueRoutes } from './routes/review-queue.js';
+import { reportQueueRoutes } from './routes/report-queue.js';
 import { resourceRoutes } from './routes/resources.js';
 import { speechRoutes } from './routes/speech.js';
 import { contactRequestRoutes } from './routes/contact-requests.js';
@@ -162,6 +164,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.decorate('authenticate', async (request) => {
     await request.jwtVerify();
+    const currentUser = await app.userStore.getAuthUserById(request.user.sub);
+    if (!currentUser) {
+      const error = new Error('User not found') as Error & { statusCode?: number };
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (currentUser.status !== 'active') {
+      const error = new Error('User account is not active') as Error & { statusCode?: number };
+      error.statusCode = 403;
+      throw error;
+    }
+
+    request.currentUser = currentUser;
   });
 
   app.addHook('onClose', async () => {
@@ -181,6 +197,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(adminCommunityRoutes);
   await app.register(communityAccessRoutes);
   await app.register(matchRoutes);
   await app.register(meRoutes);
@@ -190,6 +207,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(conversationRoutes);
   await app.register(chatSafetyRoutes);
   await app.register(reviewQueueRoutes);
+  await app.register(reportQueueRoutes);
   await app.register(resourceRoutes);
   await app.register(speechRoutes);
 

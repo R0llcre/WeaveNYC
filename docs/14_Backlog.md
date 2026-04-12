@@ -8,11 +8,13 @@
 >
 > **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前 canonical baseline**：`main = M2 completed`
+> **当前 canonical baseline**：`main = M4 completed`
 >
-> **Branch closeouts**：`feature/m4-chat-safety = M3 completed on branch` · `M4 completed on branch`
+> **Branch closeouts**：`M3 completed on branch` · `M4 completed on branch` · `M5 completed on branch`
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M5 pending`
+> **Current branch**：`feature/m5-anchor-admin = M5 completed on branch`
+>
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed on branch` · `M6 optional next phase`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
@@ -20,7 +22,7 @@
 > - `Completed (M2)`：代码与 closeout 已落地，并已成为当前 workspace 的已关闭基线；不再表示“当前 feature branch 待合并状态”
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
-> 说明：`Completed (M1)` / `Completed (M2)` 都表示“实现与对应 closeout 已完成”；M3/M4 的实现状态只作为 branch closeout 记录，不改变 main baseline。当前阶段真值统一以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 为准。
+> 说明：story 级 `Completed (M5)` 只表示实现已落地；phase 级真值仍以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 和 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准。
 
 ---
 
@@ -88,7 +90,7 @@
 - Acceptance:
   - `POST /v1/auth/otp/start` → 生成 6 位 OTP，存入 Redis（TTL 5min），通过 provider abstraction 发送；本地默认 stub provider
   - `POST /v1/auth/otp/verify` → 验证 OTP → 更新 user level 为 `verified`
-  - 存储 `phone_hash`（SHA-256 + salt），**不存储**明文手机号
+  - 存储 `phone_hash`（`HMAC-SHA256(IDENTITY_HASH_PEPPER, salt + ":" + normalized_phone)`），**不存储**明文手机号
   - 签发新 JWT（level: verified）
   - 错误处理：OTP 过期、5 次错误后 challenge 失效
   - 本地开发可通过 demo code 跑通 verify，不依赖真实短信供应商
@@ -118,7 +120,7 @@
   - 权限守卫：`requireLevel("anonymous" | "verified" | "anchor")`
   - 未授权请求返回 401，权限不足返回 403
 
-### E1-S5: Anchor admin invitation flow — P1 · 3 SP · `Pending (M5)`
+### E1-S5: Anchor admin invitation flow — P1 · 3 SP · `Completed (M5)`
 
 - As a verified user, I can use an Anchor invitation code + setup TOTP to become L3 Admin.
 - Acceptance:
@@ -454,7 +456,7 @@
 
 ---
 
-## Epic E7: Anchor Admin Console（管理后台）
+## Epic E7: Anchor Admin Console（管理后台）— Status: `Completed (M5)`
 
 > 里程碑：M5（Week 5-6）
 > 来源：[02_PRD §5.7](./02_PRD.md)
@@ -463,7 +465,7 @@
 
 - As an Anchor admin, I can log in with my credentials + TOTP.
 - Acceptance:
-  - 登录页面：手机号/邮箱 + OTP → TOTP 二步验证
+  - 登录页面：verified session（OTP 或 magic-link）→ 已激活 anchor 的 TOTP 二步验证
   - 登录后 JWT 包含 `level: "anchor"`、`community_id`
   - 会话超时：4 小时无操作自动登出
 
@@ -480,7 +482,8 @@
 
 - As an Anchor admin, I can publish announcements to my community.
 - Acceptance:
-  - `POST /v1/communities/:id/announcements` → `{ title, body }`
+  - `POST /v1/admin/communities/:id/announcements` → `{ title, body, is_pinned? }`
+  - `PATCH` / `DELETE /v1/admin/communities/:id/announcements/:announcement_id` 可编辑和软删除
   - 无论是否启用 `E10`，公告都必须出现在社区首页 banner / in-app 列表
   - 若 `E10` 已启用，再补 push 通知到社区成员
   - 公告列表页：按时间倒序，支持编辑/删除
@@ -554,7 +557,7 @@
 
 ---
 
-## Epic E9: PWA Infrastructure（PWA 基础设施）— Status: `In Progress`
+## Epic E9: PWA Infrastructure（PWA 基础设施）— Status: `Partially completed`
 
 > 里程碑：M0-M1
 > 来源：[06_Blueprints](./06_Blueprints.md) + [02_PRD §6](./02_PRD.md)
