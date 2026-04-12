@@ -29,16 +29,21 @@ const kitchenCodes = new Set(["SK", "SKK", "SKM"]);
 const supportedTypeCodePattern = "FPH|FPK|FPM|FPV|FP|SKK|SKM|SK";
 const headerStartRegex = new RegExp(`^\\d{5}\\s+(${supportedTypeCodePattern})\\b`);
 const headerCaptureRegex = new RegExp(`^(\\d{5})\\s+(${supportedTypeCodePattern})\\b(?:\\s+(.*))?$`);
+const recordIdRegex = /^\d{5}$/;
+const typeOnlyRegex = new RegExp(`^(${supportedTypeCodePattern})$`);
+const boroughCodeRegex = /^(BK|BX|LI|MN|NY|QN|SI)$/i;
 const footerNoiseRegexes = [
   /^FP - \d+$/i,
+  /^FP = \d+$/i,
   /^SK - \d+$/i,
+  /^SK = \d+$/i,
   /^Page \d+ of \d+$/i,
-  /^CFC \(ACTIVE\) PROGRAMS info as of /i,
+  /^CFC \(ACTIVE\) PROG.*info as of /i,
   /^\d{1,2}\/\d{1,2}\/\d{2,4}$/,
   /^\(info by boro in alpha order\)$/i,
   /^(ID|TYPE|PROGRAM|ORG PHONE|DISTADD|DISTBORO|DISTZIP|DAYS|HOURS)$/i
 ] as const;
-const phoneRegex = /(?:\(\d{3}\)|\d{3})[-\s]?\d{3}[-\s]?\d{4}(?:\s*\(\d+\))?/;
+const phoneRegex = /(?:\(\d{3}\)|\d{3})[-\s]*\d{3}[-\s]*\d{4}(?:\s*\(\d+\))?/;
 const minimumLiveParseRatio = 0.98;
 const maximumLiveSkippedRecords = 12;
 
@@ -59,7 +64,8 @@ function parseCfcText(content: string): CfcParseResult {
     .filter(Boolean);
 
   const recordStartIndexes = lines.reduce<number[]>((indexes, line, index) => {
-    if (headerStartRegex.test(line)) {
+    const nextLine = lines[index + 1] ?? "";
+    if (headerStartRegex.test(line) || (recordIdRegex.test(line) && typeOnlyRegex.test(nextLine))) {
       indexes.push(index);
     }
     return indexes;
@@ -89,10 +95,21 @@ export function parseRecordBlock(block: string[]): NormalizedResourceRecord | nu
   const cleanedBlock = block.filter((line) => !isNoiseLine(line));
   const header = cleanedBlock[0] ?? "";
   const headerMatch = header.match(headerCaptureRegex);
-  if (!headerMatch) {
-    return null;
+  if (headerMatch) {
+    return parseCombinedRecordBlock(cleanedBlock, headerMatch);
   }
 
+  if (recordIdRegex.test(header) && typeOnlyRegex.test(cleanedBlock[1] ?? "")) {
+    return parseSplitRecordBlock(cleanedBlock);
+  }
+
+  return null;
+}
+
+function parseCombinedRecordBlock(
+  cleanedBlock: string[],
+  headerMatch: RegExpMatchArray,
+): NormalizedResourceRecord | null {
   const [, id, rawType = "FP", headerName = ""] = headerMatch;
   const contentLines = cleanedBlock.slice(1);
   const zipLineIndex = contentLines.findIndex((line) => extractZipAndDays(line) !== null);
@@ -174,7 +191,7 @@ export function parseRecordBlock(block: string[]): NormalizedResourceRecord | nu
     return null;
   }
 
-  return {
+  return buildRecord({
     source: "cfc_active",
     sourceRef: `cfc_active:${id}`,
     name,
@@ -191,7 +208,88 @@ export function parseRecordBlock(block: string[]): NormalizedResourceRecord | nu
     lng: null,
     geoPrecision: "unknown",
     sourceUrl: cfcActiveSourceUrl
-  };
+  });
+}
+
+function parseSplitRecordBlock(cleanedBlock: string[]): NormalizedResourceRecord | null {
+  const id = cleanedBlock[0] ?? "";
+  const rawType = cleanedBlock[1] ?? "FP";
+  const contentLines = cleanedBlock.slice(2);
+
+  let cursor = contentLines.length;
+  let hoursLine = "";
+  if (looksLikeHoursLine(contentLines[cursor - 1] ?? "")) {
+    hoursLine = contentLines[cursor - 1] ?? "";
+    cursor -= 1;
+  }
+
+  const days = normalizeNullable(contentLines[cursor - 1] ?? "");
+  if (!days || !looksLikeDayDescriptor(days)) {
+    return null;
+  }
+  cursor -= 1;
+
+  const zipLine = contentLines[cursor - 1] ?? "";
+  if (!recordIdRegex.test(zipLine)) {
+    return null;
+  }
+  const zip = normalizeZip(zipLine);
+  cursor -= 1;
+
+  let boroughCode: string | null = null;
+  const boroughLine = contentLines[cursor - 1] ?? "";
+  if (boroughCodeRegex.test(boroughLine)) {
+    boroughCode = boroughLine.toUpperCase();
+    cursor -= 1;
+  }
+
+  const beforeRegionLines = contentLines.slice(0, cursor);
+  const phoneIndex = beforeRegionLines.findIndex((line) => phoneRegex.test(line) || isNoPhoneMarker(line));
+  if (phoneIndex < 0) {
+    return null;
+  }
+
+  const nameParts = normalizeTextParts(beforeRegionLines.slice(0, phoneIndex));
+  const phoneLine = beforeRegionLines[phoneIndex] ?? "";
+  const extractedPhone = splitPhoneAndText(phoneLine);
+  const phone = extractedPhone.phone;
+  if (extractedPhone.leadingText) {
+    nameParts.push(extractedPhone.leadingText);
+  }
+
+  const addressParts = normalizeTextParts([
+    extractedPhone.trailingText,
+    ...beforeRegionLines.slice(phoneIndex + 1),
+  ]).map((value) => toTitleCase(stripNoPhoneMarker(value)));
+
+  const name = normalizeNullable(nameParts.join(" "));
+  const addressText = normalizeNullable(addressParts.join(" "));
+  if (!name || !addressText) {
+    return null;
+  }
+
+  return buildRecord({
+    source: "cfc_active",
+    sourceRef: `cfc_active:${id}`,
+    name,
+    type: mapType(rawType),
+    addressText,
+    city: inferCityFromRegion(boroughCode, zip),
+    state: "NY",
+    zip,
+    phone,
+    hoursJson: buildHoursFromSchedule(days, hoursLine),
+    languages: [],
+    eligibilityNotes: "Official CFC Active listing. Call ahead to confirm hours.",
+    lat: null,
+    lng: null,
+    geoPrecision: "unknown",
+    sourceUrl: cfcActiveSourceUrl,
+  });
+}
+
+function buildRecord(record: NormalizedResourceRecord) {
+  return record;
 }
 
 function normalizeNullable(value: string | null): string | null {
@@ -235,7 +333,7 @@ function isNoiseLine(line: string) {
 }
 
 function looksLikeHoursLine(line: string) {
-  return /\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b/i.test(line);
+  return /\b\d{1,2}(?::\d{1,2})?\s*(?:AM|PM|A|P)\b/i.test(line);
 }
 
 function looksLikeAddressLine(line: string) {
@@ -295,7 +393,11 @@ function splitPhoneAndText(line: string): {
 }
 
 function stripNoPhoneMarker(line: string) {
-  return line.replace(/^NONE PROVIDED\s*/i, "").trim();
+  return line.replace(/^NONE PROV(?:IDED|ED)\s*/i, "").trim();
+}
+
+function isNoPhoneMarker(line: string) {
+  return stripNoPhoneMarker(line) !== line;
 }
 
 function extractZipAndDays(line: string): {

@@ -115,6 +115,10 @@ CTA：Preview
 - high risk：Pending review（待审核）
 - Closed（已关闭）
 
+发布后跳转：
+- `Request`：直接进入 `/posts/:postId/matches`
+- `Offer`：留在 `/posts/:postId` 帖子详情页
+
 ---
 
 ## 4) Matching（行动方案）
@@ -122,7 +126,7 @@ CTA：Preview
 ### Screen 8：Match Results
 元素：
 - Header：3 ways to act now
-- Cards（默认展示 3 张；用户点击"换一批"可加载更多，最多 6 张）：
+- Cards（默认展示 3 张；用户点击"换一批"最多再拿 1 批，累计最多 6 张）：
   - Neighbor Match（邻里）
   - Official Resource（官方兜底）
 
@@ -138,56 +142,58 @@ Official card字段：
 规则：
 - 匿名账户点击 Contact 时：先完成 OTP / magic link 升级，再发送 `contact_request`
 - 已 verified 用户可直接发起 `contact_request`
+- `refresh=true` 只允许再拿 1 批新结果；超过预算后继续返回当前批次，不再扩张
 - **必须至少包含 1 个官方资源卡**（兜底）
 - 若无邻里匹配：展示 3 个官方资源（按开放状态+距离排序）
+- 邻里匹配池只包含：同社区、`active`、未过期、非 `anchor_mediated` 的 Offer
+- 信任标签只使用当前已存在的信号；`anchor_reviewed` 仅在候选帖子本身已经带有 Anchor review 信号时显示，不引入新的“已完成帮助验证”流程
 
 ### Screen 9：Contact Confirmation
-目的：防骚扰（双方同意才建立聊天）
+目的：防骚扰（先建联系请求，再由对方决定是否进入真实聊天）
 元素：
 - 文案：Only share what you are comfortable with.
 - CTA：Request contact / Offer contact
 - Secondary：Back
 
 规则：
-- 当前若为匿名账户：先升级为 verified，再允许发送/接受联系请求
-- 发起方提交后，接收方在 Contact Requests Inbox 里看到待处理请求
-- 接收方可以在 Inbox 中 Accept / Reject
-- 双方都完成同意后创建 Conversation
+- 当前若为匿名账户：先升级为 verified，再允许发送联系请求
+- 发起方提交后，只创建 `contact_request`
+- 接收方在 canonical `/inbox` 的 Requests 视图里看到待处理请求；`/contact-requests` 仅作为兼容跳转
+- 接收方可以在 `/inbox` 中 Accept / Reject
+- `accept` 之后立即进入真实 `conversation`；消息流、举报、拉黑和安全检测都在同一线程页完成
 
 ---
 
-## 5) Inbox（消息）
+## 5) Inbox（联系请求与聊天）
 
-### Screen 10：Contact Requests Inbox
+### Screen 10：Inbox
 元素：
-- Pending requests list（发起方昵称、关联帖子、时间）
-- Actions：Accept / Reject
-- Empty state：No pending contact requests.
+- Tabs：Requests / Conversations
+- Requests list（发起方昵称、关联帖子、时间）
+- Conversations list（对方昵称、最后一条消息预览、时间、未读 badge）
+- Actions：Accept / Reject / Open conversation
+- Empty state：No pending items yet.
 
 规则：
-- 仅 verified 用户可看见自己的 pending 请求
-- 接受后跳转到对应 Conversation
+- 仅 verified 用户可看见自己的 pending requests
+- Requests 和 Conversations 共享同一个 `/inbox` 页面与 badge 入口
+- 接受后跳转到对应 Conversation Thread
 - 拒绝后该请求不再显示
+- 按 `last_activity_at` 排序的 conversations 与 pending requests 使用同一套 inbox 文案
+- polling 继续承担 inbox 更新；进入线程后实时消息通过 WebSocket 推送
 
-### Screen 11：Conversation List
+### Screen 12：Conversation Thread
 元素：
-- 列表项：对方匿名昵称 + 最后一条消息摘要 + 时间 + 未读数
-- Search（可选）
-
-### Screen 12：Chat
-元素：
-- Safety banner：Report / Block
-- Message input：文本；可选语音输入
-- Quick replies：
-  - “I can help”
-  - “What time works?”
-  - “Can you call the pantry?”
-- CTA：Mark completed（标记完成）
+- Participant preview
+- Message list
+- Composer
+- Quick phrases
+- Actions：Report / Block / Close
 
 规则：
-- 新账号：发送频率限制（rate limit）
-- 只有已接受的 `contact_request` 才能进入聊天页
-- 触发敏感词：弹窗提醒 + 一键举报
+- 只有 accepted conversation 的 participant 才能进入线程
+- 关闭或拉黑后不可继续发送消息
+- 发送前运行敏感信息检测；命中后阻断发送并提示删除后重试
 
 ---
 
@@ -220,19 +226,15 @@ Official card字段：
 - Privacy
   - Default post visibility
   - Location precision：ZIP only / Neighborhood
-  - Data sync：Local only / P2P opt-in / Cloud opt-in
 - Safety
   - Blocked users
   - Reports
 - Help & feedback
 
-规则：
-- 默认 Local only；用户主动选择才开启 P2P 或云同步
-
 ---
 
-## 8) Anchor Admin（Web 最小后台）
-> MVP 可用一个简单的 Web 管理台即可。
+## 8) Anchor Admin（M5 Future Appendix）
+> 本节只描述后续 `M5` 的目标态后台，不属于当前 M4 live UI。
 
 ### Screen A：Dashboard
 - Metrics tiles：Pending reviews, Reports, Active posts

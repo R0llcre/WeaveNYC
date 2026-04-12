@@ -4,6 +4,7 @@ import {
   anonymousSessionRequestSchema,
   anonymousSessionResponseSchema,
   jwtClaimsSchema,
+  reportCreateRequestSchema,
   resourceListResponseSchema
 } from "./index";
 
@@ -68,5 +69,16 @@ describe("@weavenyc/shared validators", () => {
     });
 
     expect(parsed.items[0]?.zip).toBe("11735");
+  });
+
+  it("accepts broad reports without conversation context", () => {
+    const parsed = reportCreateRequestSchema.parse({
+      target_type: "post",
+      target_id: "33333333-3333-4333-8333-333333333333",
+      reason: "other"
+    });
+
+    expect(parsed.target_type).toBe("post");
+    expect(parsed.conversation_id).toBeUndefined();
   });
 });

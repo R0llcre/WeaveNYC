@@ -340,3 +340,217 @@ export type SpeechTranscribeResponse = {
   language: SupportedLanguage;
   provider: SpeechProvider;
 };
+
+export type MatchCandidateType = "neighbor_post" | "official_resource";
+
+export type MatchReason =
+  | "same_category"
+  | "same_language"
+  | "within_1_mile"
+  | "within_3_miles"
+  | "within_5_miles"
+  | "verified_user"
+  | "anchor_reviewed"
+  | "expires_soon"
+  | "open_now"
+  | "open_today"
+  | "nearby_resource"
+  | "language_supported";
+
+export type MatchSuggestion = {
+  suggestion_id: string;
+  batch_number: number;
+  position: number;
+  candidate_type: MatchCandidateType;
+  candidate_id: string;
+  score: number;
+  reasons: MatchReason[];
+  distance_miles: number | null;
+  neighbor_post: PostSummary | null;
+  official_resource: ResourceSummary | null;
+};
+
+export type MatchResultsResponse = {
+  post_id: string;
+  batch_number: number;
+  advanced: boolean;
+  refreshes_used: number;
+  max_refreshes: number;
+  items: MatchSuggestion[];
+};
+
+export type MatchContactRequest = {
+  from_post_id: string;
+  to_post_id: string;
+};
+
+export type MatchContactResponse = {
+  contact_request_id: string;
+  status: "pending" | "accepted";
+  conversation_id?: string;
+};
+
+export type ContactRequestStatus = "pending" | "accepted" | "rejected" | "expired" | "cancelled";
+
+export type ContactRequestInboxItem = {
+  contact_request_id: string;
+  from_post_id: string;
+  to_post_id: string;
+  requester_user_id: string;
+  requester_alias: string;
+  status: ContactRequestStatus;
+  created_at: string;
+  expires_at: string;
+  from_post_title: string;
+  to_post_title: string;
+  from_post_category: PostCategory;
+  to_post_category: PostCategory;
+};
+
+export type ContactRequestInboxResponse = {
+  items: ContactRequestInboxItem[];
+  next_cursor: string | null;
+};
+
+export type ContactRequestDecisionResponse = {
+  contact_request_id: string;
+  status: "accepted" | "rejected";
+  responded_at: string;
+  conversation_id?: string;
+};
+
+export type ConversationParticipantPreview = {
+  user_id: string;
+  alias: string;
+};
+
+export type ConversationStatus = "active" | "closed" | "blocked";
+
+export type ConversationSummary = {
+  conversation_id: string;
+  contact_request_id: string;
+  related_post_ids: string[];
+  participant_preview: ConversationParticipantPreview[];
+  status: ConversationStatus;
+  created_at: string;
+  last_activity_at: string;
+  last_message_preview: string | null;
+  unread_count: number;
+};
+
+export type ConversationDetail = ConversationSummary & {
+  other_user_id: string;
+  actions: {
+    can_send: boolean;
+    can_close: boolean;
+    can_block: boolean;
+    can_report: boolean;
+  };
+};
+
+export type ConversationsListResponse = {
+  items: ConversationSummary[];
+  next_cursor: string | null;
+};
+
+export type ConversationMessage = {
+  message_id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  sender_alias: string;
+  body: string;
+  sent_at: string;
+  is_mine: boolean;
+  safety_flags: MessageSafetyFlag[];
+};
+
+export type ConversationMessagesResponse = {
+  items: ConversationMessage[];
+  next_cursor: string | null;
+};
+
+export type SendConversationMessageRequest = {
+  body: string;
+};
+
+export type SendConversationMessageResponse = {
+  conversation_id: string;
+  message: ConversationMessage;
+};
+
+export type CloseConversationResponse = {
+  conversation_id: string;
+  status: "closed";
+  closed_at: string;
+};
+
+export type BlockUserRequest = {
+  blocked_user_id: string;
+  conversation_id?: string;
+};
+
+export type BlockUserResponse = {
+  blocked_user_id: string;
+  status: "blocked";
+  blocked_at: string;
+  affected_conversation_ids: string[];
+};
+
+export type ReportTargetType = "post" | "user" | "message";
+
+export type ReportReason =
+  | "harassment"
+  | "scam"
+  | "misinformation"
+  | "unsafe_behavior"
+  | "other";
+
+export type ReportCreateRequest = {
+  target_type: ReportTargetType;
+  target_id: string;
+  reason: ReportReason;
+  conversation_id?: string;
+  evidence_description?: string;
+};
+
+export type ReportCreateResponse = {
+  report_id: string;
+  status: "new";
+  created_at: string;
+};
+
+export type MessageSafetyFlag =
+  | "sensitive_ssn"
+  | "sensitive_phone"
+  | "sensitive_address"
+  | "sensitive_bank_account"
+  | "keyword_passport"
+  | "keyword_bank"
+  | "keyword_wire"
+  | "keyword_crypto"
+  | "keyword_gift_card";
+
+export type MessageSafetyErrorResponse = {
+  message: string;
+  blocked: true;
+  safety_flags: MessageSafetyFlag[];
+};
+
+export type ChatRealtimeEventType = "message.created" | "conversation.updated" | "heartbeat";
+
+export type ChatRealtimeEvent =
+  | {
+      event_type: "message.created";
+      occurred_at: string;
+      conversation_id: string;
+      message: ConversationMessage;
+    }
+  | {
+      event_type: "conversation.updated";
+      occurred_at: string;
+      conversation: ConversationSummary;
+    }
+  | {
+      event_type: "heartbeat";
+      occurred_at: string;
+    };

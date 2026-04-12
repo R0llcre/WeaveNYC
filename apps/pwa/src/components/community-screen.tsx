@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
+import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { createAnonymousSession } from '@/lib/api';
 import { useAppDispatch, useAppSelector, usePosts } from '@/lib/hooks';
 import { setSession } from '@/lib/slices/auth-slice';
@@ -70,6 +71,7 @@ export function CommunityScreen() {
             <Link className="button button--secondary" href="/posts/mine">
               {t('myPostsTitle')}
             </Link>
+            <ContactInboxLink />
           </div>
         </section>
 

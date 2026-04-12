@@ -203,6 +203,23 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
     });
   });
 
+  await page.route('**/v1/contact-requests/inbox**', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        items: [],
+        next_cursor: null,
+      }),
+    });
+  });
+
   await page.goto('/');
 
   await page.getByRole('button', { name: 'ES', exact: true }).click();
@@ -219,6 +236,7 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
 
   await page.locator('[data-testid^="resource-detail-"]').first().click();
+  await page.waitForURL('**/resources/77777777-7777-4777-8777-777777777777');
   await expect(page.getByText('Horario semanal')).toBeVisible();
   await expect(page.getByText('Notas')).toBeVisible();
 
@@ -228,7 +246,8 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await expect(page.getByText('246810')).toBeVisible();
   await page.getByLabel('Código de verificación').fill('246810');
   await page.getByTestId('verify-code').click();
-  await expect(page.getByText('Esta sesión ya está verificada.')).toBeVisible();
+  await page.waitForURL('**/inbox');
+  await expect(page.locator('h1', { hasText: 'Inbox' })).toBeVisible();
 
   await page.goto('/');
   await expect(page.getByText('Sesión verificada')).toBeVisible();

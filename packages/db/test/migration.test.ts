@@ -3,14 +3,14 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const migrations = ["0000_m0_initial.sql", "0001_m1_remediation.sql", "0002_m2_community_posts.sql"]
+const migrations = ["0000_m0_initial.sql", "0001_m1_remediation.sql", "0002_m2_community_posts.sql", "0003_m3_matching_inbox.sql", "0004_m4_chat_safety.sql", "0005_m4_report_broadening.sql"]
   .map((filename) =>
     readFileSync(path.resolve(process.cwd(), "packages/db/migrations", filename), "utf8")
   )
   .join("\n");
 
 describe("initial migration", () => {
-  it("contains required M0, M1 remediation, and M2 constraints", () => {
+  it("contains required M0 through M4 constraints", () => {
     expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_dataset_versions_source_version");
     expect(migrations).toContain("PRIMARY KEY (user_id, community_id)");
     expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_resources_active_source_ref");
@@ -23,5 +23,17 @@ describe("initial migration", () => {
     expect(migrations).toContain("community_access_channel");
     expect(migrations).toContain("CREATE TABLE IF NOT EXISTS community_access_codes");
     expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_community_access_codes_active_channel_code");
+    expect(migrations).toContain("ALTER TABLE match_suggestions");
+    expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_match_suggestions_request_candidate");
+    expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_match_suggestions_request_batch_position");
+    expect(migrations).toContain("CREATE INDEX IF NOT EXISTS idx_contact_requests_requester_status");
+    expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_contact_requests_active_pair");
+    expect(migrations).toContain("CREATE TYPE conversation_status");
+    expect(migrations).toContain("CREATE TABLE IF NOT EXISTS conversation_reads");
+    expect(migrations).toContain("CREATE TABLE IF NOT EXISTS blocks");
+    expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_blocks_pair");
+    expect(migrations).toContain("CREATE INDEX IF NOT EXISTS idx_messages_sender_sent_at");
+    expect(migrations).toContain("community_id");
+    expect(migrations).toContain("idx_reports_community_created_at");
   });
 });

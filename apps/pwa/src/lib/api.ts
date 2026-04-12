@@ -1,6 +1,19 @@
 import {
   anonymousAuthResponseSchema,
+  blockUserResponseSchema,
+  closeConversationResponseSchema,
+  conversationDetailSchema,
+  conversationMessagesResponseSchema,
+  conversationsListResponseSchema,
+  contactRequestDecisionResponseSchema,
+  contactRequestInboxResponseSchema,
   communityAccessResolveResponseSchema,
+  reportCreateResponseSchema,
+  sendConversationMessageRequestSchema,
+  sendConversationMessageResponseSchema,
+  matchContactRequestSchema,
+  matchContactResponseSchema,
+  matchResultsResponseSchema,
   createPostResponseSchema,
   healthcheckResponseSchema,
   joinCommunityResponseSchema,
@@ -20,12 +33,26 @@ import {
 
 import type {
   AnonymousSessionResponse,
+  BlockUserInput,
+  BlockUserResult,
+  CloseConversationResult,
+  ConversationDetail,
+  ConversationMessagesInput,
+  ConversationMessagesResponse,
+  ConversationsListInput,
+  ConversationsListResponse,
+  ContactRequestDecisionResult,
+  ContactRequestInboxInput,
+  ContactRequestInboxResponse,
   CommunityAccessResolveInput,
   CommunityAccessResolveResult,
   CreatePostInput,
   CreatePostResult,
   EndpointProbe,
   JoinCommunityResult,
+  MatchContactInput,
+  MatchContactResult,
+  MatchResultsResponse,
   MagicLinkStartInput,
   MagicLinkStartResult,
   MagicLinkVerifyInput,
@@ -36,9 +63,13 @@ import type {
   PostDetail,
   PostListInput,
   PostsResponse,
+  ReportCreateInput,
+  ReportCreateResult,
   ResourceDetail,
   ResourceQueryInput,
   ResourcesResponse,
+  SendConversationMessageInput,
+  SendConversationMessageResult,
   SpeechTranscribeInput,
   SpeechTranscribeResult,
   UpdatePostInput,
@@ -49,6 +80,16 @@ const DEVICE_ID_STORAGE_KEY = "weavenyc.device_id";
 
 export function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+}
+
+export function getChatWebSocketUrl(accessToken: string) {
+  const baseUrl = getApiBaseUrl();
+  const url = new URL(baseUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = '/v1/ws/chat';
+  url.search = '';
+  url.searchParams.set('token', accessToken);
+  return url.toString();
 }
 
 function getOrCreateDeviceId() {
@@ -270,6 +311,246 @@ export async function joinCommunity(
   );
 }
 
+export async function getMatchSuggestions(
+  accessToken: string,
+  postId: string,
+  refresh = false,
+): Promise<MatchResultsResponse> {
+  const params = new URLSearchParams();
+  if (refresh) {
+    params.set('refresh', 'true');
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return requestJson(
+    `/v1/posts/${postId}/matches${suffix}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    matchResultsResponseSchema,
+  );
+}
+
+export async function createMatchContact(
+  accessToken: string,
+  input: MatchContactInput,
+): Promise<MatchContactResult> {
+  const payload = {
+    from_post_id: input.fromPostId,
+    to_post_id: input.toPostId,
+  };
+  matchContactRequestSchema.parse(payload);
+
+  return requestJson(
+    '/v1/match/contact',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+    matchContactResponseSchema,
+  );
+}
+
+export async function listContactRequestsInbox(
+  accessToken: string,
+  input: ContactRequestInboxInput = {},
+): Promise<ContactRequestInboxResponse> {
+  const params = new URLSearchParams();
+  if (input.limit) {
+    params.set('limit', String(input.limit));
+  }
+  if (input.cursor) {
+    params.set('cursor', input.cursor);
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return requestJson(
+    `/v1/contact-requests/inbox${suffix}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    contactRequestInboxResponseSchema,
+  );
+}
+
+export async function acceptContactRequest(
+  accessToken: string,
+  contactRequestId: string,
+): Promise<ContactRequestDecisionResult> {
+  return requestJson(
+    `/v1/contact-requests/${contactRequestId}/accept`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    contactRequestDecisionResponseSchema,
+  );
+}
+
+export async function rejectContactRequest(
+  accessToken: string,
+  contactRequestId: string,
+): Promise<ContactRequestDecisionResult> {
+  return requestJson(
+    `/v1/contact-requests/${contactRequestId}/reject`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    contactRequestDecisionResponseSchema,
+  );
+}
+
+export async function listConversations(
+  accessToken: string,
+  input: ConversationsListInput = {},
+): Promise<ConversationsListResponse> {
+  const params = new URLSearchParams();
+  if (input.limit) {
+    params.set('limit', String(input.limit));
+  }
+  if (input.cursor) {
+    params.set('cursor', input.cursor);
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return requestJson(
+    `/v1/conversations${suffix}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    conversationsListResponseSchema,
+  );
+}
+
+export async function getConversation(
+  accessToken: string,
+  conversationId: string,
+): Promise<ConversationDetail> {
+  return requestJson(
+    `/v1/conversations/${conversationId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    conversationDetailSchema,
+  );
+}
+
+export async function listConversationMessages(
+  accessToken: string,
+  conversationId: string,
+  input: ConversationMessagesInput = {},
+): Promise<ConversationMessagesResponse> {
+  const params = new URLSearchParams();
+  if (input.limit) {
+    params.set('limit', String(input.limit));
+  }
+  if (input.cursor) {
+    params.set('cursor', input.cursor);
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return requestJson(
+    `/v1/conversations/${conversationId}/messages${suffix}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    conversationMessagesResponseSchema,
+  );
+}
+
+export async function sendConversationMessage(
+  accessToken: string,
+  input: SendConversationMessageInput,
+): Promise<SendConversationMessageResult> {
+  const payload = {
+    body: input.body,
+  };
+  sendConversationMessageRequestSchema.parse(payload);
+
+  return requestJson(
+    `/v1/conversations/${input.conversationId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+    sendConversationMessageResponseSchema,
+  );
+}
+
+export async function closeConversation(
+  accessToken: string,
+  conversationId: string,
+): Promise<CloseConversationResult> {
+  return requestJson(
+    `/v1/conversations/${conversationId}/close`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    closeConversationResponseSchema,
+  );
+}
+
+export async function blockUser(accessToken: string, input: BlockUserInput): Promise<BlockUserResult> {
+  return requestJson(
+    '/v1/blocks',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        blocked_user_id: input.blockedUserId,
+        conversation_id: input.conversationId,
+      }),
+    },
+    blockUserResponseSchema,
+  );
+}
+
+export async function createReport(accessToken: string, input: ReportCreateInput): Promise<ReportCreateResult> {
+  return requestJson(
+    '/v1/reports',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        target_type: input.targetType,
+        target_id: input.targetId,
+        reason: input.reason,
+        conversation_id: input.conversationId,
+        evidence_description: input.evidenceDescription,
+      }),
+    },
+    reportCreateResponseSchema,
+  );
+}
+
 export async function createPost(accessToken: string, input: CreatePostInput): Promise<CreatePostResult> {
   return requestJson(
     '/v1/posts',
@@ -482,4 +763,20 @@ async function requestJson<T>(
   return schema.parse(await response.json());
 }
 
-export type { AnonymousSessionResponse, PostDetail, PostsResponse, ResourceDetail, ResourcesResponse } from '@/lib/types';
+export type {
+  AnonymousSessionResponse,
+  BlockUserResult,
+  CloseConversationResult,
+  ConversationDetail,
+  ConversationMessagesResponse,
+  ConversationsListResponse,
+  ContactRequestInboxResponse,
+  MatchContactResult,
+  MatchResultsResponse,
+  PostDetail,
+  PostsResponse,
+  ReportCreateResult,
+  ResourceDetail,
+  ResourcesResponse,
+  SendConversationMessageResult,
+} from '@/lib/types';

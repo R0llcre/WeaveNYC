@@ -8,15 +8,19 @@
 >
 > **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed on branch` · `M3 pending`
+> **当前 canonical baseline**：`main = M2 completed`
+>
+> **Branch closeouts**：`feature/m4-chat-safety = M3 completed on branch` · `M4 completed on branch`
+>
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M5 pending`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
 > - `Completed (M1)`：代码已落地；如 phase closeout 被重新打开，仍需以 `22_M1_Closeout.md` 为准
-> - `Completed (M2)`：代码与 6-lane review 已落地；当前仍以分支 closeout 真值为准，待合并回 `main`
+> - `Completed (M2)`：代码与 closeout 已落地，并已成为当前 workspace 的已关闭基线；不再表示“当前 feature branch 待合并状态”
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
-> 说明：`Completed (M1)` 当前表示“实现与 closeout 都已完成”；如未来 closeout 再次被重新打开，统一以 [`22_M1_Closeout.md`](./22_M1_Closeout.md) 和 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 为准。
+> 说明：`Completed (M1)` / `Completed (M2)` 都表示“实现与对应 closeout 已完成”；M3/M4 的实现状态只作为 branch closeout 记录，不改变 main baseline。当前阶段真值统一以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 为准。
 
 ---
 
@@ -244,8 +248,8 @@
   - 表单字段：类型（Request/Offer）、类别下拉、描述文本框（≤ 280 字）、ZIP、有效期、隐私等级
   - 风险提示条：描述框上方 "请不要分享 SSN、护照或银行信息"
   - 第一次发帖允许先创建匿名会话，再继续；提交前若缺少 membership 或 verified 身份，则先导向 join / OTP
-  - `Request` 发布后进入帖子详情 / 发布结果页，不提前跳 M3 匹配页
-  - `Offer` 发布后也进入帖子详情 / 发布结果页
+  - `Request` 发布后直接进入 `/posts/:postId/matches`
+  - `Offer` 发布后进入帖子详情 / 发布结果页
   - 离线时自动保存草稿到 IndexedDB
 
 ### E3-S4: Voice-to-text input — P1 · 5 SP · `Completed (M2)`
@@ -278,35 +282,37 @@
 
 ---
 
-## Epic E4: Matching Engine（匹配引擎）
+## Epic E4: Matching Engine（匹配引擎）— Status: `Completed (M3)`
 
 > 里程碑：M3（Week 3-4）
 > 来源：[02_PRD §5.4](./02_PRD.md)
 
-### E4-S1: Match computation service — P0 · 5 SP
+### E4-S1: Match computation service — P0 · 5 SP · `Completed (M3)`
 
 - As the system, I compute Top-3 action plans for each active Request.
 - Acceptance:
   - 触发时机：帖子变为 active 时自动执行
+  - 候选池固定为：同社区、`active`、未过期、非 `anchor_mediated` 的 Offer
   - 匹配维度（加权评分）：
     - 类别相同（必须）
     - 距离（PostGIS `ST_DWithin`，≤ 5 miles 优先）
     - 语言匹配（+20% 权重）
     - 时效性（expires_at 未过期）
-    - 信任度（verified > anonymous；anchor_verified 额外加分）
+    - 信任度（verified > anonymous；只有候选帖子已存在 Anchor review 信号时才显示 `anchor_reviewed`）
   - 输出 Top-3：优先 1-2 个邻里 Offer + 至少 1 个官方资源（**永远兜底**）
   - 无邻里 Offer 时：返回 3 条官方资源（按距离 + 开放状态排序）
   - `MatchSuggestion` 记录写入数据库，包含 `score` 和 `reasons[]`
 
-### E4-S2: Match results API — P0 · 2 SP
+### E4-S2: Match results API — P0 · 2 SP · `Completed (M3)`
 
 - As a user, I can retrieve match suggestions for my post.
 - Acceptance:
   - `GET /v1/posts/:id/matches` → 返回 Top-3 suggestions
   - 每个 suggestion 包含：`candidate_type`、候选详情、`score`、`reasons[]`（人类可读）
-  - 支持"换一批"：`GET /v1/posts/:id/matches?refresh=true`（最多 2 次，累计 ≤ 6 个不同方案）
+  - 支持"换一批"：`GET /v1/posts/:id/matches?refresh=true`（最多 1 次，累计 ≤ 6 个不同方案）
+  - 超过 refresh 预算后继续返回当前批次，不再扩张结果集
 
-### E4-S3: Match results page (PWA) — P0 · 3 SP
+### E4-S3: Match results page (PWA) — P0 · 3 SP · `Completed (M3)`
 
 - As a user, I can see 3 action plans after posting a request.
 - Acceptance:
@@ -314,56 +320,58 @@
     - 邻里 Offer 卡片：描述、距离、语言匹配度、"开始联系"按钮
     - 官方资源卡片：名称、地址、今日开放、"导航/拨号"按钮
   - 每张卡片显示匹配原因标签（"0.5 mi away"、"语言匹配"、"今天开放"）
-  - "换一批"按钮（最多 2 次）
+  - "换一批"按钮（最多 1 次）
   - p95 ≤ 60 秒内展示结果
 
-### E4-S4: Contact initiation flow — P0 · 2 SP
+### E4-S4: Contact initiation flow — P0 · 2 SP · `Completed (M3)`
 
 - As a user, I can initiate contact with a matched neighbor.
 - Acceptance:
   - `POST /v1/match/contact` → 仅 `verified` 用户可向对方发送联系请求
   - `anonymous` 用户点击"开始联系"时：先触发 OTP / magic link 升级流程
   - 对方在 app 内的 pending request / inbox badge 中看到联系请求；push 通知留给后续 `E10`
-  - **双方都确认后**才创建 Conversation（双向同意制）
+  - 接口只创建 / 复用 `contact_request`；不会直接创建真实聊天线程
+  - 若该联系请求此前已被接受，接口可返回已有的 `conversation_id`
   - 未确认前不暴露任何个人信息
 
-### E4-S5: Pending request inbox / polling — P0 · 2 SP
+### E4-S5: Pending request inbox + accept/reject — P0 · 4 SP · `Completed (M3)`
 
-- As a user, I can see incoming contact requests inside the app without waiting for push notifications.
+- As a user, I can see incoming contact requests and act on them before the live chat thread opens.
 - Acceptance:
   - inbox / pending request list can surface unread contact requests
   - client can poll or refresh to pick up new contact requests
+  - `POST /v1/contact-requests/:id/accept` / `reject` 都是幂等的
+  - `accept` 后返回同一个 `conversation_id`
+  - `reject` 后该请求进入终态，不再出现在 pending inbox 中
   - `E10` 的 push infrastructure 仍然是后续增强，不阻塞 M3
 
 ---
 
-## Epic E5: Chat & Communication（聊天与沟通）
+## Epic E5: Chat & Communication（聊天与沟通）— Status: `Completed (M4)`
 
 > 里程碑：M4（Week 4-5）
 > 来源：[02_PRD §5.5](./02_PRD.md) + [09_API_Spec §5](./09_API_Spec.md)
 
-### E5-S1: Conversation & Message API — P0 · 3 SP
+### E5-S1: Conversation & Message API — P0 · 3 SP · `Completed (M4)`
 
 - As a user, I can send and receive messages in a conversation.
 - Acceptance:
-  - `POST /v1/contact-requests/:id/accept` → 接受联系请求并创建会话
-  - `POST /v1/contact-requests/:id/reject` → 拒绝联系请求
-  - `accept` / `reject` 都是幂等的；同一 `contact_request` 只允许生成一条 `conversation`
+  - M3 的 accepted conversation 会话可直接进入真实聊天会话
   - `GET /v1/conversations` → 我的会话列表（按 `last_activity_at` 排序）
   - `POST /v1/conversations/:id/messages` → 发送消息
   - `GET /v1/conversations/:id/messages?cursor=...` → 分页获取消息
   - `POST /v1/conversations/:id/close` → 关闭会话
 
-### E5-S2: Real-time WebSocket messaging — P0 · 5 SP
+### E5-S2: Real-time WebSocket messaging — P0 · 5 SP · `Completed (M4)`
 
 - As a user, I can receive messages in real-time without refreshing.
 - Acceptance:
-  - WebSocket 连接：`wss://chat.weavenyc.local` + JWT 认证
+  - WebSocket 连接：`GET /v1/ws/chat?token=...`（由现有 API gateway 提供）
   - 消息通过 Redis Pub/Sub 分发到对方连接
   - 在线时实时接收；离线时消息持久化到 DB，下次上线投递
   - 心跳检测（30s interval），断线自动重连
 
-### E5-S3: Safety detection in chat — P0 · 3 SP
+### E5-S3: Safety detection in chat — P0 · 3 SP · `Completed (M4)`
 
 - As the system, I detect sensitive personal information in messages before delivery.
 - Acceptance:
@@ -372,7 +380,7 @@
   - 不记录被拦截消息的具体内容（隐私）
   - 关键词黑名单可由 Anchor 配置
 
-### E5-S4: Chat inbox page (PWA) — P0 · 3 SP
+### E5-S4: Chat inbox page (PWA) — P0 · 3 SP · `Completed (M4)`
 
 - As a user, I can see all my conversations in an inbox.
 - Acceptance:
@@ -383,7 +391,7 @@
     - "我们在公共场所见面？"
     - "请不要分享个人证件信息"
 
-### E5-S5: Block and report in chat — P0 · 2 SP
+### E5-S5: Block and report in chat — P0 · 2 SP · `Completed (M4)`
 
 - As a user, I can block and/or report the other person in a conversation.
 - Acceptance:
@@ -408,11 +416,11 @@
   - 不要求独立 Web UI；先保证 pending_review 能在 M5 前被清理
   - 处理结果写入 `ModerationAction` 审计记录
 
-### E6-S1: Report submission API — P0 · 2 SP
+### E6-S1: Report submission API — P0 · 2 SP · `Completed (M4)`
 
 - As a user, I can report a post, user, or message.
 - Acceptance:
-  - `POST /v1/reports` → `{ target_type, target_id, reason, evidence_description }`
+  - `POST /v1/reports` → `{ target_type, target_id, reason, conversation_id?, evidence_description? }`
   - `reason` 枚举：`harassment | scam | misinformation | unsafe_behavior | other`
   - 创建 `Report` 记录（status = new）
   - 自动关联到 target 所属 community → 进入该 Anchor 的审核队列
@@ -718,7 +726,7 @@
 | Sprint 0 (Day 1-3) | M0 | E0, E1-S1, auth / PWA shell subset, E12-S2 subset | ~22 SP | Completed: 骨架可跑，匿名会话可用，healthcheck 可见 |
 | Sprint 1 (Week 1-2) | M1 | E2, E1-S2/S3/S3b, E8-S1, E9-S2/S3/S4, E12-S0 | ~35 SP | Candidate complete: 资源目录 MVP、verify/refresh/magic-link、browser smoke、real API smoke、live-source smoke 已实现并已重跑；正式 closeout 仍以 `22_M1_Closeout.md` 为准 |
 | Sprint 2 (Week 2-3) | M2 | E3 | ~22 SP | 发帖 + 社区 join + 社区 Feed |
-| Sprint 3 (Week 3-4) | M3 | E4, E4-S5 | ~14 SP | 匹配引擎 + 行动方案 + inbox/polling |
+| Sprint 3 (Week 3-4) | M3 | E4 | ~16 SP | 匹配引擎 + 行动方案 + 一次刷新 + contact request inbox/accept-reject |
 | Sprint 4 (Week 4-5) | M4 | E5, E6-S0/S1/S2/S3 | ~26 SP | 聊天 + 最小审核闭环 |
 | Sprint 5 (Week 5-6) | M5 | E7 core, E1-S5, (+ E10 / E6-S4 / E8-S2/S3/S4 only with 3-person capacity) | ~33 SP | Anchor 后台核心闭环；扩展项视容量追加 |
 | Sprint 6 (Week 6+) | M6 | E11, E12-S3/S4 | ~28 SP | P2P 同步 + 完整 E2E（optional） |

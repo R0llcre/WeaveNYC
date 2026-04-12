@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
+import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { createAnonymousSession } from '@/lib/api';
 import { getSessionLabel, getTypeLabel, resourceFilterTypes } from '@/lib/i18n';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
@@ -65,12 +66,9 @@ export function ResourceHome() {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--m1">
+        <section className="hero hero--home">
           <div className="hero__topbar">
             <span className="hero__eyebrow">{t('heroEyebrow')}</span>
-            <Link className="hero__link" href="/dev/m0">
-              {t('devLink')}
-            </Link>
           </div>
 
           <h1>{t('heroTitle')}</h1>
@@ -96,6 +94,7 @@ export function ResourceHome() {
             <Link className="button button--secondary" href="/verify">
               {t('goVerify')}
             </Link>
+            <ContactInboxLink />
           </div>
 
           {sessionError ? <p className="status-copy status-copy--error">{sessionError}</p> : null}
@@ -180,6 +179,7 @@ export function ResourceHome() {
             <Link className="button button--secondary" href="/community">
               {t('communityFeedHeading')}
             </Link>
+            <ContactInboxLink />
           </div>
         </section>
 

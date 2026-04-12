@@ -3,10 +3,15 @@ import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
+import fastifyWebsocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { DefaultChatService, PgChatRepository, type ChatService } from '@weavenyc/chat';
+import { createMatchService, createPgMatchRepository, type MatchService } from '@weavenyc/match';
 import { createPostsRepository, createPostsService, type PostsService } from '@weavenyc/posts';
+import { Pool } from 'pg';
 
 import { loadConfig, type AppConfig } from './config.js';
+import { InMemoryChatRealtimeHub, RedisChatRealtimeHub, type ChatRealtimeHub } from './lib/chat-realtime.js';
 import {
   createRedisAuthAbuseStore,
   type AuthAbuseStore
@@ -21,15 +26,23 @@ import { createPgUserStore, type UserStore } from './lib/user-store.js';
 import { authRoutes } from './routes/auth.js';
 import { communityAccessRoutes } from './routes/community-access.js';
 import { healthRoutes } from './routes/health.js';
+import { matchRoutes } from './routes/match.js';
 import { meRoutes } from './routes/me.js';
 import { postRoutes } from './routes/posts.js';
 import { reviewQueueRoutes } from './routes/review-queue.js';
 import { resourceRoutes } from './routes/resources.js';
 import { speechRoutes } from './routes/speech.js';
+import { contactRequestRoutes } from './routes/contact-requests.js';
+import { chatSafetyRoutes } from './routes/chat-safety.js';
+import { chatSocketRoutes } from './routes/chat-socket.js';
+import { conversationRoutes } from './routes/conversations.js';
 
 export interface BuildAppOptions {
   authAbuseStore?: AuthAbuseStore;
+  chatRealtimeHub?: ChatRealtimeHub;
+  chatService?: ChatService;
   config?: AppConfig;
+  matchService?: MatchService;
   postsService?: PostsService;
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
@@ -52,6 +65,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     options.authAbuseStore ?? createRedisAuthAbuseStore(config.redisUrl, config.identityHashPepper);
   const resourceDirectory =
     options.resourceDirectory ?? createPgResourceDirectoryService(config.databaseUrl);
+  const matchService =
+    options.matchService ??
+    createMatchService(
+      createPgMatchRepository(config.databaseUrl, async (zip: string) => {
+        const result = await resourceDirectory.searchResources({
+          zip,
+          limit: 50,
+        });
+        return result.items;
+      }),
+    );
+  const chatService =
+    options.chatService ??
+    new DefaultChatService(new PgChatRepository(new Pool({ connectionString: config.databaseUrl })));
+  const chatRealtimeHub =
+    options.chatRealtimeHub ??
+    (config.env === 'test' ? new InMemoryChatRealtimeHub() : new RedisChatRealtimeHub(config.redisUrl));
   const postsService =
     options.postsService ?? createPostsService(createPostsRepository(config.databaseUrl));
   const speechProvider = options.speechProvider ?? createStubSpeechProvider();
@@ -60,6 +90,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate('userStore', userStore);
   app.decorate('refreshTokenStore', refreshTokenStore);
   app.decorate('authAbuseStore', authAbuseStore);
+  app.decorate('chatRealtimeHub', chatRealtimeHub);
+  app.decorate('chatService', chatService);
+  app.decorate('matchService', matchService);
   app.decorate('postsService', postsService);
   app.decorate('resourceDirectory', resourceDirectory);
   app.decorate('speechProvider', speechProvider);
@@ -83,6 +116,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       files: 1
     }
   });
+  await app.register(fastifyWebsocket);
 
   await app.register(fastifySwagger, {
     openapi: {
@@ -136,6 +170,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       app.userStore.close(),
       app.refreshTokenStore.close(),
       authAbuseStore.close(),
+      app.chatRealtimeHub.close(),
+      app.chatService.close(),
+      app.matchService.close(),
       app.postsService.close(),
       app.resourceDirectory.close(),
       maybeCloseSpeechProvider
@@ -145,8 +182,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(healthRoutes);
   await app.register(authRoutes);
   await app.register(communityAccessRoutes);
+  await app.register(matchRoutes);
   await app.register(meRoutes);
   await app.register(postRoutes);
+  await app.register(chatSocketRoutes);
+  await app.register(contactRequestRoutes);
+  await app.register(conversationRoutes);
+  await app.register(chatSafetyRoutes);
   await app.register(reviewQueueRoutes);
   await app.register(resourceRoutes);
   await app.register(speechRoutes);

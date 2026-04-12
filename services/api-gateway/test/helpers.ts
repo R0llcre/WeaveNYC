@@ -2,11 +2,14 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
+import { DefaultChatService, InMemoryChatRepository, type ChatService } from '@weavenyc/chat';
+import { createMatchService, type MatchRepository, type MatchService } from '@weavenyc/match';
 import { InMemoryPostsService } from '@weavenyc/posts';
 import type { ResourceListItem, ResourceSearchInput, ResourceSearchResult } from '@weavenyc/resource-directory';
 
 import type { AppConfig } from '../src/config.js';
 import { buildApp } from '../src/app.js';
+import { InMemoryChatRealtimeHub, type ChatRealtimeHub } from '../src/lib/chat-realtime.js';
 import type { AuthAbuseStore } from '../src/lib/identity.js';
 import type { RefreshTokenStore } from '../src/lib/refresh-token-store.js';
 import type { ResourceDirectoryService } from '../src/lib/resource-directory.js';
@@ -18,6 +21,295 @@ import type {
   UserRole
 } from '../src/types.js';
 import type { StoredRefreshSession } from '../src/types.js';
+
+function fallbackAlias(userId: string, displayName?: string | null) {
+  return displayName?.trim() || `Neighbor ${userId.slice(-4)}`;
+}
+
+class InMemoryLinkedMatchRepository implements MatchRepository {
+  readonly suggestionBatches = new Map<string, import('@weavenyc/match').MatchSuggestionBatch[]>();
+  readonly contactRequests = new Map<string, import('@weavenyc/match').ContactRequestRecord>();
+  readonly conversations = new Map<string, import('@weavenyc/match').AcceptedConversationRecord>();
+
+  constructor(
+    private readonly postsService: InMemoryPostsService,
+    private readonly userStore: InMemoryUserStore,
+    private readonly resourceDirectory: InMemoryResourceDirectory,
+  ) {}
+
+  async close(): Promise<void> {}
+
+  async getPost(postId: string): Promise<import('@weavenyc/match').MatchablePost | null> {
+    const post = this.postsService.posts.get(postId);
+    if (!post) {
+      return null;
+    }
+
+    const user = this.userStore.users.get(post.createdBy);
+    return {
+      post_id: post.postId,
+      community_id: post.communityId,
+      post_type: post.postType,
+      category: post.category,
+      title: post.title,
+      body: post.body,
+      language: post.language,
+      location_zip: post.locationZip,
+      privacy: post.privacy,
+      status: post.status,
+      risk_level: post.riskLevel,
+      created_at: post.createdAt,
+      updated_at: post.updatedAt,
+      expires_at: post.expiresAt,
+      is_owner: false,
+      created_by: post.createdBy,
+      author_alias: fallbackAlias(post.createdBy, undefined),
+      author_level: user?.level ?? 'verified',
+      anchor_reviewed: user?.role === 'anchor',
+      distance_miles: post.locationZip === '11735' ? 0.4 : 1.8,
+    } satisfies Awaited<ReturnType<InMemoryLinkedMatchRepository['getPost']>>;
+  }
+
+  async listCandidateNeighborPosts(requestPost: NonNullable<Awaited<ReturnType<InMemoryLinkedMatchRepository['getPost']>>>) {
+    const posts = await Promise.all(
+      Array.from(this.postsService.posts.keys()).map((postId) => this.getPost(postId)),
+    );
+    return posts.filter((post): post is NonNullable<typeof post> => {
+      if (!post) {
+        return false;
+      }
+
+      return (
+        post.post_type === 'offer' &&
+        post.community_id === requestPost.community_id &&
+        post.category === requestPost.category &&
+        post.created_by !== requestPost.created_by &&
+        post.privacy !== 'anchor_mediated'
+      );
+    });
+  }
+
+  async listOfficialResourcesForRequest() {
+    return this.resourceDirectory.items.map((item) => ({
+      provider_id: item.providerId,
+      name: item.name,
+      type: item.type,
+      address: item.address,
+      city: item.city,
+      state: item.state,
+      zip: item.zip,
+      phone: item.phone,
+      languages: item.languages,
+      source: item.source,
+      source_label: item.sourceLabel,
+      notes: item.notes,
+      distance_miles: item.distanceMiles,
+      is_open_today: item.isOpenToday,
+      is_open_now: item.isOpenNow,
+      geo_precision: item.geoPrecision,
+      directions_url: `https://maps.google.com/?q=${encodeURIComponent(item.address)}`,
+    }));
+  }
+
+  async listSuggestionBatches(requestPostId: string) {
+    return (this.suggestionBatches.get(requestPostId) ?? []).map((batch) => ({
+      ...batch,
+      items: batch.items.map((item) => ({ ...item })),
+    }));
+  }
+
+  async saveSuggestionBatch(batch: import('@weavenyc/match').MatchSuggestionBatch): Promise<void> {
+    const existing = (this.suggestionBatches.get(batch.requestPostId) ?? []).filter(
+      (entry) => entry.batchNumber !== batch.batchNumber,
+    );
+    existing.push({
+      ...batch,
+      items: batch.items.map((item) => ({ ...item })),
+    });
+    existing.sort((left, right) => left.batchNumber - right.batchNumber);
+    this.suggestionBatches.set(batch.requestPostId, existing);
+  }
+
+  async deleteSuggestionBatches(requestPostId: string, batchNumbers?: number[]): Promise<void> {
+    if (!batchNumbers?.length) {
+      this.suggestionBatches.delete(requestPostId);
+      return;
+    }
+
+    const existing = (this.suggestionBatches.get(requestPostId) ?? []).filter(
+      (batch) => !batchNumbers.includes(batch.batchNumber),
+    );
+    this.suggestionBatches.set(requestPostId, existing);
+  }
+
+  async findContactRequestByPair(fromPostId: string, toPostId: string) {
+    return (
+      Array.from(this.contactRequests.values())
+        .filter((record) => record.fromPostId === fromPostId && record.toPostId === toPostId)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
+    );
+  }
+
+  async getContactRequest(contactRequestId: string) {
+    return this.contactRequests.get(contactRequestId) ?? null;
+  }
+
+  async saveContactRequest(record: import('@weavenyc/match').ContactRequestRecord) {
+    this.contactRequests.set(record.contactRequestId, { ...record });
+    return this.contactRequests.get(record.contactRequestId)!;
+  }
+
+  async listInboxPage(input: { recipientUserId: string; cursor: string | null; limit: number }) {
+    const items = Array.from(this.contactRequests.values())
+      .filter((item) => item.recipientUserId === input.recipientUserId && item.status === 'pending')
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, input.limit);
+    return {
+      items,
+      nextCursor: null,
+    };
+  }
+
+  async listInboxItems(input: { recipientUserId: string; cursor: string | null; limit?: number }) {
+    const page = await this.listInboxPage({
+      recipientUserId: input.recipientUserId,
+      cursor: input.cursor,
+      limit: input.limit ?? 20,
+    });
+
+    return {
+      items: page.items.map((item) => {
+        const fromPost = this.postsService.posts.get(item.fromPostId)!;
+        const toPost = this.postsService.posts.get(item.toPostId)!;
+        return {
+          ...item,
+          fromPostTitle: fromPost.title,
+          toPostTitle: toPost.title,
+          fromPostCategory: fromPost.category,
+          toPostCategory: toPost.category,
+        };
+      }),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  async getAcceptedConversationByContactRequest(contactRequestId: string) {
+    return (
+      Array.from(this.conversations.values()).find(
+        (conversation) => conversation.contact_request_id === contactRequestId,
+      ) ?? null
+    );
+  }
+
+  async getAcceptedConversation(conversationId: string) {
+    return this.conversations.get(conversationId) ?? null;
+  }
+
+  async saveAcceptedConversation(record: import('@weavenyc/match').AcceptedConversationRecord) {
+    this.conversations.set(record.conversation_id, { ...record });
+    return this.conversations.get(record.conversation_id)!;
+  }
+
+  async getPostCommunityId(postId: string) {
+    return this.postsService.posts.get(postId)?.communityId ?? null;
+  }
+}
+
+class InMemoryLinkedChatRepository extends InMemoryChatRepository {
+  constructor(
+    private readonly matchRepository: InMemoryLinkedMatchRepository,
+    private readonly postsService: InMemoryPostsService,
+  ) {
+    super();
+  }
+
+  private syncConversations() {
+    for (const placeholder of this.matchRepository.conversations.values()) {
+      const contactRequest = this.matchRepository.contactRequests.get(placeholder.contact_request_id);
+      if (!contactRequest) {
+        continue;
+      }
+
+      const existing = this.conversations.get(placeholder.conversation_id);
+      this.conversations.set(placeholder.conversation_id, {
+        conversation_id: placeholder.conversation_id,
+        contact_request_id: placeholder.contact_request_id,
+        participant_user_ids: [contactRequest.requesterUserId, contactRequest.recipientUserId],
+        participant_preview: [
+          placeholder.participant_preview[0],
+          placeholder.participant_preview[1],
+        ],
+        related_post_ids: placeholder.related_post_ids,
+        status: existing?.status ?? 'active',
+        created_at: placeholder.created_at,
+        last_activity_at: existing?.last_activity_at ?? placeholder.created_at,
+        closed_at: existing?.closed_at ?? null,
+        blocked_at: existing?.blocked_at ?? null,
+        blocked_by_user_id: existing?.blocked_by_user_id ?? null,
+        last_message_preview: existing?.last_message_preview ?? null,
+        last_message_at: existing?.last_message_at ?? null,
+        unread_count: existing?.unread_count ?? 0,
+      });
+    }
+  }
+
+  override async listConversationsPage(input: { userId: string; cursor: string | null; limit: number }) {
+    this.syncConversations();
+    return super.listConversationsPage(input);
+  }
+
+  override async getConversation(conversationId: string, userId?: string | null) {
+    this.syncConversations();
+    return super.getConversation(conversationId, userId);
+  }
+
+  override async listMessagesPage(input: { conversationId: string; cursor: string | null; limit: number }) {
+    this.syncConversations();
+    return super.listMessagesPage(input);
+  }
+
+  override async saveMessage(input: {
+    conversationId: string;
+    senderUserId: string;
+    body: string;
+    safetyFlags: import('@weavenyc/chat').ChatMessage['safety_flags'];
+    sentAt: string;
+  }) {
+    this.syncConversations();
+    return super.saveMessage(input);
+  }
+
+  override async updateConversationState(input: {
+    conversationId: string;
+    status: import('@weavenyc/chat').ConversationRecord['status'];
+    changedAt: string;
+    blockedByUserId?: string | null;
+  }) {
+    this.syncConversations();
+    return super.updateConversationState(input);
+  }
+
+  override async getPostCommunityId(postId: string) {
+    return this.postsService.posts.get(postId)?.communityId ?? null;
+  }
+
+  override async getMessageContext(messageId: string) {
+    this.syncConversations();
+    const baseContext = await super.getMessageContext(messageId);
+    if (!baseContext) {
+      return null;
+    }
+
+    const conversation = this.conversations.get(baseContext.message.conversation_id);
+    const communityId =
+      this.postsService.posts.get(conversation?.related_post_ids[0] ?? '')?.communityId ?? baseContext.communityId;
+
+    return {
+      ...baseContext,
+      communityId,
+    };
+  }
+}
 
 export class InMemoryUserStore implements UserStore {
   readonly users = new Map<string, AuthenticatedUserRecord>();
@@ -468,7 +760,11 @@ export function createTestConfig(): AppConfig {
 
 export async function createTestApp(options: {
   authAbuseStore?: AuthAbuseStore;
+  chatRealtimeHub?: ChatRealtimeHub;
+  chatRepository?: InMemoryChatRepository;
+  chatService?: ChatService;
   config?: AppConfig;
+  matchService?: MatchService;
   postsService?: InMemoryPostsService;
   userStore?: UserStore;
   refreshTokenStore?: RefreshTokenStore;
@@ -481,10 +777,29 @@ export async function createTestApp(options: {
   const refreshTokenStore = options.refreshTokenStore ?? new InMemoryRefreshTokenStore();
   const resourceDirectory = options.resourceDirectory ?? new InMemoryResourceDirectory();
   const speechProvider = options.speechProvider ?? new InMemorySpeechProvider();
+  const linkedMatchRepository =
+    options.matchService
+      ? null
+      : new InMemoryLinkedMatchRepository(
+          postsService,
+          userStore as InMemoryUserStore,
+          resourceDirectory as InMemoryResourceDirectory,
+        );
+  const chatRepository = options.chatRepository ?? (linkedMatchRepository ? new InMemoryLinkedChatRepository(linkedMatchRepository, postsService as InMemoryPostsService) : new InMemoryChatRepository());
+  const chatService = options.chatService ?? new DefaultChatService(chatRepository);
+  const chatRealtimeHub = options.chatRealtimeHub ?? new InMemoryChatRealtimeHub();
+  const matchService =
+    options.matchService ??
+    createMatchService(
+      linkedMatchRepository!,
+    );
 
   const app = await buildApp({
     authAbuseStore,
+    chatRealtimeHub,
+    chatService,
     config: options.config ?? createTestConfig(),
+    matchService,
     postsService,
     userStore,
     refreshTokenStore,
@@ -496,6 +811,10 @@ export async function createTestApp(options: {
   return {
     app,
     authAbuseStore,
+    chatRealtimeHub,
+    chatService,
+    chatRepository,
+    matchService,
     postsService,
     userStore,
     refreshTokenStore,

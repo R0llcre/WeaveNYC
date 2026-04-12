@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import process from 'node:process';
 
+import { Pool } from 'pg';
 import { seedIds } from '../../packages/db/seed/fixtures.js';
 import { loadConfig } from '../../services/api-gateway/src/config.js';
 import { mintDevAccessToken } from '../../services/api-gateway/src/lib/dev-access-tokens.js';
+import { clearRedisAuthAbuseKeys } from '../../services/api-gateway/src/lib/identity.js';
 
 type AuthSessionResponse = {
   access_token: string;
@@ -84,6 +86,139 @@ type ReviewDecisionResponse = {
   status: string;
 };
 
+type MatchResultsApiResponse = {
+  post_id: string;
+  batch_number: number;
+  advanced: boolean;
+  refreshes_used: number;
+  max_refreshes: number;
+  items: Array<{
+    candidate_type: 'neighbor_post' | 'official_resource';
+    candidate_id: string;
+  }>;
+};
+
+type MatchContactApiResponse = {
+  contact_request_id: string;
+  status: 'pending' | 'accepted';
+  conversation_id?: string;
+};
+
+type ContactRequestsInboxApiResponse = {
+  items: Array<{
+    contact_request_id: string;
+    requester_alias: string;
+    status: string;
+  }>;
+  next_cursor: string | null;
+};
+
+type ContactRequestDecisionApiResponse = {
+  contact_request_id: string;
+  status: 'accepted' | 'rejected';
+  responded_at: string;
+  conversation_id?: string;
+};
+
+type ConversationsListApiResponse = {
+  items: Array<{
+    conversation_id: string;
+    status: 'active' | 'closed' | 'blocked';
+  }>;
+  next_cursor: string | null;
+};
+
+type ConversationDetailApiResponse = {
+  conversation_id: string;
+  contact_request_id: string;
+  related_post_ids: string[];
+  participant_preview: Array<{
+    user_id: string;
+    alias: string;
+  }>;
+  status: 'active' | 'closed' | 'blocked';
+  created_at: string;
+  last_activity_at: string;
+  last_message_preview: string | null;
+  unread_count: number;
+  other_user_id: string;
+  actions: {
+    can_send: boolean;
+    can_close: boolean;
+    can_block: boolean;
+    can_report: boolean;
+  };
+};
+
+type ConversationMessagesApiResponse = {
+  items: Array<{
+    message_id: string;
+    body: string;
+    is_mine: boolean;
+    sender_alias: string;
+    safety_flags: string[];
+  }>;
+  next_cursor: string | null;
+};
+
+type SendConversationMessageApiResponse = {
+  conversation_id: string;
+  message: {
+    message_id: string;
+    body: string;
+    is_mine: boolean;
+  };
+};
+
+type ReportCreateApiResponse = {
+  report_id: string;
+  status: 'new';
+  created_at: string;
+};
+
+type BlockUserApiResponse = {
+  blocked_user_id: string;
+  status: 'blocked';
+  blocked_at: string;
+  affected_conversation_ids: string[];
+};
+
+type CloseConversationApiResponse = {
+  conversation_id: string;
+  status: 'closed';
+  closed_at: string;
+};
+
+type ChatRealtimeSmokeEvent =
+  | {
+      event_type: 'message.created';
+      conversation_id: string;
+      message: {
+        body: string;
+        is_mine: boolean;
+      };
+    }
+  | {
+      event_type: 'conversation.updated';
+      conversation: {
+        conversation_id: string;
+        unread_count: number;
+        status: 'active' | 'closed' | 'blocked';
+      };
+    }
+  | {
+      event_type: 'heartbeat';
+    };
+
+type RuntimeWebSocket = {
+  addEventListener(
+    type: 'open' | 'message' | 'error' | 'close',
+    listener: (event: { data?: string }) => void,
+    options?: { once?: boolean },
+  ): void;
+  close(code?: number, reason?: string): void;
+};
+
 type ResourceListResponse = {
   items: Array<{
     provider_id: string;
@@ -103,9 +238,12 @@ const startupTimeoutMs = Number(process.env.WEAVENYC_SMOKE_TIMEOUT_MS ?? '60000'
 const runId = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const smokePhone = `+1516${runId.slice(-7)}`;
 const smokeEmail = `neighbor+${runId}@example.com`;
+const m3RequesterPhone = `+1517${runId.slice(-7)}`;
+const m3HelperThreePhone = `+1518${runId.slice(-7)}`;
 
 async function main() {
   await waitForReady();
+  await resetAuthAbuseState();
 
   const health = await fetchJson('/healthz');
   assert(health.response.status === 200, `Expected GET /healthz to return 200, got ${health.response.status}`);
@@ -263,7 +401,7 @@ async function main() {
       language: 'en',
       location_zip: smokeZip,
       privacy: 'community_only',
-      expires_at: futureIso(24),
+      expires_at: futureIso(1),
       contact_pref: {
         in_app_chat: true,
         call: false,
@@ -404,6 +542,423 @@ async function main() {
   assert(magicLinkVerify.response.status === 200, `Expected POST /v1/auth/magic-link/verify to return 200, got ${magicLinkVerify.response.status}`);
   assert(magicLinkVerify.body?.user.level === 'verified', `Expected magic-link verify to upgrade user to verified, got ${magicLinkVerify.body?.user.level ?? '<missing>'}`);
 
+  const m3Community = await createSmokeCommunity();
+  await joinCommunityByInvite(otpVerify.body.access_token, m3Community.communityId, m3Community.inviteCode);
+
+  const helperOfferOne = await fetchJson<CreatePostResponse>('/v1/posts', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${otpVerify.body.access_token}`,
+    },
+    body: JSON.stringify({
+      community_id: m3Community.communityId,
+      post_type: 'offer',
+      category: 'food',
+      title: 'Can share one grocery bag',
+      body: 'Can share one grocery bag tonight.',
+      language: 'en',
+      location_zip: smokeZip,
+      privacy: 'community_only',
+      expires_at: futureIso(24),
+      contact_pref: {
+        in_app_chat: true,
+        call: false,
+        text: true,
+      },
+    }),
+  });
+  assert(helperOfferOne.response.status === 200, `Expected first M3 helper offer to return 200, got ${helperOfferOne.response.status}`);
+
+  const helperJoin = await joinCommunityByInvite(magicLinkVerify.body.access_token, m3Community.communityId, m3Community.inviteCode);
+  assert(
+    helperJoin.membership_status === 'joined' || helperJoin.membership_status === 'already_joined',
+    `Expected M3 helper community join to succeed, got ${helperJoin.membership_status}`,
+  );
+
+  const helperOfferTwo = await fetchJson<CreatePostResponse>('/v1/posts', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${magicLinkVerify.body.access_token}`,
+    },
+    body: JSON.stringify({
+      community_id: m3Community.communityId,
+      post_type: 'offer',
+      category: 'food',
+      title: 'Can share pantry staples tomorrow',
+      body: 'Can share pantry staples tomorrow morning.',
+      language: 'es',
+      location_zip: smokeZip,
+      privacy: 'community_only',
+      expires_at: futureIso(2),
+      contact_pref: {
+        in_app_chat: true,
+        call: false,
+        text: false,
+      },
+    }),
+  });
+  assert(helperOfferTwo.response.status === 200, `Expected second M3 helper offer to return 200, got ${helperOfferTwo.response.status}`);
+
+  const helperThreeAnonymous = await createAnonymousSession();
+  await joinCommunityByInvite(helperThreeAnonymous.body.access_token, m3Community.communityId, m3Community.inviteCode);
+  const helperThreeOtpStart = await fetchJson<OtpStartResponse>('/v1/auth/otp/start', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${helperThreeAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      phone: m3HelperThreePhone,
+    }),
+  });
+  assert(helperThreeOtpStart.response.status === 200, `Expected third M3 helper OTP start to return 200, got ${helperThreeOtpStart.response.status}`);
+  const helperThreeOtpVerify = await fetchJson<AuthSessionResponse>('/v1/auth/otp/verify', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${helperThreeAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      challenge_id: helperThreeOtpStart.body.challenge_id,
+      code: helperThreeOtpStart.body.demo_code,
+    }),
+  });
+  assert(helperThreeOtpVerify.response.status === 200, `Expected third M3 helper OTP verify to return 200, got ${helperThreeOtpVerify.response.status}`);
+
+  const helperOfferThree = await fetchJson<CreatePostResponse>('/v1/posts', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${helperThreeOtpVerify.body.access_token}`,
+    },
+    body: JSON.stringify({
+      community_id: m3Community.communityId,
+      post_type: 'offer',
+      category: 'food',
+      title: 'Can share groceries for tonight pickup',
+      body: 'Can share groceries for tonight pickup.',
+      language: 'en',
+      location_zip: smokeZip,
+      privacy: 'community_only',
+      expires_at: futureIso(3),
+      contact_pref: {
+        in_app_chat: true,
+        call: false,
+        text: false,
+      },
+    }),
+  });
+  assert(helperOfferThree.response.status === 200, `Expected third M3 helper offer to return 200, got ${helperOfferThree.response.status}`);
+
+  const m3RequesterAnonymous = await createAnonymousSession();
+  await joinCommunityByInvite(m3RequesterAnonymous.body.access_token, m3Community.communityId, m3Community.inviteCode);
+
+  const m3RequestCreate = await fetchJson<CreatePostResponse>('/v1/posts', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m3RequesterAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      community_id: m3Community.communityId,
+      post_type: 'request',
+      category: 'food',
+      title: 'Need groceries after work',
+      body: 'Need groceries after work today.',
+      language: 'en',
+      location_zip: smokeZip,
+      privacy: 'community_only',
+      expires_at: futureIso(24),
+      contact_pref: {
+        in_app_chat: true,
+        call: false,
+        text: false,
+      },
+    }),
+  });
+  assert(m3RequestCreate.response.status === 200, `Expected M3 request create to return 200, got ${m3RequestCreate.response.status}`);
+  const m3RequestPostId = m3RequestCreate.body.post_id;
+
+  const matchesFirst = await fetchJson<MatchResultsApiResponse>(`/v1/posts/${m3RequestPostId}/matches`, {
+    headers: {
+      authorization: `Bearer ${m3RequesterAnonymous.body.access_token}`,
+    },
+  });
+  assert(matchesFirst.response.status === 200, `Expected initial matches to return 200, got ${matchesFirst.response.status}`);
+  assert(matchesFirst.body?.batch_number === 1, `Expected initial matches batch_number=1, got ${matchesFirst.body?.batch_number ?? '<missing>'}`);
+  assert(matchesFirst.body?.items.length === 3, `Expected initial matches to return 3 items, got ${matchesFirst.body?.items.length ?? 0}`);
+  const knownHelperTokens = new Map<string, string>([
+    [helperOfferOne.body.post_id, otpVerify.body.access_token],
+    [helperOfferTwo.body.post_id, magicLinkVerify.body.access_token],
+    [helperOfferThree.body.post_id, helperThreeOtpVerify.body.access_token],
+  ]);
+  const firstNeighborCandidate = matchesFirst.body?.items.find((item) => item.candidate_type === 'neighbor_post');
+  assert(firstNeighborCandidate, 'Expected initial matches to include a neighbor suggestion');
+  let selectedKnownNeighbor = matchesFirst.body?.items.find(
+    (item) => item.candidate_type === 'neighbor_post' && knownHelperTokens.has(item.candidate_id),
+  ) ?? null;
+
+  const anonymousContactDenied = await fetchJson<{ message?: string }>('/v1/match/contact', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m3RequesterAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      from_post_id: m3RequestPostId,
+      to_post_id: firstNeighborCandidate.candidate_id,
+    }),
+  });
+  assert(anonymousContactDenied.response.status === 403, `Expected anonymous contact attempt to return 403, got ${anonymousContactDenied.response.status}`);
+
+  const requesterOtpStart = await fetchJson<OtpStartResponse>('/v1/auth/otp/start', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m3RequesterAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      phone: m3RequesterPhone,
+    }),
+  });
+  assert(requesterOtpStart.response.status === 200, `Expected M3 requester OTP start to return 200, got ${requesterOtpStart.response.status}`);
+  assert(Boolean(requesterOtpStart.body?.demo_code), 'Expected M3 requester OTP start to include demo_code');
+
+  const requesterOtpVerify = await fetchJson<AuthSessionResponse>('/v1/auth/otp/verify', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${m3RequesterAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      challenge_id: requesterOtpStart.body.challenge_id,
+      code: requesterOtpStart.body.demo_code,
+    }),
+  });
+  assert(requesterOtpVerify.response.status === 200, `Expected M3 requester OTP verify to return 200, got ${requesterOtpVerify.response.status}`);
+  assert(requesterOtpVerify.body?.user.level === 'verified', `Expected M3 requester to become verified, got ${requesterOtpVerify.body?.user.level ?? '<missing>'}`);
+
+  assert(selectedKnownNeighbor || matchesFirst.body?.items.length === 3, 'Expected initial matches payload to be present');
+  let verifiedContact: { response: Response; body: MatchContactApiResponse | undefined };
+  let recipientAccessToken: string | undefined;
+
+  if (selectedKnownNeighbor) {
+    recipientAccessToken = knownHelperTokens.get(selectedKnownNeighbor.candidate_id);
+    assert(recipientAccessToken, 'Expected selected helper offer to resolve to a recipient access token');
+
+    verifiedContact = await fetchJson<MatchContactApiResponse>('/v1/match/contact', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+      body: JSON.stringify({
+        from_post_id: m3RequestPostId,
+        to_post_id: selectedKnownNeighbor.candidate_id,
+      }),
+    });
+    assert(verifiedContact.response.status === 200, `Expected verified contact to return 200, got ${verifiedContact.response.status}`);
+    assert(verifiedContact.body?.status === 'pending', `Expected verified contact to create pending request, got ${verifiedContact.body?.status ?? '<missing>'}`);
+  } else {
+    verifiedContact = { response: new Response(null, { status: 500 }), body: undefined };
+  }
+
+  const matchesSecond = await fetchJson<MatchResultsApiResponse>(`/v1/posts/${m3RequestPostId}/matches?refresh=true`, {
+    headers: {
+      authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+    },
+  });
+  assert(matchesSecond.response.status === 200, `Expected refreshed matches to return 200, got ${matchesSecond.response.status}`);
+  assert(matchesSecond.body?.refreshes_used === 1, `Expected refreshed matches to report 1 refresh, got ${matchesSecond.body?.refreshes_used ?? '<missing>'}`);
+
+  if (!selectedKnownNeighbor) {
+    selectedKnownNeighbor =
+      matchesSecond.body?.items.find(
+        (item) => item.candidate_type === 'neighbor_post' && knownHelperTokens.has(item.candidate_id),
+      ) ?? null;
+    assert(selectedKnownNeighbor, 'Expected one of the known helper offers to appear in either match batch');
+    recipientAccessToken = knownHelperTokens.get(selectedKnownNeighbor.candidate_id);
+    assert(recipientAccessToken, 'Expected selected helper offer to resolve to a recipient access token');
+    verifiedContact = await fetchJson<MatchContactApiResponse>('/v1/match/contact', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+      body: JSON.stringify({
+        from_post_id: m3RequestPostId,
+        to_post_id: selectedKnownNeighbor.candidate_id,
+      }),
+    });
+    assert(verifiedContact.response.status === 200, `Expected verified contact to return 200, got ${verifiedContact.response.status}`);
+    assert(verifiedContact.body?.status === 'pending', `Expected verified contact to create pending request, got ${verifiedContact.body?.status ?? '<missing>'}`);
+  } else {
+    const replayedContact = await fetchJson<MatchContactApiResponse>('/v1/match/contact', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+      body: JSON.stringify({
+        from_post_id: m3RequestPostId,
+        to_post_id: selectedKnownNeighbor.candidate_id,
+      }),
+    });
+    assert(replayedContact.response.status === 200, `Expected replayed contact to return 200, got ${replayedContact.response.status}`);
+    assert(
+      replayedContact.body?.contact_request_id === verifiedContact.body?.contact_request_id,
+      'Expected replayed contact to reuse the existing contact_request_id',
+    );
+  }
+
+  const recipientInbox = await fetchJson<ContactRequestsInboxApiResponse>('/v1/contact-requests/inbox', {
+    headers: {
+      authorization: `Bearer ${recipientAccessToken}`,
+    },
+  });
+  assert(recipientInbox.response.status === 200, `Expected recipient inbox to return 200, got ${recipientInbox.response.status}`);
+  assert(
+    recipientInbox.body?.items.some((item) => item.contact_request_id === verifiedContact.body.contact_request_id),
+    'Recipient inbox did not include the pending contact request',
+  );
+
+  const recipientAccept = await fetchJson<ContactRequestDecisionApiResponse>(
+    `/v1/contact-requests/${verifiedContact.body.contact_request_id}/accept`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${recipientAccessToken}`,
+      },
+    },
+  );
+  assert(recipientAccept.response.status === 200, `Expected recipient accept to return 200, got ${recipientAccept.response.status}`);
+  assert(Boolean(recipientAccept.body?.conversation_id), 'Expected accept to create a conversation_id');
+
+  const requesterConversations = await fetchJson<ConversationsListApiResponse>(
+    '/v1/conversations',
+    {
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+    },
+  );
+  assert(requesterConversations.response.status === 200, `Expected requester conversations to return 200, got ${requesterConversations.response.status}`);
+  assert(
+    requesterConversations.body?.items.some((conversation) => conversation.conversation_id === recipientAccept.body.conversation_id),
+    'Requester conversations did not include the accepted conversation',
+  );
+
+  const recipientSocket = await openChatSocket(recipientAccessToken!);
+
+  const conversationDetail = await fetchJson<ConversationDetailApiResponse>(
+    `/v1/conversations/${recipientAccept.body.conversation_id}`,
+    {
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+    },
+  );
+  assert(conversationDetail.response.status === 200, `Expected conversation detail to return 200, got ${conversationDetail.response.status}`);
+  assert(
+    conversationDetail.body?.status === 'active',
+    `Expected conversation detail status active, got ${conversationDetail.body?.status ?? '<missing>'}`,
+  );
+
+  const realtimeMessageEventPromise = waitForRealtimeEvent(
+    recipientSocket,
+    (event): event is Extract<ChatRealtimeSmokeEvent, { event_type: 'message.created' }> =>
+      event.event_type === 'message.created' && event.conversation_id === recipientAccept.body.conversation_id,
+  );
+  const realtimeConversationEventPromise = waitForRealtimeEvent(
+    recipientSocket,
+    (event): event is Extract<ChatRealtimeSmokeEvent, { event_type: 'conversation.updated' }> =>
+      event.event_type === 'conversation.updated' &&
+      event.conversation.conversation_id === recipientAccept.body.conversation_id,
+  );
+
+  const sendMessage = await fetchJson<SendConversationMessageApiResponse>(
+    `/v1/conversations/${recipientAccept.body.conversation_id}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+      body: JSON.stringify({
+        body: 'I can meet at the library at 3pm.',
+      }),
+    },
+  );
+  assert(sendMessage.response.status === 200, `Expected send message to return 200, got ${sendMessage.response.status}`);
+  assert(sendMessage.body?.message.is_mine === true, 'Expected send message to mark the sender message as mine');
+  const realtimeMessageEvent = await realtimeMessageEventPromise;
+  assert(
+    realtimeMessageEvent.message.body === 'I can meet at the library at 3pm.',
+    'Expected websocket message.created payload to include the sent body',
+  );
+  assert(realtimeMessageEvent.message.is_mine === false, 'Expected recipient websocket payload to mark incoming message as not mine');
+  const realtimeConversationEvent = await realtimeConversationEventPromise;
+  assert(
+    realtimeConversationEvent.conversation.unread_count >= 1,
+    `Expected recipient websocket payload to carry unread_count >= 1, got ${realtimeConversationEvent.conversation.unread_count}`,
+  );
+
+  const conversationMessages = await fetchJson<ConversationMessagesApiResponse>(
+    `/v1/conversations/${recipientAccept.body.conversation_id}/messages`,
+    {
+      headers: {
+        authorization: `Bearer ${recipientAccessToken}`,
+      },
+    },
+  );
+  assert(conversationMessages.response.status === 200, `Expected list messages to return 200, got ${conversationMessages.response.status}`);
+  assert(
+    conversationMessages.body?.items.some((message) => message.body === 'I can meet at the library at 3pm.'),
+    'Expected conversation messages to include the sent message',
+  );
+
+  const reportMessage = await fetchJson<ReportCreateApiResponse>('/v1/reports', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${recipientAccessToken}`,
+    },
+    body: JSON.stringify({
+      target_type: 'message',
+      target_id: conversationMessages.body?.items[0]?.message_id,
+      reason: 'unsafe_behavior',
+      conversation_id: recipientAccept.body.conversation_id,
+      evidence_description: 'Unsafe meetup request',
+    }),
+  });
+  assert(reportMessage.response.status === 200, `Expected report create to return 200, got ${reportMessage.response.status}`);
+
+  const blockUser = await fetchJson<BlockUserApiResponse>('/v1/blocks', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${recipientAccessToken}`,
+    },
+    body: JSON.stringify({
+      blocked_user_id: requesterOtpVerify.body.user.user_id,
+      conversation_id: recipientAccept.body.conversation_id,
+    }),
+  });
+  assert(blockUser.response.status === 200, `Expected block user to return 200, got ${blockUser.response.status}`);
+  assert(
+    blockUser.body?.affected_conversation_ids.includes(recipientAccept.body.conversation_id!),
+    'Expected blocked response to include the current conversation_id',
+  );
+
+  const blockedConversation = await fetchJson<{ message?: string }>(
+    `/v1/conversations/${recipientAccept.body.conversation_id}`,
+    {
+      headers: {
+        authorization: `Bearer ${recipientAccessToken}`,
+      },
+    },
+  );
+  assert(blockedConversation.response.status === 409, `Expected blocked conversation read to return 409, got ${blockedConversation.response.status}`);
+  recipientSocket.close();
+
+  const closeConversation = await fetchJson<CloseConversationApiResponse>(
+    `/v1/conversations/${recipientAccept.body.conversation_id}/close`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${requesterOtpVerify.body.access_token}`,
+      },
+    },
+  );
+  assert(closeConversation.response.status === 409, `Expected closing a blocked conversation to return 409, got ${closeConversation.response.status}`);
+
   const resources = await fetchJson<ResourceListResponse>(`/v1/resources?zip=${encodeURIComponent(smokeZip)}&limit=5`);
   assert(resources.response.status === 200, `Expected GET /v1/resources to return 200, got ${resources.response.status}`);
   assert(
@@ -455,11 +1010,32 @@ async function main() {
           'GET /v1/me (200)',
           'POST /v1/auth/magic-link/start',
           'POST /v1/auth/magic-link/verify',
+          'POST /v1/posts (M3 requester request)',
+          'GET /v1/posts/:post_id/matches',
+          'GET /v1/posts/:post_id/matches?refresh=true',
+          'POST /v1/match/contact (anonymous -> 403)',
+          'POST /v1/auth/otp/start (M3 requester)',
+          'POST /v1/auth/otp/verify (M3 requester)',
+          'POST /v1/match/contact (verified)',
+          'GET /v1/contact-requests/inbox',
+          'POST /v1/contact-requests/:contact_request_id/accept',
+          'GET /v1/conversations',
+          'GET /v1/conversations/:conversation_id',
+          'POST /v1/conversations/:conversation_id/messages',
+          'GET /v1/conversations/:conversation_id/messages',
+          'GET /v1/ws/chat?token=...',
+          'POST /v1/reports',
+          'POST /v1/blocks',
+          'POST /v1/conversations/:conversation_id/close (blocked -> 409)',
           'GET /v1/resources',
           'GET /v1/resources/:provider_id',
           'GET /docs',
         ],
         requestPostId,
+        m3RequestPostId,
+        m3ContactRequestId: verifiedContact.body.contact_request_id,
+        m3ConversationId: recipientAccept.body.conversation_id,
+        m4ReportedMessageId: conversationMessages.body?.items[0]?.message_id ?? null,
         approvedPostId: highRiskOffer.body.post_id,
         resourceCount: resources.body.items.length,
         providerId,
@@ -484,6 +1060,78 @@ async function createAnonymousSession() {
   return anonymous;
 }
 
+async function createSmokeCommunity() {
+  const config = await loadConfig();
+  const pool = new Pool({
+    connectionString: config.databaseUrl,
+  });
+  const communityId = randomUUID();
+  const inviteCode = `M3-${runId}`;
+
+  try {
+    await pool.query(
+      `
+        insert into communities (
+          community_id,
+          name,
+          center_zip,
+          join_policy,
+          created_at,
+          updated_at
+        )
+        values ($1, $2, $3, 'invite_only', now(), now())
+      `,
+      [communityId, `M3 Smoke ${runId}`, smokeZip],
+    );
+    await pool.query(
+      `
+        insert into community_access_codes (
+          access_code_id,
+          community_id,
+          channel,
+          code,
+          status,
+          created_at
+        )
+        values ($1, $2, 'invite_code', $3, 'active', now())
+      `,
+      [randomUUID(), communityId, inviteCode],
+    );
+  } finally {
+    await pool.end();
+  }
+
+  return {
+    communityId,
+    inviteCode,
+  };
+}
+
+async function joinCommunityByInvite(accessToken: string, communityId: string, inviteCode: string) {
+  const resolveInvite = await fetchJson<CommunityResolveResponse>('/v1/community-access/resolve', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      invite_code: inviteCode,
+    }),
+  });
+  assert(resolveInvite.response.status === 200, `Expected invite resolve to return 200, got ${resolveInvite.response.status}`);
+
+  const joinInvite = await fetchJson<JoinCommunityResponse>(`/v1/communities/${communityId}/join`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      join_token: resolveInvite.body.join_token,
+    }),
+  });
+  assert(joinInvite.response.status === 200, `Expected join to return 200, got ${joinInvite.response.status}`);
+  return joinInvite.body;
+}
+
 async function mintAnchorToken() {
   const config = await loadConfig();
   return mintDevAccessToken(config, {
@@ -496,6 +1144,64 @@ async function mintAnchorToken() {
 
 function futureIso(hoursAhead: number) {
   return new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString();
+}
+
+async function resetAuthAbuseState() {
+  const config = await loadConfig();
+  await clearRedisAuthAbuseKeys(config.redisUrl);
+}
+
+async function openChatSocket(accessToken: string) {
+  const socketUrl = apiBaseUrl.replace(/^http/i, 'ws') + `/v1/ws/chat?token=${encodeURIComponent(accessToken)}`;
+  const WebSocketCtor = (globalThis as typeof globalThis & { WebSocket: new (url: string) => RuntimeWebSocket }).WebSocket;
+  const socket = new WebSocketCtor(socketUrl);
+
+  await new Promise<void>((resolve, reject) => {
+    socket.addEventListener('open', () => resolve(), { once: true });
+    socket.addEventListener('error', () => reject(new Error(`Failed to open websocket ${socketUrl}`)), { once: true });
+  });
+
+  await waitForRealtimeEvent(
+    socket,
+    (event): event is Extract<ChatRealtimeSmokeEvent, { event_type: 'heartbeat' }> =>
+      event.event_type === 'heartbeat',
+  );
+
+  return socket;
+}
+
+async function waitForRealtimeEvent<T extends ChatRealtimeSmokeEvent>(
+  socket: RuntimeWebSocket,
+  predicate: (event: ChatRealtimeSmokeEvent) => event is T,
+  timeoutMs = 5_000,
+) {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timed out after ${timeoutMs}ms waiting for realtime event`));
+    }, timeoutMs);
+
+    const handleMessage = (event: { data?: string }) => {
+      if (typeof event.data !== 'string') {
+        return;
+      }
+
+      let payload: ChatRealtimeSmokeEvent;
+      try {
+        payload = JSON.parse(event.data) as ChatRealtimeSmokeEvent;
+      } catch {
+        return;
+      }
+
+      if (!predicate(payload)) {
+        return;
+      }
+
+      clearTimeout(timeout);
+      resolve(payload);
+    };
+
+    socket.addEventListener('message', handleMessage);
+  });
 }
 
 async function waitForReady() {

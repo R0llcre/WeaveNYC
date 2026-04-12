@@ -1,0 +1,344 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useEffectEvent } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { getChatWebSocketUrl } from '@/lib/api';
+import {
+  useAcceptContactRequest,
+  useAppSelector,
+  useContactRequestsInbox,
+  useConversations,
+  useRejectContactRequest,
+} from '@/lib/hooks';
+import { getCategoryLabel, getContactRequestStatusLabel } from '@/lib/i18n';
+
+type InboxView = 'all' | 'requests' | 'chats';
+
+type ChatInboxScreenProps = {
+  initialView?: InboxView;
+};
+
+function formatConversationTime(value: string, locale: string) {
+  const date = new Date(value);
+  const diffMinutes = Math.round((date.getTime() - Date.now()) / 60_000);
+
+  if (Math.abs(diffMinutes) < 60) {
+    return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(diffMinutes, 'minute');
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) {
+    return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(diffHours, 'hour');
+  }
+
+  const diffDays = Math.round(diffHours / 24);
+  if (Math.abs(diffDays) < 7) {
+    return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(diffDays, 'day');
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getConversationStatusLabel(status: 'active' | 'closed' | 'blocked', t: ReturnType<typeof useTranslations>) {
+  switch (status) {
+    case 'closed':
+      return t('postsGroup_closed');
+    case 'blocked':
+      return t('chatThreadBlockedNotice');
+    default:
+      return t('chatThreadStatusLive');
+  }
+}
+
+function getViewHref(view: InboxView) {
+  return view === 'all' ? '/inbox' : `/inbox?view=${view}`;
+}
+
+export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
+  const t = useTranslations();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const preferences = useAppSelector((state) => state.preferences);
+  const session = useAppSelector((state) => state.auth.session);
+  const isVerified = session?.user.level === 'verified' || session?.user.level === 'anchor';
+  const activeView =
+    searchParams.get('view') === 'requests' || searchParams.get('view') === 'chats' ? (searchParams.get('view') as InboxView) : initialView;
+  const showRequests = activeView !== 'chats';
+  const showChats = activeView !== 'requests';
+  const inboxRequestsQuery = useContactRequestsInbox(session?.access_token, { limit: 20 }, isVerified, 15_000);
+  const conversationsQuery = useConversations(session?.access_token, { limit: 20 }, isVerified);
+  const acceptMutation = useAcceptContactRequest(session?.access_token);
+  const rejectMutation = useRejectContactRequest(session?.access_token);
+  const locale = preferences.language === 'es' ? 'es-US' : preferences.language === 'zh' ? 'zh-CN' : 'en-US';
+  const requests = inboxRequestsQuery.data?.items ?? [];
+  const conversations = conversationsQuery.data?.items ?? [];
+  const pendingCount = requests.filter((item) => item.status === 'pending').length;
+  const unreadTotal = conversations.reduce((total, item) => total + item.unread_count, 0);
+  const handleSocketMessage = useEffectEvent(() => {
+    void conversationsQuery.refetch();
+  });
+  const returnToPath = getViewHref(activeView);
+
+  useEffect(() => {
+    if (!isVerified || !session?.access_token) {
+      return;
+    }
+
+    const socket = new WebSocket(getChatWebSocketUrl(session.access_token));
+    socket.onmessage = () => {
+      handleSocketMessage();
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [handleSocketMessage, isVerified, session?.access_token]);
+
+  if (!session) {
+    return (
+      <main className="shell">
+        <div className="shell__inner">
+          <section className="card card--verify">
+            <div className="result-empty">
+              <p>{t('inboxNeedsSession')}</p>
+              <Link className="button button--primary" href="/">
+                {t('backHome')}
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isVerified) {
+    return (
+      <main className="shell">
+        <div className="shell__inner">
+          <section className="card card--verify">
+            <div className="result-empty">
+              <p>{t('inboxNeedsVerified')}</p>
+              <Link className="button button--primary" href={`/verify?return_to=${encodeURIComponent(returnToPath)}`}>
+                {t('inboxVerifyAction')}
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="shell">
+      <div className="shell__inner">
+        <section className="hero hero--detail">
+          <div className="hero__topbar">
+            <span className="hero__eyebrow">{t('inboxTitle')}</span>
+            <div className="actions actions--tight">
+              <ContactInboxLink />
+              <Link className="hero__link" href="/community">
+                {t('inboxBackHome')}
+              </Link>
+            </div>
+          </div>
+          <h1>{t('inboxTitle')}</h1>
+          <p>{t('inboxCopy')}</p>
+          <div className="hero__meta">
+            <span className="meta-chip meta-chip--accent">{t('inboxPendingCount', { count: pendingCount })}</span>
+            <span className="meta-chip">{t('inboxUnreadCount', { count: unreadTotal })}</span>
+            <span className="meta-chip">{t('inboxViewLabel', { view: activeView === 'all' ? t('inboxAllTab') : activeView === 'requests' ? t('inboxRequestsTab') : t('inboxChatsTab') })}</span>
+          </div>
+        </section>
+
+        <section className="card card--results">
+          <div className="section-head">
+            <div>
+              <h2>{t('inboxViewHeading')}</h2>
+              <p className="card__subtitle">{t('inboxViewCopy')}</p>
+            </div>
+            <div className="actions actions--tight">
+              <Link className={`pill ${activeView === 'all' ? 'pill--active' : ''}`} href="/inbox">
+                {t('inboxAllTab')}
+              </Link>
+              <Link className={`pill ${activeView === 'requests' ? 'pill--active' : ''}`} href="/inbox?view=requests">
+                {t('inboxRequestsTab')}
+              </Link>
+              <Link className={`pill ${activeView === 'chats' ? 'pill--active' : ''}`} href="/inbox?view=chats">
+                {t('inboxChatsTab')}
+              </Link>
+            </div>
+          </div>
+
+          {showRequests ? (
+            <section className="section-stack">
+              <div className="section-head">
+                <div>
+                  <h3>{t('inboxRequestsTitle')}</h3>
+                  <p className="card__subtitle">{t('inboxRequestsCopy')}</p>
+                </div>
+                <div className="actions actions--tight">
+                  <button className="button button--secondary" onClick={() => void inboxRequestsQuery.refetch()} type="button">
+                    {t('inboxRefresh')}
+                  </button>
+                </div>
+              </div>
+
+              {inboxRequestsQuery.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
+              {inboxRequestsQuery.isError ? (
+                <p className="status-copy status-copy--error">
+                  {inboxRequestsQuery.error instanceof Error ? inboxRequestsQuery.error.message : t('resourceLoadError')}
+                </p>
+              ) : null}
+
+              {!inboxRequestsQuery.isLoading && requests.length === 0 ? (
+                <div className="result-empty">{t('inboxRequestsEmpty')}</div>
+              ) : null}
+
+              <div className="resource-grid">
+                {requests.map((item) => (
+                  <article className="post-card" key={item.contact_request_id}>
+                    <div className="post-card__meta">
+                      <span className="meta-chip">{getContactRequestStatusLabel(preferences.language, item.status)}</span>
+                      <span className="meta-chip">{getCategoryLabel(preferences.language, item.from_post_category)}</span>
+                    </div>
+                    <h3>{item.requester_alias}</h3>
+                    <p>{item.from_post_title}</p>
+                    <p className="resource-card__subtle">
+                      {t('inboxCreated')}: {new Date(item.created_at).toLocaleString()}
+                    </p>
+                    <p className="resource-card__subtle">
+                      {t('inboxExpires')}: {new Date(item.expires_at).toLocaleString()}
+                    </p>
+                    <div className="actions">
+                      <button
+                        className="button button--primary"
+                        disabled={acceptMutation.isPending || rejectMutation.isPending}
+                        onClick={() =>
+                          void acceptMutation.mutateAsync(item.contact_request_id).then((result) => {
+                            if (result.conversation_id) {
+                              router.push(`/conversations/${result.conversation_id}?contact_request_id=${encodeURIComponent(item.contact_request_id)}`);
+                            }
+                          })
+                        }
+                        type="button"
+                      >
+                        {t('inboxAccept')}
+                      </button>
+                      <button
+                        className="button button--secondary"
+                        disabled={acceptMutation.isPending || rejectMutation.isPending}
+                        onClick={() => void rejectMutation.mutateAsync(item.contact_request_id)}
+                        type="button"
+                      >
+                        {t('inboxReject')}
+                      </button>
+                      <Link className="button button--secondary" href={`/posts/${item.to_post_id}`}>
+                        {t('inboxRelatedPost')}
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {showChats ? (
+            <section className="section-stack">
+              <div className="section-head">
+                <div>
+                  <h3>{t('inboxChatsTitle')}</h3>
+                  <p className="card__subtitle">{t('inboxChatsCopy')}</p>
+                </div>
+                <div className="actions actions--tight">
+                  <button className="button button--secondary" onClick={() => void conversationsQuery.refetch()} type="button">
+                    {t('inboxRefresh')}
+                  </button>
+                </div>
+              </div>
+
+              {conversationsQuery.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
+              {conversationsQuery.isError ? (
+                <p className="status-copy status-copy--error">
+                  {conversationsQuery.error instanceof Error ? conversationsQuery.error.message : t('resourceLoadError')}
+                </p>
+              ) : null}
+
+              {!conversationsQuery.isLoading && conversations.length === 0 ? (
+                <div className="result-empty">{t('inboxChatsEmpty')}</div>
+              ) : null}
+
+              <div className="chat-list">
+                {conversations.map((conversation) => {
+                  const otherParticipant =
+                    conversation.participant_preview.find((participant) => participant.user_id !== session.user.user_id) ??
+                    conversation.participant_preview[0];
+                  const relatedPostId = conversation.related_post_ids[0] ?? null;
+
+                  return (
+                    <article className="chat-card" key={conversation.conversation_id}>
+                      <div className="chat-card__avatar" aria-hidden="true">
+                        {otherParticipant?.alias.slice(0, 1).toUpperCase() ?? 'N'}
+                      </div>
+                      <div className="chat-card__body">
+                        <div className="chat-card__header">
+                          <div>
+                            <h3>{otherParticipant?.alias ?? t('chatThreadFallbackAlias')}</h3>
+                            <p className="chat-card__title">
+                              {conversation.last_message_preview ?? t('inboxPendingPreview', { title: relatedPostId ?? conversation.contact_request_id })}
+                            </p>
+                          </div>
+                          <div className="chat-card__side">
+                            <span className="chat-card__time">{formatConversationTime(conversation.last_activity_at, locale)}</span>
+                            {conversation.unread_count > 0 ? (
+                              <span className="unread-pill">{t('inboxUnreadBadge', { count: conversation.unread_count })}</span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <p className="chat-card__preview">
+                          {conversation.last_message_preview ?? t('inboxChatsCopy')}
+                        </p>
+
+                        <div className="post-card__meta">
+                          <span className="meta-chip">{getConversationStatusLabel(conversation.status, t)}</span>
+                          <span className="meta-chip">
+                            {t('inboxExpiresAt', { value: new Date(conversation.last_activity_at).toLocaleString() })}
+                          </span>
+                        </div>
+
+                        <div className="chat-card__footer">
+                          <p className="resource-card__subtle">
+                            {relatedPostId ? t('inboxFromPost', { title: relatedPostId }) : t('chatThreadRelatedPostMissing')}
+                          </p>
+                          <div className="actions">
+                            <Link className="button button--primary" href={`/conversations/${conversation.conversation_id}`}>
+                              {t('inboxOpenThread')}
+                            </Link>
+                            {relatedPostId ? (
+                              <Link className="button button--secondary" href={`/posts/${relatedPostId}`}>
+                                {t('inboxRelatedPost')}
+                              </Link>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+        </section>
+      </div>
+    </main>
+  );
+}

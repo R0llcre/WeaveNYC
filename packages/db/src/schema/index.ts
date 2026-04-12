@@ -66,6 +66,7 @@ export const contactRequestStatusEnum = pgEnum("contact_request_status", [
   "expired",
   "cancelled"
 ]);
+export const conversationStatusEnum = pgEnum("conversation_status", ["active", "closed", "blocked"]);
 export const reportStatusEnum = pgEnum("report_status", [
   "new",
   "in_review",
@@ -318,17 +319,39 @@ export const verificationLogs = pgTable("verification_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 
-export const matchSuggestions = pgTable("match_suggestions", {
-  suggestionId: uuid("suggestion_id").primaryKey().defaultRandom(),
-  requestPostId: uuid("request_post_id")
-    .notNull()
-    .references(() => posts.postId),
-  candidateType: varchar("candidate_type", { length: 30 }).notNull(),
-  candidateId: uuid("candidate_id").notNull(),
-  score: doublePrecision("score").notNull(),
-  reasons: text("reasons").array(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
+export const matchSuggestions = pgTable(
+  "match_suggestions",
+  {
+    suggestionId: uuid("suggestion_id").primaryKey().defaultRandom(),
+    requestPostId: uuid("request_post_id")
+      .notNull()
+      .references(() => posts.postId),
+    batchNumber: integer("batch_number").notNull().default(1),
+    position: integer("position").notNull().default(1),
+    candidateType: varchar("candidate_type", { length: 30 }).notNull(),
+    candidateId: uuid("candidate_id").notNull(),
+    score: doublePrecision("score").notNull(),
+    reasons: text("reasons").array(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    requestBatchPositionUq: uniqueIndex("uq_match_suggestions_request_batch_position").on(
+      table.requestPostId,
+      table.batchNumber,
+      table.position
+    ),
+    requestCandidateUq: uniqueIndex("uq_match_suggestions_request_candidate").on(
+      table.requestPostId,
+      table.candidateType,
+      table.candidateId
+    ),
+    requestBatchIdx: index("idx_match_suggestions_request_batch").on(
+      table.requestPostId,
+      table.batchNumber,
+      table.position
+    )
+  })
+);
 
 export const contactRequests = pgTable(
   "contact_requests",
@@ -356,7 +379,16 @@ export const contactRequests = pgTable(
       table.recipientUserId,
       table.status,
       table.createdAt
-    )
+    ),
+    requesterStatusIdx: index("idx_contact_requests_requester_status").on(
+      table.requesterUserId,
+      table.status,
+      table.createdAt
+    ),
+    activePairUq: uniqueIndex("uq_contact_requests_active_pair").on(
+      table.fromPostId,
+      table.toPostId
+    ).where(sql`${table.status} in ('pending', 'accepted')`)
   })
 );
 
@@ -369,6 +401,10 @@ export const conversations = pgTable(
     contactRequestId: uuid("contact_request_id")
       .notNull()
       .references(() => contactRequests.contactRequestId),
+    status: conversationStatusEnum("status").notNull().default("active"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    blockedAt: timestamp("blocked_at", { withTimezone: true }),
+    blockedByUserId: uuid("blocked_by_user_id").references(() => users.userId),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
       .notNull()
@@ -377,7 +413,8 @@ export const conversations = pgTable(
   (table) => ({
     contactRequestUq: uniqueIndex("uq_conversations_contact_request_id").on(
       table.contactRequestId
-    )
+    ),
+    lastActivityIdx: index("idx_conversations_last_activity").on(table.lastActivityAt, table.conversationId)
   })
 );
 
@@ -399,12 +436,57 @@ export const messages = pgTable(
     conversationIdx: index("idx_messages_conversation").on(
       table.conversationId,
       table.sentAt
-    )
+    ),
+    senderSentAtIdx: index("idx_messages_sender_sent_at").on(table.senderUserId, table.sentAt)
+  })
+);
+
+export const conversationReads = pgTable(
+  "conversation_reads",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.conversationId),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.userId),
+    lastReadMessageId: uuid("last_read_message_id").references(() => messages.messageId),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    conversationReadPk: primaryKey({
+      columns: [table.conversationId, table.userId],
+      name: "pk_conversation_reads"
+    })
+  })
+);
+
+export const blocks = pgTable(
+  "blocks",
+  {
+    blockId: uuid("block_id").primaryKey().defaultRandom(),
+    blockerUserId: uuid("blocker_user_id")
+      .notNull()
+      .references(() => users.userId),
+    blockedUserId: uuid("blocked_user_id")
+      .notNull()
+      .references(() => users.userId),
+    conversationId: uuid("conversation_id").references(() => conversations.conversationId),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    blockerIdx: index("idx_blocks_blocker").on(table.blockerUserId, table.createdAt),
+    blockedIdx: index("idx_blocks_blocked").on(table.blockedUserId, table.createdAt),
+    pairUq: uniqueIndex("uq_blocks_pair").on(table.blockerUserId, table.blockedUserId)
   })
 );
 
 export const reports = pgTable("reports", {
   reportId: uuid("report_id").primaryKey().defaultRandom(),
+  communityId: uuid("community_id")
+    .notNull()
+    .references(() => communities.communityId),
   targetType: varchar("target_type", { length: 20 }).notNull(),
   targetId: uuid("target_id").notNull(),
   reason: reportReasonEnum("reason").notNull(),
@@ -416,7 +498,9 @@ export const reports = pgTable("reports", {
   resolution: resolutionEnum("resolution"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true })
-});
+}, (table) => ({
+  communityCreatedIdx: index("idx_reports_community_created_at").on(table.communityId, table.createdAt)
+}));
 
 export const moderationActions = pgTable("moderation_actions", {
   actionId: uuid("action_id").primaryKey().defaultRandom(),
@@ -449,6 +533,8 @@ export const schema = {
   contactRequests,
   conversations,
   messages,
+  conversationReads,
+  blocks,
   reports,
   moderationActions
 };

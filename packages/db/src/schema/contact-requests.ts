@@ -1,4 +1,5 @@
-import { index, pgEnum, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { index, pgEnum, pgTable, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { posts } from "./posts";
 import { users } from "./users";
@@ -37,6 +38,14 @@ export const contactRequests = pgTable(
       table.recipientUserId,
       table.status,
       table.createdAt
-    )
+    ),
+    requesterStatusIdx: index("idx_contact_requests_requester_status").on(
+      table.requesterUserId,
+      table.status,
+      table.createdAt
+    ),
+    activePairUq: uniqueIndex("uq_contact_requests_active_pair")
+      .on(table.fromPostId, table.toPostId)
+      .where(sql`${table.status} in ('pending', 'accepted')`)
   })
 );

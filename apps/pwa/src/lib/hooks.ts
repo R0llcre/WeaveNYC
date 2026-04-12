@@ -4,14 +4,26 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
 
 import {
+  acceptContactRequest,
+  blockUser,
+  closeConversation,
+  createReport,
+  createMatchContact,
+  getConversation,
   getResource,
   getPost,
+  getMatchSuggestions,
   joinCommunity,
+  listConversationMessages,
+  listConversations,
+  listContactRequestsInbox,
   listMyPosts,
   listPosts,
   refreshSession,
+  rejectContactRequest,
   resolveCommunityAccess,
   searchResources,
+  sendConversationMessage,
   startMagicLink,
   startOtp,
   transcribeSpeech,
@@ -23,15 +35,23 @@ import {
   updatePost,
 } from "@/lib/api";
 import type {
+  BlockUserInput,
   CommunityAccessResolveInput,
+  ConversationMessagesInput,
+  ConversationsListInput,
+  ContactRequestInboxInput,
   CreatePostInput,
+  MatchContactInput,
   MagicLinkStartInput,
   MagicLinkVerifyInput,
+  MatchResultsResponse,
   MyPostsInput,
   OtpStartInput,
   OtpVerifyInput,
   PostListInput,
+  ReportCreateInput,
   ResourceQueryInput,
+  SendConversationMessageInput,
   SpeechTranscribeInput,
   UpdatePostInput,
 } from "@/lib/types";
@@ -173,6 +193,236 @@ export function usePost(accessToken: string | null | undefined, postId: string, 
     },
     enabled: enabled && Boolean(accessToken) && Boolean(postId),
     staleTime: 30_000,
+  });
+}
+
+export function useMatchSuggestions(accessToken: string | null | undefined, postId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['post-matches', postId, accessToken],
+    queryFn: () => {
+      if (!accessToken) {
+        throw new Error('Create an anonymous session before loading action plans.');
+      }
+
+      return getMatchSuggestions(accessToken, postId, false);
+    },
+    enabled: enabled && Boolean(accessToken) && Boolean(postId),
+    staleTime: 30_000,
+  });
+}
+
+export function useRefreshMatchSuggestions(accessToken: string | null | undefined, postId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<MatchResultsResponse> => {
+      if (!accessToken) {
+        throw new Error('Create an anonymous session before refreshing action plans.');
+      }
+
+      return getMatchSuggestions(accessToken, postId, true);
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['post-matches', postId, accessToken], data);
+    },
+  });
+}
+
+export function useCreateMatchContact(accessToken: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: MatchContactInput) => {
+      if (!accessToken) {
+        throw new Error('Create an anonymous session before requesting contact.');
+      }
+
+      return createMatchContact(accessToken, input);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+}
+
+export function useContactRequestsInbox(
+  accessToken: string | null | undefined,
+  input: ContactRequestInboxInput = {},
+  enabled = true,
+  refetchInterval = 0,
+) {
+  return useQuery({
+    queryKey: ['inbox', 'requests', input, accessToken],
+    queryFn: () => {
+      if (!accessToken) {
+        throw new Error('Verify this session before opening the inbox requests view.');
+      }
+
+      return listContactRequestsInbox(accessToken, input);
+    },
+    enabled: enabled && Boolean(accessToken),
+    refetchInterval: refetchInterval > 0 ? refetchInterval : false,
+    staleTime: 10_000,
+  });
+}
+
+export function useAcceptContactRequest(accessToken: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (contactRequestId: string) => {
+      if (!accessToken) {
+        throw new Error('Verify this session before accepting contact requests.');
+      }
+
+      return acceptContactRequest(accessToken, contactRequestId);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+}
+
+export function useRejectContactRequest(accessToken: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (contactRequestId: string) => {
+      if (!accessToken) {
+        throw new Error('Verify this session before rejecting contact requests.');
+      }
+
+      return rejectContactRequest(accessToken, contactRequestId);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+}
+
+export function useConversations(
+  accessToken: string | null | undefined,
+  input: ConversationsListInput = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['inbox', 'chats', input, accessToken],
+    queryFn: () => {
+      if (!accessToken) {
+        throw new Error('Verify this session before opening the inbox chats view.');
+      }
+
+      return listConversations(accessToken, input);
+    },
+    enabled: enabled && Boolean(accessToken),
+    staleTime: 10_000,
+  });
+}
+
+export function useConversation(
+  accessToken: string | null | undefined,
+  conversationId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['conversation', conversationId, accessToken],
+    queryFn: () => {
+      if (!accessToken) {
+        throw new Error('Verify this session before opening a conversation.');
+      }
+
+      return getConversation(accessToken, conversationId);
+    },
+    enabled: enabled && Boolean(accessToken) && Boolean(conversationId),
+    staleTime: 10_000,
+  });
+}
+
+export function useConversationPlaceholder(
+  accessToken: string | null | undefined,
+  conversationId: string,
+  enabled = true,
+) {
+  return useConversation(accessToken, conversationId, enabled);
+}
+
+export function useConversationMessages(
+  accessToken: string | null | undefined,
+  conversationId: string,
+  input: ConversationMessagesInput = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['conversation', conversationId, 'messages', input, accessToken],
+    queryFn: () => {
+      if (!accessToken) {
+        throw new Error('Verify this session before loading conversation messages.');
+      }
+
+      return listConversationMessages(accessToken, conversationId, input);
+    },
+    enabled: enabled && Boolean(accessToken) && Boolean(conversationId),
+    staleTime: 5_000,
+  });
+}
+
+export function useSendConversationMessage(accessToken: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendConversationMessageInput) => {
+      if (!accessToken) {
+        throw new Error('Verify this session before sending a message.');
+      }
+
+      return sendConversationMessage(accessToken, input);
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ['conversation', data.conversation_id] });
+      void queryClient.invalidateQueries({ queryKey: ['conversation', data.conversation_id, 'messages'] });
+      void queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+}
+
+export function useCloseConversation(accessToken: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => {
+      if (!accessToken) {
+        throw new Error('Verify this session before closing a conversation.');
+      }
+
+      return closeConversation(accessToken, conversationId);
+    },
+    onSuccess: (_, conversationId) => {
+      void queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      void queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+}
+
+export function useBlockUser(accessToken: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: BlockUserInput) => {
+      if (!accessToken) {
+        throw new Error('Verify this session before blocking a user.');
+      }
+
+      return blockUser(accessToken, input);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['conversation'] });
+      void queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+}
+
+export function useCreateReport(accessToken: string | null | undefined) {
+  return useMutation({
+    mutationFn: (input: ReportCreateInput) => {
+      if (!accessToken) {
+        throw new Error('Verify this session before creating a report.');
+      }
+
+      return createReport(accessToken, input);
+    },
   });
 }
 

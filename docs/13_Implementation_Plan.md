@@ -1,13 +1,13 @@
 # WeaveNYC — Implementation Plan (Phased Execution Roadmap)
 
-> 本文档用于 **排阶段、分时间、定产出**。当前仓库状态已经进入 `P0 completed / M0 completed / M1 completed / M2 completed on branch / M3 pending`；`P0-M2` 是已关闭阶段记录，当前真值仍以 [00_Execution_Baseline](./00_Execution_Baseline.md) 为准。
+> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 仍以 `main = M2 completed` 为准；`M3` / `M4` 只作为 `feature/m4-chat-safety` 的 branch closeout 记录，分别见 [24_M3_Closeout](./24_M3_Closeout.md) 与 [25_M4_Closeout](./25_M4_Closeout.md)。
 
 ---
 
 ## 0) 怎么用这份计划
 
 - `P0`、`M0` 已经完成，不再作为待排阶段。
-- `M1`、`M2` 已完成；下一阶段是 `M3`。
+- `M1`、`M2` 已完成；`M3`、`M4` 是 branch-local closeout 记录；当前待排阶段从 `M5` 开始。
 - 每个阶段都看 3 件事：做什么、阶段结束必须产出什么、满足什么门槛才能进入下一阶段。
 - `14_Backlog.md` 是任务池；本文件负责决定“现在先做哪一批”。
 
@@ -30,9 +30,9 @@
 | `P0` 文档冻结 | Completed | 0.5-1 天 | 统一入口、命名、契约 | 基线文档、阶段计划、命名决策、无 P1 文档冲突 | README / Baseline / API / Data Model / Backlog 对齐 |
 | `M0` 工程骨架 | Completed | 2-4 天 | 建立可协作的 monorepo skeleton | `apps/`、`services/`、`packages/`、`.env.example`、本地基础设施、`GET /healthz`、`GET /readyz`、CI stub | 新同学能按文档把项目拉起到“骨架运行”并看到 healthcheck |
 | `M1` 官方资源目录 | Completed | 5-7 天 | 保证“零冷启动价值”并完成真实验证收口 | CFC + Island Harvest adapters、`GET /v1/resources*`、PWA 首页/详情/收藏、OTP/refresh/magic-link fallback、real API smoke、docs truth | 真实 API smoke、fixture browser smoke、manual live-source split 清楚，且 6-lane rereview 无 material findings |
-| `M2` 发帖与社区可见性 | Completed on branch | 5-7 天 | 支持 Request/Offer 发布 | 发帖表单、Posts API、社区加入与 membership、可见性规则、生效的风控门槛、最小 review queue API、speech fallback | invite/QR join、生效的 Request/Offer gating、community/public/anchor_mediated visibility、manual moderation path、6-lane review gate 全部关闭 |
-| `M3` 匹配与行动方案 | Pending | 4-6 天 | 对 Request 返回可行动方案 | 匹配服务、Top-3 结果页、官方资源兜底、解释标签 | 发布 request 后稳定得到 3 个建议 |
-| `M4` 联系与聊天安全 | Pending | 5-7 天 | 建立双向同意联系与会话 | `contact_requests`、accept/reject、会话列表、聊天、举报/拉黑、最小审核队列 API / manual triage | 未同意前不建会话，已同意后可实时聊天；pending_review 可先被清理 |
+| `M2` 发帖与社区可见性 | Completed | 5-7 天 | 支持 Request/Offer 发布 | 发帖表单、Posts API、社区加入与 membership、可见性规则、生效的风控门槛、最小 review queue API、speech fallback | invite/QR join、生效的 Request/Offer gating、community/public/anchor_mediated visibility、manual moderation path、6-lane review gate 全部关闭 |
+| `M3` 匹配与行动方案 | Completed on branch | 4-6 天 | 对 Request 返回可行动方案并完成最小建联闭环 | 匹配服务、Top-3 结果页、一次刷新、官方资源兜底、解释标签、`contact_requests`、recipient inbox、accept/reject | 发布 request 后稳定得到 3 个建议；recipient 可在 app 内 accept/reject；accept 创建 conversation，后续聊天由 M4 接手 |
+| `M4` 联系与聊天安全 | Completed on branch | 5-7 天 | 把 accepted conversation 升级成真实聊天与安全闭环 | 会话列表、消息发送/读取、聊天页、举报/拉黑、敏感信息拦截、WebSocket realtime | 已接受的 request 可进入真实会话并收发消息；安全动作可用；6-lane review gate 关闭后进入 M5 |
 | `M5` Anchor Admin + 试点准备 | Pending | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本 | 能跑通完整 demo 和 pilot rehearsal |
 | `M6` P2P 同步（仅在核心 MVP 完成后） | Optional | 1-2 周 | 做课程加分项 | Edge opt-in、Anchor pin/index、同步恢复 | 两设备可跨节点看到同一帖子 |
 
@@ -110,7 +110,7 @@
 - real API smoke 与 fixture-backed browser smoke 的边界已清楚且默认 CI 可复现
 - live-source smoke 仍保留为 manual / opt-in
 
-### M2（Completed On Branch）：发帖 MVP（Request/Offer）
+### M2（Completed）：发帖 MVP（Request/Offer）
 
 做什么：
 
@@ -132,7 +132,7 @@
 - verified `offer` 可发布，高风险帖子进入 `pending_review`
 - `GET /v1/admin/review_queue` + `POST /v1/admin/review_queue/{post_id}/decision` 可清理待审帖子
 
-### M3（Week 3-4）：匹配引擎 + 行动方案
+### M3（Completed）：匹配引擎 + inbox 建联闭环
 
 做什么：
 
@@ -140,43 +140,47 @@
 - 固定输出 Top-3 行动方案
 - 永远包含官方资源兜底
 - 在结果页展示解释标签
+- `refresh=true` 只允许再拿 1 批新结果，不引入无限刷新
+- 实现 `contact_requests`、recipient inbox、accept/reject 和 accepted conversation 创建
 - 联系请求的最小通知先用 in-app inbox / pending request list / polling，不依赖 push infra
 
 阶段产出：
 
 - MatchSuggestions 数据
 - Match Results 页面
-- `refresh=true` 的“换一批”能力
+- `refresh=true` 的一次“换一批”能力
 - 联系请求在 app 内可见（badge / pending list / polling）
+- `accept` / `reject` 幂等，`accept` 后得到 `conversation_id`
 
 进入下一阶段门槛：
 
 - 发布 Request 后 60 秒内出现 3 个方案
 - 无邻里 Offer 时仍有官方资源结果
 - 联系请求可在应用内被 recipient 看到，不依赖 push
+- recipient 可在 app 内 accept / reject；`accept` 结果可被 M4 真实聊天直接消费
 
-### M4（Week 4-5）：聊天 + 反骚扰
+### M4（Completed on branch）：聊天 + 反骚扰
 
 做什么：
 
-- 实现 `contact_requests`
-- 实现 accept/reject 后创建 conversation
-- 实现消息发送、实时同步、举报/拉黑、敏感信息拦截
-- 提供最小 moderation queue API / manual triage path，让 pending_review 可在 M5 前清理
+- 把 M3 的 accepted conversation 升级成真实会话
+- 实现会话列表、消息发送、消息读取、实时同步
+- 实现举报/拉黑、敏感信息拦截
+- 在聊天层补齐安全动作与可追踪状态
 
 阶段产出：
 
-- Contact request 状态机
 - Conversation / Message API
+- Chat inbox / message thread UI
 - Chat UI 与安全动作
-- 最小审核路径可清理 pending_review 帖子
+- accepted request 到 real chat 的升级路径
 
 进入下一阶段门槛：
 
-- 未接受前不创建 conversation
+- 已接受的 conversation 可直接进入真实聊天线程
 - 会话建立后双方能实时聊天
 - 拉黑和举报可用
-- pending_review 可通过 API/manual path 被处理，而不必等完整 UI
+- 敏感信息拦截可用
 
 ### M5（Week 5-6）：Anchor Admin MVP
 
@@ -224,7 +228,7 @@
 
 - `P0-M1`：已关闭，作为历史记录保留
 - `M2-M3`：前端、后端、数据结构和流程规则可以并行推进
-- `M4-M5`：聊天安全、最小审核路径和 Anchor Admin 可以并行，但都依赖前面的 auth / posts / matching 稳定
+- `M5`：Anchor Admin 与试点准备依赖前面的 auth / posts / matching / chat 稳定
 - `M6`：只在 M5 稳定后再拉出支线，且不计入 MVP 主线容量
 
 ---
@@ -235,8 +239,8 @@
 
 当前执行起点：
 
-- 从 `M2` 开始拉任务
-- 不再继续把 `E0-M1` 这类已关闭阶段 story 当作当前待办
+- 从 `M5` 开始拉任务
+- 不再继续把 `E0-M4` 这类已关闭阶段 story 当作当前待办
 - 其余 auth / PWA platform story 是否已完成，一律以 [`14_Backlog.md`](./14_Backlog.md) 的当前状态标记为准
 
 - Core services
