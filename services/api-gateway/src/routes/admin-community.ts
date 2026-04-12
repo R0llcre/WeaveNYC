@@ -51,7 +51,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -89,7 +91,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -129,7 +133,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -173,7 +179,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -214,7 +222,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -257,7 +267,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -299,7 +311,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };
@@ -338,7 +352,9 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: "User not found" };

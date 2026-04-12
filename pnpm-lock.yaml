@@ -197,6 +197,9 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@24.12.2)
+      ws:
+        specifier: ^8.18.3
+        version: 8.20.0
 
   services/chat:
     dependencies:

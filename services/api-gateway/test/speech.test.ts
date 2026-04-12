@@ -9,6 +9,8 @@ function signUser(app: Awaited<ReturnType<typeof createTestApp>>['app'], user: R
       level: user.level,
       role: user.role,
       community_ids: user.communityIds,
+      anchor_community_id: user.anchorCommunityId ?? undefined,
+      mfa_verified_at: user.mfaVerifiedAt,
     },
     {
       algorithm: 'RS256',
