@@ -177,7 +177,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       throw error;
     }
 
-    request.currentUser = currentUser;
+    request.currentUser = {
+      ...currentUser,
+      mfaVerifiedAt: request.user.mfa_verified_at,
+    };
   });
 
   app.addHook('onClose', async () => {

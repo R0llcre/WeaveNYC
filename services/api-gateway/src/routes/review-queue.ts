@@ -44,7 +44,9 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: 'User not found' };
@@ -88,13 +90,15 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       try {
-        const actor = await loadCurrentActor(app, request.user.sub);
+        const actor =
+          request.currentUser ??
+          (await loadCurrentActor(app, request.user.sub, request.user.mfa_verified_at));
         if (!actor) {
           reply.code(404);
           return { message: 'User not found' };
         }
 
-        if (actor.role !== 'anchor') {
+        if (!isAnchorForCommunity(actor, actor.anchorCommunityId ?? '')) {
           reply.code(403);
           return { message: 'Only anchors can review posts' };
         }

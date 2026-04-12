@@ -1,13 +1,31 @@
+import { anchorSessionIdleTtlSeconds } from '@weavenyc/shared';
 import type { PostDetail, UserLevel } from '@weavenyc/shared';
 
 import type { PostActor, PostRecord } from './types.js';
+
+function hasFreshAnchorMfa(mfaVerifiedAt?: string) {
+  if (!mfaVerifiedAt) {
+    return false;
+  }
+
+  const occurredAt = Date.parse(mfaVerifiedAt);
+  if (Number.isNaN(occurredAt)) {
+    return false;
+  }
+
+  return Date.now() - occurredAt <= anchorSessionIdleTtlSeconds * 1000;
+}
 
 export function isCommunityMember(actor: PostActor, communityId: string) {
   return actor.communityIds.includes(communityId);
 }
 
 export function isCommunityAnchor(actor: PostActor, communityId: string) {
-  return actor.role === 'anchor' && actor.anchorCommunityId === communityId;
+  return (
+    actor.role === 'anchor' &&
+    actor.anchorCommunityId === communityId &&
+    hasFreshAnchorMfa(actor.mfaVerifiedAt)
+  );
 }
 
 export function ensureActorCanPublish(actor: PostActor, post: Pick<PostRecord, 'communityId' | 'postType' | 'riskLevel'>) {

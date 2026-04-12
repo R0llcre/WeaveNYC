@@ -4,6 +4,7 @@ import {
   decodeMessageCursor,
   toConversationSummary,
 } from "./repository.js";
+import { anchorSessionIdleTtlSeconds } from "@weavenyc/shared";
 import type {
   AdminReportQueueInput,
   BlockUserResult,
@@ -516,10 +517,20 @@ export class DefaultChatService implements ChatService {
   }
 
   private ensureAnchorForCommunity(
-    actor: { role?: string; communityIds?: string[]; anchorCommunityId?: string | null },
+    actor: {
+      role?: string;
+      communityIds?: string[];
+      anchorCommunityId?: string | null;
+      mfaVerifiedAt?: string;
+    },
     communityId: string,
   ) {
-    const isAnchor = actor.role === "anchor" && actor.anchorCommunityId === communityId;
+    const occurredAt = actor.mfaVerifiedAt ? Date.parse(actor.mfaVerifiedAt) : Number.NaN;
+    const hasFreshMfa =
+      !Number.isNaN(occurredAt) &&
+      Date.now() - occurredAt <= anchorSessionIdleTtlSeconds * 1000;
+    const isAnchor =
+      actor.role === "anchor" && actor.anchorCommunityId === communityId && hasFreshMfa;
     if (!isAnchor) {
       throw new ChatServiceError("Only anchors can manage reports for this community", "forbidden");
     }

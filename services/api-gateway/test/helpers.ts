@@ -1174,6 +1174,7 @@ export function createUserRecord(input: {
   role?: UserRole;
   communityIds?: string[];
   anchorCommunityId?: string | null;
+  mfaVerifiedAt?: string;
 } = {}): AuthenticatedUserRecord {
   const role = input.role ?? 'user';
   const communityIds = input.communityIds ?? [];
@@ -1185,6 +1186,7 @@ export function createUserRecord(input: {
     communityIds,
     anchorCommunityId:
       input.anchorCommunityId ??
-      (role === 'anchor' && communityIds.length > 0 ? communityIds[0] : null)
+      (role === 'anchor' && communityIds.length > 0 ? communityIds[0] : null),
+    mfaVerifiedAt: input.mfaVerifiedAt,
   };
 }

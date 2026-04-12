@@ -35,6 +35,9 @@ export type ChatActor = {
   level: ChatUserLevel;
   alias?: string;
   communityIds?: string[];
+  role?: "user" | "anchor";
+  anchorCommunityId?: string | null;
+  mfaVerifiedAt?: string;
 };
 
 export type ConversationParticipantPreview = {

@@ -30,6 +30,7 @@ export type PostActor = {
   role: UserRole;
   communityIds: string[];
   anchorCommunityId?: string | null;
+  mfaVerifiedAt?: string;
 };
 
 export type ResolveCommunityAccessInput = {

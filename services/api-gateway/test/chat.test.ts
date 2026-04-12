@@ -1,3 +1,4 @@
+import { WebSocket } from 'ws';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { PostRecord } from '@weavenyc/posts';
@@ -18,6 +19,8 @@ function signUser(app: Awaited<ReturnType<typeof createTestApp>>['app'], user: R
       level: user.level,
       role: user.role,
       community_ids: user.communityIds,
+      anchor_community_id: user.anchorCommunityId ?? undefined,
+      mfa_verified_at: user.mfaVerifiedAt,
     },
     {
       algorithm: 'RS256',
@@ -203,9 +206,9 @@ describe('chat routes', () => {
     const socket = new WebSocket(
       `ws://127.0.0.1:${address.port}/v1/ws/chat?token=${encodeURIComponent(requesterToken)}`,
     );
-    const closeEvent = await new Promise<CloseEvent>((resolve, reject) => {
-      socket.addEventListener('close', resolve, { once: true });
-      socket.addEventListener('error', () => reject(new Error('expected websocket close event')), { once: true });
+    const closeEvent = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
+      socket.once('close', (code, reason) => resolve({ code, reason: reason.toString() }));
+      socket.once('error', () => reject(new Error('expected websocket close event')));
     });
 
     expect(closeEvent.code).toBe(1008);

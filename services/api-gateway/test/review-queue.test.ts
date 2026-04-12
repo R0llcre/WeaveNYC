@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createTestApp, createUserRecord, InMemoryUserStore } from './helpers.js';
 
 const communityId = '44444444-4444-4444-8444-444444444444';
+const freshMfa = '2026-04-12T08:00:00.000Z';
 
 function signUser(app: Awaited<ReturnType<typeof createTestApp>>['app'], user: ReturnType<typeof createUserRecord>) {
   return app.jwt.sign(
@@ -11,6 +12,8 @@ function signUser(app: Awaited<ReturnType<typeof createTestApp>>['app'], user: R
       level: user.level,
       role: user.role,
       community_ids: user.communityIds,
+      anchor_community_id: user.anchorCommunityId ?? undefined,
+      mfa_verified_at: user.mfaVerifiedAt,
     },
     {
       algorithm: 'RS256',
@@ -39,6 +42,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
+      mfaVerifiedAt: freshMfa,
     });
     userStore.users.set(verifiedUser.userId, verifiedUser);
     userStore.users.set(anchorUser.userId, anchorUser);
@@ -113,6 +117,29 @@ describe('review queue routes', () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it('rejects anchor review access without a fresh MFA step-up', async () => {
+    const userStore = new InMemoryUserStore();
+    const anchorUser = createUserRecord({
+      userId: '99999999-9999-4999-8999-999999999999',
+      level: 'anchor',
+      role: 'anchor',
+      communityIds: [communityId],
+    });
+    userStore.users.set(anchorUser.userId, anchorUser);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const anchorToken = signUser(app, anchorUser);
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/admin/review_queue?community_id=${communityId}`,
+      headers: { authorization: `Bearer ${anchorToken}` },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it('rejects malformed review queue cursors with 400s', async () => {
     const userStore = new InMemoryUserStore();
     const anchorUser = createUserRecord({
@@ -120,6 +147,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
+      mfaVerifiedAt: freshMfa,
     });
     userStore.users.set(anchorUser.userId, anchorUser);
 
@@ -148,6 +176,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
+      mfaVerifiedAt: freshMfa,
     });
     userStore.users.set(verifiedUser.userId, verifiedUser);
     userStore.users.set(anchorUser.userId, anchorUser);
@@ -197,6 +226,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
+      mfaVerifiedAt: freshMfa,
     });
     userStore.users.set(anchorUser.userId, anchorUser);
 
