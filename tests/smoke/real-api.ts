@@ -2,6 +2,7 @@ import { createHash, createHmac, randomUUID } from 'node:crypto';
 import process from 'node:process';
 
 import { Pool } from 'pg';
+import { WebSocket, type RawData } from 'ws';
 import { seedIds, seedValues } from '../../packages/db/seed/fixtures.js';
 import { loadConfig } from '../../services/api-gateway/src/config.js';
 import { clearRedisAuthAbuseKeys } from '../../services/api-gateway/src/lib/identity.js';
@@ -296,14 +297,7 @@ type ChatRealtimeSmokeEvent =
       event_type: 'heartbeat';
     };
 
-type RuntimeWebSocket = {
-  addEventListener(
-    type: 'open' | 'message' | 'error' | 'close',
-    listener: (event: { data?: string }) => void,
-    options?: { once?: boolean },
-  ): void;
-  close(code?: number, reason?: string): void;
-};
+type RuntimeWebSocket = WebSocket;
 
 type ResourceListResponse = {
   items: Array<{
@@ -1478,12 +1472,11 @@ async function resetAuthAbuseState() {
 
 async function openChatSocket(accessToken: string) {
   const socketUrl = apiBaseUrl.replace(/^http/i, 'ws') + `/v1/ws/chat?token=${encodeURIComponent(accessToken)}`;
-  const WebSocketCtor = (globalThis as typeof globalThis & { WebSocket: new (url: string) => RuntimeWebSocket }).WebSocket;
-  const socket = new WebSocketCtor(socketUrl);
+  const socket = new WebSocket(socketUrl);
 
   await new Promise<void>((resolve, reject) => {
-    socket.addEventListener('open', () => resolve(), { once: true });
-    socket.addEventListener('error', () => reject(new Error(`Failed to open websocket ${socketUrl}`)), { once: true });
+    socket.once('open', () => resolve());
+    socket.once('error', () => reject(new Error(`Failed to open websocket ${socketUrl}`)));
   });
 
   await waitForRealtimeEvent(
@@ -1502,17 +1495,15 @@ async function waitForRealtimeEvent<T extends ChatRealtimeSmokeEvent>(
 ) {
   return new Promise<T>((resolve, reject) => {
     const timeout = setTimeout(() => {
+      socket.off('message', handleMessage);
+      socket.off('error', handleError);
       reject(new Error(`Timed out after ${timeoutMs}ms waiting for realtime event`));
     }, timeoutMs);
 
-    const handleMessage = (event: { data?: string }) => {
-      if (typeof event.data !== 'string') {
-        return;
-      }
-
+    const handleMessage = (data: RawData) => {
       let payload: ChatRealtimeSmokeEvent;
       try {
-        payload = JSON.parse(event.data) as ChatRealtimeSmokeEvent;
+        payload = JSON.parse(rawDataToString(data)) as ChatRealtimeSmokeEvent;
       } catch {
         return;
       }
@@ -1522,11 +1513,37 @@ async function waitForRealtimeEvent<T extends ChatRealtimeSmokeEvent>(
       }
 
       clearTimeout(timeout);
+      socket.off('message', handleMessage);
+      socket.off('error', handleError);
       resolve(payload);
     };
 
-    socket.addEventListener('message', handleMessage);
+    const handleError = () => {
+      clearTimeout(timeout);
+      socket.off('message', handleMessage);
+      socket.off('error', handleError);
+      reject(new Error('Realtime socket errored before receiving the expected event'));
+    };
+
+    socket.on('message', handleMessage);
+    socket.once('error', handleError);
   });
+}
+
+function rawDataToString(data: RawData) {
+  if (typeof data === 'string') {
+    return data;
+  }
+
+  if (data instanceof Buffer) {
+    return data.toString();
+  }
+
+  if (Array.isArray(data)) {
+    return Buffer.concat(data).toString();
+  }
+
+  return Buffer.from(data).toString();
 }
 
 async function waitForReady() {
