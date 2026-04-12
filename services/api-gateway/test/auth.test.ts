@@ -89,6 +89,117 @@ describe('POST /v1/auth/anonymous', () => {
     expect(replayResponse.statusCode).toBe(401);
   });
 
+  it('rejects refresh for suspended users and revokes the session family', async () => {
+    const userStore = new InMemoryUserStore();
+    const refreshTokenStore = new InMemoryRefreshTokenStore();
+    const { app } = await createTestApp({
+      userStore,
+      refreshTokenStore,
+    });
+    apps.push(app);
+
+    const session = (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/auth/anonymous',
+        payload: {
+          device_id: randomUUID(),
+        },
+      })
+    ).json();
+
+    const user = userStore.users.get(session.user.user_id);
+    if (!user) {
+      throw new Error('expected anonymous user to exist');
+    }
+    user.status = 'suspended';
+    userStore.users.set(user.userId, user);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/refresh',
+      payload: {
+        refresh_token: session.refresh_token,
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    const stored = refreshTokenStore.sessions.get(session.refresh_token);
+    expect(stored).toBeDefined();
+    expect(refreshTokenStore.revokedFamilies.has(stored!.familyId)).toBe(true);
+  });
+
+  it('does not upgrade a verified refresh family into anchor scope', async () => {
+    const userStore = new InMemoryUserStore();
+    const refreshTokenStore = new InMemoryRefreshTokenStore();
+    const { app } = await createTestApp({
+      userStore,
+      refreshTokenStore,
+    });
+    apps.push(app);
+
+    const anonymousSession = (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/auth/anonymous',
+        payload: {
+          device_id: randomUUID(),
+        },
+      })
+    ).json();
+
+    const otpStart = (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/auth/otp/start',
+        headers: {
+          authorization: `Bearer ${anonymousSession.access_token}`,
+        },
+        payload: {
+          phone: '+15165550101',
+        },
+      })
+    ).json();
+
+    const verifiedSession = (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/auth/otp/verify',
+        headers: {
+          authorization: `Bearer ${anonymousSession.access_token}`,
+        },
+        payload: {
+          challenge_id: otpStart.challenge_id,
+          code: otpStart.demo_code,
+        },
+      })
+    ).json();
+
+    const user = userStore.users.get(verifiedSession.user.user_id);
+    if (!user) {
+      throw new Error('expected verified user to exist');
+    }
+    user.level = 'anchor';
+    user.role = 'anchor';
+    user.anchorCommunityId = '44444444-4444-4444-8444-444444444444';
+    userStore.users.set(user.userId, user);
+
+    const refreshResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/refresh',
+      payload: {
+        refresh_token: verifiedSession.refresh_token,
+      },
+    });
+
+    expect(refreshResponse.statusCode).toBe(200);
+    expect(refreshResponse.json().user.level).toBe('verified');
+    const claims = await app.jwt.verify<AuthTokenClaims>(refreshResponse.json().access_token);
+    expect(claims.level).toBe('verified');
+    expect(claims.role).toBe('user');
+    expect(claims.anchor_community_id).toBeUndefined();
+  });
+
   it('rate limits anonymous session creation attempts', async () => {
     const authAbuseStore = new InMemoryAuthAbuseStore();
     authAbuseStore.anonymousDecisions.set('127.0.0.1', {

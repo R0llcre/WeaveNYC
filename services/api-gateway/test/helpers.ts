@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
+import { anchorSessionIdleTtlSeconds } from '@weavenyc/shared';
 import { DefaultChatService, InMemoryChatRepository, type ChatService } from '@weavenyc/chat';
 import { createMatchService, type MatchRepository, type MatchService } from '@weavenyc/match';
 import { InMemoryPostsService } from '@weavenyc/posts';
@@ -213,12 +214,30 @@ class InMemoryLinkedMatchRepository implements MatchRepository {
   async getPostCommunityId(postId: string) {
     return this.postsService.posts.get(postId)?.communityId ?? null;
   }
+
+  countAcceptedContactsThisWeek(communityId: string) {
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return Array.from(this.contactRequests.values()).filter((request) => {
+      if (request.status !== 'accepted') {
+        return false;
+      }
+
+      const fromPost = this.postsService.posts.get(request.fromPostId);
+      if (!fromPost || fromPost.communityId !== communityId) {
+        return false;
+      }
+
+      const acceptedAt = request.respondedAt ?? request.createdAt;
+      return new Date(acceptedAt).getTime() >= oneWeekAgo;
+    }).length;
+  }
 }
 
 class InMemoryLinkedChatRepository extends InMemoryChatRepository {
   constructor(
     private readonly matchRepository: InMemoryLinkedMatchRepository,
     private readonly postsService: InMemoryPostsService,
+    private readonly userStore: InMemoryUserStore,
   ) {
     super();
   }
@@ -293,6 +312,91 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
     return this.postsService.posts.get(postId)?.communityId ?? null;
   }
 
+  override async decideReport(input: {
+    communityId: string;
+    reportId: string;
+    decision: 'dismiss' | 'warn' | 'remove_post' | 'suspend_user';
+    notes: string | null;
+    anchorUserId: string;
+    decidedAt: string;
+  }) {
+    const result = await super.decideReport(input);
+    if (result) {
+      const report = this.reports.get(input.reportId);
+      if (input.decision === 'remove_post') {
+        const post = report ? this.postsService.posts.get(report.target_id) : null;
+        if (post) {
+          post.status = 'removed';
+          post.updatedAt = input.decidedAt;
+          this.postsService.posts.set(post.postId, post);
+        }
+      }
+
+      if (input.decision === 'suspend_user' && report) {
+        const suspendedUserId =
+          report.target_type === 'post'
+            ? this.postOwners.get(report.target_id) ?? report.target_id
+            : report.target_id;
+        const user = this.userStore.users.get(suspendedUserId);
+        if (user) {
+          this.userStore.users.set(suspendedUserId, {
+            ...user,
+            status: 'suspended',
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
+  countReportsThisWeek(communityId: string) {
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return Array.from(this.reports.values()).filter(
+      (report) =>
+        report.community_id === communityId && new Date(report.created_at).getTime() >= oneWeekAgo,
+    ).length;
+  }
+
+  countPendingReports(communityId: string) {
+    return Array.from(this.reports.values()).filter(
+      (report) => report.community_id === communityId && report.status === 'new',
+    ).length;
+  }
+
+  override async autoHidePostIfThresholdReached(input: { communityId: string; postId: string }) {
+    const threshold =
+      this.postsService.rules.get(input.communityId)?.auto_hide_report_threshold ?? 3;
+    const resolvedAt = new Date().toISOString();
+    const openReports = Array.from(this.reports.values()).filter(
+      (report) =>
+        report.community_id === input.communityId &&
+        report.target_type === 'post' &&
+        report.target_id === input.postId &&
+        report.status !== 'dismissed' &&
+        report.status !== 'resolved',
+    );
+    if (openReports.length < threshold) {
+      return false;
+    }
+
+    for (const report of openReports) {
+      report.status = 'resolved';
+      report.resolution = 'remove_post';
+      report.resolved_at = resolvedAt;
+      this.reports.set(report.report_id, report);
+    }
+
+    const post = this.postsService.posts.get(input.postId);
+    if (post) {
+      post.status = 'removed';
+      post.updatedAt = resolvedAt;
+      this.postsService.posts.set(post.postId, post);
+    }
+
+    return true;
+  }
+
   override async getMessageContext(messageId: string) {
     this.syncConversations();
     const baseContext = await super.getMessageContext(messageId);
@@ -315,6 +419,26 @@ export class InMemoryUserStore implements UserStore {
   readonly users = new Map<string, AuthenticatedUserRecord>();
   readonly phoneIdentities = new Map<string, { hash: string; salt: string }>();
   readonly emailIdentities = new Map<string, { hash: string; salt: string }>();
+  readonly anchorInvites = new Map<string, {
+    inviteId: string;
+    communityId: string;
+    communityName: string;
+    centerZip: string;
+    joinPolicy: 'invite_only' | 'open';
+    orgName: string;
+    status: 'active' | 'consumed' | 'revoked';
+  }>();
+  readonly anchors = new Map<string, {
+    anchorId: string;
+    userId: string;
+    communityId: string;
+    orgName: string;
+    status: 'pending_activation' | 'active' | 'revoked';
+    totpSecretCiphertext: string | null;
+    recoveryCodesHashes: string[];
+    activatedAt: string | null;
+    lastMfaAt: string | null;
+  }>();
 
   async ping(): Promise<void> {}
 
@@ -346,7 +470,10 @@ export class InMemoryUserStore implements UserStore {
       return null;
     }
 
-    user.level = 'verified';
+    if (user.level === 'anonymous') {
+      user.level = 'verified';
+      user.role = 'user';
+    }
     this.users.set(userId, user);
     this.phoneIdentities.set(userId, {
       hash: phoneHash,
@@ -365,13 +492,105 @@ export class InMemoryUserStore implements UserStore {
       return null;
     }
 
-    user.level = 'verified';
+    if (user.level === 'anonymous') {
+      user.level = 'verified';
+      user.role = 'user';
+    }
     this.users.set(userId, user);
     this.emailIdentities.set(userId, {
       hash: emailHash,
       salt: emailHashSalt
     });
     return user;
+  }
+
+  async findAnchorInviteByCodeHash(codeHash: string) {
+    const invite = this.anchorInvites.get(codeHash);
+    if (!invite || invite.status !== 'active') {
+      return null;
+    }
+
+    return {
+      inviteId: invite.inviteId,
+      orgName: invite.orgName,
+      community: {
+        communityId: invite.communityId,
+        name: invite.communityName,
+        centerZip: invite.centerZip,
+        joinPolicy: invite.joinPolicy
+      }
+    };
+  }
+
+  async getActiveAnchorByUser(userId: string, communityId: string) {
+    return (
+      Array.from(this.anchors.values()).find(
+        (anchor) => anchor.userId === userId && anchor.communityId === communityId && anchor.status === 'active'
+      ) ?? null
+    );
+  }
+
+  async activateAnchor(input: {
+    userId: string;
+    inviteId: string;
+    totpSecretCiphertext: string;
+    recoveryCodesHashes: string[];
+    activatedAt: string;
+  }) {
+    const invite = Array.from(this.anchorInvites.values()).find(
+      (entry) => entry.inviteId === input.inviteId && entry.status === 'active'
+    );
+    if (!invite) {
+      return null;
+    }
+
+    const user = this.users.get(input.userId);
+    if (!user) {
+      return null;
+    }
+
+    const displacedAnchor = this.anchors.get(invite.communityId);
+    if (displacedAnchor && displacedAnchor.userId !== input.userId) {
+      const displacedUser = this.users.get(displacedAnchor.userId);
+      if (displacedUser) {
+        displacedUser.level = 'verified';
+        displacedUser.role = 'user';
+        displacedUser.anchorCommunityId = null;
+        this.users.set(displacedUser.userId, displacedUser);
+      }
+    }
+
+    user.level = 'anchor';
+    user.role = 'anchor';
+    user.anchorCommunityId = invite.communityId;
+    if (!user.communityIds.includes(invite.communityId)) {
+      user.communityIds = [...user.communityIds, invite.communityId];
+    }
+    this.users.set(user.userId, user);
+    this.anchors.set(invite.communityId, {
+      anchorId: randomUUID(),
+      userId: input.userId,
+      communityId: invite.communityId,
+      orgName: invite.orgName,
+      status: 'active',
+      totpSecretCiphertext: input.totpSecretCiphertext,
+      recoveryCodesHashes: input.recoveryCodesHashes,
+      activatedAt: input.activatedAt,
+      lastMfaAt: input.activatedAt
+    });
+    invite.status = 'consumed';
+    return user;
+  }
+
+  async recordAnchorMfa(input: {
+    userId: string;
+    communityId: string;
+    occurredAt: string;
+  }) {
+    const anchor = await this.getActiveAnchorByUser(input.userId, input.communityId);
+    if (anchor) {
+      anchor.lastMfaAt = input.occurredAt;
+    }
   }
 
   async close(): Promise<void> {}
@@ -445,6 +664,17 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
     attemptsRemaining: number;
     expiresAt: number;
   }>();
+  readonly anchorChallenges = new Map<string, {
+    challengeId: string;
+    kind: 'anchor_activate' | 'anchor_session';
+    userId: string;
+    communityId: string;
+    inviteId?: string;
+    secret: string;
+    recoveryCodesHashes?: string[];
+    attemptsRemaining: number;
+    expiresAt: number;
+  }>();
 
   async ping(): Promise<void> {}
 
@@ -483,7 +713,11 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
     };
   }
 
-  async rotateSession(currentToken: string, nextToken: string) {
+  async rotateSession(
+    currentToken: string,
+    nextToken: string,
+    nextSessionOverride?: StoredRefreshSession,
+  ) {
     const session = this.sessions.get(currentToken);
     if (!session) {
       const replay = this.usedTokens.get(currentToken);
@@ -510,12 +744,31 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
       };
     }
 
+    if (session.level === 'anchor' && session.lastActivityAt) {
+      const idleMillis = Date.now() - new Date(session.lastActivityAt).getTime();
+      if (idleMillis > anchorSessionIdleTtlSeconds * 1000) {
+        this.revokedFamilies.add(session.familyId);
+        this.sessions.delete(currentToken);
+        return {
+          status: 'revoked' as const,
+          familyId: session.familyId,
+          userId: session.userId,
+        };
+      }
+    }
+
     this.sessions.delete(currentToken);
     this.usedTokens.set(currentToken, {
       familyId: session.familyId,
       userId: session.userId
     });
-    this.sessions.set(nextToken, session);
+    this.sessions.set(
+      nextToken,
+      nextSessionOverride ?? {
+        ...session,
+        lastActivityAt: session.level === 'anchor' ? new Date().toISOString() : session.lastActivityAt
+      },
+    );
 
     return {
       status: 'rotated' as const,
@@ -561,6 +814,32 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
     this.challenges.set(`magic_link:${challenge.challengeId}`, challenge);
   }
 
+  async createAnchorActivationChallenge(challenge: {
+    challengeId: string;
+    kind: 'anchor_activate';
+    userId: string;
+    communityId: string;
+    inviteId?: string;
+    secret: string;
+    recoveryCodesHashes?: string[];
+    attemptsRemaining: number;
+    expiresAt: number;
+  }): Promise<void> {
+    this.anchorChallenges.set(`anchor_activate:${challenge.challengeId}`, challenge);
+  }
+
+  async createAnchorSessionChallenge(challenge: {
+    challengeId: string;
+    kind: 'anchor_session';
+    userId: string;
+    communityId: string;
+    secret: string;
+    attemptsRemaining: number;
+    expiresAt: number;
+  }): Promise<void> {
+    this.anchorChallenges.set(`anchor_session:${challenge.challengeId}`, challenge);
+  }
+
   async verifyChallenge(input: {
     challengeId: string;
     kind: 'otp' | 'magic_link';
@@ -594,6 +873,49 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
   }
 
   async close(): Promise<void> {}
+
+  async verifyAnchorChallenge(input: {
+    challengeId: string;
+    kind: 'anchor_activate' | 'anchor_session';
+    userId: string;
+    code: string;
+    verifier: (secret: string, code: string) => boolean;
+  }) {
+    const key = `${input.kind}:${input.challengeId}`;
+    const challenge = this.anchorChallenges.get(key);
+    if (!challenge) {
+      return { status: 'missing' as const };
+    }
+
+    if (challenge.userId !== input.userId) {
+      return { status: 'forbidden' as const };
+    }
+
+    if (challenge.expiresAt <= Date.now()) {
+      this.anchorChallenges.delete(key);
+      return { status: 'expired' as const };
+    }
+
+    if (!challenge.secret || !input.verifier(challenge.secret, input.code)) {
+      challenge.attemptsRemaining -= 1;
+      if (challenge.attemptsRemaining <= 0) {
+        this.anchorChallenges.delete(key);
+        return {
+          status: 'exhausted' as const,
+          challenge
+        };
+      }
+
+      this.anchorChallenges.set(key, challenge);
+      return { status: 'invalid' as const };
+    }
+
+    this.anchorChallenges.delete(key);
+    return {
+      status: 'verified' as const,
+      challenge
+    };
+  }
 }
 
 export class InMemoryResourceDirectory implements ResourceDirectoryService {
@@ -754,7 +1076,8 @@ export function createTestConfig(): AppConfig {
       publicKey: readFileSync(resolve(import.meta.dirname, '../../../infra/dev/jwt-public.pem'), 'utf8')
     },
     refreshTokenTtlSeconds: 60 * 60 * 24 * 7,
-    identityHashPepper: 'test-identity-pepper'
+    identityHashPepper: 'test-identity-pepper',
+    anchorTotpEncryptionKey: 'test-anchor-totp-encryption-key'
   };
 }
 
@@ -785,7 +1108,15 @@ export async function createTestApp(options: {
           userStore as InMemoryUserStore,
           resourceDirectory as InMemoryResourceDirectory,
         );
-  const chatRepository = options.chatRepository ?? (linkedMatchRepository ? new InMemoryLinkedChatRepository(linkedMatchRepository, postsService as InMemoryPostsService) : new InMemoryChatRepository());
+  const chatRepository =
+    options.chatRepository ??
+    (linkedMatchRepository
+      ? new InMemoryLinkedChatRepository(
+          linkedMatchRepository,
+          postsService as InMemoryPostsService,
+          userStore as InMemoryUserStore,
+        )
+      : new InMemoryChatRepository());
   const chatService = options.chatService ?? new DefaultChatService(chatRepository);
   const chatRealtimeHub = options.chatRealtimeHub ?? new InMemoryChatRealtimeHub();
   const matchService =
@@ -808,12 +1139,26 @@ export async function createTestApp(options: {
     logger: false
   });
 
+  if (
+    linkedMatchRepository &&
+    postsService instanceof InMemoryPostsService &&
+    chatRepository instanceof InMemoryLinkedChatRepository
+  ) {
+    postsService.attachDashboardMetricsSource({
+      countAcceptedContactsThisWeek: (communityId) =>
+        linkedMatchRepository.countAcceptedContactsThisWeek(communityId),
+      countReportsThisWeek: (communityId) => chatRepository.countReportsThisWeek(communityId),
+      countPendingReports: (communityId) => chatRepository.countPendingReports(communityId),
+    });
+  }
+
   return {
     app,
     authAbuseStore,
     chatRealtimeHub,
     chatService,
     chatRepository,
+    linkedMatchRepository,
     matchService,
     postsService,
     userStore,
@@ -828,12 +1173,18 @@ export function createUserRecord(input: {
   level?: UserLevel;
   role?: UserRole;
   communityIds?: string[];
+  anchorCommunityId?: string | null;
 } = {}): AuthenticatedUserRecord {
+  const role = input.role ?? 'user';
+  const communityIds = input.communityIds ?? [];
   return {
     userId: input.userId ?? randomUUID(),
     level: input.level ?? 'anonymous',
-    role: input.role ?? 'user',
+    role,
     status: 'active',
-    communityIds: input.communityIds ?? []
+    communityIds,
+    anchorCommunityId:
+      input.anchorCommunityId ??
+      (role === 'anchor' && communityIds.length > 0 ? communityIds[0] : null)
   };
 }

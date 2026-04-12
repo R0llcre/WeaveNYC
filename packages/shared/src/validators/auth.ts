@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  anchorSessionIssuedViaValues,
   magicLinkChallengeTtlSeconds,
   otpChallengeTtlSeconds,
   userLevels,
@@ -13,6 +14,8 @@ export const sessionUserSchema = z.object({
   level: userLevelSchema,
   role: z.enum(["user", "anchor"]),
   community_ids: z.array(z.string().uuid()),
+  anchor_community_id: z.string().uuid().optional(),
+  mfa_verified_at: z.string().datetime().optional(),
 });
 
 export const anonymousAuthRequestSchema = z.object({
@@ -22,7 +25,7 @@ export const anonymousAuthRequestSchema = z.object({
 export const anonymousAuthResponseSchema = z.object({
   access_token: z.string().min(1),
   refresh_token: z.string().min(1),
-  issued_via: z.enum(["anonymous", "otp", "magic_link", "refresh"]).optional(),
+  issued_via: z.enum(anchorSessionIssuedViaValues).optional(),
   fallback: z.boolean().optional(),
   user: sessionUserSchema.pick({
     user_id: true,
@@ -90,6 +93,8 @@ export const jwtClaimsSchema = z.object({
   level: userLevelSchema,
   role: z.enum(["user", "anchor"]),
   community_ids: z.array(z.string().uuid()),
+  anchor_community_id: z.string().uuid().optional(),
+  mfa_verified_at: z.string().datetime().optional(),
   iat: z.number().optional(),
   exp: z.number().optional(),
 });

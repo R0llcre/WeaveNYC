@@ -2,7 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import { Pool } from 'pg';
 
+import {
+  announcementPinStrategies,
+  postCategories,
+  supportedLanguages,
+} from '@weavenyc/shared';
 import type {
+  AdminDashboardResponse,
+  Announcement,
+  CommunityRules,
   CommunityAccessEntry,
   ContactPreference,
   CreatePostRequest,
@@ -46,6 +54,29 @@ type CommunityAccessRow = CommunityRow & {
 
 type MembershipRow = {
   joined_at: Date | string;
+};
+
+type RulesRow = {
+  ruleset_id: string;
+  community_id: string;
+  review_categories: string[] | null;
+  auto_hide_report_threshold: number;
+  keyword_blocklist: string[] | null;
+  language_preferences: string[] | null;
+  announcement_pin_strategy: string | null;
+  updated_at: Date | string;
+};
+
+type AnnouncementRow = {
+  announcement_id: string;
+  community_id: string;
+  title: string;
+  body: string;
+  status: "active" | "deleted";
+  is_pinned: boolean | number;
+  created_by: string;
+  published_at: Date | string;
+  updated_at: Date | string;
 };
 
 type PostRow = {
@@ -121,6 +152,89 @@ function mapPostRow(row: PostRow): PostRecord {
     updatedAt: toIso(row.updated_at),
     createdBy: row.created_by,
     contactPref: row.contact_pref,
+  };
+}
+
+function defaultCommunityRules(communityId: string): CommunityRules {
+  return {
+    community_id: communityId,
+    review_categories: ["childcare", "transportation"],
+    auto_hide_report_threshold: 3,
+    keyword_blocklist: [],
+    language_preferences: [],
+    announcement_pin_strategy: "latest",
+    updated_at: new Date(0).toISOString()
+  };
+}
+
+const validReviewCategorySet = new Set<string>(postCategories);
+const validLanguageSet = new Set<string>(supportedLanguages);
+const validAnnouncementPinStrategySet = new Set<string>(announcementPinStrategies);
+
+function sanitizeEnumArray<T extends string>(values: readonly string[] | null | undefined, allowed: ReadonlySet<string>) {
+  const sanitized: T[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values ?? []) {
+    if (allowed.has(value) && !seen.has(value)) {
+      sanitized.push(value as T);
+      seen.add(value);
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeKeywordBlocklist(values: readonly string[] | null | undefined) {
+  const sanitized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const rawValue of values ?? []) {
+    const normalized = rawValue.trim();
+    if (!normalized || normalized.length > 120 || seen.has(normalized)) {
+      continue;
+    }
+
+    sanitized.push(normalized);
+    seen.add(normalized);
+  }
+
+  return sanitized;
+}
+
+function mapCommunityRules(row: RulesRow): CommunityRules {
+  const announcementPinStrategy = validAnnouncementPinStrategySet.has(row.announcement_pin_strategy ?? "")
+    ? (row.announcement_pin_strategy as CommunityRules["announcement_pin_strategy"])
+    : "latest";
+
+  return {
+    community_id: row.community_id,
+    review_categories: sanitizeEnumArray<CommunityRules["review_categories"][number]>(
+      row.review_categories,
+      validReviewCategorySet
+    ),
+    auto_hide_report_threshold: Math.min(Math.max(Math.trunc(row.auto_hide_report_threshold), 1), 20),
+    keyword_blocklist: sanitizeKeywordBlocklist(row.keyword_blocklist),
+    language_preferences: sanitizeEnumArray<CommunityRules["language_preferences"][number]>(
+      row.language_preferences,
+      validLanguageSet
+    ),
+    announcement_pin_strategy: announcementPinStrategy,
+    updated_at: toIso(row.updated_at)
+  };
+}
+
+function mapAnnouncement(row: AnnouncementRow): Announcement {
+  return {
+    announcement_id: row.announcement_id,
+    community_id: row.community_id,
+    title: row.title,
+    body: row.body,
+    status: row.status,
+    is_pinned: Boolean(row.is_pinned),
+    created_by: row.created_by,
+    published_at: toIso(row.published_at),
+    updated_at: toIso(row.updated_at)
   };
 }
 
@@ -695,6 +809,344 @@ export class PostsRepository {
         review_actions: ['approve', 'reject', 'request_more_info'],
       })),
       nextCursor: next ? encodeCursor({ createdAt: next.createdAt, postId: next.postId }) : null,
+    };
+  }
+
+  async getCommunityRules(communityId: string): Promise<CommunityRules> {
+    const result = await this.pool.query<RulesRow>(
+      `
+        select
+          ruleset_id,
+          community_id,
+          review_categories,
+          auto_hide_report_threshold,
+          keyword_blocklist,
+          language_preferences,
+          announcement_pin_strategy,
+          updated_at
+        from community_rulesets
+        where community_id = $1
+        limit 1
+      `,
+      [communityId]
+    );
+
+    const row = result.rows[0];
+    return row ? mapCommunityRules(row) : defaultCommunityRules(communityId);
+  }
+
+  async upsertCommunityRules(input: {
+    actorUserId: string;
+    communityId: string;
+    rules: Omit<CommunityRules, "community_id" | "updated_at">;
+  }): Promise<CommunityRules> {
+    const result = await this.pool.query<RulesRow>(
+      `
+        insert into community_rulesets (
+          ruleset_id,
+          community_id,
+          review_categories,
+          auto_hide_report_threshold,
+          keyword_blocklist,
+          language_preferences,
+          announcement_pin_strategy,
+          created_by,
+          created_at,
+          updated_at
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+        on conflict (community_id)
+        do update
+        set
+          review_categories = excluded.review_categories,
+          auto_hide_report_threshold = excluded.auto_hide_report_threshold,
+          keyword_blocklist = excluded.keyword_blocklist,
+          language_preferences = excluded.language_preferences,
+          announcement_pin_strategy = excluded.announcement_pin_strategy,
+          updated_at = now()
+        returning
+          ruleset_id,
+          community_id,
+          review_categories,
+          auto_hide_report_threshold,
+          keyword_blocklist,
+          language_preferences,
+          announcement_pin_strategy,
+          updated_at
+      `,
+      [
+        randomUUID(),
+        input.communityId,
+        input.rules.review_categories,
+        input.rules.auto_hide_report_threshold,
+        input.rules.keyword_blocklist,
+        input.rules.language_preferences,
+        input.rules.announcement_pin_strategy,
+        input.actorUserId
+      ]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new PostsServiceError("Community rules could not be saved", "invalid_state");
+    }
+
+    await this.pool.query(
+      `
+        update communities
+        set ruleset_id = $2,
+            updated_at = now()
+        where community_id = $1
+      `,
+      [input.communityId, row.ruleset_id]
+    );
+
+    return mapCommunityRules(row);
+  }
+
+  async listAnnouncements(input: {
+    communityId: string;
+    includeDeleted?: boolean;
+  }): Promise<Announcement[]> {
+    const rules = await this.getCommunityRules(input.communityId);
+    const params: unknown[] = [input.communityId];
+    const conditions = ["community_id = $1"];
+    if (!input.includeDeleted) {
+      conditions.push("status = 'active'");
+      conditions.push("deleted_at is null");
+    }
+
+    const orderBy =
+      rules.announcement_pin_strategy === "manual"
+        ? "coalesce(is_pinned, false) desc, published_at desc, announcement_id desc"
+        : "published_at desc, announcement_id desc";
+
+    const result = await this.pool.query<AnnouncementRow>(
+      `
+        select
+          announcement_id,
+          community_id,
+          title,
+          body,
+          status,
+          is_pinned,
+          created_by,
+          published_at,
+          updated_at
+        from announcements
+        where ${conditions.join(" and ")}
+        order by ${orderBy}
+      `,
+      params
+    );
+
+    return result.rows.map(mapAnnouncement);
+  }
+
+  async createAnnouncement(input: {
+    actorUserId: string;
+    communityId: string;
+    title: string;
+    body: string;
+    isPinned: boolean;
+  }): Promise<Announcement> {
+    const result = await this.pool.query<AnnouncementRow>(
+      `
+        insert into announcements (
+          announcement_id,
+          community_id,
+          title,
+          body,
+          status,
+          is_pinned,
+          created_by,
+          published_at,
+          updated_at
+        )
+        values ($1, $2, $3, $4, 'active', $5, $6, now(), now())
+        returning
+          announcement_id,
+          community_id,
+          title,
+          body,
+          status,
+          is_pinned,
+          created_by,
+          published_at,
+          updated_at
+      `,
+      [randomUUID(), input.communityId, input.title, input.body, input.isPinned, input.actorUserId]
+    );
+
+    return mapAnnouncement(result.rows[0]!);
+  }
+
+  async updateAnnouncement(input: {
+    communityId: string;
+    announcementId: string;
+    title?: string;
+    body?: string;
+    isPinned?: boolean;
+  }): Promise<Announcement | null> {
+    const fields: string[] = [];
+    const params: unknown[] = [input.communityId, input.announcementId];
+
+    if (typeof input.title === "string") {
+      params.push(input.title);
+      fields.push(`title = $${params.length}`);
+    }
+
+    if (typeof input.body === "string") {
+      params.push(input.body);
+      fields.push(`body = $${params.length}`);
+    }
+
+    if (typeof input.isPinned === "boolean") {
+      params.push(input.isPinned);
+      fields.push(`is_pinned = $${params.length}`);
+    }
+
+    if (fields.length === 0) {
+      const existing = await this.pool.query<AnnouncementRow>(
+        `
+          select
+            announcement_id,
+            community_id,
+            title,
+            body,
+            status,
+            is_pinned,
+            created_by,
+            published_at,
+            updated_at
+          from announcements
+          where community_id = $1
+            and announcement_id = $2
+          limit 1
+        `,
+        params
+      );
+      return existing.rows[0] ? mapAnnouncement(existing.rows[0]) : null;
+    }
+
+    const result = await this.pool.query<AnnouncementRow>(
+      `
+        update announcements
+        set ${fields.join(", ")},
+            updated_at = now()
+        where community_id = $1
+          and announcement_id = $2
+        returning
+          announcement_id,
+          community_id,
+          title,
+          body,
+          status,
+          is_pinned,
+          created_by,
+          published_at,
+          updated_at
+      `,
+      params
+    );
+
+    return result.rows[0] ? mapAnnouncement(result.rows[0]) : null;
+  }
+
+  async deleteAnnouncement(input: {
+    communityId: string;
+    announcementId: string;
+  }): Promise<Announcement | null> {
+    const result = await this.pool.query<AnnouncementRow>(
+      `
+        update announcements
+        set status = 'deleted',
+            deleted_at = now(),
+            updated_at = now()
+        where community_id = $1
+          and announcement_id = $2
+        returning
+          announcement_id,
+          community_id,
+          title,
+          body,
+          status,
+          is_pinned,
+          created_by,
+          published_at,
+          updated_at
+      `,
+      [input.communityId, input.announcementId]
+    );
+
+    return result.rows[0] ? mapAnnouncement(result.rows[0]) : null;
+  }
+
+  async getAdminDashboard(communityId: string): Promise<AdminDashboardResponse> {
+    const result = await this.pool.query<{
+      posts_this_week_request_count: number;
+      posts_this_week_offer_count: number;
+      accepted_contacts_this_week_count: number;
+      reports_this_week_count: number;
+      pending_post_review_count: number;
+      pending_report_count: number;
+    }>(
+      `
+        select
+          (
+            select count(*)::int
+            from posts p
+            where p.community_id = $1
+              and p.post_type = 'request'
+              and p.created_at >= now() - interval '7 days'
+          ) as posts_this_week_request_count,
+          (
+            select count(*)::int
+            from posts p
+            where p.community_id = $1
+              and p.post_type = 'offer'
+              and p.created_at >= now() - interval '7 days'
+          ) as posts_this_week_offer_count,
+          (
+            select count(*)::int
+            from contact_requests cr
+            join posts p
+              on p.post_id = cr.from_post_id
+            where p.community_id = $1
+              and cr.status = 'accepted'
+              and coalesce(cr.responded_at, cr.created_at) >= now() - interval '7 days'
+          ) as accepted_contacts_this_week_count,
+          (
+            select count(*)::int
+            from reports r
+            where r.community_id = $1
+              and r.created_at >= now() - interval '7 days'
+          ) as reports_this_week_count,
+          (
+            select count(*)::int
+            from posts p
+            where p.community_id = $1
+              and p.status = 'pending_review'
+          ) as pending_post_review_count,
+          (
+            select count(*)::int
+            from reports r
+            where r.community_id = $1
+              and r.status = 'new'
+          ) as pending_report_count
+      `,
+      [communityId]
+    );
+
+    const row = result.rows[0]!;
+    return {
+      community_id: communityId,
+      posts_this_week_request_count: row.posts_this_week_request_count,
+      posts_this_week_offer_count: row.posts_this_week_offer_count,
+      accepted_contacts_this_week_count: row.accepted_contacts_this_week_count,
+      reports_this_week_count: row.reports_this_week_count,
+      pending_post_review_count: row.pending_post_review_count,
+      pending_report_count: row.pending_report_count
     };
   }
 

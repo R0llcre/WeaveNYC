@@ -1,9 +1,10 @@
 import { index, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { communities } from "./communities";
+import { conversations } from "./conversations";
 import { users } from "./users";
 
-export const reportStatusEnum = pgEnum("report_status", ["new", "in_review", "resolved", "dismissed"]);
+export const reportStatusEnum = pgEnum("report_status", ["new", "resolved", "dismissed"]);
 export const reportReasonEnum = pgEnum("report_reason", [
   "harassment",
   "scam",
@@ -24,6 +25,7 @@ export const reports = pgTable(
     targetId: uuid("target_id").notNull(),
     reason: reportReasonEnum("reason").notNull(),
     detailText: text("detail_text"),
+    conversationId: uuid("conversation_id").references(() => conversations.conversationId),
     reporterUserId: uuid("reporter_user_id")
       .notNull()
       .references(() => users.userId),
@@ -33,6 +35,11 @@ export const reports = pgTable(
     resolvedAt: timestamp("resolved_at", { withTimezone: true })
   },
   (table) => ({
-    communityCreatedIdx: index("idx_reports_community_created_at").on(table.communityId, table.createdAt)
+    communityCreatedIdx: index("idx_reports_community_created_at").on(table.communityId, table.createdAt),
+    communityStatusCreatedIdx: index("idx_reports_community_status_created_at").on(
+      table.communityId,
+      table.status,
+      table.createdAt
+    )
   })
 );

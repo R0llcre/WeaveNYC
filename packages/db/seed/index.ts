@@ -1,12 +1,14 @@
-import { eq } from "drizzle-orm";
-import { and, ne, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 import type { Database } from "../src/client";
 import {
+  anchorInvites,
   anchors,
+  announcements,
   communities,
   communityAccessCodes,
   communityMembers,
+  communityRulesets,
   contactRequests,
   conversations,
   datasetVersions,
@@ -20,7 +22,7 @@ import {
   users,
   verificationLogs
 } from "../src/schema";
-import { seedIds } from "./fixtures";
+import { seedIds, seedValues } from "./fixtures";
 
 export async function seedDatabase(db: Database) {
   await db
@@ -41,7 +43,8 @@ export async function seedDatabase(db: Database) {
         homeZip: "11735",
         level: "verified",
         status: "active",
-        phoneHash: "demo_phone_hash"
+        phoneHash: "demo_phone_hash",
+        phoneHashSalt: "demo_phone_salt"
       },
       {
         userId: seedIds.anchorUserId,
@@ -50,12 +53,22 @@ export async function seedDatabase(db: Database) {
         homeZip: "11735",
         level: "anchor",
         status: "active",
-        emailHash: "demo_email_hash"
+        emailHash: "demo_email_hash",
+        emailHashSalt: "demo_email_salt"
       }
     ])
     .onConflictDoUpdate({
       target: users.userId,
       set: {
+        displayName: sql`excluded.display_name`,
+        preferredLanguages: sql`excluded.preferred_languages`,
+        homeZip: sql`excluded.home_zip`,
+        phoneHash: sql`excluded.phone_hash`,
+        phoneHashSalt: sql`excluded.phone_hash_salt`,
+        emailHash: sql`excluded.email_hash`,
+        emailHashSalt: sql`excluded.email_hash_salt`,
+        level: sql`excluded.level`,
+        status: sql`excluded.status`,
         updatedAt: new Date()
       }
     });
@@ -71,6 +84,9 @@ export async function seedDatabase(db: Database) {
     .onConflictDoUpdate({
       target: communities.communityId,
       set: {
+        name: sql`excluded.name`,
+        centerZip: sql`excluded.center_zip`,
+        joinPolicy: sql`excluded.join_policy`,
         updatedAt: new Date()
       }
     });
@@ -93,70 +109,145 @@ export async function seedDatabase(db: Database) {
         accessCodeId: seedIds.inviteAccessCodeId,
         communityId: seedIds.communityId,
         channel: "invite_code",
-        code: "FARMINGDALE-HELP",
+        code: seedValues.communityInviteCode,
         status: "active"
       },
       {
         accessCodeId: seedIds.qrAccessCodeId,
         communityId: seedIds.communityId,
         channel: "qr_token",
-        code: "FARMINGDALE-QR",
+        code: seedValues.communityQrToken,
         status: "active"
       }
     ])
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: communityAccessCodes.accessCodeId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        channel: sql`excluded.channel`,
+        code: sql`excluded.code`,
+        status: sql`excluded.status`,
+        expiresAt: sql`excluded.expires_at`
+      }
+    })
 
   await db
-    .update(communityAccessCodes)
-    .set({
+    .insert(communityRulesets)
+    .values({
+      rulesetId: seedIds.rulesetId,
       communityId: seedIds.communityId,
-      code: "FARMINGDALE-HELP",
-      status: "active"
+      reviewCategories: ["transportation"],
+      autoHideReportThreshold: 2,
+      keywordBlocklist: ["cash only"],
+      languagePreferences: ["en", "es", "zh"],
+      announcementPinStrategy: "manual",
+      createdBy: seedIds.anchorUserId
     })
-    .where(eq(communityAccessCodes.accessCodeId, seedIds.inviteAccessCodeId));
+    .onConflictDoUpdate({
+      target: communityRulesets.rulesetId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        reviewCategories: sql`excluded.review_categories`,
+        autoHideReportThreshold: sql`excluded.auto_hide_report_threshold`,
+        keywordBlocklist: sql`excluded.keyword_blocklist`,
+        languagePreferences: sql`excluded.language_preferences`,
+        announcementPinStrategy: sql`excluded.announcement_pin_strategy`,
+        createdBy: sql`excluded.created_by`,
+        updatedAt: new Date()
+      }
+    });
 
   await db
-    .update(communityAccessCodes)
+    .update(communities)
     .set({
-      communityId: seedIds.communityId,
-      code: "FARMINGDALE-QR",
-      status: "active"
+      rulesetId: seedIds.rulesetId,
+      updatedAt: new Date()
     })
-    .where(eq(communityAccessCodes.accessCodeId, seedIds.qrAccessCodeId));
+    .where(eq(communities.communityId, seedIds.communityId));
+
+  await db
+    .insert(anchorInvites)
+    .values({
+      anchorInviteId: seedIds.anchorInviteId,
+      communityId: seedIds.communityId,
+      codeHash: seedValues.anchorInviteCodeHash,
+      orgName: "St. Kilian Parish Social Ministry",
+      status: "active",
+      expiresAt: new Date("2026-05-01T00:00:00.000Z")
+    })
+    .onConflictDoUpdate({
+      target: anchorInvites.anchorInviteId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        codeHash: sql`excluded.code_hash`,
+        orgName: sql`excluded.org_name`,
+        status: sql`excluded.status`,
+        expiresAt: sql`excluded.expires_at`,
+        consumedByUserId: null,
+        consumedAt: null
+      }
+    });
 
   await db
     .insert(anchors)
     .values({
       anchorId: seedIds.anchorId,
+      userId: seedIds.anchorUserId,
       communityId: seedIds.communityId,
       orgName: "St. Kilian Parish Social Ministry",
       contact: "demo-anchor@weavenyc.local",
+      status: "active",
+      totpSecretCiphertext: seedValues.anchorTotpSecretCiphertext,
+      recoveryCodesHashes: [...seedValues.anchorRecoveryCodeHashes],
+      activatedAt: new Date("2026-04-04T11:30:00.000Z"),
+      lastMfaAt: new Date("2026-04-04T11:45:00.000Z"),
       roleAssignments: {
         admins: [seedIds.anchorUserId],
         mods: [seedIds.anchorUserId]
       }
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: anchors.anchorId,
+      set: {
+        userId: sql`excluded.user_id`,
+        communityId: sql`excluded.community_id`,
+        orgName: sql`excluded.org_name`,
+        contact: sql`excluded.contact`,
+        status: sql`excluded.status`,
+        totpSecretCiphertext: sql`excluded.totp_secret_ciphertext`,
+        recoveryCodesHashes: sql`excluded.recovery_codes_hashes`,
+        activatedAt: sql`excluded.activated_at`,
+        lastMfaAt: sql`excluded.last_mfa_at`,
+        roleAssignments: sql`excluded.role_assignments`
+      }
+    });
 
   await db
     .insert(datasetVersions)
     .values({
       datasetVersionId: seedIds.datasetVersionId,
       source: "cfc_active",
-      datasetVersion: "cfc_active_2026-04-04",
-      sourceLabel: "NYC HRA Community Food Connection",
-      sourceUrl: "https://example.org/cfc-active.csv",
+      datasetVersion: seedValues.datasetVersion,
+      sourceLabel: seedValues.datasetSourceLabel,
+      sourceUrl: seedValues.datasetSourceUrl,
       recordCount: 1,
       activeRecordCount: 1,
       status: "active",
-      checksum: "demo_checksum",
+      checksum: seedValues.datasetChecksum,
       importStartedAt: new Date("2026-04-04T10:00:00.000Z"),
       importCompletedAt: new Date("2026-04-04T10:05:00.000Z")
     })
     .onConflictDoUpdate({
       target: [datasetVersions.source, datasetVersions.datasetVersion],
       set: {
+        sourceLabel: sql`excluded.source_label`,
+        sourceUrl: sql`excluded.source_url`,
+        recordCount: sql`excluded.record_count`,
         activeRecordCount: 1,
+        status: sql`excluded.status`,
+        checksum: sql`excluded.checksum`,
+        importStartedAt: sql`excluded.import_started_at`,
+        importCompletedAt: sql`excluded.import_completed_at`,
         updatedAt: new Date()
       }
     });
@@ -256,7 +347,7 @@ export async function seedDatabase(db: Database) {
         lng: resourceRow.lng,
         geoPrecision: "street",
         contentHash: resourceRow.contentHash,
-        datasetVersion: "cfc_active_2026-04-04",
+        datasetVersion: seedValues.datasetVersion,
         status: "active",
         lastSeenAt: new Date("2026-04-04T10:05:00.000Z"),
         lastVerifiedAt: new Date("2026-04-04T11:00:00.000Z")
@@ -288,7 +379,7 @@ export async function seedDatabase(db: Database) {
       changeLogId: seedIds.changeLogId,
       source: "cfc_active",
       sourceRef: "cfc_active:st-kilian-farmingdale",
-      datasetVersion: "cfc_active_2026-04-04",
+      datasetVersion: seedValues.datasetVersion,
       changeType: "added",
       changedFields: ["name", "hours_json"],
       contentHashAfter: "demo_content_hash"
@@ -362,6 +453,18 @@ export async function seedDatabase(db: Database) {
     .onConflictDoUpdate({
       target: posts.postId,
       set: {
+        title: sql`excluded.title`,
+        body: sql`excluded.body`,
+        language: sql`excluded.language`,
+        locationZip: sql`excluded.location_zip`,
+        privacy: sql`excluded.privacy`,
+        expiresAt: sql`excluded.expires_at`,
+        createdBy: sql`excluded.created_by`,
+        communityId: sql`excluded.community_id`,
+        status: sql`excluded.status`,
+        riskLevel: sql`excluded.risk_level`,
+        verificationState: sql`excluded.verification_state`,
+        contactPref: sql`excluded.contact_pref`,
         updatedAt: new Date()
       }
     });
@@ -392,7 +495,18 @@ export async function seedDatabase(db: Database) {
       respondedAt: new Date("2026-04-04T12:30:00.000Z"),
       expiresAt: new Date("2026-04-06T12:00:00.000Z")
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: contactRequests.contactRequestId,
+      set: {
+        fromPostId: sql`excluded.from_post_id`,
+        toPostId: sql`excluded.to_post_id`,
+        requesterUserId: sql`excluded.requester_user_id`,
+        recipientUserId: sql`excluded.recipient_user_id`,
+        status: sql`excluded.status`,
+        respondedAt: sql`excluded.responded_at`,
+        expiresAt: sql`excluded.expires_at`
+      }
+    });
 
   await db
     .insert(conversations)
@@ -403,7 +517,19 @@ export async function seedDatabase(db: Database) {
       contactRequestId: seedIds.contactRequestId,
       lastActivityAt: new Date("2026-04-04T12:45:00.000Z")
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: conversations.conversationId,
+      set: {
+        participants: sql`excluded.participants`,
+        relatedPostIds: sql`excluded.related_post_ids`,
+        contactRequestId: sql`excluded.contact_request_id`,
+        status: "active",
+        closedAt: null,
+        blockedAt: null,
+        blockedByUserId: null,
+        lastActivityAt: sql`excluded.last_activity_at`
+      }
+    });
 
   await db
     .insert(messages)
@@ -414,7 +540,42 @@ export async function seedDatabase(db: Database) {
       body: "We can coordinate pickup in-app.",
       safetyFlags: []
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: messages.messageId,
+      set: {
+        conversationId: sql`excluded.conversation_id`,
+        senderUserId: sql`excluded.sender_user_id`,
+        body: sql`excluded.body`,
+        safetyFlags: sql`excluded.safety_flags`
+      }
+    });
+
+  await db
+    .insert(announcements)
+    .values({
+      announcementId: seedIds.announcementId,
+      communityId: seedIds.communityId,
+      title: seedValues.announcementTitle,
+      body: seedValues.announcementBody,
+      status: "active",
+      isPinned: true,
+      createdBy: seedIds.anchorUserId,
+      publishedAt: new Date("2026-04-04T14:00:00.000Z")
+    })
+    .onConflictDoUpdate({
+      target: announcements.announcementId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        title: sql`excluded.title`,
+        body: sql`excluded.body`,
+        status: sql`excluded.status`,
+        isPinned: sql`excluded.is_pinned`,
+        createdBy: sql`excluded.created_by`,
+        publishedAt: sql`excluded.published_at`,
+        updatedAt: new Date(),
+        deletedAt: null
+      }
+    });
 
   await db
     .insert(reports)
@@ -422,29 +583,86 @@ export async function seedDatabase(db: Database) {
       reportId: seedIds.reportId,
       communityId: seedIds.communityId,
       targetType: "post",
-      targetId: seedIds.requestPostId,
+      targetId: seedIds.offerPostId,
+      reason: "scam",
+      detailText: "Potential scam language in the offer details.",
+      conversationId: seedIds.conversationId,
+      reporterUserId: seedIds.verifiedUserId,
+      status: "new",
+      resolution: null,
+      resolvedAt: null
+    })
+    .onConflictDoUpdate({
+      target: reports.reportId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        targetType: sql`excluded.target_type`,
+        targetId: sql`excluded.target_id`,
+        reason: sql`excluded.reason`,
+        detailText: sql`excluded.detail_text`,
+        conversationId: sql`excluded.conversation_id`,
+        reporterUserId: sql`excluded.reporter_user_id`,
+        status: sql`excluded.status`,
+        resolution: null,
+        resolvedAt: null
+      }
+    });
+
+  await db
+    .insert(reports)
+    .values({
+      reportId: seedIds.resolvedReportId,
+      communityId: seedIds.communityId,
+      targetType: "message",
+      targetId: seedIds.messageId,
       reason: "other",
-      detailText: "Seed moderation example.",
-      reporterUserId: seedIds.anchorUserId,
+      detailText: "Seed moderation example that was already resolved.",
+      conversationId: seedIds.conversationId,
+      reporterUserId: seedIds.verifiedUserId,
       status: "resolved",
-      resolution: "none",
+      resolution: "warn",
       resolvedAt: new Date("2026-04-04T13:00:00.000Z")
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: reports.reportId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        targetType: sql`excluded.target_type`,
+        targetId: sql`excluded.target_id`,
+        reason: sql`excluded.reason`,
+        detailText: sql`excluded.detail_text`,
+        conversationId: sql`excluded.conversation_id`,
+        reporterUserId: sql`excluded.reporter_user_id`,
+        status: sql`excluded.status`,
+        resolution: sql`excluded.resolution`,
+        resolvedAt: sql`excluded.resolved_at`
+      }
+    });
 
   await db
     .insert(moderationActions)
     .values({
       actionId: seedIds.moderationActionId,
-      reportId: seedIds.reportId,
+      reportId: seedIds.resolvedReportId,
       anchorUserId: seedIds.anchorUserId,
       communityId: seedIds.communityId,
-      actionType: "approve",
-      targetType: "post",
-      targetId: seedIds.requestPostId,
-      reason: "No issue found in seed review."
+      actionType: "warn",
+      targetType: "message",
+      targetId: seedIds.messageId,
+      reason: "Seed moderation action for resolved report."
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: moderationActions.actionId,
+      set: {
+        reportId: sql`excluded.report_id`,
+        anchorUserId: sql`excluded.anchor_user_id`,
+        communityId: sql`excluded.community_id`,
+        actionType: sql`excluded.action_type`,
+        targetType: sql`excluded.target_type`,
+        targetId: sql`excluded.target_id`,
+        reason: sql`excluded.reason`
+      }
+    });
 
   const seededUser = await db.query.users.findFirst({
     where: eq(users.userId, seedIds.anonymousUserId)

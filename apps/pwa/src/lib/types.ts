@@ -12,7 +12,13 @@ export type AuthSession = {
   access_token: string;
   refresh_token: string;
   user: AuthUser;
-  issued_via?: "anonymous" | "otp" | "magic_link" | "refresh";
+  issued_via?:
+    | "anonymous"
+    | "otp"
+    | "magic_link"
+    | "refresh"
+    | "anchor_activate"
+    | "anchor_session";
   fallback?: boolean;
 };
 
@@ -160,6 +166,23 @@ export type CommunityState = {
   currentCommunityId: string | null;
   joinedCommunities: JoinedCommunity[];
   joinPreview: CommunityJoinPreview | null;
+};
+
+export type CommunityAnnouncement = {
+  announcement_id: string;
+  community_id: string;
+  title: string;
+  body: string;
+  is_pinned: boolean;
+  status?: string | null;
+  published_at?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+};
+
+export type CommunityAnnouncementsResponse = {
+  items: CommunityAnnouncement[];
+  next_cursor: string | null;
 };
 
 export type ContactPreference = {

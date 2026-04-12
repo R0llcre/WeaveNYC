@@ -12,6 +12,8 @@ export type AuthenticatedSessionUser = {
   level: UserLevel;
   role: Role;
   community_ids: string[];
+  anchor_community_id?: string;
+  mfa_verified_at?: string;
 };
 
 export type AnonymousSessionRequest = {
@@ -26,7 +28,7 @@ export type AuthSessionResponse = {
   access_token: string;
   refresh_token: string;
   user: AnonymousSessionUser;
-  issued_via?: "anonymous" | "otp" | "magic_link" | "refresh";
+  issued_via?: "anonymous" | "otp" | "magic_link" | "refresh" | "anchor_activate" | "anchor_session";
   fallback?: boolean;
 };
 
@@ -74,6 +76,8 @@ export type JwtClaims = {
   level: UserLevel;
   role: Role;
   community_ids: string[];
+  anchor_community_id?: string;
+  mfa_verified_at?: string;
   iat?: number;
   exp?: number;
 };
@@ -333,6 +337,131 @@ export type ReviewDecisionResponse = {
   post_id: string;
   status: PostStatus;
   decided_at: string;
+};
+
+export type AnchorActivateRequest = {
+  invite_code: string;
+};
+
+export type AnchorActivateResponse = {
+  activation_id: string;
+  community: CommunitySummary;
+  otpauth_uri: string;
+  recovery_codes: string[];
+  expires_in_seconds: number;
+};
+
+export type AnchorActivateConfirmRequest = {
+  activation_id: string;
+  totp_code: string;
+};
+
+export type AnchorSessionStartRequest = {
+  community_id: string;
+};
+
+export type AnchorSessionStartResponse = {
+  challenge_id: string;
+  expires_in_seconds: number;
+};
+
+export type AnchorSessionVerifyRequest = {
+  challenge_id: string;
+  totp_code: string;
+};
+
+export type AnchorSessionVerifyResponse = AuthSessionResponse;
+
+export type ReviewPriorityLabel = "P0" | "P1" | "P2";
+
+export type AdminReportQueueStatus = "new" | "resolved" | "dismissed";
+
+export type ReportDecision = "dismiss" | "warn" | "remove_post" | "suspend_user";
+
+export type AdminReportTargetSummary = {
+  title: string;
+  body_preview: string | null;
+  related_user_id: string | null;
+};
+
+export type AdminReportQueueItem = {
+  report_id: string;
+  community_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  reason: ReportReason;
+  status: AdminReportQueueStatus;
+  created_at: string;
+  reporter_user_id: string;
+  reporter_alias: string;
+  priority: ReviewPriorityLabel;
+  conversation_id: string | null;
+  target_summary: AdminReportTargetSummary;
+  evidence_description: string | null;
+};
+
+export type AdminReportQueueResponse = {
+  items: AdminReportQueueItem[];
+  next_cursor: string | null;
+};
+
+export type ReportDecisionRequest = {
+  decision: ReportDecision;
+  notes?: string;
+};
+
+export type ReportDecisionResponse = {
+  report_id: string;
+  status: AdminReportQueueStatus;
+  resolution: "remove_post" | "suspend_user" | "warn" | "none";
+  decided_at: string;
+  affected_user_id?: string | null;
+};
+
+export type AnnouncementPinStrategy = "latest" | "manual";
+
+export type CommunityRules = {
+  community_id: string;
+  review_categories: PostCategory[];
+  auto_hide_report_threshold: number;
+  keyword_blocklist: string[];
+  language_preferences: SupportedLanguage[];
+  announcement_pin_strategy: AnnouncementPinStrategy;
+  updated_at: string;
+};
+
+export type Announcement = {
+  announcement_id: string;
+  community_id: string;
+  title: string;
+  body: string;
+  status: "active" | "deleted";
+  is_pinned: boolean;
+  published_at: string;
+  updated_at: string;
+  created_by: string;
+};
+
+export type AdminDashboardResponse = {
+  community_id: string;
+  posts_this_week_request_count: number;
+  posts_this_week_offer_count: number;
+  accepted_contacts_this_week_count: number;
+  reports_this_week_count: number;
+  pending_post_review_count: number;
+  pending_report_count: number;
+};
+
+export type AnnouncementCreateRequest = {
+  title: string;
+  body: string;
+  is_pinned?: boolean;
+};
+
+export type AnnouncementUpdateRequest = Partial<AnnouncementCreateRequest>;
+
+export type AnnouncementsResponse = {
+  items: Announcement[];
 };
 
 export type SpeechTranscribeResponse = {

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { CommunityAnnouncements } from '@/components/community-announcements';
 import { createAnonymousSession } from '@/lib/api';
 import { useAppDispatch, useAppSelector, usePosts } from '@/lib/hooks';
 import { setSession } from '@/lib/slices/auth-slice';
@@ -91,6 +92,13 @@ export function CommunityScreen() {
             </div>
           </section>
         ) : null}
+
+        <CommunityAnnouncements
+          accessToken={session?.access_token}
+          communityId={currentCommunity?.community_id ?? null}
+          communityName={currentCommunity?.name ?? null}
+          language={preferences.language}
+        />
 
         <section className="card card--results">
           <div className="section-head">

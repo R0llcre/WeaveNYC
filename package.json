@@ -15,7 +15,7 @@
     "test": "pnpm --filter @weavenyc/shared build && pnpm --filter @weavenyc/test-utils build && pnpm --filter @weavenyc/db build && pnpm --filter @weavenyc/resource-directory build && pnpm --filter @weavenyc/posts build && pnpm --filter @weavenyc/match build && pnpm --filter @weavenyc/chat build && vitest run",
     "test:e2e": "pnpm test:smoke:browser",
     "test:smoke:browser": "playwright test",
-    "test:smoke:real": "tsx tests/smoke/real-api.ts",
+    "test:smoke:real": "tsx scripts/run-real-smoke.ts",
     "test:smoke:real-api": "tsx tests/smoke/real-api.ts",
     "test:live-sources": "pnpm --filter @weavenyc/resource-directory resources:import:cfc -- --smoke && pnpm --filter @weavenyc/resource-directory resources:import:island-harvest -- --smoke",
     "dev:mint-anchor-token": "tsx scripts/mint-dev-anchor-token.ts",

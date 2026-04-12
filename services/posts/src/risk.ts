@@ -1,4 +1,4 @@
-import type { CreatePostRequest, RiskLevel } from '@weavenyc/shared';
+import type { CreatePostRequest, PostCategory, RiskLevel } from '@weavenyc/shared';
 
 const highRiskPattern = /\b(cash|money|venmo|zelle|passport|license|id|pickup|drop.?off|alone|minor|child)\b/i;
 
@@ -22,6 +22,26 @@ export function requiresVerifiedLevel(riskLevel: RiskLevel, postType: CreatePost
   return postType === 'offer' || riskLevel === 'high';
 }
 
-export function requiresReview(riskLevel: RiskLevel) {
-  return riskLevel === 'high';
+export function requiresReview(
+  riskLevel: RiskLevel,
+  category: PostCategory,
+  reviewCategories: readonly PostCategory[]
+) {
+  return riskLevel === 'high' || reviewCategories.includes(category);
+}
+
+export function findKeywordBlocklistMatch(value: string, blocklist: readonly string[]) {
+  const haystack = value.trim().toLowerCase();
+  if (!haystack) {
+    return null;
+  }
+
+  for (const entry of blocklist) {
+    const normalized = entry.trim().toLowerCase();
+    if (normalized && haystack.includes(normalized)) {
+      return entry;
+    }
+  }
+
+  return null;
 }

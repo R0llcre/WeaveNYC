@@ -233,12 +233,12 @@ Official card字段：
 
 ---
 
-## 8) Anchor Admin（M5 Future Appendix）
-> 本节只描述后续 `M5` 的目标态后台，不属于当前 M4 live UI。
+## 8) Anchor Admin（M5 Completed On Branch）
+> 本节描述当前 `feature/m5-anchor-admin` 已实现并已完成 closeout 的后台交付面。`main` 仍保持 `M4 completed` 的 canonical baseline；这里记录的是当前分支的 M5 runtime 真值，直到变更合回 `main` 之前它仍是 branch-local closeout truth。
 
 ### Screen A：Dashboard
-- Metrics tiles：Pending reviews, Reports, Active posts
-- Quick actions：Post announcement
+- Metrics tiles：Posts this week (request), Posts this week (offer), Accepted contacts this week, Reports this week, Pending post review, Pending report review
+- Quick actions：Post announcement / Open review queue
 
 ### Screen B：Review Queue
 列表字段：
@@ -247,19 +247,19 @@ Official card字段：
 - Submitted time
 - Risk flags（new user, high risk, reported）
 - Actions：Approve / Reject / Ask for more info
+- Tabs：Posts / Reports
 
-### Screen C：Post Detail (Admin)
-- Post content（原文）
-- Poster（匿名 ID + 账号年龄）
-- History：编辑记录、举报记录
-- Actions：Approve、Reject、Suspend、Ban user
-
-### Screen D：Community Rules
+### Screen C：Community Rules
 可配置项（开关+阈值）：
 - 哪些类别默认需审核
 - 举报阈值（多少次进入审核）
 - 黑名单词（本社区特有）
 - 公告置顶策略
+
+### Screen D：Anchor Login / Activate
+- Verified session -> 选择 `Anchor activate` 或 `Anchor TOTP step-up`
+- 已激活 anchor 走 `POST /v1/auth/anchor/session/start` + `verify`
+- 未激活时引导完成 invite activation / recovery codes enrollment
 
 ---
 

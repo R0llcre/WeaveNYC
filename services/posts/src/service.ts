@@ -1,26 +1,59 @@
-import type { PostsListResponse, ReviewQueueResponse } from '@weavenyc/shared';
+import type {
+  AdminDashboardResponse,
+  Announcement,
+  AnnouncementsResponse,
+  CommunityRules,
+  PostsListResponse,
+  ReviewQueueResponse,
+} from '@weavenyc/shared';
 
 import { normalizeCommunityAccessInput } from './community.js';
-import { canViewPost, deriveVerificationState, ensureActorCanPublish, isCommunityMember } from './policy.js';
+import {
+  canViewPost,
+  deriveVerificationState,
+  ensureActorCanPublish,
+  isCommunityAnchor,
+  isCommunityMember,
+} from './policy.js';
 import { PostsRepository, toPostDetail } from './repository.js';
-import { classifyPostRisk, requiresReview } from './risk.js';
+import { classifyPostRisk, findKeywordBlocklistMatch, requiresReview } from './risk.js';
 import type {
+  AdminDashboardInput,
+  CommunityRulesInput,
   CreatePostInput,
   CreatePostResult,
+  CreateAnnouncementInput,
+  DeleteAnnouncementInput,
   ListMyPostsInput,
+  ListAnnouncementsInput,
   ListPostsInput,
   PostActor,
   PostsService,
   ResolveCommunityAccessInput,
   ReviewDecisionInput,
   ReviewQueueInput,
+  UpdateAnnouncementInput,
   UpdatePostInput,
+  UpdateCommunityRulesInput,
 } from './types.js';
 
 import { PostsServiceError as PostsDomainError } from './types.js';
 
 export class DefaultPostsService implements PostsService {
   constructor(private readonly repository: PostsRepository) {}
+
+  private assertAnchorActor(actor: PostActor, communityId: string) {
+    if (!isCommunityAnchor(actor, communityId)) {
+      throw new PostsDomainError('Only anchors can manage this community', 'forbidden');
+    }
+  }
+
+  private assertKeywordAllowed(value: string, blocklist: readonly string[]) {
+    const match = findKeywordBlocklistMatch(value, blocklist);
+    if (match) {
+      throw new PostsDomainError(`Blocked keyword detected: ${match}`, 'invalid_input');
+    }
+  }
 
   async ping() {
     await this.repository.ping();
@@ -55,6 +88,9 @@ export class DefaultPostsService implements PostsService {
   }
 
   async createPost(input: CreatePostInput): Promise<CreatePostResult> {
+    const rules = await this.repository.getCommunityRules(input.request.community_id);
+    this.assertKeywordAllowed(`${input.request.title}\n${input.request.body}`, rules.keyword_blocklist);
+
     const riskLevel = classifyPostRisk(input.request);
     const publishDecision = ensureActorCanPublish(input.actor, {
       communityId: input.request.community_id,
@@ -74,7 +110,9 @@ export class DefaultPostsService implements PostsService {
       actor: input.actor,
       request: input.request,
       riskLevel,
-      status: requiresReview(riskLevel) ? 'pending_review' : 'active',
+      status: requiresReview(riskLevel, input.request.category, rules.review_categories)
+        ? 'pending_review'
+        : 'active',
       verificationState: deriveVerificationState(input.actor.level),
     });
 
@@ -150,6 +188,12 @@ export class DefaultPostsService implements PostsService {
       throw new PostsDomainError('Only active or pending review posts can be updated', 'invalid_state');
     }
 
+    const rules = await this.repository.getCommunityRules(post.communityId);
+    this.assertKeywordAllowed(
+      `${input.request.title ?? post.title}\n${input.request.body ?? post.body}`,
+      rules.keyword_blocklist,
+    );
+
     const nextRisk = classifyPostRisk({
       category: input.request.category ?? post.category,
       title: input.request.title ?? post.title,
@@ -173,7 +217,13 @@ export class DefaultPostsService implements PostsService {
       postId: input.postId,
       request: input.request,
       riskLevel: nextRisk,
-      status: requiresReview(nextRisk) ? 'pending_review' : 'active',
+      status: requiresReview(
+        nextRisk,
+        input.request.category ?? post.category,
+        rules.review_categories,
+      )
+        ? 'pending_review'
+        : 'active',
     });
 
     if (!updated) {
@@ -248,7 +298,7 @@ export class DefaultPostsService implements PostsService {
   }
 
   async listReviewQueue(input: ReviewQueueInput): Promise<ReviewQueueResponse> {
-    if (input.actor.role !== 'anchor' || !input.actor.communityIds.includes(input.communityId)) {
+    if (!isCommunityAnchor(input.actor, input.communityId)) {
       throw new PostsDomainError('Only anchors can access the review queue', 'forbidden');
     }
 
@@ -269,7 +319,7 @@ export class DefaultPostsService implements PostsService {
       throw new PostsDomainError('Post not found', 'not_found');
     }
 
-    if (!input.actor.communityIds.includes(post.communityId)) {
+    if (!isCommunityAnchor(input.actor, post.communityId)) {
       throw new PostsDomainError('Anchor does not belong to this community', 'forbidden');
     }
 
@@ -295,6 +345,101 @@ export class DefaultPostsService implements PostsService {
       status: updated.status,
       decided_at: new Date().toISOString(),
     };
+  }
+
+  async getAdminDashboard(input: AdminDashboardInput): Promise<AdminDashboardResponse> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    return this.repository.getAdminDashboard(input.communityId);
+  }
+
+  async getCommunityRules(input: CommunityRulesInput): Promise<CommunityRules> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    return this.repository.getCommunityRules(input.communityId);
+  }
+
+  async updateCommunityRules(input: UpdateCommunityRulesInput): Promise<CommunityRules> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    for (const entry of input.rules.keyword_blocklist) {
+      if (!entry.trim()) {
+        throw new PostsDomainError('keyword_blocklist entries must be non-empty', 'invalid_input');
+      }
+    }
+
+    return this.repository.upsertCommunityRules({
+      actorUserId: input.actor.userId,
+      communityId: input.communityId,
+      rules: input.rules,
+    });
+  }
+
+  async listAnnouncements(input: ListAnnouncementsInput): Promise<AnnouncementsResponse> {
+    if (input.actor) {
+      const isScopedAnchor = isCommunityAnchor(input.actor, input.communityId);
+      const isMember = input.actor.communityIds.includes(input.communityId);
+      if (!isScopedAnchor && !isMember) {
+        throw new PostsDomainError('Community membership is required', 'membership_required');
+      }
+    }
+
+    return {
+      items: await this.repository.listAnnouncements({
+        communityId: input.communityId,
+        includeDeleted: input.includeDeleted ?? false,
+      }),
+    };
+  }
+
+  async createAnnouncement(input: CreateAnnouncementInput): Promise<Announcement> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const rules = await this.repository.getCommunityRules(input.communityId);
+    this.assertKeywordAllowed(`${input.request.title}\n${input.request.body}`, rules.keyword_blocklist);
+
+    return this.repository.createAnnouncement({
+      actorUserId: input.actor.userId,
+      communityId: input.communityId,
+      title: input.request.title,
+      body: input.request.body,
+      isPinned: input.request.is_pinned ?? false,
+    });
+  }
+
+  async updateAnnouncement(input: UpdateAnnouncementInput): Promise<Announcement> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const existing = await this.repository.updateAnnouncement({
+      communityId: input.communityId,
+      announcementId: input.announcementId,
+    });
+    if (!existing) {
+      throw new PostsDomainError('Announcement not found', 'not_found');
+    }
+
+    const rules = await this.repository.getCommunityRules(input.communityId);
+    this.assertKeywordAllowed(
+      `${input.request.title ?? existing.title}\n${input.request.body ?? existing.body}`,
+      rules.keyword_blocklist,
+    );
+
+    const updated = await this.repository.updateAnnouncement({
+      communityId: input.communityId,
+      announcementId: input.announcementId,
+      title: input.request.title,
+      body: input.request.body,
+      isPinned: input.request.is_pinned,
+    });
+    return updated ?? existing;
+  }
+
+  async deleteAnnouncement(input: DeleteAnnouncementInput): Promise<Announcement> {
+    this.assertAnchorActor(input.actor, input.communityId);
+    const deleted = await this.repository.deleteAnnouncement({
+      communityId: input.communityId,
+      announcementId: input.announcementId,
+    });
+    if (!deleted) {
+      throw new PostsDomainError('Announcement not found', 'not_found');
+    }
+
+    return deleted;
   }
 }
 

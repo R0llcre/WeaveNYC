@@ -4,7 +4,14 @@ const authUserSchema = {
   required: ["user_id", "level"],
   properties: {
     user_id: { type: "string", format: "uuid" },
-    level: { type: "string", enum: ["anonymous", "verified", "anchor"] }
+    level: { type: "string", enum: ["anonymous", "verified", "anchor"] },
+    role: { type: "string", enum: ["user", "anchor"] },
+    community_ids: {
+      type: "array",
+      items: { type: "string", format: "uuid" }
+    },
+    anchor_community_id: { type: "string", format: "uuid" },
+    mfa_verified_at: { type: "string", format: "date-time" }
   }
 } as const;
 
@@ -29,7 +36,7 @@ export const authSessionResponseSchema = {
     refresh_token: { type: "string" },
     issued_via: {
       type: "string",
-      enum: ["anonymous", "otp", "magic_link", "refresh"]
+      enum: ["anonymous", "otp", "magic_link", "refresh", "anchor_activate", "anchor_session"]
     },
     fallback: { type: "boolean" },
     user: authUserSchema
@@ -126,6 +133,82 @@ export const magicLinkVerifyRequestSchema = {
   }
 } as const;
 
+export const anchorActivateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["invite_code"],
+  properties: {
+    invite_code: { type: "string", minLength: 6, maxLength: 120 }
+  }
+} as const;
+
+export const anchorActivateResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["activation_id", "community", "otpauth_uri", "recovery_codes", "expires_in_seconds"],
+  properties: {
+    activation_id: { type: "string", format: "uuid" },
+    community: {
+      type: "object",
+      additionalProperties: false,
+      required: ["community_id", "name", "center_zip", "join_policy"],
+      properties: {
+        community_id: { type: "string", format: "uuid" },
+        name: { type: "string" },
+        center_zip: { type: "string" },
+        join_policy: { type: "string", enum: ["invite_only", "open"] }
+      }
+    },
+    otpauth_uri: { type: "string", format: "uri" },
+    recovery_codes: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 8,
+      maxItems: 8
+    },
+    expires_in_seconds: { type: "number" }
+  }
+} as const;
+
+export const anchorActivateConfirmRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["activation_id", "totp_code"],
+  properties: {
+    activation_id: { type: "string", format: "uuid" },
+    totp_code: { type: "string", minLength: 6, maxLength: 6 }
+  }
+} as const;
+
+export const anchorSessionStartRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id"],
+  properties: {
+    community_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const anchorSessionStartResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["challenge_id", "expires_in_seconds"],
+  properties: {
+    challenge_id: { type: "string", format: "uuid" },
+    expires_in_seconds: { type: "number" }
+  }
+} as const;
+
+export const anchorSessionVerifyRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["challenge_id", "totp_code"],
+  properties: {
+    challenge_id: { type: "string", format: "uuid" },
+    totp_code: { type: "string", minLength: 6, maxLength: 6 }
+  }
+} as const;
+
 export const meResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -142,7 +225,9 @@ export const meResponseSchema = {
         community_ids: {
           type: "array",
           items: { type: "string", format: "uuid" }
-        }
+        },
+        anchor_community_id: { type: "string", format: "uuid" },
+        mfa_verified_at: { type: "string", format: "date-time" }
       }
     }
   }
@@ -1047,6 +1132,261 @@ export const reportCreateResponseSchema = {
     report_id: { type: "string", format: "uuid" },
     status: { type: "string", enum: ["new"] },
     created_at: { type: "string", format: "date-time" },
+  },
+} as const;
+
+export const communityParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+  },
+} as const;
+
+export const announcementParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id", "announcement_id"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    announcement_id: { type: "string", format: "uuid" },
+  },
+} as const;
+
+export const adminReportQueueQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["new", "resolved", "dismissed"] },
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 },
+  },
+} as const;
+
+export const adminReportTargetSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "body_preview", "related_user_id"],
+  properties: {
+    title: { type: "string" },
+    body_preview: { type: ["string", "null"] },
+    related_user_id: { type: ["string", "null"], format: "uuid" },
+  },
+} as const;
+
+export const adminReportQueueItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "report_id",
+    "community_id",
+    "target_type",
+    "target_id",
+    "reason",
+    "status",
+    "created_at",
+    "reporter_user_id",
+    "reporter_alias",
+    "priority",
+    "conversation_id",
+    "target_summary",
+    "evidence_description",
+  ],
+  properties: {
+    report_id: { type: "string", format: "uuid" },
+    community_id: { type: "string", format: "uuid" },
+    target_type: { type: "string", enum: ["post", "user", "message"] },
+    target_id: { type: "string", format: "uuid" },
+    reason: { type: "string", enum: ["harassment", "scam", "misinformation", "unsafe_behavior", "other"] },
+    status: { type: "string", enum: ["new", "resolved", "dismissed"] },
+    created_at: { type: "string", format: "date-time" },
+    reporter_user_id: { type: "string", format: "uuid" },
+    reporter_alias: { type: "string" },
+    priority: { type: "string", enum: ["P0", "P1", "P2"] },
+    conversation_id: { type: ["string", "null"], format: "uuid" },
+    target_summary: adminReportTargetSummarySchema,
+    evidence_description: { type: ["string", "null"] },
+  },
+} as const;
+
+export const adminReportQueueResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items", "next_cursor"],
+  properties: {
+    items: {
+      type: "array",
+      items: adminReportQueueItemSchema,
+    },
+    next_cursor: { type: ["string", "null"] },
+  },
+} as const;
+
+export const adminReportDecisionRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["decision"],
+  properties: {
+    decision: { type: "string", enum: ["dismiss", "warn", "remove_post", "suspend_user"] },
+    notes: { type: "string", minLength: 1, maxLength: 1000 },
+  },
+} as const;
+
+export const adminReportDecisionResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["report_id", "status", "resolution", "decided_at"],
+  properties: {
+    report_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["new", "resolved", "dismissed"] },
+    resolution: { type: "string", enum: ["remove_post", "suspend_user", "warn", "none"] },
+    decided_at: { type: "string", format: "date-time" },
+    affected_user_id: { type: "string", format: "uuid", nullable: true },
+  },
+} as const;
+
+export const adminAnnouncementsQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    include_deleted: { type: "boolean" },
+  },
+} as const;
+
+export const communityRulesResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "community_id",
+    "review_categories",
+    "auto_hide_report_threshold",
+    "keyword_blocklist",
+    "language_preferences",
+    "announcement_pin_strategy",
+    "updated_at",
+  ],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    review_categories: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"],
+      },
+    },
+    auto_hide_report_threshold: { type: "integer", minimum: 1, maximum: 20 },
+    keyword_blocklist: {
+      type: "array",
+      items: { type: "string", minLength: 1, maxLength: 120 },
+    },
+    language_preferences: {
+      type: "array",
+      items: { type: "string", enum: ["en", "es", "zh"] },
+    },
+    announcement_pin_strategy: { type: "string", enum: ["latest", "manual"] },
+    updated_at: { type: "string", format: "date-time" },
+  },
+} as const;
+
+export const communityRulesUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "review_categories",
+    "auto_hide_report_threshold",
+    "keyword_blocklist",
+    "language_preferences",
+    "announcement_pin_strategy",
+  ],
+  properties: {
+    review_categories: communityRulesResponseSchema.properties.review_categories,
+    auto_hide_report_threshold: communityRulesResponseSchema.properties.auto_hide_report_threshold,
+    keyword_blocklist: communityRulesResponseSchema.properties.keyword_blocklist,
+    language_preferences: communityRulesResponseSchema.properties.language_preferences,
+    announcement_pin_strategy: communityRulesResponseSchema.properties.announcement_pin_strategy,
+  },
+} as const;
+
+export const announcementSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "announcement_id",
+    "community_id",
+    "title",
+    "body",
+    "status",
+    "is_pinned",
+    "published_at",
+    "updated_at",
+    "created_by",
+  ],
+  properties: {
+    announcement_id: { type: "string", format: "uuid" },
+    community_id: { type: "string", format: "uuid" },
+    title: { type: "string", minLength: 1, maxLength: 140 },
+    body: { type: "string", minLength: 1, maxLength: 4000 },
+    status: { type: "string", enum: ["active", "deleted"] },
+    is_pinned: { type: "boolean" },
+    published_at: { type: "string", format: "date-time" },
+    updated_at: { type: "string", format: "date-time" },
+    created_by: { type: "string", format: "uuid" },
+  },
+} as const;
+
+export const announcementCreateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "body"],
+  properties: {
+    title: { type: "string", minLength: 1, maxLength: 140 },
+    body: { type: "string", minLength: 1, maxLength: 4000 },
+    is_pinned: { type: "boolean" },
+  },
+} as const;
+
+export const announcementUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  minProperties: 1,
+  properties: announcementCreateRequestSchema.properties,
+} as const;
+
+export const announcementsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items"],
+  properties: {
+    items: {
+      type: "array",
+      items: announcementSchema,
+    },
+  },
+} as const;
+
+export const adminDashboardResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "community_id",
+    "posts_this_week_request_count",
+    "posts_this_week_offer_count",
+    "accepted_contacts_this_week_count",
+    "reports_this_week_count",
+    "pending_post_review_count",
+    "pending_report_count",
+  ],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    posts_this_week_request_count: { type: "integer", minimum: 0 },
+    posts_this_week_offer_count: { type: "integer", minimum: 0 },
+    accepted_contacts_this_week_count: { type: "integer", minimum: 0 },
+    reports_this_week_count: { type: "integer", minimum: 0 },
+    pending_post_review_count: { type: "integer", minimum: 0 },
+    pending_report_count: { type: "integer", minimum: 0 },
   },
 } as const;
 

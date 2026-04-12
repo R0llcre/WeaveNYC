@@ -15,7 +15,7 @@
     "db:migrate": "tsx ./scripts/migrate.ts",
     "db:seed": "tsx ./scripts/seed.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "pnpm --dir ../.. exec vitest run packages/db/test/"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

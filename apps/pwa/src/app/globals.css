@@ -120,6 +120,11 @@ a {
   padding: 24px;
 }
 
+.card--community-announcements {
+  display: grid;
+  gap: 18px;
+}
+
 .card h2 {
   margin: 0 0 6px;
   font-size: 1.3rem;
@@ -453,6 +458,61 @@ a {
   gap: 12px;
   padding: 18px;
   border-radius: 20px;
+  border: 1px solid rgba(24, 33, 45, 0.08);
+  background: var(--panel-strong);
+}
+
+.announcement-banner {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(14, 118, 110, 0.16);
+  background: linear-gradient(140deg, rgba(14, 118, 110, 0.08), rgba(255, 255, 255, 0.95));
+}
+
+.announcement-banner h3,
+.announcement-item__title {
+  margin: 0;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+}
+
+.announcement-banner p,
+.announcement-item__body {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.announcement-banner__meta,
+.announcement-item__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.announcement-list {
+  display: grid;
+  gap: 14px;
+}
+
+.announcement-list__heading {
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
+}
+
+.announcement-items {
+  display: grid;
+  gap: 12px;
+}
+
+.announcement-item {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
   border: 1px solid rgba(24, 33, 45, 0.08);
   background: var(--panel-strong);
 }

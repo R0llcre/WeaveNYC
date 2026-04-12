@@ -14,6 +14,7 @@ import {
   getPost,
   getMatchSuggestions,
   joinCommunity,
+  listCommunityAnnouncements,
   listConversationMessages,
   listConversations,
   listContactRequestsInbox,
@@ -136,6 +137,29 @@ export function useCommunityAccessResolve(accessToken: string | null | undefined
 
       return resolveCommunityAccess(accessToken, input);
     },
+  });
+}
+
+export function useCommunityAnnouncements(
+  accessToken: string | null | undefined,
+  communityId: string | null | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['community-announcements', communityId, accessToken],
+    queryFn: () => {
+      if (!accessToken) {
+        throw new Error('Create an anonymous session before loading community announcements.');
+      }
+
+      if (!communityId) {
+        throw new Error('Join a community before loading community announcements.');
+      }
+
+      return listCommunityAnnouncements(accessToken, communityId);
+    },
+    enabled: enabled && Boolean(accessToken) && Boolean(communityId),
+    staleTime: 60_000,
   });
 }
 

@@ -5,6 +5,7 @@ import {
   toConversationSummary,
 } from "./repository.js";
 import type {
+  AdminReportQueueInput,
   BlockUserResult,
   ChatRepository,
   ChatSafetyDetector,
@@ -17,6 +18,7 @@ import type {
   ListConversationInput,
   ListMessagesInput,
   MessagePage,
+  ReportDecisionInput,
   SendMessageInput,
   SendMessageResult,
   SubmitReportInput,
@@ -300,9 +302,17 @@ export class DefaultChatService implements ChatService {
       targetId: input.targetId,
       reason: input.reason,
       detailText: input.detailText ?? null,
+      conversationId: input.conversationId ?? null,
       reporterUserId: input.actor.userId,
       createdAt: this.now().toISOString(),
     });
+
+    if (input.targetType === "post") {
+      await this.repository.autoHidePostIfThresholdReached({
+        communityId,
+        postId: input.targetId,
+      });
+    }
 
     await this.hooks.onReportCreated?.({
       actor: input.actor,
@@ -312,6 +322,37 @@ export class DefaultChatService implements ChatService {
     });
 
     return report;
+  }
+
+  async listReportQueue(input: AdminReportQueueInput) {
+    this.ensureAnchorForCommunity(input.actor, input.communityId);
+    const limit = coerceLimit(input.limit, 50, 20);
+    return this.repository.listReportQueuePage({
+      communityId: input.communityId,
+      status: input.status,
+      cursor: input.cursor ?? null,
+      limit,
+    }).then((page) => ({
+      items: page.items,
+      next_cursor: page.nextCursor,
+    }));
+  }
+
+  async decideReport(input: ReportDecisionInput) {
+    this.ensureAnchorForCommunity(input.actor, input.communityId);
+    const decision = await this.repository.decideReport({
+      communityId: input.communityId,
+      reportId: input.reportId,
+      decision: input.decision,
+      notes: input.notes ?? null,
+      anchorUserId: input.actor.userId,
+      decidedAt: this.now().toISOString(),
+    });
+    if (!decision) {
+      throw new ChatServiceError("Report not found", "not_found");
+    }
+
+    return decision;
   }
 
   private async resolveReportContext(input: SubmitReportInput): Promise<{
@@ -472,5 +513,15 @@ export class DefaultChatService implements ChatService {
     } while (cursor);
 
     return [...conversationIds];
+  }
+
+  private ensureAnchorForCommunity(
+    actor: { role?: string; communityIds?: string[]; anchorCommunityId?: string | null },
+    communityId: string,
+  ) {
+    const isAnchor = actor.role === "anchor" && actor.anchorCommunityId === communityId;
+    if (!isAnchor) {
+      throw new ChatServiceError("Only anchors can manage reports for this community", "forbidden");
+    }
   }
 }

@@ -9,6 +9,8 @@ export interface AuthTokenClaims {
   level: UserLevel;
   role: UserRole;
   community_ids: string[];
+  anchor_community_id?: string;
+  mfa_verified_at?: string;
   iat?: number;
   exp?: number;
 }
@@ -28,6 +30,33 @@ export interface AuthenticatedUserRecord {
   role: UserRole;
   status: UserStatus;
   communityIds: string[];
+  anchorCommunityId?: string | null;
+  mfaVerifiedAt?: string;
+}
+
+export interface AnchorCommunityRecord {
+  communityId: string;
+  name: string;
+  centerZip: string;
+  joinPolicy: "invite_only" | "open";
+}
+
+export interface AnchorInviteRecord {
+  inviteId: string;
+  community: AnchorCommunityRecord;
+  orgName: string;
+}
+
+export interface AnchorAdminRecord {
+  anchorId: string;
+  userId: string;
+  communityId: string;
+  orgName: string;
+  status: "pending_activation" | "active" | "revoked";
+  totpSecretCiphertext: string | null;
+  recoveryCodesHashes: string[];
+  activatedAt: string | null;
+  lastMfaAt: string | null;
 }
 
 export interface StoredRefreshSession {
@@ -36,4 +65,7 @@ export interface StoredRefreshSession {
   role: UserRole;
   communityIds: string[];
   familyId: string;
+  anchorCommunityId?: string | null;
+  mfaVerifiedAt?: string;
+  lastActivityAt?: string;
 }

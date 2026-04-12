@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { Redis } from "ioredis";
+import { anchorSessionIdleTtlSeconds } from "@weavenyc/shared";
 
 import type { StoredRefreshSession } from "../types.js";
 
-type ChallengeKind = "otp" | "magic_link";
+type ChallengeKind = "otp" | "magic_link" | "anchor_activate" | "anchor_session";
 
 export interface StoredIdentityChallenge {
   challengeId: string;
@@ -18,6 +19,20 @@ export interface StoredIdentityChallenge {
   attemptsRemaining: number;
   expiresAt: number;
 }
+
+export interface StoredAnchorChallenge {
+  challengeId: string;
+  kind: "anchor_activate" | "anchor_session";
+  userId: string;
+  communityId: string;
+  inviteId?: string;
+  secret: string;
+  recoveryCodesHashes?: string[];
+  expiresAt: number;
+  attemptsRemaining: number;
+}
+
+type StoredChallenge = StoredIdentityChallenge | StoredAnchorChallenge;
 
 export type RotateRefreshResult =
   | {
@@ -44,10 +59,16 @@ export interface RefreshTokenStore {
         userId?: string;
       }
   >;
-  rotateSession(currentToken: string, nextToken: string): Promise<RotateRefreshResult>;
+  rotateSession(
+    currentToken: string,
+    nextToken: string,
+    nextSessionOverride?: StoredRefreshSession,
+  ): Promise<RotateRefreshResult>;
   revokeUserSessions(userId: string): Promise<void>;
   createOtpChallenge(challenge: StoredIdentityChallenge): Promise<void>;
   createMagicLinkChallenge(challenge: StoredIdentityChallenge): Promise<void>;
+  createAnchorActivationChallenge(challenge: StoredAnchorChallenge): Promise<void>;
+  createAnchorSessionChallenge(challenge: StoredAnchorChallenge): Promise<void>;
   verifyChallenge(input: {
     challengeId: string;
     kind: ChallengeKind;
@@ -65,13 +86,33 @@ export interface RefreshTokenStore {
         challenge: StoredIdentityChallenge;
       }
   >;
+  verifyAnchorChallenge(input: {
+    challengeId: string;
+    kind: "anchor_activate" | "anchor_session";
+    userId: string;
+    code: string;
+    verifier: (secret: string, code: string) => boolean;
+  }): Promise<
+    | {
+        status: "verified";
+        challenge: StoredAnchorChallenge;
+      }
+    | {
+        status: "missing" | "expired" | "invalid" | "forbidden";
+      }
+    | {
+        status: "exhausted";
+        challenge: StoredAnchorChallenge;
+      }
+  >;
   close(): Promise<void>;
 }
 
 export class RedisRefreshTokenStore implements RefreshTokenStore {
   constructor(
     private readonly redis: Redis,
-    private readonly ttlSeconds: number
+    private readonly ttlSeconds: number,
+    private readonly anchorIdleTtlSeconds = anchorSessionIdleTtlSeconds
   ) {}
 
   async ping(): Promise<void> {
@@ -99,7 +140,11 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
     return this.lookupSession(token);
   }
 
-  async rotateSession(currentToken: string, nextToken: string): Promise<RotateRefreshResult> {
+  async rotateSession(
+    currentToken: string,
+    nextToken: string,
+    nextSessionOverride?: StoredRefreshSession,
+  ): Promise<RotateRefreshResult> {
     const inspection = await this.lookupSession(currentToken);
     if (inspection.status !== "active") {
       if (inspection.status === "replayed" && inspection.familyId) {
@@ -110,7 +155,22 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
     }
 
     const session = inspection.session;
+    if (session.level === "anchor" && session.lastActivityAt) {
+      const idleMillis = Date.now() - new Date(session.lastActivityAt).getTime();
+      if (idleMillis > this.anchorIdleTtlSeconds * 1000) {
+        await this.revokeFamily(session.familyId);
+        return {
+          status: "revoked",
+          familyId: session.familyId,
+          userId: session.userId
+        };
+      }
+    }
     const currentKey = this.refreshSessionKey(currentToken);
+    const nextSession: StoredRefreshSession = nextSessionOverride ?? {
+      ...session,
+      lastActivityAt: session.level === "anchor" ? new Date().toISOString() : session.lastActivityAt
+    };
 
     await this.redis.multi()
       .del(currentKey)
@@ -125,11 +185,11 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
       )
       .exec();
 
-    await this.persistRefreshSession(nextToken, session);
+    await this.persistRefreshSession(nextToken, nextSession);
 
     return {
       status: "rotated",
-      session
+      session: nextSession
     };
   }
 
@@ -151,6 +211,14 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
   }
 
   async createMagicLinkChallenge(challenge: StoredIdentityChallenge): Promise<void> {
+    await this.persistChallenge(challenge);
+  }
+
+  async createAnchorActivationChallenge(challenge: StoredAnchorChallenge): Promise<void> {
+    await this.persistChallenge(challenge);
+  }
+
+  async createAnchorSessionChallenge(challenge: StoredAnchorChallenge): Promise<void> {
     await this.persistChallenge(challenge);
   }
 
@@ -212,6 +280,64 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
     };
   }
 
+  async verifyAnchorChallenge(input: {
+    challengeId: string;
+    kind: "anchor_activate" | "anchor_session";
+    userId: string;
+    code: string;
+    verifier: (secret: string, code: string) => boolean;
+  }): Promise<
+    | {
+        status: "verified";
+        challenge: StoredAnchorChallenge;
+      }
+    | {
+        status: "missing" | "expired" | "invalid" | "forbidden";
+      }
+    | {
+        status: "exhausted";
+        challenge: StoredAnchorChallenge;
+      }
+  > {
+    const key = this.challengeKey(input.kind, input.challengeId);
+    const raw = await this.redis.get(key);
+
+    if (!raw) {
+      return { status: "missing" };
+    }
+
+    const challenge = JSON.parse(raw) as StoredAnchorChallenge;
+    if (challenge.userId !== input.userId) {
+      return { status: "forbidden" };
+    }
+
+    if (challenge.expiresAt <= Date.now()) {
+      await this.redis.del(key);
+      return { status: "expired" };
+    }
+
+    if (!input.verifier(challenge.secret, input.code)) {
+      const nextAttempts = challenge.attemptsRemaining - 1;
+      if (nextAttempts <= 0) {
+        await this.redis.del(key);
+        return {
+          status: "exhausted",
+          challenge
+        };
+      }
+
+      challenge.attemptsRemaining = nextAttempts;
+      await this.redis.set(key, JSON.stringify(challenge), "KEEPTTL");
+      return { status: "invalid" };
+    }
+
+    await this.redis.del(key);
+    return {
+      status: "verified",
+      challenge
+    };
+  }
+
   async close(): Promise<void> {
     await this.redis.quit();
   }
@@ -224,7 +350,7 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
       .exec();
   }
 
-  private async persistChallenge(challenge: StoredIdentityChallenge) {
+  private async persistChallenge(challenge: StoredChallenge) {
     const ttlSeconds = Math.max(1, Math.ceil((challenge.expiresAt - Date.now()) / 1000));
     await this.redis.set(
       this.challengeKey(challenge.kind, challenge.challengeId),
@@ -322,13 +448,15 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
 
 export function createRedisRefreshTokenStore(
   redisUrl: string,
-  ttlSeconds: number
+  ttlSeconds: number,
+  anchorIdleTtl = anchorSessionIdleTtlSeconds
 ): RedisRefreshTokenStore {
   return new RedisRefreshTokenStore(
     new Redis(redisUrl, {
       maxRetriesPerRequest: 1
     }),
-    ttlSeconds
+    ttlSeconds,
+    anchorIdleTtl
   );
 }
 
@@ -337,6 +465,9 @@ export function buildStoredRefreshSession(input: {
   level: StoredRefreshSession["level"];
   role: StoredRefreshSession["role"];
   communityIds: string[];
+  anchorCommunityId?: string | null;
+  mfaVerifiedAt?: string;
+  lastActivityAt?: string;
   familyId?: string;
 }): StoredRefreshSession {
   return {
@@ -344,6 +475,9 @@ export function buildStoredRefreshSession(input: {
     level: input.level,
     role: input.role,
     communityIds: input.communityIds,
+    anchorCommunityId: input.anchorCommunityId ?? null,
+    mfaVerifiedAt: input.mfaVerifiedAt,
+    lastActivityAt: input.lastActivityAt,
     familyId: input.familyId ?? randomUUID()
   };
 }

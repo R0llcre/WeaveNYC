@@ -14,7 +14,8 @@ vi.mock("node:fs", () => ({
         "REDIS_URL=redis://localhost:6379",
         "JWT_SIGNING_PRIVATE_KEY=./infra/dev/jwt-private.pem",
         "JWT_SIGNING_PUBLIC_KEY=./infra/dev/jwt-public.pem",
-        "IDENTITY_HASH_PEPPER=weavenyc-dev-identity-pepper"
+        "IDENTITY_HASH_PEPPER=weavenyc-dev-identity-pepper",
+        "ANCHOR_TOTP_ENCRYPTION_KEY=weavenyc-dev-anchor-totp-encryption-key"
       ].join("\n");
     }
 
@@ -61,7 +62,8 @@ describe("loadConfig", () => {
         REDIS_URL: "redis://localhost:6379",
         JWT_SIGNING_PRIVATE_KEY: "./infra/dev/jwt-private.pem",
         JWT_SIGNING_PUBLIC_KEY: "./infra/dev/jwt-public.pem",
-        IDENTITY_HASH_PEPPER: "weavenyc-dev-identity-pepper"
+        IDENTITY_HASH_PEPPER: "weavenyc-dev-identity-pepper",
+        ANCHOR_TOTP_ENCRYPTION_KEY: "weavenyc-dev-anchor-totp-encryption-key"
       })
     ).rejects.toThrow("checked-in development/test sample");
   });
@@ -78,5 +80,6 @@ describe("loadConfig", () => {
     });
 
     expect(config.identityHashPepper).toBe("weavenyc-dev-identity-pepper");
+    expect(config.anchorTotpEncryptionKey).toBe("weavenyc-dev-anchor-totp-encryption-key");
   });
 });

@@ -8,22 +8,26 @@
 
 ```
 packages/db/
-├── schema/
-│   ├── users.ts              # 用户
-│   ├── communities.ts        # 社区
-│   ├── anchors.ts            # Anchor 组织
-│   ├── posts.ts              # 帖子（Request/Offer）
-│   ├── dataset-versions.ts   # 官方资源导入批次
-│   ├── resource-providers.ts # 官方资源
-│   ├── resource-change-logs.ts # 资源版本变更记录
-│   ├── verification-logs.ts  # 资源人工校验记录
-│   ├── match-suggestions.ts  # 匹配结果
-│   ├── contact-requests.ts   # 建联请求
-│   ├── conversations.ts      # 会话
-│   ├── messages.ts           # 消息
-│   ├── reports.ts            # 举报
-│   ├── moderation-actions.ts # 审核操作
-│   └── index.ts              # 统一导出
+├── src/schema/
+│   ├── users.ts                  # 用户
+│   ├── communities.ts            # 社区 / membership
+│   ├── community-access-codes.ts # join invite / qr
+│   ├── anchor-invites.ts         # Anchor 激活邀请码
+│   ├── community-rulesets.ts     # 社区规则
+│   ├── anchors.ts                # Anchor 账号与 TOTP
+│   ├── announcements.ts          # 公告
+│   ├── posts.ts                  # 帖子（Request/Offer）
+│   ├── dataset-versions.ts       # 官方资源导入批次
+│   ├── resource-providers.ts     # 官方资源
+│   ├── resource-change-logs.ts   # 资源版本变更记录
+│   ├── verification-logs.ts      # 资源人工校验记录
+│   ├── match-suggestions.ts      # 匹配结果
+│   ├── contact-requests.ts       # 建联请求
+│   ├── conversations.ts          # 会话
+│   ├── messages.ts               # 消息
+│   ├── reports.ts                # 举报
+│   ├── moderation-actions.ts     # 审核操作
+│   └── index.ts                  # 统一导出
 ├── migrations/               # drizzle-kit 生成
 ├── seed/                     # 种子数据
 │   ├── resources.seed.ts     # 官方资源测试数据
@@ -48,8 +52,10 @@ export const users = pgTable('users', {
   displayName:         varchar('display_name', { length: 50 }),
   preferredLanguages:  text('preferred_languages').array(),          // ['en', 'es']
   homeZip:             varchar('home_zip', { length: 10 }),
-  phoneHash:           varchar('phone_hash', { length: 64 }),        // SHA-256, nullable
-  emailHash:           varchar('email_hash', { length: 64 }),        // SHA-256, nullable
+  phoneHash:           varchar('phone_hash', { length: 64 }),        // HMAC-SHA256(pepper, salt + ':' + normalized_phone)
+  phoneHashSalt:       varchar('phone_hash_salt', { length: 64 }),
+  emailHash:           varchar('email_hash', { length: 64 }),        // HMAC-SHA256(pepper, salt + ':' + normalized_email)
+  emailHashSalt:       varchar('email_hash_salt', { length: 64 }),
   level:               userLevelEnum('level').notNull().default('anonymous'),
   status:              userStatusEnum('status').notNull().default('active'),
   createdAt:           timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -84,18 +90,75 @@ export const communityMembers = pgTable('community_members', {
 }));
 ```
 
-### 2.3 anchors.ts
+### 2.3 anchor-admin tables
 
 ```typescript
-import { pgTable, uuid, varchar, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, integer, boolean, jsonb, timestamp, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
+
+export const anchorInviteStatusEnum = pgEnum('anchor_invite_status', ['active', 'consumed', 'revoked']);
+export const anchorStatusEnum = pgEnum('anchor_status', ['pending_activation', 'active', 'revoked']);
+export const announcementStatusEnum = pgEnum('announcement_status', ['active', 'deleted']);
+export const announcementPinStrategyEnum = pgEnum('announcement_pin_strategy', ['latest', 'manual']);
+
+export const anchorInvites = pgTable('anchor_invites', {
+  anchorInviteId: uuid('anchor_invite_id').primaryKey().defaultRandom(),
+  communityId: uuid('community_id').notNull().references(() => communities.communityId),
+  codeHash: varchar('code_hash', { length: 64 }).notNull(),
+  orgName: varchar('org_name', { length: 200 }),
+  status: anchorInviteStatusEnum('status').notNull().default('active'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  consumedByUserId: uuid('consumed_by_user_id').references(() => users.userId),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  codeHashUq: uniqueIndex('uq_anchor_invites_code_hash').on(table.codeHash),
+  communityStatusIdx: index('idx_anchor_invites_community_status').on(table.communityId, table.status, table.createdAt),
+}));
+
+export const communityRulesets = pgTable('community_rulesets', {
+  rulesetId: uuid('ruleset_id').primaryKey().defaultRandom(),
+  communityId: uuid('community_id').notNull().references(() => communities.communityId),
+  reviewCategories: text('review_categories').array().notNull(),
+  autoHideReportThreshold: integer('auto_hide_report_threshold').notNull().default(3),
+  keywordBlocklist: text('keyword_blocklist').array().notNull(),
+  languagePreferences: text('language_preferences').array().notNull(),
+  announcementPinStrategy: announcementPinStrategyEnum('announcement_pin_strategy').notNull().default('latest'),
+  createdBy: uuid('created_by').references(() => users.userId),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  communityRulesetUq: uniqueIndex('uq_community_rulesets_community').on(table.communityId),
+}));
 
 export const anchors = pgTable('anchors', {
   anchorId:       uuid('anchor_id').primaryKey().defaultRandom(),
+  userId:         uuid('user_id').references(() => users.userId),
   communityId:    uuid('community_id').notNull().references(() => communities.communityId),
   orgName:        varchar('org_name', { length: 200 }).notNull(),
   contact:        varchar('contact', { length: 200 }),
-  roleAssignments: jsonb('role_assignments'),  // { admins: [...], mods: [...] }
+  status:         anchorStatusEnum('status').notNull().default('pending_activation'),
+  totpSecretCiphertext: text('totp_secret_ciphertext'),
+  recoveryCodesHashes: text('recovery_codes_hashes').array(),
+  activatedAt:    timestamp('activated_at', { withTimezone: true }),
+  lastMfaAt:      timestamp('last_mfa_at', { withTimezone: true }),
+  roleAssignments: jsonb('role_assignments'),
   createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdx: uniqueIndex('uq_anchors_user').on(table.userId),
+  activeCommunityUq: uniqueIndex('uq_anchors_active_community').on(table.communityId),
+}));
+
+export const announcements = pgTable('announcements', {
+  announcementId: uuid('announcement_id').primaryKey().defaultRandom(),
+  communityId: uuid('community_id').notNull().references(() => communities.communityId),
+  title: varchar('title', { length: 140 }).notNull(),
+  body: text('body').notNull(),
+  status: announcementStatusEnum('status').notNull().default('active'),
+  isPinned: boolean('is_pinned').notNull().default(false),
+  createdBy: uuid('created_by').notNull().references(() => users.userId),
+  publishedAt: timestamp('published_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 ```
 
@@ -170,8 +233,6 @@ export const datasetVersions = pgTable('dataset_versions', {
   createdAt:           timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:           timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
-  datasetVersionUq: uniqueIndex('uq_dataset_versions_dataset_version')
-    .on(table.datasetVersion),
   datasetSourceUq: uniqueIndex('uq_dataset_versions_source_version')
     .on(table.source, table.datasetVersion),
 }));
@@ -299,7 +360,7 @@ export const messages = pgTable('messages', {
 ```typescript
 import { pgTable, uuid, varchar, text, timestamp, pgEnum } from 'drizzle-orm/pg-core';
 
-export const reportStatusEnum = pgEnum('report_status', ['new', 'in_review', 'resolved', 'dismissed']);
+export const reportStatusEnum = pgEnum('report_status', ['new', 'resolved', 'dismissed']);
 export const reportReasonEnum = pgEnum('report_reason', [
   'harassment', 'scam', 'misinformation', 'unsafe_behavior', 'other'
 ]);
@@ -307,10 +368,12 @@ export const resolutionEnum = pgEnum('resolution', ['remove_post', 'suspend_user
 
 export const reports = pgTable('reports', {
   reportId:         uuid('report_id').primaryKey().defaultRandom(),
+  communityId:      uuid('community_id').notNull().references(() => communities.communityId),
   targetType:       varchar('target_type', { length: 20 }).notNull(),  // post | user | message
   targetId:         uuid('target_id').notNull(),
   reason:           reportReasonEnum('reason').notNull(),
   detailText:       text('detail_text'),
+  conversationId:   uuid('conversation_id').references(() => conversations.conversationId),
   reporterUserId:   uuid('reporter_user_id').notNull().references(() => users.userId),
   status:           reportStatusEnum('status').notNull().default('new'),
   resolution:       resolutionEnum('resolution'),
@@ -321,9 +384,9 @@ export const reports = pgTable('reports', {
 export const moderationActions = pgTable('moderation_actions', {
   actionId:         uuid('action_id').primaryKey().defaultRandom(),
   reportId:         uuid('report_id').references(() => reports.reportId),
-  anchorUserId:     uuid('anchor_user_id').notNull().references(() => users.userId),
+  anchorUserId:     uuid('anchor_user_id').references(() => users.userId),
   communityId:      uuid('community_id').notNull().references(() => communities.communityId),
-  actionType:       varchar('action_type', { length: 30 }).notNull(),  // approve | reject | warn | ban
+  actionType:       varchar('action_type', { length: 30 }).notNull(),  // approve | reject | request_more_info | dismiss | warn | remove_post | suspend_user
   targetType:       varchar('target_type', { length: 20 }).notNull(),
   targetId:         uuid('target_id').notNull(),
   reason:           text('reason'),

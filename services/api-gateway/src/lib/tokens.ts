@@ -13,7 +13,9 @@ export function buildAccessTokenClaims(user: AuthenticatedUserRecord): AuthToken
     sub: user.userId,
     level: user.level,
     role: user.role,
-    community_ids: user.communityIds
+    community_ids: user.communityIds,
+    anchor_community_id: user.anchorCommunityId ?? undefined,
+    mfa_verified_at: user.mfaVerifiedAt
   };
 }
 
