@@ -207,7 +207,9 @@ describe('chat routes', () => {
       `ws://127.0.0.1:${address.port}/v1/ws/chat?token=${encodeURIComponent(requesterToken)}`,
     );
     const closeEvent = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
-      socket.once('close', (code, reason) => resolve({ code, reason: reason.toString() }));
+      socket.once('close', (code: number, reason: Buffer) =>
+        resolve({ code, reason: reason.toString() }),
+      );
       socket.once('error', () => reject(new Error('expected websocket close event')));
     });
 

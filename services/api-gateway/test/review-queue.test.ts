@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createTestApp, createUserRecord, InMemoryUserStore } from './helpers.js';
 
 const communityId = '44444444-4444-4444-8444-444444444444';
-const freshMfa = '2026-04-12T08:00:00.000Z';
+function freshMfa() {
+  return new Date().toISOString();
+}
 
 function signUser(app: Awaited<ReturnType<typeof createTestApp>>['app'], user: ReturnType<typeof createUserRecord>) {
   return app.jwt.sign(
@@ -42,7 +44,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(verifiedUser.userId, verifiedUser);
     userStore.users.set(anchorUser.userId, anchorUser);
@@ -147,7 +149,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(anchorUser.userId, anchorUser);
 
@@ -176,7 +178,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(verifiedUser.userId, verifiedUser);
     userStore.users.set(anchorUser.userId, anchorUser);
@@ -226,7 +228,7 @@ describe('review queue routes', () => {
       level: 'anchor',
       role: 'anchor',
       communityIds: [communityId],
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(anchorUser.userId, anchorUser);
 

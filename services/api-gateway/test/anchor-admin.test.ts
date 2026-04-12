@@ -6,7 +6,9 @@ import { createTestApp, createUserRecord, InMemoryRefreshTokenStore, InMemoryUse
 
 const communityId = "44444444-4444-4444-8444-444444444444";
 const base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-const freshMfa = "2026-04-12T08:00:00.000Z";
+function freshMfa() {
+  return new Date().toISOString();
+}
 
 function signUser(app: Awaited<ReturnType<typeof createTestApp>>["app"], user: ReturnType<typeof createUserRecord>) {
   return app.jwt.sign(
@@ -167,7 +169,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     const reporterUser = createUserRecord({
       userId: "22222222-2222-4222-8222-222222222222",
@@ -374,7 +376,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     const postOwner = createUserRecord({
       userId: "14141414-1414-4414-8414-141414141414",
@@ -482,7 +484,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId, otherCommunityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(anchorUser.userId, anchorUser);
 
@@ -507,7 +509,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     const replacementUser = createUserRecord({
       userId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
@@ -585,7 +587,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     const otherAnchor = createUserRecord({
       userId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
@@ -593,7 +595,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [otherCommunityId],
       anchorCommunityId: otherCommunityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(scopedAnchor.userId, scopedAnchor);
     userStore.users.set(otherAnchor.userId, otherAnchor);
@@ -635,7 +637,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     const reporterUser = createUserRecord({
       userId: "34343434-3434-4434-8434-343434343434",
@@ -732,7 +734,7 @@ describe("anchor admin routes", () => {
       role: "anchor",
       communityIds: [communityId],
       anchorCommunityId: communityId,
-      mfaVerifiedAt: freshMfa,
+      mfaVerifiedAt: freshMfa(),
     });
     userStore.users.set(anchorUser.userId, anchorUser);
 

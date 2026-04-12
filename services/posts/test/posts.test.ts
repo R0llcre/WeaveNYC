@@ -30,7 +30,7 @@ const anchorActor: PostActor = {
   role: 'anchor',
   communityIds: [community.community_id],
   anchorCommunityId: community.community_id,
-  mfaVerifiedAt: '2026-04-12T08:00:00.000Z',
+  mfaVerifiedAt: new Date().toISOString(),
 };
 
 const foreignAnchorActor: PostActor = {
