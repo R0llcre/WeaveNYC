@@ -5,6 +5,7 @@ import {
   postsListQuerySchema as postsQueryValidator,
   updatePostRequestSchema as updatePostBodySchema,
 } from '@weavenyc/shared';
+import { MatchServiceError } from '@weavenyc/match';
 import { PostsServiceError } from '@weavenyc/posts';
 import type { FastifyPluginAsync } from 'fastify';
 
@@ -71,6 +72,10 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
           actor,
           request: body,
         });
+
+        if (body.post_type === 'request' && created.status === 'active') {
+          await tryPrecomputeMatches(app.matchService, created.postId);
+        }
 
         return {
           post_id: created.postId,
@@ -219,11 +224,17 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
 
         const params = postParamsValidator.parse(request.params);
         const body = updatePostBodySchema.parse(request.body);
-        return await app.postsService.updatePost({
+        const updated = await app.postsService.updatePost({
           actor,
           postId: params.post_id,
           request: body,
         });
+
+        if (updated.post_type === 'request' && updated.status === 'active') {
+          await tryPrecomputeMatches(app.matchService, updated.post_id);
+        }
+
+        return updated;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }
@@ -307,6 +318,20 @@ async function requireActor(
   }
 
   return actor;
+}
+
+async function tryPrecomputeMatches(
+  matchService: { ensureInitialSuggestions(postId: string): Promise<void> },
+  postId: string
+) {
+  try {
+    await matchService.ensureInitialSuggestions(postId);
+  } catch (error) {
+    if (error instanceof MatchServiceError && error.code === 'resource_fallback_unavailable') {
+      return;
+    }
+    throw error;
+  }
 }
 
 function replyWithPostsError(

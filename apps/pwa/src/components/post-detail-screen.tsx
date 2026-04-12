@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
+import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { useAppSelector, useClosePost, useDeletePost, usePost, useUpdatePost } from '@/lib/hooks';
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/datetime';
 import { getCategoryLabel, getPostPrivacyLabel, getPostStatusLabel, getPostTypeLabel } from '@/lib/i18n';
@@ -65,9 +66,12 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
         <section className="hero hero--detail">
           <div className="hero__topbar">
             <span className="hero__eyebrow">{t('postDetailTitle')}</span>
-            <Link className="hero__link" href="/community">
-              {t('backHome')}
-            </Link>
+            <div className="actions actions--tight">
+              <ContactInboxLink />
+              <Link className="hero__link" href="/community">
+                {t('backHome')}
+              </Link>
+            </div>
           </div>
           <h1>{post?.title ?? t('resourceLoading')}</h1>
           {post ? (
@@ -144,6 +148,11 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
                     {post.location_zip} · {new Date(post.expires_at).toLocaleString()}
                   </p>
                   <div className="actions">
+                    {post.is_owner && post.post_type === 'request' && post.status === 'active' ? (
+                      <Link className="button button--primary" href={`/posts/${post.post_id}/matches`}>
+                        {t('seeActionPlans')}
+                      </Link>
+                    ) : null}
                     {post.actions.can_edit ? (
                       <button className="button button--secondary" onClick={() => setEditing(true)} type="button">
                         {t('postEditAction')}

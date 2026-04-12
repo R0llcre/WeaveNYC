@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "pnpm --filter @weavenyc/shared build",
     "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "prebuild": "pnpm --filter @weavenyc/shared build",
     "build": "next build",
     "lint": "eslint src --ext .ts,.tsx",
     "start": "next start --hostname 0.0.0.0 --port 3000",

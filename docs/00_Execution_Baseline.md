@@ -1,22 +1,22 @@
-# WeaveNYC — Execution Baseline (M2 Complete On Branch)
+# WeaveNYC — Execution Baseline (Main-First Canonical Baseline)
 
 状态：`CANONICAL`
 
-目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M2 决策写成单一基线，避免继续引用 pre-M1 口径，也避免在 M2 closeout 后再次漂移真值。
+目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M2-M4 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
 
 ---
 
 ## 1) 当前仓库真实状态
 
 - 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
-- `main` 的稳定基线仍是 `M1 completed`；当前工作分支 `feature/m2-community-posts` 已完成 M2 的 community/posts/review/speech surface，并通过 6-lane review gate。
+- `main` 仍然是 canonical baseline，当前稳定基线为 `M2 completed`；`feature/m4-chat-safety` 的 M3/M4 进度只作为 branch closeout 记录，不覆盖 main 口径。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
-- 当前可运行的稳定服务面（`main`）：
+- 当前可运行的共享服务面：
   - PWA：`http://localhost:3000`
   - Anchor Admin：`http://localhost:3001`
   - API Gateway：`http://localhost:4000`
   - Swagger：`http://localhost:4000/docs`
-- 当前已验证的稳定 API 面（`main`）：
+- 当前已验证的共享 API 面：
   - `GET /healthz`
   - `GET /readyz`
   - `POST /v1/auth/anonymous`
@@ -28,7 +28,7 @@
   - `GET /v1/me`
   - `GET /v1/resources`
   - `GET /v1/resources/:provider_id`
-- 当前分支额外接线的 M2 API 面：
+- 当前 branch-closeout 额外完成并已验证的 M2-M4 API 面：
   - `POST /v1/community-access/resolve`
   - `POST /v1/communities/:community_id/join`
   - `POST /v1/posts`
@@ -41,6 +41,19 @@
   - `GET /v1/admin/review_queue`
   - `POST /v1/admin/review_queue/:post_id/decision`
   - `POST /v1/speech/transcribe`
+  - `GET /v1/posts/:post_id/matches`
+  - `POST /v1/match/contact`
+  - `GET /v1/contact-requests/inbox`
+  - `POST /v1/contact-requests/:contact_request_id/accept`
+  - `POST /v1/contact-requests/:contact_request_id/reject`
+  - `GET /v1/conversations`
+  - `GET /v1/conversations/:conversation_id`
+  - `GET /v1/conversations/:conversation_id/messages`
+  - `POST /v1/conversations/:conversation_id/messages`
+  - `POST /v1/conversations/:conversation_id/close`
+  - `POST /v1/blocks`
+  - `POST /v1/reports`
+  - `GET /v1/ws/chat?token=...`
 - 当前真实 bootstrap 顺序：
 
 ```bash
@@ -62,18 +75,20 @@ pnpm dev
 | `P0` | `completed` | 入口、命名、契约已冻结 |
 | `M0` | `completed` | monorepo skeleton、本地基础设施、匿名 auth 最小闭环、CI stub 已落地 |
 | `M1` | `completed` | 资源目录、扩展认证、real API smoke、fixture browser smoke、6-lane rereview 已完成 |
-| `M2` | `completed_on_branch` | 当前工作分支已完成 posting + community visibility，并等待合并 |
-| `M3-M5` | `planned` | 下一阶段从 `M3` 开始推进 |
+| `M2` | `completed` | community join、posting、visibility、minimal review、speech fallback 已冻结 |
+| `M3` | `implemented_on_branch` | branch closeout：matching + contact requests + recipient inbox |
+| `M4` | `completed_on_branch` | branch closeout：live chat、message send/read、inbox、block/report、sensitive-content interception、WebSocket realtime |
+| `M5` | `planned` | 下一阶段继续做 Anchor Admin / pilot |
 | `M6` | `optional` | 仅在 MVP 主线稳定后进入 |
 
 结论：
 
-- `main` 当前仍应对外表述 `M1 completed`，直到本分支合并。
-- 当前工作分支已经完成 `M2 community join + posts + minimal review`，下一阶段是 `M3 pending`。
+- 当前 workspace 的 canonical 阶段真值应表述为：`main = M2 completed`。
+- 当前工作分支的 M3-M4 范围收口为 branch-closeout 记录：matching、一次刷新、`contact_request`、canonical `/inbox`、accept/reject、live conversations、message send/read、block/report、message safety。
 
 ---
 
-## 3) M1 候选验收事实
+## 3) 已完成能力（M0-M2 基线）
 
 当前已经落地并完成 closeout 的仓库级事实：
 
@@ -86,10 +101,10 @@ pnpm dev
 - `GET /healthz`、`GET /readyz`、匿名会话、refresh rotation、OTP、magic-link fallback 均已有实现面
 - `GET /v1/resources`、`GET /v1/resources/:provider_id` 已可用
 - PWA 首页已切到 M1 资源发现入口，`/verify` 与 `/dev/m0` 已拆分
-- 默认 CI 现在区分：
-  - real API smoke：`pnpm test:smoke:real`
-  - fixture-backed browser smoke：`pnpm test:e2e`
-  - manual / opt-in live-source smoke：`pnpm test:live-sources`
+- 当前验证命令分层：
+  - canonical `main` baseline：`pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`
+  - branch-local `feature/m4-chat-safety`：`pnpm test:smoke:real`、`pnpm test:e2e`
+  - manual / opt-in：`pnpm test:live-sources`
 
 当前显式接受的残余风险：
 
@@ -105,12 +120,15 @@ pnpm dev
 2. 本文档（当前真值基线）
 3. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
 4. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-5. `01_Vision_And_Principles.md`
-6. `02_PRD.md`
-7. `03_User_Flows_And_Screens.md`
-8. `13_Implementation_Plan.md`
-9. `14_Backlog.md`
-10. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+5. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+6. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
+7. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
+7. `01_Vision_And_Principles.md`
+8. `02_PRD.md`
+9. `03_User_Flows_And_Screens.md`
+10. `13_Implementation_Plan.md`
+11. `14_Backlog.md`
+12. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
 
 ---
 
@@ -120,17 +138,19 @@ pnpm dev
 
 1. 本文档（`00_Execution_Baseline.md`）
 2. `README.md`
-3. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
-4. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-5. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-6. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
-7. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
-8. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
-9. 历史材料：`archive/`
+3. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
+4. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
+5. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+6. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+7. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+8. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
+9. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+10. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
+11. 历史材料：`archive/`
 
 ---
 
-## 6) 冻结决策（M2 前继续有效）
+## 6) 冻结决策（M2-M4 前继续有效）
 
 ### 6.1 社区加入机制
 
@@ -160,14 +180,32 @@ pnpm dev
   - `refresh_token`：7 天
 - Anchor 完整激活接口仍冻结为：`POST /v1/auth/anchor/activate`；M2 的 manual moderation 先通过 `pnpm dev:mint-anchor-token` + Swagger/curl 走通。
 
-### 6.3 聊天建联
+### 6.3 聊天与建联
 
-- `POST /v1/match/contact` 不直接创建 `conversation`。
+- `POST /v1/match/contact` 不直接创建 live conversation。
 - 该接口只创建 `contact_request`，返回 `contact_request_id` 和 `status = pending`。
-- 只有在对方接受后，才创建 `conversation`。
-- 最小通知实现先用 in-app pending request / inbox badge + 客户端 polling；push 不是 M2 前置。
+- recipient 在 canonical `/inbox` 的 Requests 视图里处理请求；`GET /v1/contact-requests/inbox` 仅作为底层 contact-request API，`accept` / `reject` 都要求 `level >= verified` 且保持幂等。
+- `accept` 当场创建真实 `conversation`，不再停在 placeholder。
+- `M4` 范围内额外包含：
+  - `GET /v1/conversations`
+  - `GET /v1/conversations/:conversation_id`
+  - `GET /v1/conversations/:conversation_id/messages`
+  - `POST /v1/conversations/:conversation_id/messages`
+  - `POST /v1/conversations/:conversation_id/close`
+  - `POST /v1/blocks`
+  - `POST /v1/reports`
+  - `GET /v1/ws/chat?token=...`
+- 最小通知实现仍以 in-app inbox badge + 客户端 polling 为主；聊天页实时消息通过 WebSocket + Redis Pub/Sub 交付。
 
-### 6.4 官方资源目录 canonical schema
+### 6.4 M3 匹配冻结边界
+
+- 邻里匹配池固定为：同社区、`active`、未过期、非 `anchor_mediated` 的 Offer。
+- 结果集固定为 Top-3，且永远包含官方资源兜底。
+- `refresh=true` 最多只允许再拿 1 批新结果；超过预算后返回当前批次。
+- 匹配解释标签只使用当前已存在的信号。
+- `anchor_reviewed` 只表示候选帖子本身已存在 Anchor review 信号，不引入新的“已完成帮助验证”流程。
+
+### 6.5 官方资源目录 canonical schema
 
 `resource_providers` 以以下字段为准：
 
@@ -212,11 +250,10 @@ pnpm dev
 
 ## 8) 下一步唯一入口
 
-当前工作分支已进入 `M2 posting + community visibility` 实现阶段。
-
-M2 入口文档固定从以下四份开始：
+当前 `feature/m4-chat-safety` 分支已经完成 `M3 matching + inbox` 与 `M4 live chat + safety`，相关细节已在 `24_M3_Closeout.md` / `25_M4_Closeout.md` 中记录。
+main-first 口径下，`M4` 之后的下一阶段入口固定为 `M5 Anchor Admin + pilot prep`。
 
 1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
 2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-3. [`02_PRD.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
+3. [`09_API_Spec.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md)
 4. [`03_User_Flows_And_Screens.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)

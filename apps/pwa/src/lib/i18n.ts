@@ -125,13 +125,116 @@ type ChromeMessages = {
   postsGroup_closed: string;
   postsGroup_removed: string;
   postsEmptyGroup: string;
+  seeActionPlans: string;
+  matchTitle: string;
+  matchCopy: string;
+  matchLoading: string;
+  matchUnavailable: string;
+  matchOwnerOnly: string;
+  matchNeedsActiveRequest: string;
+  matchRefreshAction: string;
+  matchRefreshStatus: string;
+  matchNoResults: string;
+  matchContactAction: string;
+  matchOpenPost: string;
+  matchOfficialFallback: string;
+  matchContactReady: string;
+  matchContinueIntent: string;
+  matchClearIntent: string;
+  matchContactPending: string;
+  matchGoInbox: string;
+  inboxTitle: string;
+  inboxCopy: string;
+  inboxBackHome: string;
+  inboxAllTab: string;
+  inboxRequestsTab: string;
+  inboxChatsTab: string;
+  inboxViewLabel: string;
+  inboxViewHeading: string;
+  inboxViewCopy: string;
+  inboxRequestsTitle: string;
+  inboxRequestsCopy: string;
+  inboxRequestsEmpty: string;
+  inboxChatsTitle: string;
+  inboxChatsCopy: string;
+  inboxChatsEmpty: string;
+  inboxRefresh: string;
+  inboxPendingCount: string;
+  inboxUnreadCount: string;
+  inboxCreated: string;
+  inboxExpires: string;
+  inboxAccept: string;
+  inboxReject: string;
+  inboxRelatedPost: string;
+  inboxOpenThread: string;
+  inboxPendingPreview: string;
+  inboxUnreadBadge: string;
+  inboxExpiresAt: string;
+  inboxFromPost: string;
+  inboxNeedsSession: string;
+  inboxNeedsVerified: string;
+  inboxVerifyAction: string;
+  contactInboxTitle: string;
+  contactInboxCopy: string;
+  contactInboxEmpty: string;
+  contactInboxRefresh: string;
+  contactInboxCreated: string;
+  contactInboxExpires: string;
+  contactInboxAccept: string;
+  contactInboxReject: string;
+  contactInboxRelatedPost: string;
+  chatInboxTitle: string;
+  chatInboxCopy: string;
+  chatInboxEmpty: string;
+  chatInboxRefresh: string;
+  chatInboxUnreadCount: string;
+  chatInboxPendingCount: string;
+  chatInboxConversationsTitle: string;
+  chatInboxConversationsCopy: string;
+  chatInboxPendingPreview: string;
+  chatInboxUnreadBadge: string;
+  chatInboxExpiresAt: string;
+  chatInboxFromPost: string;
+  chatInboxOpenThread: string;
+  chatThreadTitle: string;
+  chatThreadCopy: string;
+  chatThreadLoading: string;
+  chatThreadStatusLive: string;
+  chatThreadDetailsTitle: string;
+  chatThreadDetailsCopy: string;
+  chatThreadSafetyTitle: string;
+  chatThreadSafetyCopy: string;
+  chatThreadQuickPhrasesTitle: string;
+  chatThreadActionsTitle: string;
+  chatThreadReportAction: string;
+  chatThreadBlockAction: string;
+  chatThreadReportedNotice: string;
+  chatThreadBlockedNotice: string;
+  chatThreadRelatedTitle: string;
+  chatThreadRelatedPostLabel: string;
+  chatThreadRelatedPostMissing: string;
+  chatThreadMessagesTitle: string;
+  chatThreadMessagesCopy: string;
+  chatThreadLastSeen: string;
+  chatThreadEmpty: string;
+  chatThreadYou: string;
+  chatThreadSystem: string;
+  chatThreadComposerLabel: string;
+  chatThreadComposerPlaceholder: string;
+  chatThreadComposerHint: string;
+  chatThreadSendAction: string;
+  chatThreadFallbackAlias: string;
+  chatQuickPhraseHello: string;
+  chatQuickPhraseTiming: string;
+  chatQuickPhrasePublicMeet: string;
+  chatQuickPhraseThanks: string;
 };
 
 export const messages: Record<SupportedLanguage, ChromeMessages> = {
   en: {
     brand: 'WeaveNYC',
     devLink: 'M0 debug',
-    heroEyebrow: 'M1 resource finder',
+    heroEyebrow: 'Nearby resources',
     heroTitle: 'Find nearby food support with a lighter first-run flow.',
     heroCopy: 'Choose your language, save a ZIP, and browse official resources without leaving the PWA. Verification is available when you want to upgrade from anonymous to verified.',
     sessionAnonymous: 'Anonymous session',
@@ -253,11 +356,114 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     postsGroup_closed: 'Closed',
     postsGroup_removed: 'Removed',
     postsEmptyGroup: 'Nothing in this state yet.',
+    seeActionPlans: 'See action plans',
+    matchTitle: '3 ways to act now',
+    matchCopy: 'This page combines nearby neighbor offers with official resources, so every active request gets a concrete next step.',
+    matchLoading: 'Loading action plans…',
+    matchUnavailable: 'Action plans are not available yet.',
+    matchOwnerOnly: 'Action plans are only available to the owner of an active request.',
+    matchNeedsActiveRequest: 'Only active request posts can open action plans.',
+    matchRefreshAction: 'Swap one option',
+    matchRefreshStatus: '{used}/{max} refreshes used',
+    matchNoResults: 'No action plans are available yet.',
+    matchContactAction: 'Contact',
+    matchOpenPost: 'Open post',
+    matchOfficialFallback: 'Official fallback',
+    matchContactReady: 'Ready to continue your contact request to {title}.',
+    matchContinueIntent: 'Continue contact request',
+    matchClearIntent: 'Clear handoff',
+    matchContactPending: 'Contact request sent. The other person will see it in their inbox.',
+    matchGoInbox: 'Open inbox',
+    inboxTitle: 'Inbox',
+    inboxCopy: 'Requests and conversations live together here. Use requests for handoffs and chats for live threads.',
+    inboxBackHome: 'Back to community',
+    inboxAllTab: 'All',
+    inboxRequestsTab: 'Requests',
+    inboxChatsTab: 'Chats',
+    inboxViewLabel: 'Viewing {view}',
+    inboxViewHeading: 'Inbox views',
+    inboxViewCopy: 'Switch between requests and chats, or keep both visible.',
+    inboxRequestsTitle: 'Requests',
+    inboxRequestsCopy: 'Pending contact handoffs appear here first.',
+    inboxRequestsEmpty: 'No pending requests right now.',
+    inboxChatsTitle: 'Chats',
+    inboxChatsCopy: 'Accepted requests and live threads stay here together.',
+    inboxChatsEmpty: 'No chats or pending requests yet.',
+    inboxRefresh: 'Refresh inbox',
+    inboxPendingCount: '{count} pending',
+    inboxUnreadCount: '{count} unread',
+    inboxCreated: 'Created',
+    inboxExpires: 'Expires',
+    inboxAccept: 'Accept',
+    inboxReject: 'Reject',
+    inboxRelatedPost: 'Open related post',
+    inboxOpenThread: 'Open thread',
+    inboxPendingPreview: 'Pending handoff about {title}',
+    inboxUnreadBadge: '{count} new',
+    inboxExpiresAt: 'Expires {value}',
+    inboxFromPost: 'From post: {title}',
+    inboxNeedsSession: 'Create an anonymous session before opening the inbox.',
+    inboxNeedsVerified: 'Verify this session to handle inbox requests and chats.',
+    inboxVerifyAction: 'Verify to open inbox',
+    contactInboxTitle: 'Inbox',
+    contactInboxCopy: 'Requests and conversations live together here.',
+    contactInboxEmpty: 'No requests or conversations yet.',
+    contactInboxRefresh: 'Refresh inbox',
+    contactInboxCreated: 'Created',
+    contactInboxExpires: 'Expires',
+    contactInboxAccept: 'Accept',
+    contactInboxReject: 'Reject',
+    contactInboxRelatedPost: 'Open related post',
+    chatInboxTitle: 'Inbox',
+    chatInboxCopy: 'Requests and conversations live together here.',
+    chatInboxEmpty: 'No requests or conversations yet.',
+    chatInboxRefresh: 'Refresh inbox',
+    chatInboxUnreadCount: '{count} unread',
+    chatInboxPendingCount: '{count} pending requests',
+    chatInboxConversationsTitle: 'Chats',
+    chatInboxConversationsCopy: 'Accepted requests and live threads stay here together.',
+    chatInboxPendingPreview: 'Pending handoff about {title}',
+    chatInboxUnreadBadge: '{count} new',
+    chatInboxExpiresAt: 'Expires {value}',
+    chatInboxFromPost: 'From post: {title}',
+    chatInboxOpenThread: 'Open thread',
+    chatThreadTitle: 'Conversation',
+    chatThreadCopy: 'This thread keeps the contact handoff, quick phrases, and trust & safety actions in one place.',
+    chatThreadLoading: 'Loading conversation...',
+    chatThreadStatusLive: 'Live thread shell',
+    chatThreadDetailsTitle: 'Conversation details',
+    chatThreadDetailsCopy: 'Participants, quick phrases, and moderation actions stay available without leaving the thread.',
+    chatThreadSafetyTitle: 'Safety reminder',
+    chatThreadSafetyCopy: 'Avoid sharing full address, bank information, ID numbers, or any private detail you would not want stored in chat history.',
+    chatThreadQuickPhrasesTitle: 'Quick phrases',
+    chatThreadActionsTitle: 'Trust and safety',
+    chatThreadReportAction: 'Report conversation',
+    chatThreadBlockAction: 'Block user',
+    chatThreadReportedNotice: 'Report submitted. An anchor can review it from the moderation queue.',
+    chatThreadBlockedNotice: 'This conversation is blocked. You cannot send new messages in this thread.',
+    chatThreadRelatedTitle: 'Related context',
+    chatThreadRelatedPostLabel: 'Related post',
+    chatThreadRelatedPostMissing: 'This conversation does not have a related post preview.',
+    chatThreadMessagesTitle: 'Messages',
+    chatThreadMessagesCopy: 'Messages land here in real time, while the related post and safety context stay visible beside the thread.',
+    chatThreadLastSeen: 'Updated {value}',
+    chatThreadEmpty: 'No messages yet. Use a quick phrase to start.',
+    chatThreadYou: 'You',
+    chatThreadSystem: 'System',
+    chatThreadComposerLabel: 'Message',
+    chatThreadComposerPlaceholder: 'Write a short, practical message...',
+    chatThreadComposerHint: 'Keep messages brief and do not share sensitive details until you both agree on a safe next step.',
+    chatThreadSendAction: 'Send message',
+    chatThreadFallbackAlias: 'Conversation partner',
+    chatQuickPhraseHello: 'Hi, I can talk here now.',
+    chatQuickPhraseTiming: 'I need about 15 minutes before I can respond.',
+    chatQuickPhrasePublicMeet: 'Can we keep this to a public pickup or meeting spot?',
+    chatQuickPhraseThanks: 'Thank you. I am confirming the next step now.',
   },
   es: {
     brand: 'WeaveNYC',
     devLink: 'Depuración M0',
-    heroEyebrow: 'Buscador M1',
+    heroEyebrow: 'Recursos cercanos',
     heroTitle: 'Encuentra apoyo alimentario cercano con un inicio más ligero.',
     heroCopy: 'Elige idioma, guarda un ZIP y revisa recursos oficiales sin salir de la PWA. La verificación sigue disponible cuando quieras subir de anónimo a verificado.',
     sessionAnonymous: 'Sesión anónima',
@@ -379,11 +585,114 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     postsGroup_closed: 'Cerradas',
     postsGroup_removed: 'Eliminadas',
     postsEmptyGroup: 'No hay publicaciones en este estado.',
+    seeActionPlans: 'Ver planes de acción',
+    matchTitle: '3 maneras de actuar ahora',
+    matchCopy: 'Esta página combina ofertas vecinales cercanas con recursos oficiales para que cada request activa tenga un siguiente paso concreto.',
+    matchLoading: 'Cargando planes de acción…',
+    matchUnavailable: 'Los planes de acción todavía no están disponibles.',
+    matchOwnerOnly: 'Los planes de acción solo están disponibles para la persona dueña de una request activa.',
+    matchNeedsActiveRequest: 'Solo las requests activas pueden abrir planes de acción.',
+    matchRefreshAction: 'Cambiar una opción',
+    matchRefreshStatus: '{used}/{max} recambios usados',
+    matchNoResults: 'Todavía no hay planes de acción disponibles.',
+    matchContactAction: 'Contactar',
+    matchOpenPost: 'Abrir publicación',
+    matchOfficialFallback: 'Recurso oficial',
+    matchContactReady: 'Listo para continuar tu solicitud de contacto con {title}.',
+    matchContinueIntent: 'Continuar solicitud de contacto',
+    matchClearIntent: 'Limpiar regreso',
+    matchContactPending: 'Solicitud de contacto enviada. La otra persona la verá en su inbox.',
+    matchGoInbox: 'Abrir inbox',
+    inboxTitle: 'Inbox',
+    inboxCopy: 'Las solicitudes y las conversaciones viven aquí juntas. Usa las solicitudes para los handoffs y los chats para los hilos activos.',
+    inboxBackHome: 'Volver a la comunidad',
+    inboxAllTab: 'Todo',
+    inboxRequestsTab: 'Solicitudes',
+    inboxChatsTab: 'Chats',
+    inboxViewLabel: 'Viendo {view}',
+    inboxViewHeading: 'Vistas del inbox',
+    inboxViewCopy: 'Cambia entre solicitudes y chats, o deja ambos visibles.',
+    inboxRequestsTitle: 'Solicitudes',
+    inboxRequestsCopy: 'Los handoffs pendientes aparecen aquí primero.',
+    inboxRequestsEmpty: 'No hay solicitudes pendientes ahora mismo.',
+    inboxChatsTitle: 'Chats',
+    inboxChatsCopy: 'Las solicitudes aceptadas y los hilos activos se quedan aquí juntos.',
+    inboxChatsEmpty: 'Todavía no hay chats ni solicitudes pendientes.',
+    inboxRefresh: 'Actualizar inbox',
+    inboxPendingCount: '{count} pendientes',
+    inboxUnreadCount: '{count} sin leer',
+    inboxCreated: 'Creada',
+    inboxExpires: 'Expira',
+    inboxAccept: 'Aceptar',
+    inboxReject: 'Rechazar',
+    inboxRelatedPost: 'Abrir publicación relacionada',
+    inboxOpenThread: 'Abrir hilo',
+    inboxPendingPreview: 'Handoff pendiente sobre {title}',
+    inboxUnreadBadge: '{count} nuevas',
+    inboxExpiresAt: 'Expira {value}',
+    inboxFromPost: 'Desde la publicación: {title}',
+    inboxNeedsSession: 'Crea una sesión anónima antes de abrir el inbox.',
+    inboxNeedsVerified: 'Verifica esta sesión para manejar solicitudes y chats del inbox.',
+    inboxVerifyAction: 'Verificar para abrir el inbox',
+    contactInboxTitle: 'Inbox',
+    contactInboxCopy: 'Las solicitudes y las conversaciones viven aquí juntas.',
+    contactInboxEmpty: 'Todavía no hay solicitudes ni conversaciones.',
+    contactInboxRefresh: 'Actualizar inbox',
+    contactInboxCreated: 'Creada',
+    contactInboxExpires: 'Expira',
+    contactInboxAccept: 'Aceptar',
+    contactInboxReject: 'Rechazar',
+    contactInboxRelatedPost: 'Abrir publicación relacionada',
+    chatInboxTitle: 'Inbox',
+    chatInboxCopy: 'Las solicitudes y las conversaciones viven aquí juntas.',
+    chatInboxEmpty: 'Todavía no hay solicitudes ni conversaciones.',
+    chatInboxRefresh: 'Actualizar inbox',
+    chatInboxUnreadCount: '{count} sin leer',
+    chatInboxPendingCount: '{count} solicitudes pendientes',
+    chatInboxConversationsTitle: 'Chats',
+    chatInboxConversationsCopy: 'Las solicitudes aceptadas y los hilos activos se quedan aquí juntos.',
+    chatInboxPendingPreview: 'Handoff pendiente sobre {title}',
+    chatInboxUnreadBadge: '{count} nuevas',
+    chatInboxExpiresAt: 'Expira {value}',
+    chatInboxFromPost: 'Desde la publicación: {title}',
+    chatInboxOpenThread: 'Abrir hilo',
+    chatThreadTitle: 'Conversación',
+    chatThreadCopy: 'Este hilo reúne el handoff de contacto, frases rápidas y acciones mínimas de trust & safety.',
+    chatThreadLoading: 'Cargando conversación...',
+    chatThreadStatusLive: 'Shell de hilo en vivo',
+    chatThreadDetailsTitle: 'Detalles de la conversación',
+    chatThreadDetailsCopy: 'Participantes, frases rápidas y acciones de moderación siguen disponibles dentro del hilo.',
+    chatThreadSafetyTitle: 'Recordatorio de seguridad',
+    chatThreadSafetyCopy: 'Evita compartir dirección completa, información bancaria, números de identificación o cualquier dato privado que no quieras dejar en el historial.',
+    chatThreadQuickPhrasesTitle: 'Frases rápidas',
+    chatThreadActionsTitle: 'Trust y safety',
+    chatThreadReportAction: 'Reportar conversación',
+    chatThreadBlockAction: 'Bloquear usuario',
+    chatThreadReportedNotice: 'Reporte enviado. Un anchor puede revisarlo desde la cola de moderación.',
+    chatThreadBlockedNotice: 'Esta conversación está bloqueada. No puedes enviar mensajes nuevos en este hilo.',
+    chatThreadRelatedTitle: 'Contexto relacionado',
+    chatThreadRelatedPostLabel: 'Publicación relacionada',
+    chatThreadRelatedPostMissing: 'Esta conversación no tiene una vista previa de publicación relacionada.',
+    chatThreadMessagesTitle: 'Mensajes',
+    chatThreadMessagesCopy: 'Los mensajes llegan aquí en tiempo real, mientras la publicación relacionada y el contexto de safety siguen visibles junto al hilo.',
+    chatThreadLastSeen: 'Actualizado {value}',
+    chatThreadEmpty: 'Todavía no hay mensajes. Usa una frase rápida para empezar.',
+    chatThreadYou: 'Tú',
+    chatThreadSystem: 'Sistema',
+    chatThreadComposerLabel: 'Mensaje',
+    chatThreadComposerPlaceholder: 'Escribe un mensaje corto y práctico...',
+    chatThreadComposerHint: 'Mantén los mensajes breves y evita compartir datos sensibles hasta acordar un siguiente paso seguro.',
+    chatThreadSendAction: 'Enviar mensaje',
+    chatThreadFallbackAlias: 'Persona de la conversación',
+    chatQuickPhraseHello: 'Hola, ya puedo responder por aquí.',
+    chatQuickPhraseTiming: 'Necesito unos 15 minutos antes de responder.',
+    chatQuickPhrasePublicMeet: 'Podemos mantener esto en un punto de encuentro o entrega público?',
+    chatQuickPhraseThanks: 'Gracias. Estoy confirmando el siguiente paso ahora.',
   },
   zh: {
     brand: 'WeaveNYC',
     devLink: 'M0 调试页',
-    heroEyebrow: 'M1 资源发现',
+    heroEyebrow: '附近资源',
     heroTitle: '先选语言和 ZIP，再快速查看附近的食物支持资源。',
     heroCopy: '首页现在是资源入口，不再是 M0 仪表盘。你可以先匿名浏览，之后再按需要升级为 verified。',
     sessionAnonymous: '匿名会话',
@@ -505,6 +814,109 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     postsGroup_closed: '已关闭',
     postsGroup_removed: '已删除',
     postsEmptyGroup: '当前状态下还没有帖子。',
+    seeActionPlans: '查看行动方案',
+    matchTitle: '现在可以做的 3 个行动',
+    matchCopy: '这个页面会把附近邻里 Offer 和官方资源放在一起，让每个 active request 都有明确下一步。',
+    matchLoading: '正在加载行动方案…',
+    matchUnavailable: '行动方案暂时不可用。',
+    matchOwnerOnly: '只有 active request 的发布者才能查看行动方案。',
+    matchNeedsActiveRequest: '只有 active 的 request 帖子才能打开行动方案。',
+    matchRefreshAction: '换一个方案',
+    matchRefreshStatus: '已使用 {used}/{max} 次刷新',
+    matchNoResults: '暂时还没有可用的行动方案。',
+    matchContactAction: '联系对方',
+    matchOpenPost: '打开帖子',
+    matchOfficialFallback: '官方资源兜底',
+    matchContactReady: '已准备好继续向 {title} 发起联系请求。',
+    matchContinueIntent: '继续发起联系请求',
+    matchClearIntent: '清除返回意图',
+    matchContactPending: '联系请求已发送，对方会在 inbox 里看到。',
+    matchGoInbox: '打开 inbox',
+    inboxTitle: 'Inbox',
+    inboxCopy: '请求和会话在这里放在一起。用请求处理交接，用聊天继续实时线程。',
+    inboxBackHome: '返回社区',
+    inboxAllTab: '全部',
+    inboxRequestsTab: '请求',
+    inboxChatsTab: '聊天',
+    inboxViewLabel: '当前视图：{view}',
+    inboxViewHeading: 'Inbox 视图',
+    inboxViewCopy: '在请求和聊天之间切换，或者同时显示两者。',
+    inboxRequestsTitle: '请求',
+    inboxRequestsCopy: '待处理的联系交接会先出现在这里。',
+    inboxRequestsEmpty: '当前没有待处理请求。',
+    inboxChatsTitle: '聊天',
+    inboxChatsCopy: '已接受的请求和实时线程会一起保留在这里。',
+    inboxChatsEmpty: '当前还没有聊天或待处理请求。',
+    inboxRefresh: '刷新 inbox',
+    inboxPendingCount: '{count} 个待处理',
+    inboxUnreadCount: '{count} 条未读',
+    inboxCreated: '创建时间',
+    inboxExpires: '过期时间',
+    inboxAccept: '接受',
+    inboxReject: '拒绝',
+    inboxRelatedPost: '打开相关帖子',
+    inboxOpenThread: '打开线程',
+    inboxPendingPreview: '与“{title}”相关的待交接请求',
+    inboxUnreadBadge: '{count} 条新消息',
+    inboxExpiresAt: '{value} 过期',
+    inboxFromPost: '来源帖子：{title}',
+    inboxNeedsSession: '先创建匿名会话，再打开 inbox。',
+    inboxNeedsVerified: '先验证此会话，才能处理 inbox 请求和聊天。',
+    inboxVerifyAction: '验证后打开 inbox',
+    contactInboxTitle: 'Inbox',
+    contactInboxCopy: '请求和会话会一起出现在这里。',
+    contactInboxEmpty: '当前还没有请求或会话。',
+    contactInboxRefresh: '刷新 inbox',
+    contactInboxCreated: '创建时间',
+    contactInboxExpires: '过期时间',
+    contactInboxAccept: '接受',
+    contactInboxReject: '拒绝',
+    contactInboxRelatedPost: '打开相关帖子',
+    chatInboxTitle: 'Inbox',
+    chatInboxCopy: '请求和会话会一起出现在这里。',
+    chatInboxEmpty: '当前还没有请求或会话。',
+    chatInboxRefresh: '刷新 inbox',
+    chatInboxUnreadCount: '{count} 条未读',
+    chatInboxPendingCount: '{count} 个待处理请求',
+    chatInboxConversationsTitle: '聊天',
+    chatInboxConversationsCopy: '已接受的请求和实时线程会一起保留在这里。',
+    chatInboxPendingPreview: '与“{title}”相关的待交接请求',
+    chatInboxUnreadBadge: '{count} 条新消息',
+    chatInboxExpiresAt: '{value} 过期',
+    chatInboxFromPost: '来源帖子：{title}',
+    chatInboxOpenThread: '打开线程',
+    chatThreadTitle: '会话',
+    chatThreadCopy: '这个线程把联系交接、快捷短语和最小 trust & safety 动作放在同一个入口里。',
+    chatThreadLoading: '正在加载会话...',
+    chatThreadStatusLive: '实时线程壳层',
+    chatThreadDetailsTitle: '会话信息',
+    chatThreadDetailsCopy: '参与者、快捷短语和审核动作都可以在不离开线程的情况下完成。',
+    chatThreadSafetyTitle: '安全提醒',
+    chatThreadSafetyCopy: '避免在聊天里发送完整地址、银行信息、证件号码，或任何你不希望被长期留存的隐私细节。',
+    chatThreadQuickPhrasesTitle: '快捷短语',
+    chatThreadActionsTitle: '信任与安全',
+    chatThreadReportAction: '举报此会话',
+    chatThreadBlockAction: '屏蔽此用户',
+    chatThreadReportedNotice: '举报已提交，anchor 可以在审核队列里处理。',
+    chatThreadBlockedNotice: '这段会话已被屏蔽，当前线程不能再发送新消息。',
+    chatThreadRelatedTitle: '相关上下文',
+    chatThreadRelatedPostLabel: '相关帖子',
+    chatThreadRelatedPostMissing: '这段会话没有可展示的关联帖子摘要。',
+    chatThreadMessagesTitle: '消息',
+    chatThreadMessagesCopy: '消息会在这里实时到达，同时仍然保留相关帖子和安全上下文，方便边聊边确认下一步。',
+    chatThreadLastSeen: '最近更新于 {value}',
+    chatThreadEmpty: '暂时还没有消息，可以先发送一句快捷短语。',
+    chatThreadYou: '你',
+    chatThreadSystem: '系统',
+    chatThreadComposerLabel: '消息内容',
+    chatThreadComposerPlaceholder: '输入一条简短、务实的消息...',
+    chatThreadComposerHint: '先保持简短，不要在双方确认安全下一步前分享敏感信息。',
+    chatThreadSendAction: '发送消息',
+    chatThreadFallbackAlias: '会话对方',
+    chatQuickPhraseHello: '你好，我现在可以在这里沟通。',
+    chatQuickPhraseTiming: '我大概需要 15 分钟后再回复。',
+    chatQuickPhrasePublicMeet: '我们可以只约在公开、安全的地点见面吗？',
+    chatQuickPhraseThanks: '谢谢，我正在确认下一步安排。',
   },
 };
 
@@ -594,6 +1006,55 @@ export function getPostStatusLabel(
     fulfilled: { en: 'Fulfilled', es: 'Resuelta', zh: '已完成' },
     closed: { en: 'Closed', es: 'Cerrada', zh: '已关闭' },
     removed: { en: 'Removed', es: 'Eliminada', zh: '已删除' },
+  };
+
+  return labels[status][language];
+}
+
+export function getMatchReasonLabel(
+  language: SupportedLanguage,
+  reason:
+    | 'same_category'
+    | 'same_language'
+    | 'within_1_mile'
+    | 'within_3_miles'
+    | 'within_5_miles'
+    | 'verified_user'
+    | 'anchor_reviewed'
+    | 'expires_soon'
+    | 'open_now'
+    | 'open_today'
+    | 'nearby_resource'
+    | 'language_supported',
+) {
+  const labels = {
+    same_category: { en: 'Same category', es: 'Misma categoría', zh: '同类需求' },
+    same_language: { en: 'Language match', es: 'Idioma coincide', zh: '语言匹配' },
+    within_1_mile: { en: 'Within 1 mile', es: 'A 1 milla', zh: '1 英里内' },
+    within_3_miles: { en: 'Within 3 miles', es: 'A 3 millas', zh: '3 英里内' },
+    within_5_miles: { en: 'Within 5 miles', es: 'A 5 millas', zh: '5 英里内' },
+    verified_user: { en: 'Verified', es: 'Verificado', zh: '已验证' },
+    anchor_reviewed: { en: 'Anchor-reviewed', es: 'Revisado por anchor', zh: 'Anchor 已审核' },
+    expires_soon: { en: 'Expires soon', es: 'Expira pronto', zh: '即将过期' },
+    open_now: { en: 'Open now', es: 'Abierto ahora', zh: '当前开放' },
+    open_today: { en: 'Open today', es: 'Abierto hoy', zh: '今天开放' },
+    nearby_resource: { en: 'Nearby resource', es: 'Recurso cercano', zh: '附近资源' },
+    language_supported: { en: 'Language supported', es: 'Idioma disponible', zh: '支持该语言' },
+  };
+
+  return labels[reason][language];
+}
+
+export function getContactRequestStatusLabel(
+  language: SupportedLanguage,
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled',
+) {
+  const labels = {
+    pending: { en: 'Pending', es: 'Pendiente', zh: '待处理' },
+    accepted: { en: 'Accepted', es: 'Aceptada', zh: '已接受' },
+    rejected: { en: 'Rejected', es: 'Rechazada', zh: '已拒绝' },
+    expired: { en: 'Expired', es: 'Expirada', zh: '已过期' },
+    cancelled: { en: 'Cancelled', es: 'Cancelada', zh: '已取消' },
   };
 
   return labels[status][language];

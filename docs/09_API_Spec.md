@@ -1,6 +1,6 @@
-# WeaveNYC — API Spec (HTTP + P2P)
+# WeaveNYC — API Spec (HTTP Surface, Main-First)
 
-目标：把客户端、Anchor 后台、P2P 节点之间的接口写成“可以直接实现”的最小集合。
+目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；M5/M6、Anchor Admin 和 P2P 相关内容统一放到文末的 future appendix / notes。
 
 约定：
 - HTTP Base URL（示例）：`https://api.weavenyc.local`
@@ -124,7 +124,7 @@ Request:
 ```
 
 Notes:
-- 该接口仍属于后续完整 Anchor 登录流（M5），当前分支未实现
+- 该接口仍属于后续完整 Anchor 登录流（M5），当前只作为 future appendix 记录，不属于 current main surface
 - M2 的 manual review path 在非生产环境使用 `pnpm dev:mint-anchor-token` 生成临时 anchor bearer token
 
 ---
@@ -259,23 +259,61 @@ Response:
 ```json
 {
   "post_id": "p_...",
-  "suggestions": [
+  "batch_number": 1,
+  "advanced": false,
+  "refreshes_used": 0,
+  "max_refreshes": 1,
+  "items": [
     {
-      "kind": "neighbor_post",
-      "target_post_id": "p2_...",
+      "suggestion_id": "ms_...",
+      "batch_number": 1,
+      "position": 1,
+      "candidate_type": "neighbor_post",
+      "candidate_id": "p2_...",
       "score": 0.82,
-      "reasons": ["same_category", "same_language", "within_2_miles"],
-      "trust": {"verified": false, "anchor_reviewed": true}
+      "reasons": ["same_category", "same_language", "within_1_mile"],
+      "distance_miles": 0.8,
+      "neighbor_post": {
+        "post_id": "p2_...",
+        "post_type": "offer",
+        "category": "food",
+        "title": "Can share groceries tonight",
+        "language": "en",
+        "privacy": "community_only",
+        "status": "active",
+        "risk_level": "low"
+      },
+      "official_resource": null
     },
     {
-      "kind": "official_resource",
-      "provider_id": "rp_...",
+      "suggestion_id": "ms_...",
+      "batch_number": 1,
+      "position": 2,
+      "candidate_type": "official_resource",
+      "candidate_id": "rp_...",
       "score": 0.60,
-      "reasons": ["open_now", "within_3_miles"]
+      "reasons": ["open_now", "nearby_resource"],
+      "distance_miles": 1.2,
+      "neighbor_post": null,
+      "official_resource": {
+        "provider_id": "rp_...",
+        "name": "St. Kilian Parish Social Ministry",
+        "type": "pantry",
+        "zip": "11735",
+        "is_open_today": true,
+        "is_open_now": true
+      }
     }
   ]
 }
 ```
+
+Notes:
+- 仅 Request owner 可读取自己的 suggestions。
+- 邻里候选池固定为：同社区、`active`、未过期、非 `anchor_mediated` 的 Offer。
+- 响应永远包含官方资源兜底；若无邻里 Offer，则返回 3 条官方资源。
+- `refresh=true` 最多只允许再拿 1 批新结果；超过预算后继续返回当前批次。
+- `anchor_reviewed` 只表示候选帖子本身已存在 Anchor review 信号；M3 不引入新的“已完成帮助验证”数据源。
 
 ### 4.2 Start Contact
 `POST /v1/match/contact`
@@ -291,20 +329,22 @@ Response:
 Notes:
 - Requires `level >= verified`
 - If the current session is `anonymous`, the client must complete OTP or magic-link upgrade before creating the `contact_request`
-- The recipient must be able to read the pending request from `GET /v1/contact-requests/inbox`
-- `POST /v1/contact-requests/{contact_request_id}/accept` should be idempotent and return the same `conversation_id` on retry
+- The endpoint only creates or reuses a `contact_request`; it does not create a live chat thread by itself
+- The recipient reads the pending request through the canonical `/inbox` UI backed by `GET /v1/contact-requests/inbox`
+- If the same pair was already accepted, the response may include the existing `conversation_id` for the live conversation entry
 
 ---
 
-## 5) Messaging
+## 5) Inbox & Chat（canonical `/inbox` UI）
 
-### 5.1 Contact Request Inbox
+### 5.1 Inbox Requests API
 `GET /v1/contact-requests/inbox?cursor=...`
 
 Notes:
 - Requires `level >= verified`
 - Returns pending contact requests received by the authenticated user
 - The authenticated user must be the `recipient_user_id` of each returned item
+- The recipient-side UI canonical route is `/inbox`; `/contact-requests` is compatibility/legacy redirect only
 - Used by the recipient-side inbox UI before Accept / Reject
 
 Response:
@@ -331,6 +371,7 @@ Notes:
 - Requires `level >= verified`
 - The authenticated user must equal the `recipient_user_id` on the target `contact_request`
 - Idempotent: retrying `accept` returns the same `conversation_id`
+- `accept` creates a live `conversation`
 
 Response:
 ```json
@@ -346,17 +387,90 @@ Notes:
 - Idempotent: retrying `reject` returns the same terminal status
 
 ### 5.4 List Conversations
-`GET /v1/conversations?cursor=...`
+`GET /v1/conversations?cursor=...&limit=...`
 
-### 5.5 Send Message
-`POST /v1/conversations/{conversation_id}/messages`
-Request:
+Response:
 ```json
-{ "body": "Hi, I can help. Are you free at 6pm?" }
+{
+  "items": [
+    {
+      "conversation_id": "c_...",
+      "contact_request_id": "cr_...",
+      "related_post_ids": ["p_...", "p2_..."],
+      "participant_preview": [
+        { "user_id": "u_...", "alias": "Neighbor 72" },
+        { "user_id": "u2_...", "alias": "Neighbor 31" }
+      ],
+      "status": "active",
+      "created_at": "2026-02-26T00:00:00Z",
+      "last_activity_at": "2026-02-26T00:05:00Z",
+      "last_message_preview": "Can we meet at the library?",
+      "unread_count": 1
+    }
+  ],
+  "next_cursor": null
+}
 ```
 
-### 5.6 Close Conversation
+### 5.5 Get Conversation Detail
+`GET /v1/conversations/{conversation_id}`
+
+Response:
+```json
+{
+  "conversation_id": "c_...",
+  "contact_request_id": "cr_...",
+  "related_post_ids": ["p_...", "p2_..."],
+  "participant_preview": [
+    { "user_id": "u_...", "alias": "Neighbor 72" },
+    { "user_id": "u2_...", "alias": "Neighbor 31" }
+  ],
+  "status": "active",
+  "created_at": "2026-02-26T00:00:00Z",
+  "last_activity_at": "2026-02-26T00:05:00Z",
+  "last_message_preview": "Can we meet at the library?",
+  "unread_count": 1,
+  "other_user_id": "u2_...",
+  "actions": {
+    "can_send": true,
+    "can_close": true,
+    "can_block": true,
+    "can_report": true
+  }
+}
+```
+
+Notes:
+- Only participants on the accepted `contact_request` can read the conversation.
+- If the conversation is blocked, reads return `409`.
+
+### 5.6 List Conversation Messages
+`GET /v1/conversations/{conversation_id}/messages?cursor=...&limit=...`
+
+### 5.7 Send Conversation Message
+`POST /v1/conversations/{conversation_id}/messages`
+
+Request:
+```json
+{ "body": "I can meet at the library at 3pm." }
+```
+
+Notes:
+- Requires `level >= verified`
+- Only conversation participants can send
+- Sensitive content detection can block delivery with `422` and `safety_flags`
+
+### 5.8 Close Conversation
 `POST /v1/conversations/{conversation_id}/close`
+
+Response:
+```json
+{
+  "conversation_id": "c_...",
+  "status": "closed",
+  "closed_at": "2026-02-26T00:10:00Z"
+}
+```
 
 ---
 
@@ -367,10 +481,11 @@ Request:
 Request:
 ```json
 {
-  "target_type": "post",
-  "target_id": "p_...",
+  "target_type": "message",
+  "target_id": "m_...",
   "reason": "scam",
-  "detail": "Asked for SSN"
+  "conversation_id": "c_...",
+  "evidence_description": "Asked for SSN"
 }
 ```
 
@@ -378,12 +493,20 @@ Request:
 `POST /v1/blocks`
 Request:
 ```json
-{ "blocked_user_id": "u_..." }
+{ "blocked_user_id": "u_...", "conversation_id": "c_..." }
 ```
+
+### 6.3 Chat WebSocket
+`GET /v1/ws/chat?token=...`
+
+Notes:
+- Requires a valid bearer token passed as `token`
+- Emits `heartbeat`, `message.created`, and `conversation.updated`
+- Backed by Redis Pub/Sub for cross-process fan-out
 
 ---
 
-## 7) Anchor Admin API
+## Future Appendix A: Anchor Admin API
 
 ### 7.1 Review Queue
 `GET /v1/admin/review_queue?community_id=...&cursor=...`
@@ -403,7 +526,7 @@ Request:
 
 ---
 
-## 8) P2P Message Schemas (JSON)
+## Future Appendix B: P2P Message Schemas (JSON)
 
 > **命名约定**：事件类型使用过去式（表示已发生的事实），与 [07_P2P_Node_Design §3.2](./07_P2P_Node_Design.md) 保持一致。
 > 完整事件类型列表：`post.published`, `post.updated`, `post.tombstoned`, `report.created`, `moderation.decision`, `announcement.published`
@@ -552,7 +675,7 @@ Response:
 ```
 
 Notes:
-- This is the discovery path for P2P M6 clients
+- Future-only discovery path for P2P M6 clients
 - If the client is offline or no anchor is available, use cached bootstrap data and skip P2P sync
 - The browser should not depend on mDNS to join a community
 

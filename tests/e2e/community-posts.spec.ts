@@ -276,6 +276,23 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
     });
   });
 
+  await page.route('**/v1/contact-requests/inbox**', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        items: [],
+        next_cursor: null,
+      }),
+    });
+  });
+
   await page.route(`**/v1/communities/${communityId}/join`, async (route) => {
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: corsHeaders });
@@ -529,7 +546,8 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await expect(page.getByText('Demo code:')).toContainText('246810');
   await page.getByLabel('Verification code').fill('246810');
   await page.getByRole('button', { name: 'Verify code' }).click();
-  await expect(page.getByText('This session is already verified.')).toBeVisible();
+  await page.waitForURL('**/inbox');
+  await expect(page.locator('h1', { hasText: 'Inbox' })).toBeVisible();
 
   await page.goto('/posts/new?post_type=offer');
   await page.getByLabel('Title').fill('Can share groceries tonight');

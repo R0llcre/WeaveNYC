@@ -43,6 +43,30 @@ describe('resource-directory adapters', () => {
     });
   });
 
+  it('parses CFC records when pdftotext emits split ID/type/program columns', () => {
+    const record = parseRecordBlock([
+      '85828',
+      'FP',
+      'ABUNDANT LIFE CHRISTIAN CHURCH FP',
+      '718-778-5833',
+      '579 GATES AVENUE',
+      'BK',
+      '11221',
+      'SUN (1,3)',
+      '1:30-2:30PM',
+    ]);
+
+    expect(record).toMatchObject({
+      sourceRef: 'cfc_active:85828',
+      name: 'ABUNDANT LIFE CHRISTIAN CHURCH FP',
+      city: 'Brooklyn',
+      zip: '11221',
+      type: 'pantry',
+      phone: '718-778-5833',
+      addressText: '579 Gates Avenue',
+    });
+  });
+
   it('parses fixture-backed Island Harvest records', async () => {
     const records = await loadIslandHarvestRecords({ mode: 'fixture' });
 

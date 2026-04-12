@@ -371,6 +371,8 @@ export async function seedDatabase(db: Database) {
     .values({
       suggestionId: seedIds.suggestionId,
       requestPostId: seedIds.requestPostId,
+      batchNumber: 1,
+      position: 1,
       candidateType: "official_resource",
       candidateId: seedIds.providerId,
       score: 0.82,
@@ -418,6 +420,7 @@ export async function seedDatabase(db: Database) {
     .insert(reports)
     .values({
       reportId: seedIds.reportId,
+      communityId: seedIds.communityId,
       targetType: "post",
       targetId: seedIds.requestPostId,
       reason: "other",

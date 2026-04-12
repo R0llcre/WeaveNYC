@@ -3,7 +3,6 @@ import { createHmac, randomBytes, randomInt } from "node:crypto";
 import {
   anonymousAuthBurstLimit,
   anonymousAuthWindowSeconds,
-  authIdentityHashPepperEnvVar,
   otpCodeLength,
   otpCooldownSeconds,
   otpStartBurstLimit,
@@ -16,7 +15,7 @@ import { Redis } from "ioredis";
 export interface IdentityHashOptions {
   namespace: "phone" | "email" | "device" | "refresh" | "ip";
   salt: string;
-  pepper?: string;
+  pepper: string;
 }
 
 export interface RateLimitDecision {
@@ -66,13 +65,12 @@ export function generateIdentitySalt(): string {
 }
 
 export function hashIdentity(value: string, options: IdentityHashOptions): string {
-  const pepper = options.pepper ?? process.env[authIdentityHashPepperEnvVar] ?? "weavenyc-dev-identity-pepper";
-  return createHmac("sha256", pepper)
+  return createHmac("sha256", options.pepper)
     .update(`${options.namespace}:${options.salt}:${value}`)
     .digest("hex");
 }
 
-export function hashPhoneIdentity(normalizedPhone: string, salt: string, pepper?: string): string {
+export function hashPhoneIdentity(normalizedPhone: string, salt: string, pepper: string): string {
   return hashIdentity(normalizedPhone, {
     namespace: "phone",
     salt,
@@ -80,7 +78,7 @@ export function hashPhoneIdentity(normalizedPhone: string, salt: string, pepper?
   });
 }
 
-export function hashEmailIdentity(normalizedEmail: string, salt: string, pepper?: string): string {
+export function hashEmailIdentity(normalizedEmail: string, salt: string, pepper: string): string {
   return hashIdentity(normalizedEmail, {
     namespace: "email",
     salt,
@@ -88,7 +86,7 @@ export function hashEmailIdentity(normalizedEmail: string, salt: string, pepper?
   });
 }
 
-export function hashPhoneAbuseKey(normalizedPhone: string, pepper?: string): string {
+export function hashPhoneAbuseKey(normalizedPhone: string, pepper: string): string {
   return hashIdentity(normalizedPhone, {
     namespace: "phone",
     salt: "auth-abuse-phone",
@@ -116,7 +114,7 @@ export function createOtpCode(): string {
 export class RedisAuthAbuseStore implements AuthAbuseStore {
   constructor(
     private readonly redis: Redis,
-    private readonly pepper?: string
+    private readonly pepper: string
   ) {}
 
   async checkAnonymousAuth(ipAddress: string): Promise<RateLimitDecision> {
@@ -222,11 +220,30 @@ export class RedisAuthAbuseStore implements AuthAbuseStore {
   }
 }
 
-export function createRedisAuthAbuseStore(redisUrl: string, pepper?: string): AuthAbuseStore {
+export function createRedisAuthAbuseStore(redisUrl: string, pepper: string): AuthAbuseStore {
   return new RedisAuthAbuseStore(
     new Redis(redisUrl, {
       maxRetriesPerRequest: 1
     }),
     pepper
   );
+}
+
+export async function clearRedisAuthAbuseKeys(redisUrl: string): Promise<void> {
+  const redis = new Redis(redisUrl, {
+    maxRetriesPerRequest: 1
+  });
+
+  try {
+    let cursor = "0";
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, "MATCH", "auth-abuse:*", "COUNT", 100);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+      cursor = nextCursor;
+    } while (cursor !== "0");
+  } finally {
+    await redis.quit();
+  }
 }

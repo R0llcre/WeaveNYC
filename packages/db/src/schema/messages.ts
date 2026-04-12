@@ -18,6 +18,7 @@ export const messages = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
-    conversationIdx: index("idx_messages_conversation").on(table.conversationId, table.sentAt)
+    conversationIdx: index("idx_messages_conversation").on(table.conversationId, table.sentAt),
+    senderSentAtIdx: index("idx_messages_sender_sent_at").on(table.senderUserId, table.sentAt)
   })
 );

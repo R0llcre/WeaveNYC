@@ -13,6 +13,8 @@ const databaseReadyRetryableMessages = [
   /database system is starting up/i,
   /the database system is starting up/i,
   /connect ECONNREFUSED/i,
+  /read ECONNRESET/i,
+  /ECONNRESET/i,
   /Connection refused/i,
   /timeout expired/i,
   /could not connect/i

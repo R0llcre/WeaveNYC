@@ -628,3 +628,451 @@ export const speechTranscribeResponseSchema = {
     provider: { type: "string", enum: ["browser", "server_fallback"] }
   }
 } as const;
+
+export const matchResultsQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    refresh: { type: "boolean" }
+  }
+} as const;
+
+export const matchSuggestionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "suggestion_id",
+    "batch_number",
+    "position",
+    "candidate_type",
+    "candidate_id",
+    "score",
+    "reasons",
+    "distance_miles",
+    "neighbor_post",
+    "official_resource"
+  ],
+  properties: {
+    suggestion_id: { type: "string", format: "uuid" },
+    batch_number: { type: "integer", minimum: 1 },
+    position: { type: "integer", minimum: 1, maximum: 3 },
+    candidate_type: { type: "string", enum: ["neighbor_post", "official_resource"] },
+    candidate_id: { type: "string", format: "uuid" },
+    score: { type: "number" },
+    reasons: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: [
+          "same_category",
+          "same_language",
+          "within_1_mile",
+          "within_3_miles",
+          "within_5_miles",
+          "verified_user",
+          "anchor_reviewed",
+          "expires_soon",
+          "open_now",
+          "open_today",
+          "nearby_resource",
+          "language_supported"
+        ]
+      }
+    },
+    distance_miles: { type: ["number", "null"] },
+    neighbor_post: { anyOf: [postSummarySchema, { type: "null" }] },
+    official_resource: { anyOf: [resourceSummarySchema, { type: "null" }] }
+  }
+} as const;
+
+export const matchResultsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "post_id",
+    "batch_number",
+    "advanced",
+    "refreshes_used",
+    "max_refreshes",
+    "items"
+  ],
+  properties: {
+    post_id: { type: "string", format: "uuid" },
+    batch_number: { type: "integer", minimum: 1 },
+    advanced: { type: "boolean" },
+    refreshes_used: { type: "integer", minimum: 0, maximum: 1 },
+    max_refreshes: { type: "integer", minimum: 1, maximum: 1 },
+    items: {
+      type: "array",
+      items: matchSuggestionSchema,
+      maxItems: 3
+    }
+  }
+} as const;
+
+export const matchContactRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["from_post_id", "to_post_id"],
+  properties: {
+    from_post_id: { type: "string", format: "uuid" },
+    to_post_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const matchContactResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact_request_id", "status"],
+  properties: {
+    contact_request_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["pending", "accepted"] },
+    conversation_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const contactRequestInboxQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 }
+  }
+} as const;
+
+export const contactRequestParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact_request_id"],
+  properties: {
+    contact_request_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const contactRequestInboxItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "contact_request_id",
+    "from_post_id",
+    "to_post_id",
+    "requester_user_id",
+    "requester_alias",
+    "status",
+    "created_at",
+    "expires_at",
+    "from_post_title",
+    "to_post_title",
+    "from_post_category",
+    "to_post_category"
+  ],
+  properties: {
+    contact_request_id: { type: "string", format: "uuid" },
+    from_post_id: { type: "string", format: "uuid" },
+    to_post_id: { type: "string", format: "uuid" },
+    requester_user_id: { type: "string", format: "uuid" },
+    requester_alias: { type: "string" },
+    status: { type: "string", enum: ["pending", "accepted", "rejected", "expired", "cancelled"] },
+    created_at: { type: "string", format: "date-time" },
+    expires_at: { type: "string", format: "date-time" },
+    from_post_title: { type: "string" },
+    to_post_title: { type: "string" },
+    from_post_category: {
+      type: "string",
+      enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"]
+    },
+    to_post_category: {
+      type: "string",
+      enum: ["food", "goods", "childcare", "companionship", "translation", "transportation", "other"]
+    }
+  }
+} as const;
+
+export const contactRequestInboxResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items", "next_cursor"],
+  properties: {
+    items: {
+      type: "array",
+      items: contactRequestInboxItemSchema
+    },
+    next_cursor: { type: ["string", "null"] }
+  }
+} as const;
+
+export const contactRequestDecisionResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact_request_id", "status", "responded_at"],
+  properties: {
+    contact_request_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["accepted", "rejected"] },
+    responded_at: { type: "string", format: "date-time" },
+    conversation_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const conversationParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["conversation_id"],
+  properties: {
+    conversation_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const conversationParticipantPreviewSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["user_id", "alias"],
+  properties: {
+    user_id: { type: "string", format: "uuid" },
+    alias: { type: "string" }
+  }
+} as const;
+
+export const conversationSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "conversation_id",
+    "contact_request_id",
+    "related_post_ids",
+    "participant_preview",
+    "status",
+    "created_at",
+    "last_activity_at",
+    "last_message_preview",
+    "unread_count",
+  ],
+  properties: {
+    conversation_id: { type: "string", format: "uuid" },
+    contact_request_id: { type: "string", format: "uuid" },
+    related_post_ids: {
+      type: "array",
+      items: { type: "string", format: "uuid" }
+    },
+    participant_preview: {
+      type: "array",
+      items: conversationParticipantPreviewSchema
+    },
+    status: { type: "string", enum: ["active", "closed", "blocked"] },
+    created_at: { type: "string", format: "date-time" },
+    last_activity_at: { type: "string", format: "date-time" },
+    last_message_preview: { type: ["string", "null"] },
+    unread_count: { type: "number", minimum: 0 },
+  }
+} as const;
+
+export const conversationsListQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 },
+  }
+} as const;
+
+export const conversationsListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items", "next_cursor"],
+  properties: {
+    items: {
+      type: "array",
+      items: conversationSummarySchema,
+    },
+    next_cursor: { type: ["string", "null"] },
+  }
+} as const;
+
+export const conversationDetailSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [...conversationSummarySchema.required, "other_user_id", "actions"],
+  properties: {
+    ...conversationSummarySchema.properties,
+    other_user_id: { type: "string", format: "uuid" },
+    actions: {
+      type: "object",
+      additionalProperties: false,
+      required: ["can_send", "can_close", "can_block", "can_report"],
+      properties: {
+        can_send: { type: "boolean" },
+        can_close: { type: "boolean" },
+        can_block: { type: "boolean" },
+        can_report: { type: "boolean" },
+      },
+    },
+  },
+} as const;
+
+export const conversationMessageQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    cursor: { type: "string", pattern: "^[A-Za-z0-9_-]+$" },
+    limit: { type: "number", minimum: 1, maximum: 50 },
+  }
+} as const;
+
+export const conversationMessageSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "message_id",
+    "conversation_id",
+    "sender_user_id",
+    "sender_alias",
+    "body",
+    "sent_at",
+    "is_mine",
+    "safety_flags",
+  ],
+  properties: {
+    message_id: { type: "string", format: "uuid" },
+    conversation_id: { type: "string", format: "uuid" },
+    sender_user_id: { type: "string", format: "uuid" },
+    sender_alias: { type: "string" },
+    body: { type: "string" },
+    sent_at: { type: "string", format: "date-time" },
+    is_mine: { type: "boolean" },
+    safety_flags: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: [
+          "sensitive_ssn",
+          "sensitive_phone",
+          "sensitive_address",
+          "sensitive_bank_account",
+          "keyword_passport",
+          "keyword_bank",
+          "keyword_wire",
+          "keyword_crypto",
+          "keyword_gift_card",
+        ],
+      },
+    },
+  },
+} as const;
+
+export const conversationMessagesResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items", "next_cursor"],
+  properties: {
+    items: {
+      type: "array",
+      items: conversationMessageSchema,
+    },
+    next_cursor: { type: ["string", "null"] },
+  },
+} as const;
+
+export const sendConversationMessageRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["body"],
+  properties: {
+    body: { type: "string", minLength: 1, maxLength: 2000 },
+  },
+} as const;
+
+export const sendConversationMessageResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["conversation_id", "message"],
+  properties: {
+    conversation_id: { type: "string", format: "uuid" },
+    message: conversationMessageSchema,
+  },
+} as const;
+
+export const closeConversationResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["conversation_id", "status", "closed_at"],
+  properties: {
+    conversation_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["closed"] },
+    closed_at: { type: "string", format: "date-time" },
+  },
+} as const;
+
+export const blockUserRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["blocked_user_id"],
+  properties: {
+    blocked_user_id: { type: "string", format: "uuid" },
+    conversation_id: { type: "string", format: "uuid" },
+  },
+} as const;
+
+export const blockUserResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["blocked_user_id", "status", "blocked_at", "affected_conversation_ids"],
+  properties: {
+    blocked_user_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["blocked"] },
+    blocked_at: { type: "string", format: "date-time" },
+    affected_conversation_ids: {
+      type: "array",
+      items: { type: "string", format: "uuid" },
+    },
+  },
+} as const;
+
+export const reportCreateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["target_type", "target_id", "reason"],
+  properties: {
+    target_type: { type: "string", enum: ["post", "user", "message"] },
+    target_id: { type: "string", format: "uuid" },
+    reason: { type: "string", enum: ["harassment", "scam", "misinformation", "unsafe_behavior", "other"] },
+    conversation_id: { type: "string", format: "uuid" },
+    evidence_description: { type: "string", minLength: 1, maxLength: 1000 },
+  },
+} as const;
+
+export const reportCreateResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["report_id", "status", "created_at"],
+  properties: {
+    report_id: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["new"] },
+    created_at: { type: "string", format: "date-time" },
+  },
+} as const;
+
+export const messageSafetyErrorResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["message", "blocked", "safety_flags"],
+  properties: {
+    message: { type: "string" },
+    blocked: { type: "boolean", enum: [true] },
+    safety_flags: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: [
+          "sensitive_ssn",
+          "sensitive_phone",
+          "sensitive_address",
+          "sensitive_bank_account",
+          "keyword_passport",
+          "keyword_bank",
+          "keyword_wire",
+          "keyword_crypto",
+          "keyword_gift_card",
+        ],
+      },
+    },
+  },
+} as const;

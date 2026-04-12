@@ -1,6 +1,6 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：`main` 的稳定基线仍是 M1；当前 `feature/m2-community-posts` 分支已经完成 community/posts/review/speech 的 M2 运行面，并通过 6-lane review gate。本文档只描述当前可运行命令和当前阶段真值。
+> 状态：`main` 的稳定基线是 M2；`feature/m4-chat-safety` 的 M3/M4 只作为 branch closeout 记录。本文档只描述当前可运行命令和当前 main-first 真值。
 
 ---
 
@@ -37,6 +37,8 @@ pnpm dev
 
 ### 1.3 当前已实现的运行面
 
+`main` canonical baseline：
+
 - `GET /healthz`
 - `GET /readyz`
 - `POST /v1/auth/anonymous`
@@ -48,6 +50,13 @@ pnpm dev
 - `GET /v1/me`
 - `GET /v1/resources`
 - `GET /v1/resources/:provider_id`
+- PWA 首页：language -> ZIP -> resources list -> detail -> bookmark
+- PWA `/verify`：OTP + magic-link fallback
+- PWA `/dev/m0`：保留 M0 debug
+- Anchor Admin 首页：API health + login placeholder
+
+当前 branch-local surface on `feature/m4-chat-safety`：
+
 - `POST /v1/community-access/resolve`
 - `POST /v1/communities/:community_id/join`
 - `POST /v1/posts`
@@ -60,21 +69,33 @@ pnpm dev
 - `GET /v1/admin/review_queue`
 - `POST /v1/admin/review_queue/:post_id/decision`
 - `POST /v1/speech/transcribe`
-- PWA 首页：language -> ZIP -> resources list -> detail -> bookmark
-- PWA `/verify`：OTP + magic-link fallback
-- PWA `/dev/m0`：保留 M0 debug
+- `GET /v1/posts/:post_id/matches`
+- `POST /v1/match/contact`
+- `GET /v1/contact-requests/inbox`
+- `POST /v1/contact-requests/:contact_request_id/accept`
+- `POST /v1/contact-requests/:contact_request_id/reject`
+- `GET /v1/conversations`
+- `GET /v1/conversations/:conversation_id`
+- `GET /v1/conversations/:conversation_id/messages`
+- `POST /v1/conversations/:conversation_id/messages`
+- `POST /v1/conversations/:conversation_id/close`
+- `POST /v1/blocks`
+- `POST /v1/reports`
+- `GET /v1/ws/chat?token=...`
 - PWA `/community`、`/community/join`、`/posts/new`、`/posts/[postId]`、`/posts/mine`
-- Anchor Admin 首页：API health + login placeholder
+- PWA `/posts/[postId]/matches`、`/inbox`、`/conversations/[conversationId]`
+- PWA `/contact-requests`：兼容性 redirect 到 `/inbox`
 - Manual moderation helper：`pnpm dev:mint-anchor-token`
 
 ### 1.4 当前验证分层
 
-- 默认 CI：
+- canonical `main` baseline：
   - `pnpm install --frozen-lockfile`
   - `pnpm typecheck`
   - `pnpm lint`
   - `pnpm test`
   - `pnpm build`
+- 当前 `feature/m4-chat-safety` branch-local gates：
   - `docker compose up -d`
   - `pnpm db:migrate`
   - `pnpm db:seed`
@@ -143,8 +164,8 @@ weavenyc/
 │   ├── api-gateway/
 │   ├── resource-directory/   # M1 ingestion / parse / CLI host
 │   ├── posts/                # M2 domain library (not a standalone runtime)
-│   ├── match/                # placeholder
-│   └── chat/                 # placeholder
+│   ├── match/                # M3 domain library (not a standalone runtime)
+│   └── chat/                 # M4 domain library (not a standalone runtime)
 ├── packages/
 │   ├── shared/
 │   ├── db/
@@ -168,7 +189,8 @@ weavenyc/
 - `services/api-gateway` 是当前唯一运行中的 HTTP 后端服务。
 - `services/resource-directory` 在 M1 已承载 real-source adapters、merge、geocoding、CLI smoke/import。
 - `services/posts` 当前承载 community access、membership、posts、risk、visibility、minimal moderation 规则，但不单独启动。
-- `match`、`chat` 仍保留为后续阶段 skeleton。
+- `services/match` 当前承载 match batching、contact request state machine、recipient inbox、accept/reject，但不单独启动。
+- `services/chat` 当前承载 conversations、messages、block/report、message safety、WebSocket fan-out，但不单独启动。
 - `packages/db` 持有 schema、migration、seed、测试。
 
 ---
@@ -201,7 +223,7 @@ pnpm resources:import:island-harvest
 - `pnpm test:smoke:real`：真实 API smoke，需要 API gateway、PostgreSQL、Redis、seed 处于可用状态
 - `pnpm test:e2e`：fixture-backed Playwright browser smoke
 - `pnpm test:live-sources`：opt-in live-source smoke（不写库，只验证源可达 / parser shape / record count）
-- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，用于 M2 的 Swagger / curl review queue 操作
+- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，用于当前分支的 manual review / review queue 操作
 - `pnpm resources:import:cfc` / `pnpm resources:import:island-harvest`：真实导入命令
 
 ---

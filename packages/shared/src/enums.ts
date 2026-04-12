@@ -54,3 +54,66 @@ export type ReviewDecision = (typeof reviewDecisions)[number];
 
 export const speechProviders = ["browser", "server_fallback"] as const;
 export type SpeechProvider = (typeof speechProviders)[number];
+
+export const matchCandidateTypes = ["neighbor_post", "official_resource"] as const;
+export type MatchCandidateType = (typeof matchCandidateTypes)[number];
+
+export const matchReasons = [
+  "same_category",
+  "same_language",
+  "within_1_mile",
+  "within_3_miles",
+  "within_5_miles",
+  "verified_user",
+  "anchor_reviewed",
+  "expires_soon",
+  "open_now",
+  "open_today",
+  "nearby_resource",
+  "language_supported",
+] as const;
+export type MatchReason = (typeof matchReasons)[number];
+
+export const contactRequestStatuses = [
+  "pending",
+  "accepted",
+  "rejected",
+  "expired",
+  "cancelled",
+] as const;
+export type ContactRequestStatus = (typeof contactRequestStatuses)[number];
+
+export const conversationStatuses = ["active", "closed", "blocked"] as const;
+export type ConversationStatus = (typeof conversationStatuses)[number];
+
+export const reportTargetTypes = ["post", "user", "message"] as const;
+export type ReportTargetType = (typeof reportTargetTypes)[number];
+
+export const reportReasons = [
+  "harassment",
+  "scam",
+  "misinformation",
+  "unsafe_behavior",
+  "other",
+] as const;
+export type ReportReason = (typeof reportReasons)[number];
+
+export const messageSafetyFlags = [
+  "sensitive_ssn",
+  "sensitive_phone",
+  "sensitive_address",
+  "sensitive_bank_account",
+  "keyword_passport",
+  "keyword_bank",
+  "keyword_wire",
+  "keyword_crypto",
+  "keyword_gift_card",
+] as const;
+export type MessageSafetyFlag = (typeof messageSafetyFlags)[number];
+
+export const chatRealtimeEventTypes = [
+  "message.created",
+  "conversation.updated",
+  "heartbeat",
+] as const;
+export type ChatRealtimeEventType = (typeof chatRealtimeEventTypes)[number];
