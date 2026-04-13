@@ -9,7 +9,7 @@
 ## 1) 当前仓库真实状态
 
 - 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
-- `main` 仍然是 canonical baseline，当前稳定基线为 `M4 completed`；`feature/m5-anchor-admin` 已完成 M5 closeout，但在变更合回 `main` 之前，这个结果仍只作为 branch-local 真值存在，不覆盖 `main` 的 merge 状态。
+- `main` 是 canonical baseline，当前稳定基线为 `M5 completed`。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
 - 当前可运行的共享服务面：
   - PWA：`http://localhost:3000`
@@ -28,7 +28,7 @@
   - `GET /v1/me`
   - `GET /v1/resources`
   - `GET /v1/resources/:provider_id`
-- 当前 branch-closeout 额外完成并已验证的 M2-M4 API 面：
+- 当前已完成并已验证的 M2-M5 API 面：
   - `POST /v1/community-access/resolve`
   - `POST /v1/communities/:community_id/join`
   - `POST /v1/posts`
@@ -78,13 +78,12 @@ pnpm dev
 | `M2` | `completed` | community join、posting、visibility、minimal review、speech fallback 已冻结 |
 | `M3` | `completed` | matching、Top-3 suggestions、contact requests、recipient inbox 已完成 |
 | `M4` | `completed` | live chat、message send/read、block/report、WebSocket realtime 已完成 |
-| `M5` | `completed_on_branch` | Anchor Admin、report queue、announcements、rules、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已关闭 |
+| `M5` | `completed` | Anchor Admin、report queue、announcements、rules、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已关闭 |
 | `M6` | `optional_next_phase` | 是否启动取决于 M5 分支合回 `main` 之后的下一轮排期决策 |
 
 结论：
 
-- 当前 workspace 的 canonical 阶段真值应表述为：`main = M4 completed`。
-- 当前工作分支的最新阶段真值应表述为：`feature/m5-anchor-admin = M5 completed on branch`。
+- 当前 workspace 的 canonical 阶段真值应表述为：`main = M5 completed`。
 
 ---
 
@@ -103,7 +102,7 @@ pnpm dev
 - PWA 首页已切到 M1 资源发现入口，`/verify` 与 `/dev/m0` 已拆分
 - 当前验证命令分层：
   - canonical `main` baseline：`pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`
-  - branch-local `feature/m5-anchor-admin` closeout：`pnpm db:migrate`、`pnpm db:seed`、`pnpm test:smoke:real`、`pnpm test:e2e`
+  - canonical integration gate：`pnpm db:migrate`、`pnpm db:seed`、`pnpm test:smoke:real`、`pnpm test:e2e`
   - `pnpm test:smoke:real` 只有在同一轮 fresh `db:migrate` + `db:seed` 后通过，才可计入 M5 closeout
   - manual / opt-in：`pnpm test:live-sources`、`pnpm dev:mint-anchor-token`
 
@@ -254,8 +253,8 @@ pnpm dev
 
 ## 8) 下一步唯一入口
 
-当前 `feature/m5-anchor-admin` 分支承接了 `M5 Anchor Admin + pilot rehearsal` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md` 与 `26_M5_Closeout.md`。
-main-first 口径下，下一步是决定是否先把当前 `M5` 分支合回 `main`；`M6` 属于后续可选阶段，不再被未关闭的 M5 gate 阻塞。
+当前主线已经承接 `M5 Anchor Admin + pilot rehearsal` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md` 与 `26_M5_Closeout.md`。
+main-first 口径下，下一步唯一入口是决定是否启动 `M6`；`M6` 属于后续可选阶段，不再被未关闭的 M5 gate 阻塞。
 
 1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
 2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)

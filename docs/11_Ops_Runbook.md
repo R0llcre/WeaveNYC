@@ -316,7 +316,7 @@ groups:
 
 ### 7.6 M5 pilot rehearsal path
 
-当 `feature/m5-anchor-admin` 需要复现 M5 试点演练时，按下面的顺序跑一遍：
+当 `main` 需要复现 M5 试点演练时，按下面的顺序跑一遍：
 
 1. `pnpm install`
 2. `docker compose up -d`

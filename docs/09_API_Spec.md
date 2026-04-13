@@ -1,6 +1,6 @@
 # WeaveNYC — API Spec (HTTP Surface, Main-First)
 
-目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；M5 相关内容统一放到 branch-local appendix / notes，M6/P2P 相关内容统一放到文末的 future appendix / notes。
+目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；当前 canonical surface 已覆盖 M0-M5，M6/P2P 相关内容统一放到文末的 future appendix / notes。
 
 约定：
 - HTTP Base URL（示例）：`https://api.weavenyc.local`
@@ -136,7 +136,6 @@ Response:
 ```
 
 Notes:
-- 该接口属于 `feature/m5-anchor-admin` 的 M5 closeout surface；它尚未改变 `main` 的 canonical surface，但已是当前分支已验证的真实接口面
 - 前置条件：当前会话必须 `level >= verified`
 - 客户端不上传 `totp_secret`；TOTP secret 由服务端生成，只在这里通过 `otpauth_uri` 返回一次
 - 完整流程固定为：`activate -> activate/confirm -> session/start -> session/verify`
@@ -521,9 +520,9 @@ Notes:
 
 ---
 
-## Appendix A: M5 Anchor Admin API（completed on branch）
+## Appendix A: M5 Anchor Admin API（canonical current surface）
 
-> 以下接口是 `feature/m5-anchor-admin` 已实现、已验证并已通过 6-lane review gate 的接口面。它们仍不属于 `main` canonical surface；在变更合回 `main` 之前，这里记录的是当前 branch-local runtime truth。
+> 以下接口已经进入 `main` 的 canonical surface，并已通过 M5 closeout 与 6-lane review gate。
 
 ### 7.1 Anchor Activate
 `POST /v1/auth/anchor/activate`

@@ -1,8 +1,8 @@
 # WeaveNYC
 
-状态：`main = M4 completed (canonical baseline)` · `feature/m5-anchor-admin = M5 completed on branch`
+状态：`main = M5 completed (canonical baseline)`
 
-WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 仍是唯一 canonical baseline，当前主线已收口到 `M4 completed`。当前工作分支 `feature/m5-anchor-admin` 已完成 M5：Anchor Admin、公告、规则、dashboard、pilot rehearsal、branch-local validation 和 6-lane review gate 都已关闭；在变更合回 `main` 之前，`M5 completed` 仍只作为 branch-local 真值记录在 closeout 文档中。
+WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 是唯一 canonical baseline，当前主线已经收口到 `M5 completed`。Anchor Admin、公告、规则、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已全部进入主线真值。
 
 ---
 
@@ -72,41 +72,10 @@ Current stable surface on `main`:
 - `GET /v1/resources`
 - `GET /v1/resources/:provider_id`
 - PWA routes: `/`, `/resources/[providerId]`, `/verify`, `/dev/m0`, `/community`, `/community/join`, `/posts/new`, `/posts/[postId]`, `/posts/mine`
-- Anchor Admin home with API health + login placeholder
-- Opt-in live-source smoke: `pnpm test:live-sources`
-
-Branch-local M5 additions on `feature/m5-anchor-admin`:
-
-- `POST /v1/community-access/resolve`
-- `POST /v1/communities/:community_id/join`
-- `POST /v1/posts`
-- `GET /v1/posts`
-- `GET /v1/posts/:post_id`
-- `GET /v1/posts/mine`
-- `PATCH /v1/posts/:post_id`
-- `POST /v1/posts/:post_id/close`
-- `DELETE /v1/posts/:post_id`
-- `GET /v1/admin/review_queue`
-- `POST /v1/admin/review_queue/:post_id/decision`
-- `POST /v1/speech/transcribe`
-- `GET /v1/posts/:post_id/matches`
-- `POST /v1/match/contact`
-- `GET /v1/contact-requests/inbox`
-- `POST /v1/contact-requests/:contact_request_id/accept`
-- `POST /v1/contact-requests/:contact_request_id/reject`
-- `GET /v1/conversations`
-- `GET /v1/conversations/:conversation_id`
-- `GET /v1/conversations/:conversation_id/messages`
-- `POST /v1/conversations/:conversation_id/messages`
-- `POST /v1/conversations/:conversation_id/close`
-- `POST /v1/blocks`
-- `POST /v1/reports`
-- `GET /v1/ws/chat?token=...`
 - PWA routes: `/posts/[postId]/matches`, `/inbox`, `/conversations/[conversationId]`
 - Legacy compatibility redirect: `/contact-requests` -> `/inbox`
-- Dev-only fallback helper: `pnpm dev:mint-anchor-token`
-
-M5 branch-local surface on `feature/m5-anchor-admin`:
+- Anchor Admin routes: `/login`, `/activate`, `/`, `/review`, `/announcements`, `/rules`
+- Opt-in live-source smoke: `pnpm test:live-sources`
 
 - `POST /v1/auth/anchor/activate`
 - `POST /v1/auth/anchor/activate/confirm`
@@ -127,11 +96,11 @@ M5 branch-local surface on `feature/m5-anchor-admin`:
 Current verification split:
 
 - Canonical `main` baseline gates: `pnpm install --frozen-lockfile` -> `typecheck` -> `lint` -> `test` -> `build`
-- Branch-local `feature/m5-anchor-admin` closeout gates: `pnpm db:migrate` -> `pnpm db:seed` -> `pnpm test:smoke:real` -> `pnpm test:e2e`
+- Canonical integration gates: `pnpm db:migrate` -> `pnpm db:seed` -> `pnpm test:smoke:real` -> `pnpm test:e2e`
 - `pnpm test:smoke:real` self-starts `api-gateway` when `/readyz` is unavailable, and only counts after a fresh `pnpm db:migrate` + `pnpm db:seed` on the current local database.
 - Manual / opt-in: `pnpm test:live-sources`, `pnpm dev:mint-anchor-token`
 - Formal `M1 completed` status closed on `2026-04-06`
-- Current branch status is `M5 completed on branch`; branch closeout truth lives in `docs/26_M5_Closeout.md`
+- Current canonical phase status is `M5 completed`; closeout truth lives in `docs/26_M5_Closeout.md`
 
 ---
 
@@ -143,7 +112,7 @@ Current verification split:
 4. `M2` 发帖与社区可见性
 5. `M3` 匹配与行动方案
 6. `M4` 联系、聊天与安全
-7. `M5` Anchor Admin 与试点准备（completed on branch）
+7. `M5` Anchor Admin 与试点准备
 8. `M6` P2P 同步（optional after M5 merge / next-phase decision）
 
 详细内容见 [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)。

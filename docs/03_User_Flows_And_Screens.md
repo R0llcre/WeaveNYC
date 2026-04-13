@@ -233,8 +233,8 @@ Official card字段：
 
 ---
 
-## 8) Anchor Admin（M5 Completed On Branch）
-> 本节描述当前 `feature/m5-anchor-admin` 已实现并已完成 closeout 的后台交付面。`main` 仍保持 `M4 completed` 的 canonical baseline；这里记录的是当前分支的 M5 runtime 真值，直到变更合回 `main` 之前它仍是 branch-local closeout truth。
+## 8) Anchor Admin（M5 Completed）
+> 本节描述当前主线已实现并已完成 closeout 的后台交付面。这里记录的是 `main` 的 M5 runtime 真值。
 
 ### Screen A：Dashboard
 - Metrics tiles：Posts this week (request), Posts this week (offer), Accepted contacts this week, Reports this week, Pending post review, Pending report review

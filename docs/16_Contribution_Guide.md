@@ -1,6 +1,6 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：`main` 的稳定基线是 M4；`feature/m5-anchor-admin` 当前已 `M5 completed on branch`。本文档只描述当前可运行命令、M5 closeout 记录和当前 main-first 真值。
+> 状态：`main` 的稳定基线是 `M5 completed`。本文档只描述当前可运行命令、M5 closeout 记录和当前 main-first 真值。
 
 ---
 
@@ -53,9 +53,9 @@ pnpm dev
 - PWA 首页：language -> ZIP -> resources list -> detail -> bookmark
 - PWA `/verify`：OTP + magic-link fallback
 - PWA `/dev/m0`：保留 M0 debug
-- Anchor Admin 首页：API health + login placeholder
+- Anchor Admin：`/login`、`/activate`、`/`、`/review`、`/announcements`、`/rules`
 
-当前 branch-local M5 additions on `feature/m5-anchor-admin`：
+当前 canonical M2-M5 additions：
 
 - `POST /v1/community-access/resolve`
 - `POST /v1/communities/:community_id/join`
@@ -87,7 +87,7 @@ pnpm dev
 - PWA `/contact-requests`：兼容性 redirect 到 `/inbox`
 - Dev-only fallback helper：`pnpm dev:mint-anchor-token`
 
-M5 branch-local surface：
+M5 canonical surface：
 
 - Anchor login / activation / TOTP step-up
 - Review queue 的 `Posts` / `Reports` 双 tab
@@ -103,7 +103,7 @@ M5 branch-local surface：
   - `pnpm lint`
   - `pnpm test`
   - `pnpm build`
-- 当前 `feature/m5-anchor-admin` closeout gates：
+- 当前 canonical integration gates：
   - `docker compose up -d`
   - `pnpm db:migrate`
   - `pnpm db:seed`
@@ -165,7 +165,7 @@ cp .env.example .env.local
 
 ### 1.7 M5 closeout path
 
-当前 `feature/m5-anchor-admin` 的 closeout 路径固定如下：
+当前 `main` 的 M5 closeout / rehearsal 路径固定如下：
 
 ```bash
 pnpm install

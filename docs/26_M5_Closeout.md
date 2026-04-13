@@ -1,16 +1,14 @@
 # WeaveNYC — M5 Closeout
 
-状态：`M5 completed on branch`
+状态：`M5 completed`
 
 日期：`2026-04-12`
 
-当前 branch：`feature/m5-anchor-admin`
-
-说明：本文档记录 `feature/m5-anchor-admin` 的 M5 closeout 过程、验证链和 6-lane review gate。当前 `main` 的 canonical baseline 仍是 `M4 completed`；当前分支的 M5 closeout 已关闭，直到变更合回 `main` 之前，它仍只作为 branch-local 真值存在。
+说明：本文档记录 `M5` closeout 过程、验证链和 6-lane review gate。当前 `main` 的 canonical baseline 已收口到 `M5 completed`。
 
 ---
 
-## 1) Scope In Branch
+## 1) Scope Closed
 
 - Anchor auth + TOTP step-up
 - Anchor Admin UI
@@ -60,8 +58,8 @@
 当前状态：
 
 - 6 条 lane 已全部返回 `No material findings`
-- 当前分支的阶段状态已经切回 `M5 completed / M6 optional`
-- 当前验证证据以上面的命令通过结果为准；`main` 仍保持 `M4 completed` canonical baseline，直到本分支变更被合并
+- 当前主线阶段状态已经切到 `M5 completed / M6 optional`
+- 当前验证证据以上面的命令通过结果为准；`main` 已承接 M5 canonical baseline
 
 ---
 
@@ -81,5 +79,5 @@
 
 ## 6) Next Phase
 
-- `M5` 已在当前分支完成 closeout
-- 下一阶段入口是 `M6 optional`，是否启动取决于后续排期和是否先把当前分支合回 `main`
+- `M5` 已完成 closeout
+- 下一阶段入口是 `M6 optional`
