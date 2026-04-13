@@ -8,13 +8,11 @@
 >
 > **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前 canonical baseline**：`main = M4 completed`
+> **当前 canonical baseline**：`main = M5 completed`
 >
-> **Branch closeouts**：`M3 completed on branch` · `M4 completed on branch` · `M5 completed on branch`
+> **Closed phase closeouts**：`M3 completed` · `M4 completed` · `M5 completed`
 >
-> **Current branch**：`feature/m5-anchor-admin = M5 completed on branch`
->
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed on branch` · `M6 optional next phase`
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 optional next phase`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
@@ -22,7 +20,7 @@
 > - `Completed (M2)`：代码与 closeout 已落地，并已成为当前 workspace 的已关闭基线；不再表示“当前 feature branch 待合并状态”
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
-> 说明：story 级 `Completed (M5)` 只表示实现已落地；phase 级真值仍以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 和 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准。
+> 说明：story 级 `Completed (M5)` 表示实现与 closeout 已进入当前主线；phase 级真值以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 和 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准。
 
 ---
 

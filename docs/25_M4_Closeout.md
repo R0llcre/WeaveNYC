@@ -1,10 +1,10 @@
 # WeaveNYC — M4 Closeout
 
-状态：`M4 completed on branch`
+状态：`M4 completed`
 
 日期：`2026-04-11`
 
-说明：本文档记录 `M4` closeout；当前本地 canonical baseline 已收口到 `main = M4 completed`。M5 的 branch-local 真值见 [`26_M5_Closeout.md`](./26_M5_Closeout.md)。
+说明：本文档记录 `M4` closeout；当前 canonical baseline 已继续推进到 `main = M5 completed`。M5 closeout 见 [`26_M5_Closeout.md`](./26_M5_Closeout.md)。
 
 ---
 
