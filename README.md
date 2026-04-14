@@ -1,8 +1,8 @@
 # WeaveNYC
 
-状态：`main = M5 completed (canonical baseline)`
+状态：`main = M5 completed (canonical baseline)` · `feature/m6-p2p-sync = M6 in progress`
 
-WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 是唯一 canonical baseline，当前主线已经收口到 `M5 completed`。Anchor Admin、公告、规则、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已全部进入主线真值。
+WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 是唯一 canonical baseline，当前主线已经收口到 `M5 completed`。当前执行分支 `feature/m6-p2p-sync` 正在给现有 HTTP-first 产品加一层 P2P sync overlay，但不会把未实现的 M6 surface 冒充成 `main` 已上线能力。
 
 ---
 
@@ -98,6 +98,7 @@ Current verification split:
 - Canonical `main` baseline gates: `pnpm install --frozen-lockfile` -> `typecheck` -> `lint` -> `test` -> `build`
 - Canonical integration gates: `pnpm db:migrate` -> `pnpm db:seed` -> `pnpm test:smoke:real` -> `pnpm test:e2e`
 - `pnpm test:smoke:real` self-starts `api-gateway` when `/readyz` is unavailable, and only counts after a fresh `pnpm db:migrate` + `pnpm db:seed` on the current local database.
+- Branch-local M6 overlay smoke: `pnpm test:smoke:p2p`
 - Manual / opt-in: `pnpm test:live-sources`, `pnpm dev:mint-anchor-token`
 - Formal `M1 completed` status closed on `2026-04-06`
 - Current canonical phase status is `M5 completed`; closeout truth lives in `docs/26_M5_Closeout.md`
@@ -113,7 +114,7 @@ Current verification split:
 5. `M3` 匹配与行动方案
 6. `M4` 联系、聊天与安全
 7. `M5` Anchor Admin 与试点准备
-8. `M6` P2P 同步（optional after M5 merge / next-phase decision）
+8. `M6` P2P 同步 overlay（in progress on branch）
 
 详细内容见 [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)。
 

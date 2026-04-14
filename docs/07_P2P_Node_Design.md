@@ -1,246 +1,256 @@
-# WeaveNYC — P2P Node Design (Edge / Anchor / Cloud)
+# WeaveNYC — P2P Sync Overlay Design
 
-目标：把”节点互补”写成可实现的协议与职责分工。
+目标：把 `feature/m6-p2p-sync` 当前分支里的 M6 同步层写成真实可执行的设计，不把 future-state 节点网络当作已经实现。
 
-> **技术栈**：P2P 层基于 **libp2p-js**（网络传输/发现/路由）+ **Helia**（IPFS 内容寻址存储），详见 [ADR-0004](./15_ADR_Log.md)。
+> 本章描述的是 **当前 M6 branch-local truth**。
 >
-> 本章描述的是 **M6 / Phase 2 的可选 P2P 增强**，不作为 M0-M5 的阻塞项。
+> `main` 仍以 `M5 completed` 为准；这里定义的是 `feature/m6-p2p-sync` 上已经接入或正在收口的 **HTTP-first + P2P sync overlay**。
+>
+> **authoritative write path**：帖子、公告、举报、审核决定仍先走现有 HTTP API 落库；同步层只负责 event append、live stream、offline catch-up 和只读缓存修复。
 
 ---
 
-## 1) 节点类型与职责
+## 1) 当前节点职责
 
-### 1.1 Edge Node（用户手机 / PWA）
+### 1.1 Edge client（PWA）
 职责：
-- 读取官方资源目录（只读）
-- 创建/编辑/删除自己的帖子（Request/Offer）
-- 本地存储（默认）：帖子草稿、个人设置、最近匹配、聊天缓存（IndexedDB via [Dexie.js](https://dexie.org/)）
-- 选择性同步（opt-in）：把指定帖子发布到 P2P 网络
+- 继续通过现有 HTTP API 创建/编辑帖子、提交举报、读取公告
+- 在 `/community` 页面 opt-in 开启同步
+- 通过 WebWorker 维护只读同步状态和离线缓存
+- 断网时从 Dexie 读取帖子/公告缓存；恢复后先做 HTTP catch-up，再继续 live stream
 
-**P2P 运行时**：
-- libp2p-js 实例运行在 **WebWorker** 中，避免阻塞 UI 线程
-- 传输协议：WebRTC（浏览器间直连）+ WebSocket（连接 Anchor/Cloud 中继）
-- 发现机制：通过 Anchor 提供的 Bootstrap 节点列表（主路径）；mDNS 仅用于局域网 demo / 调试，不作为生产依赖
-- 内容存储：Helia (IPFS) 用于存储/获取帖子摘要的 CID（内容标识符）
+**当前实现边界**：
+- 没有浏览器端 libp2p/Helia 节点
+- 没有 direct edge publish
+- 没有 P2P 聊天或 message sync
+- `mDNS` demo 路径默认关闭，但在 dev/demo flag 打开时会显示实验性 toggle；默认 discovery 路径始终是 bootstrap
 
-资源约束：
-- 低算力、低带宽、可能频繁离线
-- WebWorker 内存限制：libp2p 连接数上限 10，DHT 关闭（由 Anchor 代理）
-- 离线时所有数据从 IndexedDB 读取，上线后增量同步
-
-### 1.2 Anchor Node（社区组织运行）
+### 1.2 Anchor runtime（嵌在 `api-gateway`）
 职责：
-- 社区规则引擎（policy）：哪些类别需要审核、默认可见范围、黑名单
-- 审核队列：通过/拒绝/要求补充信息
-- 举报处置：下架/冻结/拉黑
-- 公告：发布社区活动、pantry drive 通知
-- **P2P 中继 & 索引**：作为本社区的缓存/索引/中继节点
+- 继续作为唯一后端 runtime
+- 在写入成功后追加 `community_sync_events`
+- 通过 Redis Pub/Sub 向在线连接广播社区事件
+- 为离线恢复提供 `GET /v1/communities/:community_id/sync`
+- 为在线连接提供 `GET /v1/ws/p2p`
 
-**P2P 角色（关键）**：
-- 运行完整 libp2p 节点（Node.js 进程），支持 TCP + WebSocket 传输
-- 充当 **GossipSub Relay**：转发本社区的 topic 消息给在线 Edge 节点
-- 维护 **社区帖子索引**：订阅 `weavenyc/{community_id}/posts` topic，将活跃帖子的 CID 索引到本地 SQLite/PostgreSQL
-- 充当 **IPFS Pin 节点**：Pin 本社区活跃帖子的内容块，确保 Edge 离线时内容仍可获取
-- 提供 **Bootstrap 端点**：新 Edge 节点加入时，从 Anchor 获取对等节点列表和最新帖子快照
+**当前实现边界**：
+- 没有独立 Anchor node 进程
+- 没有 libp2p GossipSub relay
+- 没有 Helia pin/node management
+- 同步层的 durable replay 依赖 PostgreSQL 事件日志，不依赖分布式 block exchange
 
-### 1.3 Cloud Intelligence Node（多云）
-职责（只做”重计算/聚合”，不持久保存个人敏感信息）：
-- 匹配服务（Match Service）：给 Request 输出行动方案
-- 风险检测（Risk Service）：敏感词/模式检测、限流策略建议
-- 搜索索引（Search/Directory）：官方资源目录的查询 API、地理索引（PostgreSQL + PostGIS）
-- 通知服务（Notification Service）：Push / SMS / Email
-- **P2P 辅助**：运行 libp2p 中继节点，为跨社区消息和无 Anchor 在线时提供备份中继
+### 1.3 Cloud / central services
+职责保持不变：
+- 资源目录、匹配、审核、聊天等主逻辑继续走中心化服务
+- M6 不用 P2P 替代中心化 API
 
 ---
 
-## 2) P2P 发布的最小模型
+## 2) 当前同步对象
 
-### 2.1 发布什么？（MVP）
-只发布”低敏、可共享、短时有效”的内容：
-- Request/Offer 的公共摘要（category, title, body, approximate geo, expiry, language）
-- 不发布：姓名、精确地址、身份证件、聊天内容
+M6 overlay 只同步这 4 类对象：
+- `posts`
+- `announcements`
+- `report.created`
+- `moderation.decision`
 
-### 2.2 内容寻址与版本（Helia / IPFS）
+进一步约束：
+- 只把 **post-target** 的 `report.created` / `moderation.decision` 放进社区同步流
+- `user` / `message` report 不进入社区 overlay
+- 聊天消息、会话状态、通知系统都不进入 M6
 
-**存储机制**：
-- 每个帖子摘要序列化为 JSON → 通过 Helia `dag.put()` 写入 IPFS DAG → 返回 CID（Content Identifier）
-- CID 是内容的唯一指纹，内容不可变
-- 更新：创建新版本内容 → 新 CID → 通过 GossipSub 广播 `post.updated` 事件（携带新旧 CID）
-- 删除：广播 `post.tombstoned` 事件 → 所有节点 Unpin 对应 CID → 内容自然 GC
+---
 
-**帖子摘要 DAG 结构**（存入 IPFS 的最小数据）：
-```typescript
-type PostSummaryDAG = {
-  post_id: string;          // UUID
-  version: number;          // 递增版本号
-  post_type: 'request' | 'offer';
-  category: string;
-  title: string;            // ≤ 60 字
-  body: string;             // ≤ 280 字
-  language: 'en' | 'es' | 'zh';
-  location_zip: string;
-  privacy: 'community_only' | 'public' | 'anchor_mediated';
-  expires_at: string;       // ISO 8601
+## 3) 发现与连接
+
+### 3.1 Bootstrap
+`GET /v1/communities/:community_id/bootstrap`
+
+返回：
+- `community_id`
+- `bootstrap_version`
+- `anchor_node`
+- `relay_nodes`
+- `topics`
+- `latest_snapshot`
+- `mdns_demo_enabled`
+
+说明：
+- 浏览器默认走 bootstrap，不依赖 mDNS
+- `bootstrap.websocket_url` 由 bootstrap mint 一次短时 websocket token
+- 该 URL 不是主 API bearer token 的回显；客户端优先直接复用 bootstrap 返回值
+- `community_id` 作用域默认由 websocket token 承载；当前客户端兼容行为是在 URL 缺少 `community_id` 时补上该参数，但不会重新 mint websocket token
+
+### 3.2 Live stream
+`GET /v1/ws/p2p`
+
+说明：
+- 这是当前分支里的 live stream 路径
+- PWA worker 连接该 websocket 接收社区事件
+- 如果 live stream 不可用，worker 回退到 `/sync` polling
+
+### 3.3 Offline catch-up
+`GET /v1/communities/:community_id/sync?since=...&limit=...`
+
+说明：
+- 首次请求可传 ISO timestamp
+- 后续请求应回传服务端返回的 opaque `next_since` cursor
+- cursor 内部包含 `occurred_at + sync_event_id`，避免同一时间戳分页丢事件
+
+---
+
+## 4) 事件模型
+
+### 4.1 Topics
+- `weavenyc/{community_id}/posts`
+- `weavenyc/{community_id}/announcements`
+- `weavenyc/{community_id}/reports`
+
+### 4.2 Event types
+- `post.published`
+- `post.updated`
+- `post.tombstoned`
+- `announcement.published`
+- `announcement.updated`
+- `announcement.deleted`
+- `report.created`
+- `moderation.decision`
+
+### 4.3 Event envelope
+```ts
+type P2PEventEnvelope = {
+  sync_event_id: string;
   community_id: string;
-  actor: string;            // 匿名化 actor ID（非 user_id）
-  created_at: string;
-  prev_cid?: string;        // 上一版本 CID（形成版本链）
-  signature: string;        // Ed25519 签名（防篡改）
+  topic: string;
+  event_type: "post.published" | "post.updated" | "post.tombstoned" | "announcement.published" | "announcement.updated" | "announcement.deleted" | "report.created" | "moderation.decision";
+  aggregate_type: "post" | "announcement" | "report" | "moderation";
+  aggregate_id: string;
+  occurred_at: string;
+  actor_p2p_id?: string | null;
+  cid: string | null;
+  payload: Record<string, unknown> | null;
 };
 ```
 
-**Pin 策略**：
-- Anchor 节点：Pin 本社区所有 `status=active` 且未过期的帖子
-- Edge 节点：仅 Pin 自己发布的帖子 + 最近浏览/收藏的帖子
-- Cloud 节点：不 Pin 帖子内容（仅处理结构化索引数据）
-- 过期帖子：Anchor 定时任务每小时检查，Unpin 已过期 > 24h 的内容
+约束：
+- 不暴露 `actor_user_id`
+- `actor_p2p_id` 是按社区派生的匿名 actor 标识
+- 当前 runtime 仍是 unsigned event stream；签名 helper 仅保留为未来扩展，不属于当前 M6 runtime contract
+- payload 只写当前 overlay 会实际传播的最小字段集；`detail_text`、`conversation_id`、`affected_user_id` 这类聊天/审计上下文字段不进入社区同步流
+
+### 4.4 Payload discipline
+
+`post.*`
+- `payload.post` 为当前帖子摘要
+- 可带 `reason`
+
+`announcement.*`
+- `payload.announcement` 为当前公告摘要
+
+`report.created`
+- 只同步 post-target report
+- runtime payload 只包含 `report_id`, `target_type`, `target_id`, `reason`, `status`, `created_at`
+
+`moderation.decision`
+- 只同步 post-target moderation
+- `aggregate_id` 对应触发本次决策的 `moderation_actions.action_id`，不是 `report_id`
+- runtime payload 只包含 `report_id`, `target_type`, `target_id`, `report_target_type`, `report_target_id`, `resolution`, `status`, `decided_at`
 
 ---
 
-## 3) 消息与事件（事件驱动 — GossipSub）
+## 5) 版本与内容标识
 
-> 使用 libp2p **GossipSub v1.1** 协议进行社区内消息广播。
+M6 当前没有分布式内容获取网络，但已经把版本和内容标识接入 authoritative records：
 
-### 3.1 P2P Topic 命名
-- `weavenyc/{community_id}/posts` — 帖子发布/更新/删除
-- `weavenyc/{community_id}/reports` — 举报事件
-- `weavenyc/{community_id}/announcements` — Anchor 公告
+- `posts.p2p_version`
+- `posts.ipfs_cid`
+- `announcements.p2p_version`
+- `announcements.ipfs_cid`
 
-**Topic 订阅规则**：
-- Edge 节点：订阅自己所属社区的 3 个 topic
-- Anchor 节点：订阅自己管理的社区 topic + 跨社区管理 topic（若有）
-- Cloud 节点：订阅所有社区的 `posts` topic（用于更新中心索引）
+当前语义：
+- `p2p_version` 单调递增
+- `ipfs_cid` 由 DAG JSON 内容计算得到，作为内容标识和 replay 校验字段
+- 当前分支 **不会** 通过 Helia/IPFS 网络去 fetch 这些 blocks；CID 用于版本化和同步校验，不代表已实现内容交换网络
 
-### 3.2 事件类型（Event Types）
-所有事件使用**过去式命名**（表示已发生的事实），详见 [ADR-0009](./15_ADR_Log.md)。
-
-1) `post.published` — 新帖子发布（含 IPFS CID）
-2) `post.updated` — 帖子更新（含新旧 CID）
-3) `post.tombstoned` — 帖子删除/下架
-4) `report.created` — 新举报
-5) `moderation.decision` — Anchor 审核决定
-6) `announcement.published` — Anchor 公告
-
-**事件信封格式**（所有事件共用）：
-```typescript
-type P2PEvent<T = unknown> = {
-  event_id: string;         // UUID v7（时间有序）
-  event_type: string;       // e.g. 'post.published'
-  community_id: string;
-  actor: string;            // 匿名化 actor ID
-  ts: string;               // ISO 8601
-  payload: T;               // 事件特定数据
-  signature: string;        // actor 的 Ed25519 签名
-};
-```
-
-**消息大小限制**：单条 GossipSub 消息 ≤ 64 KB（libp2p 默认），帖子正文已限制 ≤ 280 字，足够。
-
-**去重与排序**：
-- 事件以 `event_id` 去重（UUID v7 保证唯一）
-- 帖子以 `post_id` + `version` 排序（version 递增）
-- 收到重复 `event_id` 的消息直接丢弃
-
-详细 JSON Schema 见 [09_API_Spec](./09_API_Spec.md)。
+冲突规则：
+- 内容：`p2p_version` 更高者覆盖
+- 审核/处置：**Anchor wins**
 
 ---
 
-## 4) 节点互补的典型协作流程
+## 6) 持久化与回放
 
-### Flow A：用户发 Request（同社区可见）
-1) Edge 本地创建 Request
-2) 若用户选择 opt-in：Edge 发布 `post.published` 到社区 topic
-3) Anchor 收到事件：
-   - 若类别高风险 → 放入审核队列，未通过前不向其它 Edge 推送
-   - 低风险 → 直接作为“可匹配候选”
-4) Cloud Match Service 订阅（或由 Anchor 代发）候选摘要，计算 Top-3 行动方案
-5) Edge 显示结果（邻里 + 官方兜底）
+### 6.1 PostgreSQL
+`community_sync_events`
 
-### Flow B：举报与处置
-1) Edge 在贴子/聊天里点 Report
-2) Edge 发 `report.created`（只含最小证据：post id / reason / optional screenshot hash）
-3) Anchor 处理：
-   - warn / remove / ban
-4) Anchor 发 `moderation.decision` 广播，让社区节点同步执行（下架/隐藏）
+用途：
+- 作为 branch-local M6 的 durable replay log
+- 支撑 `/sync` catch-up
+- 支撑 snapshot 统计
 
----
+说明：
+- 事件写入发生在 HTTP 成功落库之后
+- live broadcast 走 Redis Pub/Sub
+- durable replay 走 Postgres
 
-## 5) 隐私与最小泄露策略
+### 6.2 Dexie
+本地缓存表：
+- `postCache`
+- `announcementCache`
+- `p2pKeys`
+- `p2pSyncState`
+- `p2pEventCursor`
 
-### 5.1 位置精度
-- 默认：ZIP centroid 或 neighborhood（详见 [ADR-0006](./15_ADR_Log.md)）
-- 不允许上传精确 GPS
-- P2P 消息中只包含 `location_zip`，不包含经纬度
-
-### 5.2 身份
-- 默认匿名昵称
-- P2P 事件中使用 `actor`（匿名化 ID），不暴露 `user_id`
-- `actor` 由 Ed25519 公钥派生（每个社区可生成不同 actor，防止跨社区关联）
-- Anchor 可选要求”线下确认”（例如 pantry 已服务过的家庭），但不把信息写入系统
-
-### 5.3 聊天
-- 聊天不进入 P2P 广播 topic
-- 聊天走 **libp2p 点对点加密通道**（Noise 协议）或云 WebSocket 中继
-- MVP：使用云 WebSocket 中继（Redis Pub/Sub 后端）
-- Phase 2：支持 libp2p 直连 + 端到端加密（Signal Protocol 或 Noise XX）
-
-### 5.4 密钥管理
-- 每个用户本地生成 Ed25519 密钥对（用于 P2P 签名和身份）
-- 私钥存储在 IndexedDB（Dexie.js），不上传到服务端
-- 设备丢失 = 密钥丢失 → 需要重新加入社区（MVP 可接受；Phase 2 可加密钥备份）
+说明：
+- worker 收到 live event 或 catch-up delta 后，会把帖子/公告只读缓存落进 Dexie
+- 离线时 `/community` 回退到 Dexie cache
+- M6 不支持离线写入后再合并
 
 ---
 
-## 6) 可靠性与一致性（MVP 策略）
+## 7) 隐私与边界
 
-> 详见 [ADR-0007](./15_ADR_Log.md)
+### 7.1 身份
+- 事件中不暴露 `user_id`
+- 只暴露匿名 `actor_p2p_id`
 
-### 6.1 一致性选择
-MVP 目标是”可用性优先”（CAP 中选 AP），因此：
-- 帖子列表最终一致（eventually consistent）
-- Anchor 的审核决定具有最终裁决权（moderation decision wins）
-- 冲突解决：帖子内容 → last-write-wins（按 version）；审核状态 → Anchor-wins
+### 7.2 位置
+- 当前同步摘要只保留 `location_zip`
+- 不把精确坐标带入社区 overlay
 
-### 6.2 离线与同步
-- Edge 离线时：从 IndexedDB 读取缓存的帖子列表，标注”离线模式”
-- Edge 上线时：自动重连 GossipSub → 接收积压事件 → 增量更新本地缓存
-- Anchor 离线时：低风险帖子仍可在 Edge 本地展示；高风险帖子审核停滞，Cloud 节点可作为备份中继
+### 7.3 安全事件
+- 只同步 post-target safety state
+- 不把 user/message report、conversation_id、affected_user_id 等聊天上下文带入 overlay
 
-### 6.3 节点发现与连接
-
-```
-Edge 启动流程：
-1) 从本地缓存加载已知 Anchor 节点地址
-2) 通过 WebSocket / HTTPS 连接 Anchor Bootstrap 端点
-3) Anchor 返回：对等节点列表 + 最新帖子 CID 列表
-4) Edge 订阅社区 GossipSub topic
-5) 按需从 IPFS 网络获取帖子内容（Helia.dag.get(cid)）
-```
-
-**Bootstrap 节点列表**：
-- 硬编码 1-2 个 Cloud 中继节点地址（作为最后兜底）
-- Anchor 节点地址通过 REST API `/v1/communities/{id}/bootstrap` 获取
-- 本地缓存最近成功连接的 5 个节点地址
+### 7.4 聊天
+- M6 不做 P2P 聊天或 message sync
+- 聊天继续走当前中心化 WebSocket 中继
 
 ---
 
-## 7) 已冻结的 M0-M1 决策（直接影响实现）
-1) **社区加入机制**：采用邀请码 / 二维码加入；`M0-M1` 不做开放社区搜索加入。
-2) **匿名账户升级机制**：采用手机号 OTP 作为主路径；邮箱 magic link 作为备选路径。
-3) **P2P 启动边界**：没有 bootstrap API 或 Anchor 在线时，不阻塞 M0-M5；P2P 作为 M6 可选加分项。
+## 8) Stretch demo path
+
+当前 branch-local M6 manual stretch demo 路径固定为：
+1. 设备 A、设备 B 加入同一社区
+2. 两端都开启 `/community` 上的 P2P sync
+3. 两端通过 `/bootstrap` 获得 websocket URL 和 topics
+4. A 通过现有 HTTP API 创建帖子或 Anchor 发布公告
+5. `api-gateway` 在写入成功后追加 `community_sync_events`，再向 live stream 广播
+6. 在 live socket 已连通的手工 demo 下，B 应更新社区只读缓存而无需整页刷新
+7. B 断线后恢复时，通过 `/sync` + opaque cursor 补齐遗漏事件
 
 ---
 
-## 8) 技术依赖汇总
+## 9) 当前技术依赖
 
-| 组件 | 库 | 版本 | 用途 |
-|------|----|------|------|
-| P2P 网络 | **libp2p** (`@libp2p/interface`) | latest | 传输、发现、路由、GossipSub |
-| IPFS 存储 | **Helia** (`helia`) | latest | 内容寻址存储、DAG 操作 |
-| 传输协议 | `@libp2p/webrtc` + `@libp2p/websockets` | — | 浏览器间直连 + Anchor 中继 |
-| 消息广播 | `@chainsafe/libp2p-gossipsub` | — | GossipSub v1.1 Pub/Sub |
-| 节点发现 | `@libp2p/bootstrap` + `@libp2p/mdns` | — | 已知节点引导 + 局域网发现（mdns 仅 demo/debug） |
-| 加密签名 | `@noble/ed25519` | — | 事件签名、身份验证 |
-| 本地存储 | **Dexie.js** (IndexedDB) | 4.x | Edge 离线数据、密钥存储 |
+| 组件 | 当前实现 | 用途 |
+|------|----------|------|
+| Event / DAG helper | `packages/p2p` | CID、canonicalize、merge/replay helper |
+| Durable replay | PostgreSQL | `community_sync_events` |
+| Live broadcast | Redis Pub/Sub | 向 websocket 连接广播社区事件 |
+| Browser cache | Dexie / IndexedDB | 离线帖子与公告缓存 |
+| Browser sync runtime | WebWorker + WebSocket + HTTP catch-up | 在线订阅与离线恢复 |
 
-> 前后端共享 P2P message schema（TypeScript 类型定义在 `packages/shared/`），详见 [ADR-0004](./15_ADR_Log.md)。
+说明：
+- `packages/p2p` 当前不是 libp2p node implementation
+- `mDNS` 为实验性 demo 开关，不是默认路径

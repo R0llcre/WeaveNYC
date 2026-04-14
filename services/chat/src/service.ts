@@ -297,7 +297,7 @@ export class DefaultChatService implements ChatService {
   async submitReport(input: SubmitReportInput) {
     const { communityId } = await this.resolveReportContext(input);
 
-    const report = await this.repository.saveReport({
+    const savedReport = await this.repository.saveReport({
       communityId,
       targetType: input.targetType,
       targetId: input.targetId,
@@ -307,12 +307,23 @@ export class DefaultChatService implements ChatService {
       reporterUserId: input.actor.userId,
       createdAt: this.now().toISOString(),
     });
+    const report = savedReport.report;
 
+    let autoHiddenPostId: string | null = null;
+    let autoHiddenActorUserId: string | null = null;
+    let autoHiddenReportIds: string[] = [];
+    let autoHiddenModerationActionIds: Record<string, string> = {};
+    const syncEvents = [...(savedReport.syncEvents ?? [])];
     if (input.targetType === "post") {
-      await this.repository.autoHidePostIfThresholdReached({
+      const autoHidden = await this.repository.autoHidePostIfThresholdReached({
         communityId,
         postId: input.targetId,
       });
+      autoHiddenPostId = autoHidden ? autoHidden.postId : null;
+      autoHiddenActorUserId = autoHidden?.anchorUserId ?? null;
+      autoHiddenReportIds = autoHidden?.reportIds ?? [];
+      autoHiddenModerationActionIds = autoHidden?.moderationActionIds ?? {};
+      syncEvents.push(...(autoHidden?.syncEvents ?? []));
     }
 
     await this.hooks.onReportCreated?.({
@@ -322,7 +333,15 @@ export class DefaultChatService implements ChatService {
       reason: input.reason,
     });
 
-    return report;
+    return {
+      report,
+      communityId,
+      autoHiddenPostId,
+      autoHiddenActorUserId,
+      autoHiddenReportIds,
+      autoHiddenModerationActionIds,
+      syncEvents,
+    };
   }
 
   async listReportQueue(input: AdminReportQueueInput) {

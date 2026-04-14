@@ -120,6 +120,7 @@ export class DefaultPostsService implements PostsService {
       postId: created.postId,
       status: created.status,
       riskLevel: created.riskLevel,
+      syncEvents: created.syncEvents,
     };
   }
 
@@ -230,7 +231,10 @@ export class DefaultPostsService implements PostsService {
       throw new PostsDomainError('Post not found', 'not_found');
     }
 
-    return toPostDetail(input.actor, updated);
+    return {
+      ...toPostDetail(input.actor, updated),
+      syncEvents: updated.syncEvents,
+    };
   }
 
   async closePost(actor: PostActor, postId: string) {
@@ -247,12 +251,19 @@ export class DefaultPostsService implements PostsService {
       throw new PostsDomainError('Only active posts can be closed', 'invalid_state');
     }
 
-    const updated = await this.repository.setPostStatus(postId, 'closed');
+    const updated = await this.repository.setPostStatus({
+      postId,
+      status: 'closed',
+      actorUserId: actor.userId,
+    });
     if (!updated) {
       throw new PostsDomainError('Post not found', 'not_found');
     }
 
-    return toPostDetail(actor, updated);
+    return {
+      ...toPostDetail(actor, updated),
+      syncEvents: updated.syncEvents,
+    };
   }
 
   async removePost(actor: PostActor, postId: string) {
@@ -265,12 +276,19 @@ export class DefaultPostsService implements PostsService {
       throw new PostsDomainError('Only the author can remove this post', 'forbidden');
     }
 
-    const updated = await this.repository.setPostStatus(postId, 'removed');
+    const updated = await this.repository.setPostStatus({
+      postId,
+      status: 'removed',
+      actorUserId: actor.userId,
+    });
     if (!updated) {
       throw new PostsDomainError('Post not found', 'not_found');
     }
 
-    return toPostDetail(actor, updated);
+    return {
+      ...toPostDetail(actor, updated),
+      syncEvents: updated.syncEvents,
+    };
   }
 
   async listMyPosts(input: ListMyPostsInput) {
@@ -333,17 +351,22 @@ export class DefaultPostsService implements PostsService {
         : input.decision === 'reject'
           ? 'removed'
           : 'pending_review';
-    const updated = await this.repository.setPostStatus(input.postId, status);
-    if (!updated) {
+    const decidedAt = new Date().toISOString();
+    const decisionResult = await this.repository.applyReviewDecision({
+      ...input,
+      decidedAt,
+      status,
+    });
+    if (!decisionResult) {
       throw new PostsDomainError('Post not found', 'not_found');
     }
 
-    await this.repository.recordModerationDecision(input, updated);
-
     return {
-      post_id: updated.postId,
-      status: updated.status,
-      decided_at: new Date().toISOString(),
+      post_id: decisionResult.post.postId,
+      status: decisionResult.post.status,
+      decided_at: decidedAt,
+      moderationActionId: decisionResult.moderationActionId ?? null,
+      syncEvents: decisionResult.syncEvents,
     };
   }
 

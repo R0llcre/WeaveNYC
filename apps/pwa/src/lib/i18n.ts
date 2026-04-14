@@ -85,6 +85,32 @@ type ChromeMessages = {
   communityAnnouncementsPinnedLabel: string;
   communityFeedHeading: string;
   communityNoMembership: string;
+  p2pSyncTitle: string;
+  p2pSyncCopy: string;
+  p2pEnableAction: string;
+  p2pDisableAction: string;
+  p2pSyncNowAction: string;
+  p2pTransportLabel: string;
+  p2pTransportBootstrap: string;
+  p2pTransportMdnsDemo: string;
+  p2pPeerCountLabel: string;
+  p2pPeerCountValue: string;
+  p2pLastSyncLabel: string;
+  p2pNoSyncYet: string;
+  p2pPeerIdLabel: string;
+  p2pPeerIdPending: string;
+  p2pOfflineMode: string;
+  p2pMdnsToggle: string;
+  p2pMdnsToggleCopy: string;
+  p2pCacheBadge: string;
+  p2pLiveRefreshDelayed: string;
+  postsOfflineFallback: string;
+  announcementsOfflineFallback: string;
+  p2pPhase_disabled: string;
+  p2pPhase_connecting: string;
+  p2pPhase_ready: string;
+  p2pPhase_degraded: string;
+  p2pPhase_offline: string;
   communityTab: string;
   publicTab: string;
   currentCommunityLabel: string;
@@ -324,6 +350,32 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     communityAnnouncementsPinnedLabel: 'Pinned',
     communityFeedHeading: 'Community feed',
     communityNoMembership: 'Join a community first to unlock community-only requests and offers.',
+    p2pSyncTitle: 'P2P sync overlay',
+    p2pSyncCopy: 'Keep {communityName} posts and announcements warm on this device, then recover from cache after connection drops.',
+    p2pEnableAction: 'Enable P2P sync',
+    p2pDisableAction: 'Disable P2P sync',
+    p2pSyncNowAction: 'Sync now',
+    p2pTransportLabel: 'Transport',
+    p2pTransportBootstrap: 'Bootstrap',
+    p2pTransportMdnsDemo: 'mDNS demo',
+    p2pPeerCountLabel: 'Other live clients',
+    p2pPeerCountValue: '{count} connected',
+    p2pLastSyncLabel: 'Last synced',
+    p2pNoSyncYet: 'Not synced yet',
+    p2pPeerIdLabel: 'Edge peer',
+    p2pPeerIdPending: 'Generating peer id…',
+    p2pOfflineMode: 'Device is offline. Community reads will fall back to cached posts and announcements when available.',
+    p2pMdnsToggle: 'Enable experimental mDNS demo discovery',
+    p2pMdnsToggleCopy: 'Visible only in dev/demo builds. Bootstrap remains the default path.',
+    p2pCacheBadge: 'Offline cache',
+    p2pLiveRefreshDelayed: 'Live refresh is delayed. Showing the latest cached community data instead.',
+    postsOfflineFallback: 'Showing cached community posts from {updatedAt}.',
+    announcementsOfflineFallback: 'Showing cached announcements from {updatedAt}.',
+    p2pPhase_disabled: 'Disabled',
+    p2pPhase_connecting: 'Connecting',
+    p2pPhase_ready: 'Ready',
+    p2pPhase_degraded: 'Degraded',
+    p2pPhase_offline: 'Offline',
     communityTab: 'Community',
     publicTab: 'Public',
     currentCommunityLabel: 'Current community',
@@ -561,6 +613,32 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     communityAnnouncementsPinnedLabel: 'Fijado',
     communityFeedHeading: 'Feed comunitario',
     communityNoMembership: 'Primero únete a una comunidad para ver y publicar posts comunitarios.',
+    p2pSyncTitle: 'Capa P2P de sincronización',
+    p2pSyncCopy: 'Mantén calientes en este dispositivo los posts y anuncios de {communityName}, y recupéralos desde caché cuando se corte la conexión.',
+    p2pEnableAction: 'Activar P2P',
+    p2pDisableAction: 'Desactivar P2P',
+    p2pSyncNowAction: 'Sincronizar ahora',
+    p2pTransportLabel: 'Transporte',
+    p2pTransportBootstrap: 'Bootstrap',
+    p2pTransportMdnsDemo: 'Demo mDNS',
+    p2pPeerCountLabel: 'Otros clientes en vivo',
+    p2pPeerCountValue: '{count} conectados',
+    p2pLastSyncLabel: 'Última sincronización',
+    p2pNoSyncYet: 'Todavía no sincronizado',
+    p2pPeerIdLabel: 'Peer edge',
+    p2pPeerIdPending: 'Generando peer id…',
+    p2pOfflineMode: 'El dispositivo está sin conexión. Las lecturas de la comunidad volverán a la caché local si existe.',
+    p2pMdnsToggle: 'Activar descubrimiento demo con mDNS',
+    p2pMdnsToggleCopy: 'Solo visible en builds dev/demo. Bootstrap sigue siendo la ruta predeterminada.',
+    p2pCacheBadge: 'Caché offline',
+    p2pLiveRefreshDelayed: 'La actualización en vivo está retrasada. Se muestra la última caché comunitaria disponible.',
+    postsOfflineFallback: 'Mostrando posts comunitarios en caché desde {updatedAt}.',
+    announcementsOfflineFallback: 'Mostrando anuncios en caché desde {updatedAt}.',
+    p2pPhase_disabled: 'Desactivado',
+    p2pPhase_connecting: 'Conectando',
+    p2pPhase_ready: 'Listo',
+    p2pPhase_degraded: 'Degradado',
+    p2pPhase_offline: 'Sin conexión',
     communityTab: 'Comunidad',
     publicTab: 'Público',
     currentCommunityLabel: 'Comunidad actual',
@@ -798,6 +876,32 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     communityAnnouncementsPinnedLabel: '置顶',
     communityFeedHeading: '社区帖子流',
     communityNoMembership: '先加入一个社区，才能查看和发布社区内帖子。',
+    p2pSyncTitle: 'P2P 同步层',
+    p2pSyncCopy: '把 {communityName} 的帖子和公告缓存到这台设备里，断线后也能优先回退到本地缓存。',
+    p2pEnableAction: '开启 P2P 同步',
+    p2pDisableAction: '关闭 P2P 同步',
+    p2pSyncNowAction: '立即同步',
+    p2pTransportLabel: '传输方式',
+    p2pTransportBootstrap: 'Bootstrap',
+    p2pTransportMdnsDemo: 'mDNS demo',
+    p2pPeerCountLabel: '其他在线客户端',
+    p2pPeerCountValue: '{count} 个连接',
+    p2pLastSyncLabel: '上次同步',
+    p2pNoSyncYet: '还没有同步',
+    p2pPeerIdLabel: 'Edge peer',
+    p2pPeerIdPending: '正在生成 peer id…',
+    p2pOfflineMode: '当前设备已离线。只要本地有缓存，社区帖子和公告会自动回退到缓存内容。',
+    p2pMdnsToggle: '启用实验性 mDNS demo 发现',
+    p2pMdnsToggleCopy: '只在 dev/demo 构建里显示。默认仍然优先走 bootstrap。',
+    p2pCacheBadge: '离线缓存',
+    p2pLiveRefreshDelayed: '实时刷新暂时不可用，当前正在展示最近一次缓存下来的社区数据。',
+    postsOfflineFallback: '正在显示 {updatedAt} 缓存下来的社区帖子。',
+    announcementsOfflineFallback: '正在显示 {updatedAt} 缓存下来的社区公告。',
+    p2pPhase_disabled: '已关闭',
+    p2pPhase_connecting: '连接中',
+    p2pPhase_ready: '已就绪',
+    p2pPhase_degraded: '降级运行',
+    p2pPhase_offline: '离线',
     communityTab: '社区',
     publicTab: '公开',
     currentCommunityLabel: '当前社区',

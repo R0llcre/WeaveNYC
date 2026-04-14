@@ -19,6 +19,7 @@ import {
   communityRulesUpdateRequestSchema,
   errorResponseSchema,
 } from "../contracts.js";
+import { fanoutSyncEvents, publishAnnouncementEvent } from "../lib/p2p-events.js";
 import { isAnchorForCommunity, loadCurrentActor } from "../lib/require-anchor.js";
 
 type CommunityParams = {
@@ -236,11 +237,25 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const body = announcementCreateBodyValidator.parse(request.body);
-        return await app.postsService.createAnnouncement({
+        const announcement = await app.postsService.createAnnouncement({
           actor,
           communityId: request.params.community_id,
           request: body,
         });
+        if (announcement.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, announcement.syncEvents, {
+            announcementId: announcement.announcement_id,
+          });
+        } else {
+          await publishAnnouncementEvent(app, {
+            eventType: "announcement.published",
+            announcement,
+            actorUserId: actor.userId,
+          });
+        }
+        const response = { ...announcement };
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }
@@ -281,12 +296,26 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const body = announcementUpdateBodyValidator.parse(request.body);
-        return await app.postsService.updateAnnouncement({
+        const announcement = await app.postsService.updateAnnouncement({
           actor,
           communityId: request.params.community_id,
           announcementId: request.params.announcement_id,
           request: body,
         });
+        if (announcement.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, announcement.syncEvents, {
+            announcementId: announcement.announcement_id,
+          });
+        } else {
+          await publishAnnouncementEvent(app, {
+            eventType: announcement.status === "deleted" ? "announcement.deleted" : "announcement.updated",
+            announcement,
+            actorUserId: actor.userId,
+          });
+        }
+        const response = { ...announcement };
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }
@@ -324,11 +353,25 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
           return { message: "Only anchors can delete announcements" };
         }
 
-        return await app.postsService.deleteAnnouncement({
+        const announcement = await app.postsService.deleteAnnouncement({
           actor,
           communityId: request.params.community_id,
           announcementId: request.params.announcement_id,
         });
+        if (announcement.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, announcement.syncEvents, {
+            announcementId: announcement.announcement_id,
+          });
+        } else {
+          await publishAnnouncementEvent(app, {
+            eventType: "announcement.deleted",
+            announcement,
+            actorUserId: actor.userId,
+          });
+        }
+        const response = { ...announcement };
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }

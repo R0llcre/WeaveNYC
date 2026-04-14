@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
 
@@ -33,8 +34,19 @@ import {
   closePost,
   createPost,
   deletePost,
+  getApiBaseUrl,
   updatePost,
 } from "@/lib/api";
+import { createBrowserP2PWorkerClient, type BrowserP2PWorkerClient } from '@/lib/p2p-worker-client';
+import {
+  applyCommunitySyncDeltaToCache,
+  loadP2PEventCursor,
+  loadP2PKeyMaterial,
+  loadP2PSyncState,
+  saveP2PEventCursor,
+  saveP2PKeyMaterial,
+  saveP2PSyncState,
+} from '@/lib/persistence';
 import type {
   BlockUserInput,
   CommunityAccessResolveInput,
@@ -54,6 +66,8 @@ import type {
   ResourceQueryInput,
   SendConversationMessageInput,
   SpeechTranscribeInput,
+  P2PKeyMaterial,
+  P2PSyncStatus,
   UpdatePostInput,
 } from "@/lib/types";
 import type { AppDispatch, RootState } from "@/lib/store";
@@ -61,6 +75,29 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+
+function buildDefaultP2PSyncStatus(communityId: string | null): P2PSyncStatus {
+  return {
+    communityId: communityId ?? '',
+    enabled: false,
+    mdnsDemoEnabled: false,
+    phase: 'disabled',
+    peerId: null,
+    peerCount: 0,
+    transportLabel: 'bootstrap',
+    lastSyncAt: null,
+    latestSnapshot: null,
+    lastError: null,
+  };
+}
+
+function createP2PKeyMaterial(communityId: string): P2PKeyMaterial {
+  return {
+    communityId,
+    peerId: `edge-${crypto.randomUUID()}`,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export function useResources(input: ResourceQueryInput, enabled = true) {
   return useQuery({
@@ -527,4 +564,213 @@ export function useSpeechTranscribe(accessToken: string | null | undefined) {
       return transcribeSpeech(accessToken, input);
     },
   });
+}
+
+export function useCommunityP2PSync(accessToken: string | null | undefined, communityId: string | null) {
+  const queryClient = useQueryClient();
+  const workerRef = useRef<BrowserP2PWorkerClient | null>(null);
+  const cursorSinceRef = useRef<string | null>(null);
+  const [status, setStatus] = useState<P2PSyncStatus>(buildDefaultP2PSyncStatus(communityId));
+  const [keyMaterial, setKeyMaterial] = useState<P2PKeyMaterial | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    workerRef.current?.dispose();
+    workerRef.current = null;
+    cursorSinceRef.current = null;
+    setStatus(buildDefaultP2PSyncStatus(communityId));
+    setKeyMaterial(null);
+
+    if (!communityId) {
+      return;
+    }
+
+    void (async () => {
+      const [storedStatus, storedKeyMaterial, storedCursor] = await Promise.all([
+        loadP2PSyncState(communityId),
+        loadP2PKeyMaterial(communityId),
+        loadP2PEventCursor(communityId),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      const nextKeyMaterial = storedKeyMaterial ?? createP2PKeyMaterial(communityId);
+      if (!storedKeyMaterial) {
+        void saveP2PKeyMaterial(nextKeyMaterial);
+      }
+
+      setStatus(
+        storedStatus
+          ? {
+              ...storedStatus,
+              communityId,
+            }
+          : buildDefaultP2PSyncStatus(communityId),
+      );
+      setKeyMaterial(nextKeyMaterial);
+      cursorSinceRef.current = storedCursor?.since ?? null;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId]);
+
+  useEffect(() => {
+    if (!communityId) {
+      workerRef.current?.dispose();
+      workerRef.current = null;
+      return;
+    }
+
+    if (status.communityId !== communityId) {
+      workerRef.current?.dispose();
+      workerRef.current = null;
+      return;
+    }
+
+    if (!accessToken || !keyMaterial || !status.enabled) {
+      workerRef.current?.dispose();
+      workerRef.current = null;
+      return;
+    }
+
+    const client = createBrowserP2PWorkerClient({
+      onStatus(nextStatus) {
+        setStatus((current) => ({
+          ...current,
+          ...nextStatus,
+          enabled: true,
+        }));
+      },
+      onSync(nextStatus, delta) {
+        setStatus((current) => ({
+          ...current,
+          ...nextStatus,
+          enabled: true,
+        }));
+
+        if (!delta) {
+          return;
+        }
+
+        cursorSinceRef.current = delta.next_since;
+        void saveP2PEventCursor({
+          communityId,
+          since: delta.next_since,
+          updatedAt: delta.server_time,
+        });
+
+        void applyCommunitySyncDeltaToCache(delta);
+
+        if (delta.events.length > 0) {
+          void queryClient.invalidateQueries({
+            predicate: (query) =>
+              Array.isArray(query.queryKey) &&
+              query.queryKey[0] === 'posts' &&
+              query.queryKey[1] !== 'mine',
+          });
+          void queryClient.invalidateQueries({ queryKey: ['community-announcements', communityId] });
+        }
+      },
+      onError(nextStatus, error) {
+        setStatus((current) => ({
+          ...current,
+          ...nextStatus,
+          enabled: true,
+          lastError: error,
+        }));
+      },
+    });
+
+    if (!client) {
+      setStatus((current) => ({
+        ...current,
+        communityId,
+        enabled: true,
+        phase: 'degraded',
+        peerId: keyMaterial.peerId,
+        lastError: 'Web Workers are unavailable in this browser.',
+      }));
+      return;
+    }
+
+    workerRef.current = client;
+    client.start({
+      apiBaseUrl: getApiBaseUrl(),
+      accessToken,
+      communityId,
+      peerId: keyMaterial.peerId,
+      mdnsDemoEnabled: status.mdnsDemoEnabled,
+      since: cursorSinceRef.current,
+      limit: 100,
+    });
+
+    return () => {
+      client.dispose();
+      if (workerRef.current === client) {
+        workerRef.current = null;
+      }
+    };
+  }, [accessToken, communityId, keyMaterial, queryClient, status.enabled, status.mdnsDemoEnabled]);
+
+  useEffect(() => {
+    if (!communityId) {
+      return;
+    }
+
+    void saveP2PSyncState({
+      ...status,
+      communityId,
+      peerId: keyMaterial?.peerId ?? status.peerId,
+    });
+  }, [communityId, keyMaterial?.peerId, status]);
+
+  const updateStatus = (updater: (current: P2PSyncStatus) => P2PSyncStatus) => {
+    setStatus((current) => updater(current));
+  };
+
+  return {
+    status: {
+      ...status,
+      communityId: communityId ?? '',
+      peerId: keyMaterial?.peerId ?? status.peerId,
+    },
+    enable() {
+      updateStatus((current) => ({
+        ...current,
+        communityId: communityId ?? '',
+        enabled: true,
+        phase: current.phase === 'disabled' ? 'connecting' : current.phase,
+        lastError: null,
+        peerId: keyMaterial?.peerId ?? current.peerId,
+      }));
+    },
+    disable() {
+      workerRef.current?.dispose();
+      workerRef.current = null;
+      updateStatus((current) => ({
+        ...current,
+        communityId: communityId ?? '',
+        enabled: false,
+        phase: 'disabled',
+        peerCount: 0,
+        lastError: null,
+      }));
+    },
+    setMdnsDemoEnabled(enabled = false) {
+      updateStatus((current) => ({
+        ...current,
+        mdnsDemoEnabled: enabled,
+        transportLabel: enabled ? 'mdns-demo' : 'bootstrap',
+      }));
+      workerRef.current?.updateConfig(enabled);
+    },
+    syncNow() {
+      workerRef.current?.sync();
+    },
+  };
 }

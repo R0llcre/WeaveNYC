@@ -72,6 +72,7 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().default('weavenyc-api-gateway'),
   JWT_ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
+  P2P_MDNS_DEMO_ENABLED: z.enum(['0', '1']).default('0'),
   [authIdentityHashPepperEnvVar]: z.string().min(1).optional(),
   [anchorTotpEncryptionKeyEnvVar]: z.string().min(1).optional()
 });
@@ -95,6 +96,7 @@ export interface AppConfig {
     publicKey: string;
   };
   refreshTokenTtlSeconds: number;
+  p2pMdnsDemoEnabled: boolean;
   identityHashPepper: string;
   anchorTotpEncryptionKey: string;
 }
@@ -158,6 +160,7 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
       publicKey
     },
     refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_SECONDS,
+    p2pMdnsDemoEnabled: env.P2P_MDNS_DEMO_ENABLED === '1',
     identityHashPepper,
     anchorTotpEncryptionKey
   };

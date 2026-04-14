@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { Pool } from 'pg';
+import { appendCommunitySyncEvent, encodeDagNode } from '@weavenyc/p2p';
+import type { CommunitySyncEvent } from '@weavenyc/shared';
 
 import {
   announcementPinStrategies,
@@ -9,7 +11,6 @@ import {
 } from '@weavenyc/shared';
 import type {
   AdminDashboardResponse,
-  Announcement,
   CommunityRules,
   CommunityAccessEntry,
   ContactPreference,
@@ -31,6 +32,8 @@ import type {
   PostRecord,
   ReviewDecisionInput,
   ReviewQueueInput,
+  SyncedAnnouncement,
+  SyncedPostDetail,
 } from './types.js';
 import { PostsServiceError } from './types.js';
 
@@ -77,6 +80,8 @@ type AnnouncementRow = {
   created_by: string;
   published_at: Date | string;
   updated_at: Date | string;
+  p2p_version: number;
+  ipfs_cid: string | null;
 };
 
 type PostRow = {
@@ -96,6 +101,17 @@ type PostRow = {
   updated_at: Date | string;
   created_by: string;
   contact_pref: ContactPreference | null;
+  p2p_version: number;
+  ipfs_cid: string | null;
+};
+
+type Queryable = Pick<Pool, 'query'>;
+type TransactionClientLike = Queryable & {
+  release?(): void;
+};
+
+type SyncedMutationResult<T> = T & {
+  syncEvents?: CommunitySyncEvent[];
 };
 
 function encodeCursor(input: CursorValue) {
@@ -125,6 +141,28 @@ function toIso(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+function toP2PSyncPost(record: PostRecord) {
+  return {
+    post_id: record.postId,
+    community_id: record.communityId,
+    post_type: record.postType,
+    category: record.category,
+    title: record.title,
+    body: record.body,
+    language: record.language,
+    location_zip: record.locationZip,
+    privacy: record.privacy,
+    status: record.status,
+    risk_level: record.riskLevel,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt,
+    expires_at: record.expiresAt,
+    is_owner: false,
+    p2p_version: record.p2pVersion ?? 1,
+    ipfs_cid: record.ipfsCid ?? null,
+  };
+}
+
 function mapCommunity(row: CommunityRow): CommunityRecord {
   return {
     community_id: row.community_id,
@@ -152,6 +190,8 @@ function mapPostRow(row: PostRow): PostRecord {
     updatedAt: toIso(row.updated_at),
     createdBy: row.created_by,
     contactPref: row.contact_pref,
+    p2pVersion: row.p2p_version,
+    ipfsCid: row.ipfs_cid,
   };
 }
 
@@ -224,7 +264,7 @@ function mapCommunityRules(row: RulesRow): CommunityRules {
   };
 }
 
-function mapAnnouncement(row: AnnouncementRow): Announcement {
+function mapAnnouncement(row: AnnouncementRow): SyncedAnnouncement {
   return {
     announcement_id: row.announcement_id,
     community_id: row.community_id,
@@ -234,11 +274,13 @@ function mapAnnouncement(row: AnnouncementRow): Announcement {
     is_pinned: Boolean(row.is_pinned),
     created_by: row.created_by,
     published_at: toIso(row.published_at),
-    updated_at: toIso(row.updated_at)
+    updated_at: toIso(row.updated_at),
+    p2p_version: row.p2p_version,
+    ipfs_cid: row.ipfs_cid,
   };
 }
 
-function toPostDetail(actor: PostActor, record: PostRecord): PostDetail {
+function toPostDetail(actor: PostActor, record: PostRecord): SyncedPostDetail {
   return {
     post_id: record.postId,
     community_id: record.communityId,
@@ -257,7 +299,158 @@ function toPostDetail(actor: PostActor, record: PostRecord): PostDetail {
     is_owner: actor.userId === record.createdBy,
     contact_pref: record.contactPref,
     actions: getPostActions(actor, record),
+    p2p_version: record.p2pVersion,
+    ipfs_cid: record.ipfsCid ?? null,
   };
+}
+
+function createPostDagValue(record: PostRecord) {
+  return {
+    kind: 'post',
+    post_id: record.postId,
+    community_id: record.communityId,
+    post_type: record.postType,
+    category: record.category,
+    title: record.title,
+    body: record.body,
+    language: record.language,
+    location_zip: record.locationZip,
+    privacy: record.privacy,
+    status: record.status,
+    risk_level: record.riskLevel,
+    expires_at: record.expiresAt,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt,
+    created_by: record.createdBy,
+    contact_pref: record.contactPref,
+    p2p_version: record.p2pVersion ?? 1,
+  };
+}
+
+function createAnnouncementDagValue(announcement: SyncedAnnouncement) {
+  return {
+    kind: 'announcement',
+    announcement_id: announcement.announcement_id,
+    community_id: announcement.community_id,
+    title: announcement.title,
+    body: announcement.body,
+    status: announcement.status,
+    is_pinned: announcement.is_pinned,
+    created_by: announcement.created_by,
+    published_at: announcement.published_at,
+    updated_at: announcement.updated_at,
+    p2p_version: announcement.p2p_version ?? 1,
+  };
+}
+
+async function stampPostSyncMetadata(queryable: Queryable, row: PostRow): Promise<PostRecord> {
+  const record = mapPostRow(row);
+  const { cid } = await encodeDagNode(createPostDagValue(record));
+  const synced = await queryable.query<PostRow>(
+    `
+      update posts
+      set ipfs_cid = $2
+      where post_id = $1
+      returning
+        post_id,
+        community_id,
+        post_type,
+        category,
+        title,
+        body,
+        language,
+        location_zip,
+        privacy,
+        status,
+        risk_level,
+        expires_at,
+        created_at,
+        updated_at,
+        created_by,
+        contact_pref,
+        p2p_version,
+        ipfs_cid
+    `,
+    [record.postId, cid]
+  );
+
+  return mapPostRow(synced.rows[0] ?? { ...row, ipfs_cid: cid });
+}
+
+async function stampAnnouncementSyncMetadata(
+  queryable: Queryable,
+  row: AnnouncementRow
+): Promise<SyncedAnnouncement> {
+  const announcement = mapAnnouncement(row);
+  const { cid } = await encodeDagNode(createAnnouncementDagValue(announcement));
+  const synced = await queryable.query<AnnouncementRow>(
+    `
+      update announcements
+      set ipfs_cid = $2
+      where announcement_id = $1
+      returning
+        announcement_id,
+        community_id,
+        title,
+        body,
+        status,
+        is_pinned,
+        created_by,
+        published_at,
+        updated_at,
+        p2p_version,
+        ipfs_cid
+    `,
+    [announcement.announcement_id, cid]
+  );
+
+  return mapAnnouncement(synced.rows[0] ?? { ...row, ipfs_cid: cid });
+}
+
+async function appendPostSyncEvent(
+  queryable: Queryable,
+  input: {
+    eventType: 'post.published' | 'post.updated' | 'post.tombstoned';
+    post: PostRecord;
+    actorUserId?: string | null;
+    reason?: string | null;
+  },
+) {
+  return appendCommunitySyncEvent(queryable, {
+    communityId: input.post.communityId,
+    topicKey: 'posts',
+    eventType: input.eventType,
+    aggregateType: 'post',
+    aggregateId: input.post.postId,
+    actorUserId: input.actorUserId ?? null,
+    occurredAt: input.post.updatedAt ?? input.post.createdAt,
+    payload: {
+      post: toP2PSyncPost(input.post),
+      reason: input.reason ?? null,
+    },
+  });
+}
+
+async function appendAnnouncementSyncEvent(
+  queryable: Queryable,
+  input: {
+    eventType: 'announcement.published' | 'announcement.updated' | 'announcement.deleted';
+    announcement: SyncedAnnouncement;
+    actorUserId?: string | null;
+  },
+) {
+  return appendCommunitySyncEvent(queryable, {
+    communityId: input.announcement.community_id,
+    topicKey: 'announcements',
+    eventType: input.eventType,
+    aggregateType: 'announcement',
+    aggregateId: input.announcement.announcement_id,
+    actorUserId: input.actorUserId ?? null,
+    occurredAt: input.announcement.updated_at ?? input.announcement.published_at,
+    payload: {
+      announcement: input.announcement,
+    },
+  });
 }
 
 function toSummary(actor: PostActor, record: PostRecord) {
@@ -283,6 +476,26 @@ function toSummary(actor: PostActor, record: PostRecord) {
 
 export class PostsRepository {
   constructor(private readonly pool: Pool) {}
+
+  private async withTransaction<T>(operation: (queryable: Queryable) => Promise<T>) {
+    const poolLike = this.pool as Pool & { connect?: () => Promise<TransactionClientLike> };
+    if (typeof poolLike.connect !== 'function') {
+      return operation(this.pool);
+    }
+
+    const client = await poolLike.connect();
+    try {
+      await client.query('begin');
+      const result = await operation(client);
+      await client.query('commit');
+      return result;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
 
   async ping() {
     await this.pool.query('select 1');
@@ -408,74 +621,89 @@ export class PostsRepository {
     status: PostStatus;
     verificationState: 'unverified' | 'verified_by_anchor' | 'verified_by_witnesses';
   }) {
-    const result = await this.pool.query<PostRow>(
-      `
-        insert into posts (
-          post_id,
-          post_type,
-          category,
-          title,
-          body,
-          language,
-          location_zip,
-          privacy,
-          expires_at,
-          created_by,
-          community_id,
-          status,
-          risk_level,
-          verification_state,
-          contact_pref,
-          created_at,
-          updated_at
-        )
-        values (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz,
-          $10, $11, $12, $13, $14, $15::jsonb, now(), now()
-        )
-        returning
-          post_id,
-          community_id,
-          post_type,
-          category,
-          title,
-          body,
-          language,
-          location_zip,
-          privacy,
-          status,
-          risk_level,
-          expires_at,
-          created_at,
-          updated_at,
-          created_by,
-          contact_pref
-      `,
-      [
-        randomUUID(),
-        input.request.post_type,
-        input.request.category,
-        input.request.title,
-        input.request.body,
-        input.request.language,
-        input.request.location_zip,
-        input.request.privacy,
-        input.request.expires_at,
-        input.actor.userId,
-        input.request.community_id,
-        input.status,
-        input.riskLevel,
-        input.verificationState,
-        JSON.stringify(input.request.contact_pref ?? null),
-      ]
-    );
+    return this.withTransaction(async (queryable) => {
+      const result = await queryable.query<PostRow>(
+        `
+          insert into posts (
+            post_id,
+            post_type,
+            category,
+            title,
+            body,
+            language,
+            location_zip,
+            privacy,
+            expires_at,
+            created_by,
+            community_id,
+            status,
+            risk_level,
+            verification_state,
+            contact_pref,
+            p2p_version,
+            created_at,
+            updated_at
+          )
+          values (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz,
+            $10, $11, $12, $13, $14, $15::jsonb, 1, now(), now()
+          )
+          returning
+            post_id,
+            community_id,
+            post_type,
+            category,
+            title,
+            body,
+            language,
+            location_zip,
+            privacy,
+            status,
+            risk_level,
+            expires_at,
+            created_at,
+            updated_at,
+            created_by,
+            contact_pref,
+            p2p_version,
+            ipfs_cid
+        `,
+        [
+          randomUUID(),
+          input.request.post_type,
+          input.request.category,
+          input.request.title,
+          input.request.body,
+          input.request.language,
+          input.request.location_zip,
+          input.request.privacy,
+          input.request.expires_at,
+          input.actor.userId,
+          input.request.community_id,
+          input.status,
+          input.riskLevel,
+          input.verificationState,
+          JSON.stringify(input.request.contact_pref ?? null),
+        ]
+      );
 
-    const row = result.rows[0];
-    if (!row) {
-      throw new Error('Post insert did not return a row');
-    }
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error('Post insert did not return a row');
+      }
 
-    return mapPostRow(row);
+      const post = await stampPostSyncMetadata(queryable, row);
+      const syncEvent = await appendPostSyncEvent(queryable, {
+        eventType: 'post.published',
+        post,
+        actorUserId: input.actor.userId,
+      });
+
+      return {
+        ...post,
+        syncEvents: [syncEvent],
+      } satisfies SyncedMutationResult<PostRecord>;
+    });
   }
 
   async findPost(postId: string) {
@@ -497,7 +725,9 @@ export class PostsRepository {
           created_at,
           updated_at,
           created_by,
-          contact_pref
+          contact_pref,
+          p2p_version,
+          ipfs_cid
         from posts
         where post_id = $1
         limit 1
@@ -531,92 +761,130 @@ export class PostsRepository {
       contactPref: input.request.contact_pref ?? current.contactPref,
     };
 
-    const result = await this.pool.query<PostRow>(
-      `
-        update posts
-        set
-          category = $2,
-          title = $3,
-          body = $4,
-          language = $5,
-          location_zip = $6,
-          privacy = $7,
-          expires_at = $8::timestamptz,
-          contact_pref = $9::jsonb,
-          risk_level = $10,
-          status = $11,
-          updated_at = now()
-        where post_id = $1
-        returning
-          post_id,
-          community_id,
-          post_type,
-          category,
-          title,
-          body,
-          language,
-          location_zip,
-          privacy,
-          status,
-          risk_level,
-          expires_at,
-          created_at,
-          updated_at,
-          created_by,
-          contact_pref
-      `,
-      [
-        input.postId,
-        next.category,
-        next.title,
-        next.body,
-        next.language,
-        next.locationZip,
-        next.privacy,
-        next.expiresAt,
-        JSON.stringify(next.contactPref),
-        input.riskLevel,
-        input.status,
-      ]
-    );
+    return this.withTransaction(async (queryable) => {
+      const result = await queryable.query<PostRow>(
+        `
+          update posts
+          set
+            category = $2,
+            title = $3,
+            body = $4,
+            language = $5,
+            location_zip = $6,
+            privacy = $7,
+            expires_at = $8::timestamptz,
+            contact_pref = $9::jsonb,
+            risk_level = $10,
+            status = $11,
+            p2p_version = p2p_version + 1,
+            updated_at = now()
+          where post_id = $1
+          returning
+            post_id,
+            community_id,
+            post_type,
+            category,
+            title,
+            body,
+            language,
+            location_zip,
+            privacy,
+            status,
+            risk_level,
+            expires_at,
+            created_at,
+            updated_at,
+            created_by,
+            contact_pref,
+            p2p_version,
+            ipfs_cid
+        `,
+        [
+          input.postId,
+          next.category,
+          next.title,
+          next.body,
+          next.language,
+          next.locationZip,
+          next.privacy,
+          next.expiresAt,
+          JSON.stringify(next.contactPref),
+          input.riskLevel,
+          input.status,
+        ]
+      );
 
-    const row = result.rows[0];
-    if (!row) {
-      return null;
-    }
+      const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
 
-    return mapPostRow(row);
+      const post = await stampPostSyncMetadata(queryable, row);
+      const syncEvent = await appendPostSyncEvent(queryable, {
+        eventType: post.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+        post,
+      });
+
+      return {
+        ...post,
+        syncEvents: [syncEvent],
+      } satisfies SyncedMutationResult<PostRecord>;
+    });
   }
 
-  async setPostStatus(postId: string, status: PostStatus) {
-    const result = await this.pool.query<PostRow>(
-      `
-        update posts
-        set status = $2, updated_at = now()
-        where post_id = $1
-        returning
-          post_id,
-          community_id,
-          post_type,
-          category,
-          title,
-          body,
-          language,
-          location_zip,
-          privacy,
-          status,
-          risk_level,
-          expires_at,
-          created_at,
-          updated_at,
-          created_by,
-          contact_pref
-      `,
-      [postId, status]
-    );
+  async setPostStatus(input: {
+    postId: string;
+    status: PostStatus;
+    actorUserId?: string | null;
+    reason?: string | null;
+  }) {
+    return this.withTransaction(async (queryable) => {
+      const result = await queryable.query<PostRow>(
+        `
+          update posts
+          set status = $2, p2p_version = p2p_version + 1, updated_at = now()
+          where post_id = $1
+          returning
+            post_id,
+            community_id,
+            post_type,
+            category,
+            title,
+            body,
+            language,
+            location_zip,
+            privacy,
+            status,
+            risk_level,
+            expires_at,
+            created_at,
+            updated_at,
+            created_by,
+            contact_pref,
+            p2p_version,
+            ipfs_cid
+        `,
+        [input.postId, input.status]
+      );
 
-    const row = result.rows[0];
-    return row ? mapPostRow(row) : null;
+      const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
+
+      const post = await stampPostSyncMetadata(queryable, row);
+      const syncEvent = await appendPostSyncEvent(queryable, {
+        eventType: post.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+        post,
+        actorUserId: input.actorUserId ?? null,
+        reason: input.reason ?? null,
+      });
+
+      return {
+        ...post,
+        syncEvents: [syncEvent],
+      } satisfies SyncedMutationResult<PostRecord>;
+    });
   }
 
   async listPosts(input: ListPostsInput): Promise<CursorPage<PostDetail>> {
@@ -686,7 +954,9 @@ export class PostsRepository {
           created_at,
           updated_at,
           created_by,
-          contact_pref
+          contact_pref,
+          p2p_version,
+          ipfs_cid
         from posts
         where ${conditions.join(' and ')}
         order by created_at desc, post_id desc
@@ -744,7 +1014,9 @@ export class PostsRepository {
           created_at,
           updated_at,
           created_by,
-          contact_pref
+          contact_pref,
+          p2p_version,
+          ipfs_cid
         from posts
         where ${conditions.join(' and ')}
         order by created_at desc, post_id desc
@@ -792,7 +1064,9 @@ export class PostsRepository {
           created_at,
           updated_at,
           created_by,
-          contact_pref
+          contact_pref,
+          p2p_version,
+          ipfs_cid
         from posts
         where ${conditions.join(' and ')}
         order by created_at desc, post_id desc
@@ -907,7 +1181,7 @@ export class PostsRepository {
   async listAnnouncements(input: {
     communityId: string;
     includeDeleted?: boolean;
-  }): Promise<Announcement[]> {
+  }): Promise<SyncedAnnouncement[]> {
     const rules = await this.getCommunityRules(input.communityId);
     const params: unknown[] = [input.communityId];
     const conditions = ["community_id = $1"];
@@ -932,7 +1206,9 @@ export class PostsRepository {
           is_pinned,
           created_by,
           published_at,
-          updated_at
+          updated_at,
+          p2p_version,
+          ipfs_cid
         from announcements
         where ${conditions.join(" and ")}
         order by ${orderBy}
@@ -949,36 +1225,51 @@ export class PostsRepository {
     title: string;
     body: string;
     isPinned: boolean;
-  }): Promise<Announcement> {
-    const result = await this.pool.query<AnnouncementRow>(
-      `
-        insert into announcements (
-          announcement_id,
-          community_id,
-          title,
-          body,
-          status,
-          is_pinned,
-          created_by,
-          published_at,
-          updated_at
-        )
-        values ($1, $2, $3, $4, 'active', $5, $6, now(), now())
-        returning
-          announcement_id,
-          community_id,
-          title,
-          body,
-          status,
-          is_pinned,
-          created_by,
-          published_at,
-          updated_at
-      `,
-      [randomUUID(), input.communityId, input.title, input.body, input.isPinned, input.actorUserId]
-    );
+  }): Promise<SyncedAnnouncement> {
+    return this.withTransaction(async (queryable) => {
+      const result = await queryable.query<AnnouncementRow>(
+        `
+          insert into announcements (
+            announcement_id,
+            community_id,
+            title,
+            body,
+            status,
+            is_pinned,
+            p2p_version,
+            created_by,
+            published_at,
+            updated_at
+          )
+          values ($1, $2, $3, $4, 'active', $5, 1, $6, now(), now())
+          returning
+            announcement_id,
+            community_id,
+            title,
+            body,
+            status,
+            is_pinned,
+            created_by,
+            published_at,
+            updated_at,
+            p2p_version,
+            ipfs_cid
+        `,
+        [randomUUID(), input.communityId, input.title, input.body, input.isPinned, input.actorUserId]
+      );
 
-    return mapAnnouncement(result.rows[0]!);
+      const announcement = await stampAnnouncementSyncMetadata(queryable, result.rows[0]!);
+      const syncEvent = await appendAnnouncementSyncEvent(queryable, {
+        eventType: 'announcement.published',
+        announcement,
+        actorUserId: input.actorUserId,
+      });
+
+      return {
+        ...announcement,
+        syncEvents: [syncEvent],
+      };
+    });
   }
 
   async updateAnnouncement(input: {
@@ -987,7 +1278,7 @@ export class PostsRepository {
     title?: string;
     body?: string;
     isPinned?: boolean;
-  }): Promise<Announcement | null> {
+  }): Promise<SyncedAnnouncement | null> {
     const fields: string[] = [];
     const params: unknown[] = [input.communityId, input.announcementId];
 
@@ -1018,7 +1309,9 @@ export class PostsRepository {
             is_pinned,
             created_by,
             published_at,
-            updated_at
+            updated_at,
+            p2p_version,
+            ipfs_cid
           from announcements
           where community_id = $1
             and announcement_id = $2
@@ -1029,57 +1322,93 @@ export class PostsRepository {
       return existing.rows[0] ? mapAnnouncement(existing.rows[0]) : null;
     }
 
-    const result = await this.pool.query<AnnouncementRow>(
-      `
-        update announcements
-        set ${fields.join(", ")},
-            updated_at = now()
-        where community_id = $1
-          and announcement_id = $2
-        returning
-          announcement_id,
-          community_id,
-          title,
-          body,
-          status,
-          is_pinned,
-          created_by,
-          published_at,
-          updated_at
-      `,
-      params
-    );
+    return this.withTransaction(async (queryable) => {
+      const result = await queryable.query<AnnouncementRow>(
+        `
+          update announcements
+          set ${fields.join(", ")},
+              p2p_version = p2p_version + 1,
+              updated_at = now()
+          where community_id = $1
+            and announcement_id = $2
+          returning
+            announcement_id,
+            community_id,
+            title,
+            body,
+            status,
+            is_pinned,
+            created_by,
+            published_at,
+            updated_at,
+            p2p_version,
+            ipfs_cid
+        `,
+        params
+      );
 
-    return result.rows[0] ? mapAnnouncement(result.rows[0]) : null;
+      if (!result.rows[0]) {
+        return null;
+      }
+
+      const announcement = await stampAnnouncementSyncMetadata(queryable, result.rows[0]);
+      const syncEvent = await appendAnnouncementSyncEvent(queryable, {
+        eventType: announcement.status === 'deleted' ? 'announcement.deleted' : 'announcement.updated',
+        announcement,
+      });
+
+      return {
+        ...announcement,
+        syncEvents: [syncEvent],
+      };
+    });
   }
 
   async deleteAnnouncement(input: {
     communityId: string;
     announcementId: string;
-  }): Promise<Announcement | null> {
-    const result = await this.pool.query<AnnouncementRow>(
-      `
-        update announcements
-        set status = 'deleted',
-            deleted_at = now(),
-            updated_at = now()
-        where community_id = $1
-          and announcement_id = $2
-        returning
-          announcement_id,
-          community_id,
-          title,
-          body,
-          status,
-          is_pinned,
-          created_by,
-          published_at,
-          updated_at
-      `,
-      [input.communityId, input.announcementId]
-    );
+  }): Promise<SyncedAnnouncement | null> {
+    return this.withTransaction(async (queryable) => {
+      const result = await queryable.query<AnnouncementRow>(
+        `
+          update announcements
+          set status = 'deleted',
+              p2p_version = p2p_version + 1,
+              deleted_at = now(),
+              updated_at = now()
+          where community_id = $1
+            and announcement_id = $2
+          returning
+            announcement_id,
+            community_id,
+            title,
+            body,
+            status,
+            is_pinned,
+            created_by,
+            published_at,
+            updated_at,
+            p2p_version,
+            ipfs_cid
+        `,
+        [input.communityId, input.announcementId]
+      );
 
-    return result.rows[0] ? mapAnnouncement(result.rows[0]) : null;
+      if (!result.rows[0]) {
+        return null;
+      }
+
+      const announcement = await stampAnnouncementSyncMetadata(queryable, result.rows[0]);
+      const syncEvent = await appendAnnouncementSyncEvent(queryable, {
+        eventType: 'announcement.deleted',
+        announcement,
+      });
+
+      return {
+        ...announcement,
+        syncEvents: [syncEvent],
+      };
+    });
   }
 
   async getAdminDashboard(communityId: string): Promise<AdminDashboardResponse> {
@@ -1150,30 +1479,105 @@ export class PostsRepository {
     };
   }
 
-  async recordModerationDecision(input: ReviewDecisionInput, post: PostRecord) {
-    await this.pool.query(
-      `
-        insert into moderation_actions (
-          action_id,
-          anchor_user_id,
-          community_id,
-          action_type,
-          target_type,
-          target_id,
-          reason,
-          created_at
-        )
-        values ($1, $2, $3, $4, 'post', $5, $6, now())
-      `,
-      [
-        randomUUID(),
-        input.actor.userId,
-        post.communityId,
-        input.decision,
-        post.postId,
-        input.notes ?? null,
-      ]
-    );
+  async applyReviewDecision(input: ReviewDecisionInput & { decidedAt: string; status: PostStatus }) {
+    return this.withTransaction(async (queryable) => {
+      const postResult = await queryable.query<PostRow>(
+        `
+          update posts
+          set status = $2,
+              p2p_version = p2p_version + 1,
+              updated_at = $3::timestamptz
+          where post_id = $1
+          returning
+            post_id,
+            community_id,
+            post_type,
+            category,
+            title,
+            body,
+            language,
+            location_zip,
+            privacy,
+            status,
+            risk_level,
+            expires_at,
+            created_at,
+            updated_at,
+            created_by,
+            contact_pref,
+            p2p_version,
+            ipfs_cid
+        `,
+        [input.postId, input.status, input.decidedAt]
+      );
+
+      const row = postResult.rows[0];
+      if (!row) {
+        return null;
+      }
+
+      const post = await stampPostSyncMetadata(queryable, row);
+
+      const actionId = randomUUID();
+      await queryable.query(
+        `
+          insert into moderation_actions (
+            action_id,
+            anchor_user_id,
+            community_id,
+            action_type,
+            target_type,
+            target_id,
+            reason,
+            created_at
+          )
+          values ($1, $2, $3, $4, 'post', $5, $6, $7::timestamptz)
+        `,
+        [
+          actionId,
+          input.actor.userId,
+          post.communityId,
+          input.decision,
+          post.postId,
+          input.notes ?? null,
+          input.decidedAt,
+        ]
+      );
+
+      const syncEvents = await Promise.all([
+        appendPostSyncEvent(queryable, {
+          eventType: post.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+          post,
+          actorUserId: input.actor.userId,
+          reason: input.decision,
+        }),
+        appendCommunitySyncEvent(queryable, {
+          communityId: post.communityId,
+          topicKey: 'reports',
+          eventType: 'moderation.decision',
+          aggregateType: 'moderation',
+          aggregateId: actionId,
+          actorUserId: input.actor.userId,
+          occurredAt: input.decidedAt,
+          payload: {
+            report_id: null,
+            target_type: 'post',
+            target_id: post.postId,
+            report_target_type: 'post',
+            report_target_id: post.postId,
+            resolution: input.decision,
+            status: post.status,
+            decided_at: input.decidedAt,
+          },
+        }),
+      ]);
+
+      return {
+        post,
+        moderationActionId: actionId,
+        syncEvents,
+      };
+    });
   }
 }
 

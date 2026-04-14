@@ -113,6 +113,24 @@ export type AnnouncementStatus = (typeof announcementStatuses)[number];
 export const announcementPinStrategies = ["latest", "manual"] as const;
 export type AnnouncementPinStrategy = (typeof announcementPinStrategies)[number];
 
+export const p2pAggregateTypes = ["post", "announcement", "report", "moderation"] as const;
+export type P2PAggregateType = (typeof p2pAggregateTypes)[number];
+
+export const p2pEventTypes = [
+  "post.published",
+  "post.updated",
+  "post.tombstoned",
+  "announcement.published",
+  "announcement.updated",
+  "announcement.deleted",
+  "report.created",
+  "moderation.decision",
+] as const;
+export type P2PEventType = (typeof p2pEventTypes)[number];
+
+export const p2pSyncTransports = ["bootstrap", "mdns-demo"] as const;
+export type P2PSyncTransport = (typeof p2pSyncTransports)[number];
+
 export const anchorSessionIssuedViaValues = ["anonymous", "otp", "magic_link", "refresh", "anchor_activate", "anchor_session"] as const;
 export type AnchorSessionIssuedVia = (typeof anchorSessionIssuedViaValues)[number];
 

@@ -34,7 +34,7 @@
 - [x] docs truth assertions for owned M5 docs
 - [x] `pnpm test:smoke:real`
 - [x] 6-lane review gate
-- [x] final phase-status flip to `M5 completed / M6 optional`
+  - [x] final phase-status flip to `M5 completed / M6 in progress on branch`
 
 验证约束：
 
@@ -58,7 +58,7 @@
 当前状态：
 
 - 6 条 lane 已全部返回 `No material findings`
-- 当前主线阶段状态已经切到 `M5 completed / M6 optional`
+- 当前主线阶段状态已经切到 `M5 completed / M6 in progress on branch`
 - 当前验证证据以上面的命令通过结果为准；`main` 已承接 M5 canonical baseline
 
 ---
@@ -80,4 +80,4 @@
 ## 6) Next Phase
 
 - `M5` 已完成 closeout
-- 下一阶段入口是 `M6 optional`
+- 下一阶段入口是 `M6 in progress on branch`

@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { PgChatRepository } from "../src/pg-repository.js";
 
 describe("PgChatRepository", () => {
+  const autoHideCommunityId = "11111111-1111-4111-8111-111111111111";
+  const autoHidePostId = "22222222-2222-4222-8222-222222222222";
+  const autoHideReportOneId = "33333333-3333-4333-8333-333333333333";
+  const autoHideReportTwoId = "44444444-4444-4444-8444-444444444444";
+  const autoHideAnchorId = "55555555-5555-4555-8555-555555555555";
+  const autoHideActionOneId = "66666666-6666-4666-8666-666666666666";
+  const autoHideActionTwoId = "77777777-7777-4777-8777-777777777777";
+
   it("reuses the existing block when the pair unique index trips", async () => {
     const query = vi
       .fn()
@@ -145,11 +153,23 @@ describe("PgChatRepository", () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [{ threshold: 2 }], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [{ report_count: 2 }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ post_id: "post-1" }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ report_id: "report-2" }, { report_id: "report-1" }], rowCount: 2 })
-        .mockResolvedValueOnce({ rows: [{ anchor_user_id: "anchor-1" }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ post_id: autoHidePostId }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ report_id: autoHideReportTwoId }, { report_id: autoHideReportOneId }], rowCount: 2 })
+        .mockResolvedValueOnce({ rows: [{ anchor_user_id: autoHideAnchorId }], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 2 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              action_id: autoHideActionTwoId,
+              report_id: autoHideReportTwoId,
+            },
+            {
+              action_id: autoHideActionOneId,
+              report_id: autoHideReportOneId,
+            },
+          ],
+          rowCount: 2,
+        })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
       release: vi.fn(),
     };
@@ -159,28 +179,60 @@ describe("PgChatRepository", () => {
     });
 
     const removed = await repository.autoHidePostIfThresholdReached({
-      communityId: "community-1",
-      postId: "post-1",
+      communityId: autoHideCommunityId,
+      postId: autoHidePostId,
     });
 
-    expect(removed).toBe(true);
+    expect(removed).toMatchObject({
+      postId: autoHidePostId,
+      communityId: autoHideCommunityId,
+      anchorUserId: autoHideAnchorId,
+      reportIds: [autoHideReportTwoId, autoHideReportOneId],
+    });
+    expect(removed?.syncEvents).toHaveLength(3);
     expect(client.query.mock.calls[6]?.[0]).toContain("update reports");
     expect(client.query.mock.calls[7]?.[0]).toContain("insert into moderation_actions");
-    expect(client.query.mock.calls[7]?.[1]).toEqual(["anchor-1", "community-1", "post-1", ["report-2", "report-1"]]);
+    expect(client.query.mock.calls[7]?.[1]).toMatchObject([
+      autoHideAnchorId,
+      autoHideCommunityId,
+      autoHidePostId,
+      [autoHideReportTwoId, autoHideReportOneId],
+      expect.any(String),
+    ]);
     expect(client.query.mock.calls.at(-1)?.[0]).toBe("commit");
   });
 
-  it("records a system audit entry when auto-hide removes a post without an active anchor", async () => {
+  it("uses moderation action ids for report decision sync events", async () => {
     const client = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [{ threshold: 2 }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ report_count: 2 }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ post_id: "post-1" }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ report_id: "report-1" }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              report_id: "11111111-1111-4111-8111-111111111111",
+              community_id: "22222222-2222-4222-8222-222222222222",
+              target_type: "post",
+              target_id: "33333333-3333-4333-8333-333333333333",
+              reason: "unsafe_behavior",
+              detail_text: "Needs review",
+              conversation_id: null,
+              reporter_user_id: "44444444-4444-4444-8444-444444444444",
+              status: "new",
+              resolution: null,
+              created_at: "2026-04-10T12:00:00.000Z",
+              resolved_at: null,
+              reporter_alias: "Reporter",
+              priority: "P0",
+              target_title: "Reported post",
+              body_preview: "Needs review",
+              related_user_id: "55555555-5555-4555-8555-555555555555",
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
       release: vi.fn(),
@@ -190,14 +242,232 @@ describe("PgChatRepository", () => {
       query: vi.fn(),
     });
 
-    const removed = await repository.autoHidePostIfThresholdReached({
-      communityId: "community-1",
-      postId: "post-1",
+    const decision = await repository.decideReport({
+      communityId: "22222222-2222-4222-8222-222222222222",
+      reportId: "11111111-1111-4111-8111-111111111111",
+      decision: "warn",
+      notes: "Please verify details.",
+      anchorUserId: "66666666-6666-4666-8666-666666666666",
+      decidedAt: "2026-04-10T12:05:00.000Z",
     });
 
-    expect(removed).toBe(true);
+    const moderationInsertCall = client.query.mock.calls.find(([sql]) =>
+      typeof sql === "string" && sql.includes("insert into moderation_actions"),
+    );
+    const insertedActionId = moderationInsertCall?.[1]?.[0];
+    expect(decision).not.toBeNull();
+    const syncEvents = decision?.syncEvents ?? [];
+    expect(insertedActionId).toEqual(expect.any(String));
+    expect(syncEvents).toHaveLength(1);
+    expect(syncEvents[0]).toMatchObject({
+      aggregate_id: insertedActionId,
+      event_type: "moderation.decision",
+    });
+  });
+
+  it("uses inserted moderation action ids for auto-hide sync events", async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ threshold: 2 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ report_count: 2 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ post_id: autoHidePostId }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ report_id: autoHideReportTwoId }, { report_id: autoHideReportOneId }], rowCount: 2 })
+        .mockResolvedValueOnce({ rows: [{ anchor_user_id: autoHideAnchorId }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              action_id: autoHideActionTwoId,
+              report_id: autoHideReportTwoId,
+            },
+            {
+              action_id: autoHideActionOneId,
+              report_id: autoHideReportOneId,
+            },
+          ],
+          rowCount: 2,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const repository = new PgChatRepository({
+      connect: vi.fn().mockResolvedValue(client),
+      query: vi.fn(),
+    });
+
+    const removed = await repository.autoHidePostIfThresholdReached({
+      communityId: autoHideCommunityId,
+      postId: autoHidePostId,
+    });
+
+    const moderationEvents =
+      removed?.syncEvents.filter((event) => event.event_type === "moderation.decision") ?? [];
+    expect(moderationEvents).toHaveLength(2);
+    expect(moderationEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ aggregate_id: autoHideActionTwoId }),
+        expect.objectContaining({ aggregate_id: autoHideActionOneId }),
+      ]),
+    );
+  });
+
+  it("returns terminal report decisions without adding sync events or moderation rows", async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              report_id: "11111111-1111-4111-8111-111111111111",
+              community_id: "22222222-2222-4222-8222-222222222222",
+              target_type: "post",
+              target_id: "33333333-3333-4333-8333-333333333333",
+              reason: "unsafe_behavior",
+              detail_text: "Needs review",
+              conversation_id: null,
+              reporter_user_id: "44444444-4444-4444-8444-444444444444",
+              status: "resolved",
+              resolution: "remove_post",
+              created_at: "2026-04-10T12:00:00.000Z",
+              resolved_at: "2026-04-10T12:05:00.000Z",
+              reporter_alias: "Reporter",
+              priority: "P0",
+              target_title: "Reported post",
+              body_preview: "Needs review",
+              related_user_id: "55555555-5555-4555-8555-555555555555",
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const repository = new PgChatRepository({
+      connect: vi.fn().mockResolvedValue(client),
+      query: vi.fn(),
+    });
+
+    const decision = await repository.decideReport({
+      communityId: "22222222-2222-4222-8222-222222222222",
+      reportId: "11111111-1111-4111-8111-111111111111",
+      decision: "remove_post",
+      notes: "Retry should be idempotent.",
+      anchorUserId: "66666666-6666-4666-8666-666666666666",
+      decidedAt: "2026-04-10T12:06:00.000Z",
+    });
+
+    expect(decision).toMatchObject({
+      report_id: "11111111-1111-4111-8111-111111111111",
+      status: "resolved",
+      resolution: "remove_post",
+      syncEvents: [],
+    });
+    expect(client.query).toHaveBeenCalledTimes(3);
+    expect(client.query.mock.calls[0]?.[0]).toBe("begin");
+    expect(client.query.mock.calls[2]?.[0]).toBe("commit");
+  });
+
+  it("records a system audit entry when auto-hide removes a post without an active anchor", async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ threshold: 2 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ report_count: 2 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ post_id: autoHidePostId }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ report_id: autoHideReportOneId }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              action_id: autoHideActionOneId,
+              report_id: autoHideReportOneId,
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const repository = new PgChatRepository({
+      connect: vi.fn().mockResolvedValue(client),
+      query: vi.fn(),
+    });
+
+    const removed = await repository.autoHidePostIfThresholdReached({
+      communityId: autoHideCommunityId,
+      postId: autoHidePostId,
+    });
+
+    expect(removed).toMatchObject({
+      postId: autoHidePostId,
+      communityId: autoHideCommunityId,
+      anchorUserId: null,
+      reportIds: [autoHideReportOneId],
+    });
+    expect(removed?.syncEvents).toHaveLength(2);
     expect(client.query.mock.calls[7]?.[0]).toContain("insert into moderation_actions");
-    expect(client.query.mock.calls[7]?.[1]).toEqual([null, "community-1", "post-1", ["report-1"]]);
+    expect(client.query.mock.calls[7]?.[1]).toMatchObject([
+      null,
+      autoHideCommunityId,
+      autoHidePostId,
+      [autoHideReportOneId],
+      expect.any(String),
+    ]);
     expect(client.query.mock.calls.at(-1)?.[0]).toBe("commit");
+  });
+
+  it("records the resolved moderation target for suspend_user decisions", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            report_id: "11111111-1111-4111-8111-111111111111",
+            community_id: "22222222-2222-4222-8222-222222222222",
+            target_type: "post",
+            target_id: "33333333-3333-4333-8333-333333333333",
+            reason: "unsafe_behavior",
+            detail_text: "Needs review",
+            conversation_id: null,
+            reporter_user_id: "44444444-4444-4444-8444-444444444444",
+            status: "new",
+            resolution: null,
+            created_at: "2026-04-10T12:00:00.000Z",
+            resolved_at: null,
+            reporter_alias: "Reporter",
+            priority: "P0",
+            target_title: "Reported post",
+            body_preview: "Needs review",
+            related_user_id: "55555555-5555-4555-8555-555555555555",
+          },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const repository = new PgChatRepository({ query });
+
+    const decision = await repository.decideReport({
+      communityId: "22222222-2222-4222-8222-222222222222",
+      reportId: "11111111-1111-4111-8111-111111111111",
+      decision: "suspend_user",
+      notes: null,
+      anchorUserId: "66666666-6666-4666-8666-666666666666",
+      decidedAt: "2026-04-10T12:05:00.000Z",
+    });
+
+    expect(decision).toMatchObject({
+      moderationTargetType: "user",
+      moderationTargetId: "55555555-5555-4555-8555-555555555555",
+      reportTargetType: "post",
+      reportTargetId: "33333333-3333-4333-8333-333333333333",
+      affected_user_id: "55555555-5555-4555-8555-555555555555",
+    });
   });
 });

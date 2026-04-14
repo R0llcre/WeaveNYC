@@ -1,6 +1,7 @@
 import type {
   AdminReportQueueItem,
   AdminReportQueueResponse,
+  CommunitySyncEvent,
   ReportDecision,
   ReportDecisionResponse,
   ReportStatus as AdminReportQueueStatus,
@@ -162,6 +163,14 @@ export type ReportRecord = {
   resolved_at: string | null;
 };
 
+export type AutoHidePostResult = {
+  postId: string;
+  communityId: string;
+  anchorUserId: string | null;
+  reportIds: string[];
+  moderationActionIds: Record<string, string>;
+};
+
 export type SubmitReportInput = {
   actor: ChatActor;
   conversationId?: string;
@@ -170,6 +179,16 @@ export type SubmitReportInput = {
   reason: ChatReportReason;
   detailText?: string | null;
   targetCommunityIds?: string[];
+};
+
+export type SubmitReportResult = {
+  report: ReportRecord;
+  communityId: string;
+  autoHiddenPostId: string | null;
+  autoHiddenActorUserId: string | null;
+  autoHiddenReportIds: string[];
+  autoHiddenModerationActionIds: Record<string, string>;
+  syncEvents?: CommunitySyncEvent[];
 };
 
 export type AdminReportQueueInput = {
@@ -186,6 +205,19 @@ export type ReportDecisionInput = {
   reportId: string;
   decision: ReportDecision;
   notes?: string;
+};
+
+export type ReportDecisionResult = ReportDecisionResponse & {
+  communityId: string;
+  targetType: ChatReportTargetType;
+  targetId: string;
+  moderationTargetType: ChatReportTargetType;
+  moderationTargetId: string;
+  reportTargetType: ChatReportTargetType;
+  reportTargetId: string;
+  conversationId: string | null;
+  moderationActionId: string | null;
+  syncEvents?: CommunitySyncEvent[];
 };
 
 export type ChatSafetyInspection = {
@@ -280,7 +312,7 @@ export interface ChatRepository {
     conversationId: string | null;
     reporterUserId: string;
     createdAt: string;
-  }): Promise<ReportRecord>;
+  }): Promise<{ report: ReportRecord; syncEvents?: CommunitySyncEvent[] }>;
   listReportQueuePage(input: {
     communityId: string;
     status?: AdminReportQueueStatus;
@@ -294,11 +326,11 @@ export interface ChatRepository {
     notes: string | null;
     anchorUserId: string;
     decidedAt: string;
-  }): Promise<ReportDecisionResponse | null>;
+  }): Promise<ReportDecisionResult | null>;
   autoHidePostIfThresholdReached(input: {
     communityId: string;
     postId: string;
-  }): Promise<boolean>;
+  }): Promise<(AutoHidePostResult & { syncEvents?: CommunitySyncEvent[] }) | null>;
   getMessage(messageId: string, conversationId: string): Promise<ChatMessage | null>;
   getMessageContext(messageId: string): Promise<{
     message: ChatMessage;
@@ -317,9 +349,9 @@ export interface ChatService {
   sendMessage(input: SendMessageInput): Promise<SendMessageResult>;
   closeConversation(input: CloseConversationInput): Promise<ConversationDetail>;
   blockUser(input: BlockUserInput): Promise<BlockUserResult>;
-  submitReport(input: SubmitReportInput): Promise<ReportRecord>;
+  submitReport(input: SubmitReportInput): Promise<SubmitReportResult>;
   listReportQueue(input: AdminReportQueueInput): Promise<AdminReportQueueResponse>;
-  decideReport(input: ReportDecisionInput): Promise<ReportDecisionResponse>;
+  decideReport(input: ReportDecisionInput): Promise<ReportDecisionResult>;
 }
 
 export class ChatServiceError extends Error {
@@ -332,7 +364,8 @@ export class ChatServiceError extends Error {
       | "conversation_closed"
       | "conversation_blocked"
       | "rate_limited"
-      | "sensitive_content_detected",
+      | "sensitive_content_detected"
+      | "internal_error",
     public readonly details?: {
       safetyFlags?: ChatSafetyFlag[];
     },

@@ -12,7 +12,7 @@
 >
 > **Closed phase closeouts**：`M3 completed` · `M4 completed` · `M5 completed`
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 optional next phase`
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 in progress on branch`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
@@ -623,9 +623,9 @@
 
 ---
 
-## Epic E11: P2P Sync（去中心化同步）
+## Epic E11: P2P Sync（去中心化同步）— Status: `In Progress (M6 branch)`
 
-> 里程碑：M6（Week 6+，可作为加分项）
+> 里程碑：M6（当前 branch-local 执行阶段）
 > 来源：[07_P2P_Node_Design](./07_P2P_Node_Design.md)
 
 ### E11-S0: Community bootstrap API — P2 · 2 SP
@@ -636,23 +636,23 @@
   - PWA / Edge 通过该 endpoint 获取默认 discovery 信息
   - `mDNS` 不作为默认依赖，只作为实验性补充
 
-### E11-S1: Edge node libp2p WebWorker — P2 · 8 SP
+### E11-S1: Edge sync worker — P2 · 5 SP
 
-- As a user, my PWA connects to the P2P network via WebWorker.
+- As a user, my PWA keeps a live community sync worker for bootstrap, websocket updates, and offline catch-up.
 - Acceptance:
-  - WebWorker 运行 libp2p-js + Helia
-  - 生成 Ed25519 密钥对（每社区独立）
-  - WebSocket 连接到 Anchor 节点
-  - 订阅 GossipSub topic：`weavenyc/{community_id}/posts`
+  - WebWorker 先调用 `/v1/communities/:id/bootstrap`
+  - 使用 bootstrap 返回的 `websocket_url` 建立 live stream
+  - 回退到 `/v1/communities/:id/sync` 做 catch-up / polling
+  - 把帖子和公告只读缓存写入 Dexie
 
-### E11-S2: Anchor node — libp2p full node — P2 · 8 SP
+### E11-S2: Embedded anchor sync runtime — P2 · 5 SP
 
-- As a community, the Anchor node relays and pins posts.
+- As a community, the embedded anchor runtime appends and broadcasts community sync events after authoritative writes.
 - Acceptance:
-  - Fastify + libp2p GossipSub v1.1 + Helia
-  - 验证 Ed25519 签名 → 规则引擎检查
-  - Helia Pin PostSummaryDAG → 获得 CID
-  - 同步到 Cloud PostgreSQL（REST API）
+  - `api-gateway` 内嵌 runtime，不新增独立后端进程
+  - HTTP 写入成功后追加 `community_sync_events`
+  - 在线广播走 Redis Pub/Sub + `/v1/ws/p2p`
+  - 离线恢复走 PostgreSQL replay log + `/v1/communities/:id/sync`
 
 ### E11-S3: Offline recovery sync — P2 · 3 SP
 
@@ -661,6 +661,14 @@
   - 检测重新上线 → 请求 `last_sync_ts` 之后的增量事件
   - 批量更新 IndexedDB
   - 冲突解决策略：last-write-wins（MVP）
+
+### E11-S4: P2P smoke harness and docs truth — P1 · 2 SP
+
+- As a developer, I can run a branch-local overlay smoke and read one consistent M6 truth set before the full implementation lands.
+- Acceptance:
+  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、P2P Node Design、Data Model、Testing Strategy 对 `M6 in progress` 口径一致
+  - 根 `package.json` 暴露 `pnpm test:smoke:p2p`
+  - `pnpm test:smoke:p2p` 作为独立 overlay smoke 命令存在，不并入当前 `main` 默认 CI gate
 
 ---
 
@@ -730,13 +738,13 @@
 | Sprint 3 (Week 3-4) | M3 | E4 | ~16 SP | 匹配引擎 + 行动方案 + 一次刷新 + contact request inbox/accept-reject |
 | Sprint 4 (Week 4-5) | M4 | E5, E6-S0/S1/S2/S3 | ~26 SP | 聊天 + 最小审核闭环 |
 | Sprint 5 (Week 5-6) | M5 | E7 core, E1-S5, (+ E10 / E6-S4 / E8-S2/S3/S4 only with 3-person capacity) | ~33 SP | Anchor 后台核心闭环；扩展项视容量追加 |
-| Sprint 6 (Week 6+) | M6 | E11, E12-S3/S4 | ~28 SP | P2P 同步 + 完整 E2E（optional） |
+| Sprint 6 (Week 6+) | M6 | E11, E12-S3/S4 | ~28 SP | P2P 同步 overlay + 完整 E2E（branch-local） |
 
 **总计**：~178 SP
 
 **MVP critical path（3-person target, M0-M5）**：~150 SP
 **2-person conservative MVP（延后 E10 / E6-S4 / E8-S2/S3/S4）**：~133 SP
-**Optional add-on（M6）**：~30 SP
+**Branch-local stretch demo（M6）**：~30 SP
 
 ---
 

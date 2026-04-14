@@ -11,6 +11,12 @@ import {
   reportCreateRequestSchema,
   reportCreateResponseSchema,
 } from "../contracts.js";
+import {
+  fanoutSyncEvents,
+  publishModerationDecisionEvent,
+  publishPostEvent,
+  publishReportCreatedEvent,
+} from "../lib/p2p-events.js";
 import { loadCurrentActor } from "../lib/require-anchor.js";
 
 type BlockUserBody = {
@@ -160,7 +166,7 @@ export const chatSafetyRoutes: FastifyPluginAsync = async (app) => {
           };
         }
 
-        const report = await app.chatService.submitReport({
+        const submission = await app.chatService.submitReport({
           actor: {
             userId: actor.userId,
             level: actor.level,
@@ -174,10 +180,53 @@ export const chatSafetyRoutes: FastifyPluginAsync = async (app) => {
           targetCommunityIds: targetUser?.communityIds,
         });
 
+        if (submission.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, submission.syncEvents, {
+            reportId: submission.report.report_id,
+          });
+        } else {
+          await publishReportCreatedEvent(app, {
+            communityId: submission.communityId,
+            actorUserId: actor.userId,
+            report: submission.report,
+          });
+        }
+        if (submission.syncEvents === undefined && submission.autoHiddenPostId) {
+          const decidedAt = new Date().toISOString();
+          for (const reportId of submission.autoHiddenReportIds) {
+            await publishModerationDecisionEvent(app, {
+              communityId: submission.communityId,
+              aggregateId: submission.autoHiddenModerationActionIds[reportId] ?? reportId,
+              actorUserId: submission.autoHiddenActorUserId,
+              reportId,
+              targetType: "post",
+              targetId: submission.autoHiddenPostId,
+              reportTargetType: "post",
+              reportTargetId: submission.autoHiddenPostId,
+              resolution: "remove_post",
+              status: "resolved",
+              decidedAt,
+              affectedUserId: null,
+              conversationId: null,
+            });
+          }
+          await publishPostEvent(app, {
+            eventType: "post.tombstoned",
+            actorUserId: submission.autoHiddenActorUserId,
+            post: {
+              post_id: submission.autoHiddenPostId,
+              community_id: submission.communityId,
+              status: "removed",
+              updated_at: decidedAt,
+            },
+            reason: "auto_hide_report_threshold",
+          });
+        }
+
         return {
-          report_id: report.report_id,
+          report_id: submission.report.report_id,
           status: "new",
-          created_at: report.created_at,
+          created_at: submission.report.created_at,
         };
       } catch (error) {
         return replyWithChatError(reply, error);

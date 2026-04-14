@@ -117,6 +117,8 @@ export const announcementSchema = z.object({
   published_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   created_by: z.string().uuid(),
+  p2p_version: z.number().int().positive().optional(),
+  ipfs_cid: z.string().min(1).nullable().optional(),
 });
 
 export const announcementCreateRequestSchema = z.object({

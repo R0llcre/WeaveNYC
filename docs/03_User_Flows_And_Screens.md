@@ -202,6 +202,12 @@ Official card字段：
 ### Screen 13：Community Home
 元素：
 - Current community（例如：Farmingdale）
+- P2P sync card：
+  - Enable P2P sync
+  - Connection status
+  - Last synced
+  - Peer count
+  - Transport label（bootstrap / mdns-demo）
 - Announcements feed（公告列表）
 - Buttons：
   - Join community（Enter code / Scan QR）
@@ -210,6 +216,8 @@ Official card字段：
 规则：
 - 如果当前没有社区 membership，Join community 打开邀请码/二维码输入流程
 - 加入成功后，`community_only` 帖子和社区 feed 可见
+- 在线时 HTTP 结果仍是 canonical read；P2P 事件只负责更新本地缓存和跨设备同步显示
+- 离线时社区页回退到本地缓存的帖子/公告，只读展示并标注“offline”
 
 ### Screen 14：Announcement Detail
 元素：
@@ -229,6 +237,8 @@ Official card字段：
 - Safety
   - Blocked users
   - Reports
+- Experimental
+  - 仅保留 P2P sync 状态说明；`mDNS` demo 仍是内部 dev/demo 标志，不作为当前产品面的显式用户开关
 - Help & feedback
 
 ---

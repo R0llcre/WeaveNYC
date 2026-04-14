@@ -2,11 +2,13 @@
 
 目标：把领域实体、字段、索引、隐私分级写清楚。
 
+> 当前 `main` 的 canonical baseline 是 `M5 completed`；本文件中的 P2P 同步元数据和本地缓存扩展代表 `feature/m6-p2p-sync` 的 branch-local 设计真值。
+
 ---
 
 ## 1) 数据分区（Privacy by Design）
 
-> **三层存储架构**：IndexedDB（客户端本地）→ IPFS/Helia（P2P 社区共享）→ PostgreSQL + PostGIS（云端索引），详见 [ADR-0004](./15_ADR_Log.md)。
+> **当前 M6 branch-local 三层结构**：IndexedDB（客户端只读缓存）→ HTTP/WebSocket sync overlay（社区事件传播）→ PostgreSQL + PostGIS（authoritative data + replay log）。
 
 ### 1.1 Local-only — IndexedDB（Dexie.js）
 **默认仅本地，不离开设备**：
@@ -17,22 +19,26 @@
 | 草稿 | `drafts` | 未发布的 Request/Offer |
 | 最近浏览/收藏 | `bookmarks` | 收藏的资源/帖子 CID |
 | 离线帖子缓存 | `post_cache` | 已订阅社区的帖子摘要快照 |
+| 离线公告缓存 | `announcement_cache` | 社区公告快照 |
+| P2P 密钥 | `p2p_keys` | Ed25519 设备密钥（按社区隔离） |
+| P2P 同步状态 | `p2p_sync_state` | 是否启用、最近同步时间、peer 数 |
+| P2P 事件游标 | `p2p_event_cursor` | 最近一次 HTTP catch-up / Gossip replay 游标 |
 | 密钥 | `device_keys` | Ed25519 私钥（加密存储） |
 | 本地设备标识 | `device` | 匿名 device_id（不关联真实身份） |
 
 **容量预估**：单个社区 ~500 帖子缓存 ≈ 2-5 MB，IndexedDB 配额通常 ≥ 50 MB，足够。
 
-### 1.2 Community-shared — IPFS（Helia）
-**用户 opt-in 后发布到 P2P 网络，内容寻址存储**：
+### 1.2 Community-shared — Sync Overlay
+**用户 opt-in 后接收社区同步副本，不直接做 edge publish**：
 
-| 数据类型 | IPFS DAG 类型 | 说明 |
-|----------|--------------|------|
-| 帖子摘要 | `PostSummaryDAG` | category、title、body、ZIP、expiry、language（不含个人信息） |
-| 版本链 | CID → prev_cid | 帖子更新形成不可变版本链 |
-| 基础信誉信号 | `ReputationDAG` | Verified Match 次数（匿名化，按 actor 而非 user_id） |
-| 审核状态 | via GossipSub 事件 | `moderation.decision` 事件广播，不持久存储在 IPFS |
+| 数据类型 | 当前载体 | 说明 |
+|----------|----------|------|
+| 帖子摘要 | `post.*` sync events | 社区只读缓存修复 |
+| 公告摘要 | `announcement.*` sync events | 社区公告只读缓存修复 |
+| 举报状态 | `report.created` sync events | 仅 post-target，最小字段 |
+| 审核状态 | `moderation.decision` sync events | 仅 post-target，Anchor wins |
 
-**数据不入 IPFS**：姓名、精确地址、身份证件、聊天内容、举报详情。
+**当前不进入 overlay**：姓名、精确地址、身份证件、聊天内容、`user/message` report、conversation metadata。
 
 ### 1.3 Cloud-shared — PostgreSQL + PostGIS
 **云端聚合索引，用于搜索/匹配/分析**：
@@ -45,6 +51,7 @@
 | 用户账户 | `users` | 基础信息（user_id、display_name、home_zip），不存敏感信息 |
 | 社区/Anchor | `communities`, `community_access_codes`, `anchor_invites`, `anchors` | 社区元数据、加入入口、Anchor 激活与会话归属 |
 | 规则/公告 | `community_rulesets`, `announcements` | 社区审核规则、公告 banner 与公告列表 |
+| P2P 事件日志 | `community_sync_events` | branch-local M6 事件追加日志（posts / announcements / reports / moderation） |
 | 导入批次 | `dataset_versions` | 官方资源导入批次元数据（来源、记录数、状态） |
 | 社区成员关系 | `community_members` | 用户与社区的 membership 关系（联合主键 `(user_id, community_id)`） |
 | 建联请求 | `contact_requests` | 双向同意前的联系请求状态机 |
@@ -61,10 +68,10 @@
 ### 1.4 数据流向总览
 
 ```
-Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Cloud (PostgreSQL)
-     ↑                              ↑                             ↑
-   本地草稿/设置            帖子摘要 CID              结构化索引 + 匹配
-   密钥/收藏               版本链/Pin               官方资源 + 分析
+Edge (IndexedDB)  ──opt-in──>  Sync Overlay (WebSocket + /sync)  ──replay──>  Cloud (PostgreSQL)
+     ↑                                   ↑                                   ↑
+   本地草稿/设置                 社区只读缓存修复                    authoritative writes + event log
+   密钥/收藏                     offline catch-up                    官方资源 + 分析
 ```
 
 ---
@@ -135,6 +142,8 @@ Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Clou
 - `title`, `body`
 - `status` (active, deleted)
 - `is_pinned` (boolean)
+- `ipfs_cid` (string, optional, M6 branch-local)
+- `p2p_version` (int, M6 branch-local)
 - `created_by`
 - `published_at`, `updated_at`, `deleted_at`
 
@@ -172,6 +181,8 @@ Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Clou
 - `risk_level` (enum: low, medium, high)
 - `verification_state` (enum: unverified, verified_by_anchor, verified_by_witnesses)
 - `contact_pref` (jsonb, 可选) — 联系偏好，如 `{"in_app_chat": true, "call": false}`
+- `p2p_version` (int, M6 branch-local；内容版本单调递增)
+- `ipfs_cid` (string, optional, M6 branch-local 内容寻址标识)
 - `created_at`, `updated_at` (datetime)
 
 ### 2.6 MatchSuggestion
@@ -267,6 +278,24 @@ Edge (IndexedDB)  ──opt-in──>  P2P (IPFS/Helia)  ──sync──>  Clou
 - `notes`
 - `created_at`
 
+### 2.11 CommunitySyncEvent（M6 branch-local）
+字段：
+- `sync_event_id`
+- `community_id`
+- `event_type` (`post.published`, `post.updated`, `post.tombstoned`, `announcement.published`, `announcement.updated`, `announcement.deleted`, `report.created`, `moderation.decision`)
+- `aggregate_type` (`post`, `announcement`, `report`, `moderation`)
+- `aggregate_id`
+- `actor_p2p_id` (optional)
+- `payload_json`
+- `cid` (optional)
+- `occurred_at`
+
+说明：
+- authoritative write path 仍是现有 HTTP APIs；`community_sync_events` 只是 P2P replay / catch-up 的辅助日志
+- 不把聊天消息或 conversation 状态写入这张表
+- 只把 **post-target** 的 `report.created` / `moderation.decision` 写入这张表
+- `actor_user_id` 不出现在对外 sync envelope 中；对外只暴露匿名 `actor_p2p_id`
+
 ---
 
 ## 3) 索引与查询（MVP 必要）
@@ -316,8 +345,12 @@ CREATE INDEX idx_resources_geom ON resource_providers USING GIST (
 const db = new Dexie('weavenyc');
 db.version(1).stores({
   post_cache: 'post_id, community_id, category, status, expires_at',
+  announcement_cache: 'announcement_id, community_id, status, published_at',
   bookmarks: '++id, type, target_id, created_at',
   drafts: '++id, post_type, category, updated_at',
+  p2p_keys: 'community_id, actor_id',
+  p2p_sync_state: 'community_id, enabled, last_synced_at',
+  p2p_event_cursor: 'community_id, updated_at',
   settings: 'key',
   device: 'key',
   device_keys: 'key_type, community_id',

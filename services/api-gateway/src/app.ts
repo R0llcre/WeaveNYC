@@ -9,6 +9,7 @@ import { DefaultChatService, PgChatRepository, type ChatService } from '@weaveny
 import { createMatchService, createPgMatchRepository, type MatchService } from '@weavenyc/match';
 import { createPostsRepository, createPostsService, type PostsService } from '@weavenyc/posts';
 import { Pool } from 'pg';
+import { createHash } from 'node:crypto';
 
 import { loadConfig, type AppConfig } from './config.js';
 import { InMemoryChatRealtimeHub, RedisChatRealtimeHub, type ChatRealtimeHub } from './lib/chat-realtime.js';
@@ -22,6 +23,11 @@ import {
 } from './lib/resource-directory.js';
 import { createRedisRefreshTokenStore, type RefreshTokenStore } from './lib/refresh-token-store.js';
 import { createStubSpeechProvider, type SpeechProvider } from './lib/speech-providers.js';
+import {
+  InMemoryP2PSyncRuntime,
+  RedisP2PSyncRuntime,
+  type P2PSyncRuntime,
+} from './lib/sync-runtime.js';
 import { createPgUserStore, type UserStore } from './lib/user-store.js';
 import { authRoutes } from './routes/auth.js';
 import { adminCommunityRoutes } from './routes/admin-community.js';
@@ -38,6 +44,7 @@ import { contactRequestRoutes } from './routes/contact-requests.js';
 import { chatSafetyRoutes } from './routes/chat-safety.js';
 import { chatSocketRoutes } from './routes/chat-socket.js';
 import { conversationRoutes } from './routes/conversations.js';
+import { p2pSyncRoutes } from './routes/p2p-sync.js';
 
 export interface BuildAppOptions {
   authAbuseStore?: AuthAbuseStore;
@@ -49,8 +56,16 @@ export interface BuildAppOptions {
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
   speechProvider?: SpeechProvider;
+  syncRuntime?: P2PSyncRuntime;
   userStore?: UserStore;
   logger?: boolean;
+}
+
+function deriveAnchorSyncNodeId(config: AppConfig) {
+  return createHash('sha256')
+    .update(`${config.jwt.issuer}:${config.server.host}:${config.server.port}:${config.redisUrl}`)
+    .digest('hex')
+    .slice(0, 16);
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -87,6 +102,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const postsService =
     options.postsService ?? createPostsService(createPostsRepository(config.databaseUrl));
   const speechProvider = options.speechProvider ?? createStubSpeechProvider();
+  const syncRuntime =
+    options.syncRuntime ??
+    (config.env === 'test'
+      ? new InMemoryP2PSyncRuntime({
+          nodeId: deriveAnchorSyncNodeId(config),
+          mdnsDemoEnabled: config.p2pMdnsDemoEnabled,
+        })
+      : new RedisP2PSyncRuntime(config.redisUrl, config.databaseUrl, {
+          nodeId: deriveAnchorSyncNodeId(config),
+          mdnsDemoEnabled: config.p2pMdnsDemoEnabled,
+        }));
 
   app.decorate('config', config);
   app.decorate('userStore', userStore);
@@ -98,6 +124,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate('postsService', postsService);
   app.decorate('resourceDirectory', resourceDirectory);
   app.decorate('speechProvider', speechProvider);
+  app.decorate('syncRuntime', syncRuntime);
 
   await app.register(fastifyCors, {
     origin(origin, callback) {
@@ -194,6 +221,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       app.matchService.close(),
       app.postsService.close(),
       app.resourceDirectory.close(),
+      app.syncRuntime.close(),
       maybeCloseSpeechProvider
     ]);
   });
@@ -211,6 +239,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(chatSafetyRoutes);
   await app.register(reviewQueueRoutes);
   await app.register(reportQueueRoutes);
+  await app.register(p2pSyncRoutes);
   await app.register(resourceRoutes);
   await app.register(speechRoutes);
 

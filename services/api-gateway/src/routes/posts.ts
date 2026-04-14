@@ -20,6 +20,7 @@ import {
   postsQuerySchema,
   updatePostRequestSchema,
 } from '../contracts.js';
+import { fanoutSyncEvents, publishPostEvent } from '../lib/p2p-events.js';
 import { loadCurrentActor } from '../lib/require-anchor.js';
 
 type PostParams = {
@@ -75,6 +76,17 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
 
         if (body.post_type === 'request' && created.status === 'active') {
           await tryPrecomputeMatches(app.matchService, created.postId);
+        }
+
+        if (created.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, created.syncEvents, { postId: created.postId });
+        } else {
+          const detail = await app.postsService.getPostDetail(actor, created.postId);
+          await publishPostEvent(app, {
+            eventType: 'post.published',
+            post: detail,
+            actorUserId: actor.userId,
+          });
         }
 
         return {
@@ -234,7 +246,19 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
           await tryPrecomputeMatches(app.matchService, updated.post_id);
         }
 
-        return updated;
+        if (updated.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, updated.syncEvents, { postId: updated.post_id });
+        } else {
+          await publishPostEvent(app, {
+            eventType: updated.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+            post: updated,
+            actorUserId: actor.userId,
+          });
+        }
+
+        const response = { ...updated };
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }
@@ -266,7 +290,19 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const params = postParamsValidator.parse(request.params);
-        return await app.postsService.closePost(actor, params.post_id);
+        const updated = await app.postsService.closePost(actor, params.post_id);
+        if (updated.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, updated.syncEvents, { postId: updated.post_id });
+        } else {
+          await publishPostEvent(app, {
+            eventType: 'post.updated',
+            post: updated,
+            actorUserId: actor.userId,
+          });
+        }
+        const response = { ...updated };
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }
@@ -298,7 +334,19 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const params = postParamsValidator.parse(request.params);
-        return await app.postsService.removePost(actor, params.post_id);
+        const removed = await app.postsService.removePost(actor, params.post_id);
+        if (removed.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, removed.syncEvents, { postId: removed.post_id });
+        } else {
+          await publishPostEvent(app, {
+            eventType: 'post.tombstoned',
+            post: removed,
+            actorUserId: actor.userId,
+          });
+        }
+        const response = { ...removed };
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }

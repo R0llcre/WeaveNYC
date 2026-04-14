@@ -412,6 +412,273 @@ export const communitySummarySchema = {
   }
 } as const;
 
+export const communityBootstrapParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+  },
+} as const;
+
+export const communitySyncQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    since: { type: "string", format: "date-time" },
+    limit: { type: "integer", minimum: 1, maximum: 200 },
+  },
+} as const;
+
+export const p2pTopicMapSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["posts", "announcements", "reports"],
+  properties: {
+    posts: { type: "string" },
+    announcements: { type: "string" },
+    reports: { type: "string" },
+  },
+} as const;
+
+export const p2pSnapshotSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["last_event_at", "event_count"],
+  properties: {
+    last_event_at: { type: ["string", "null"], format: "date-time" },
+    event_count: { type: "integer", minimum: 0 },
+  },
+} as const;
+
+export const p2pNodeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["node_id", "websocket_url"],
+  properties: {
+    node_id: { type: "string" },
+    websocket_url: { type: "string", format: "uri" },
+  },
+} as const;
+
+const postSyncEventPayloadSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["post"],
+  properties: {
+    post: {
+      type: "object",
+      additionalProperties: true,
+      required: ["post_id"],
+      properties: {
+        post_id: { type: "string", format: "uuid" },
+      },
+    },
+    reason: { type: ["string", "null"] },
+  },
+} as const;
+
+const announcementSyncEventPayloadSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["announcement"],
+  properties: {
+    announcement: {
+      type: "object",
+      additionalProperties: true,
+      required: ["announcement_id"],
+      properties: {
+        announcement_id: { type: "string", format: "uuid" },
+      },
+    },
+  },
+} as const;
+
+const reportCreatedEventPayloadSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["report_id", "target_type", "target_id", "reason", "status", "created_at"],
+  properties: {
+    report_id: { type: "string", format: "uuid" },
+    target_type: { type: "string", enum: ["post"] },
+    target_id: { type: "string", format: "uuid" },
+    reason: { type: "string" },
+    status: { type: "string", enum: ["new", "resolved", "dismissed"] },
+    created_at: { type: "string", format: "date-time" },
+  },
+} as const;
+
+const moderationDecisionEventPayloadSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "report_id",
+    "target_type",
+    "target_id",
+    "report_target_type",
+    "report_target_id",
+    "resolution",
+    "status",
+    "decided_at",
+  ],
+  properties: {
+    report_id: { type: ["string", "null"], format: "uuid" },
+    target_type: { type: "string", enum: ["post"] },
+    target_id: { type: "string", format: "uuid" },
+    report_target_type: { type: "string", enum: ["post"] },
+    report_target_id: { type: "string", format: "uuid" },
+    resolution: { type: "string" },
+    status: { type: "string" },
+    decided_at: { type: "string", format: "date-time" },
+  },
+} as const;
+
+const p2pEventBaseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "sync_event_id",
+    "community_id",
+    "topic",
+    "event_type",
+    "aggregate_type",
+    "aggregate_id",
+    "occurred_at",
+    "payload",
+  ],
+  properties: {
+    sync_event_id: { type: "string", format: "uuid" },
+    community_id: { type: "string", format: "uuid" },
+    topic: { type: "string" },
+    event_type: { type: "string" },
+    aggregate_type: { type: "string" },
+    aggregate_id: { type: "string", format: "uuid" },
+    occurred_at: { type: "string", format: "date-time" },
+    cid: { type: ["string", "null"] },
+    signature: { type: ["string", "null"] },
+    actor_p2p_id: { type: ["string", "null"] },
+    payload: { type: "object" },
+  },
+} as const;
+
+export const p2pEventSchema = {
+  oneOf: [
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["post.published"] },
+        aggregate_type: { type: "string", enum: ["post"] },
+        payload: postSyncEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["post.updated"] },
+        aggregate_type: { type: "string", enum: ["post"] },
+        payload: postSyncEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["post.tombstoned"] },
+        aggregate_type: { type: "string", enum: ["post"] },
+        payload: postSyncEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["announcement.published"] },
+        aggregate_type: { type: "string", enum: ["announcement"] },
+        payload: announcementSyncEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["announcement.updated"] },
+        aggregate_type: { type: "string", enum: ["announcement"] },
+        payload: announcementSyncEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["announcement.deleted"] },
+        aggregate_type: { type: "string", enum: ["announcement"] },
+        payload: announcementSyncEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["report.created"] },
+        aggregate_type: { type: "string", enum: ["report"] },
+        payload: reportCreatedEventPayloadSchema,
+      },
+    },
+    {
+      ...p2pEventBaseSchema,
+      properties: {
+        ...p2pEventBaseSchema.properties,
+        event_type: { type: "string", enum: ["moderation.decision"] },
+        aggregate_type: { type: "string", enum: ["moderation"] },
+        payload: moderationDecisionEventPayloadSchema,
+      },
+    },
+  ],
+} as const;
+
+export const communityBootstrapResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "community_id",
+    "bootstrap_version",
+    "anchor_node",
+    "relay_nodes",
+    "topics",
+    "latest_snapshot",
+    "mdns_demo_enabled",
+  ],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    bootstrap_version: { type: "string" },
+    anchor_node: p2pNodeSchema,
+    relay_nodes: {
+      type: "array",
+      items: p2pNodeSchema,
+    },
+    topics: p2pTopicMapSchema,
+    latest_snapshot: p2pSnapshotSchema,
+    mdns_demo_enabled: { type: "boolean" },
+  },
+} as const;
+
+export const communitySyncDeltaResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["events", "next_since", "server_time", "latest_snapshot"],
+  properties: {
+    events: {
+      type: "array",
+      items: p2pEventSchema,
+    },
+    next_since: { type: ["string", "null"] },
+    server_time: { type: "string", format: "date-time" },
+    latest_snapshot: p2pSnapshotSchema,
+  },
+} as const;
+
 export const communityAccessResolveRequestSchema = {
   type: "object",
   additionalProperties: false,

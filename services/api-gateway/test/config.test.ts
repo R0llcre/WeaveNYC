@@ -14,6 +14,7 @@ vi.mock("node:fs", () => ({
         "REDIS_URL=redis://localhost:6379",
         "JWT_SIGNING_PRIVATE_KEY=./infra/dev/jwt-private.pem",
         "JWT_SIGNING_PUBLIC_KEY=./infra/dev/jwt-public.pem",
+        "P2P_MDNS_DEMO_ENABLED=0",
         "IDENTITY_HASH_PEPPER=weavenyc-dev-identity-pepper",
         "ANCHOR_TOTP_ENCRYPTION_KEY=weavenyc-dev-anchor-totp-encryption-key"
       ].join("\n");
@@ -81,5 +82,21 @@ describe("loadConfig", () => {
 
     expect(config.identityHashPepper).toBe("weavenyc-dev-identity-pepper");
     expect(config.anchorTotpEncryptionKey).toBe("weavenyc-dev-anchor-totp-encryption-key");
+    expect(config.p2pMdnsDemoEnabled).toBe(false);
+  });
+
+  it("loads the optional P2P mDNS demo flag", async () => {
+    const { loadConfig } = await import("../src/config.js");
+
+    const config = await loadConfig({
+      NODE_ENV: "development",
+      DATABASE_URL: "postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev",
+      REDIS_URL: "redis://localhost:6379",
+      JWT_SIGNING_PRIVATE_KEY: "./infra/dev/jwt-private.pem",
+      JWT_SIGNING_PUBLIC_KEY: "./infra/dev/jwt-public.pem",
+      P2P_MDNS_DEMO_ENABLED: "1",
+    });
+
+    expect(config.p2pMdnsDemoEnabled).toBe(true);
   });
 });

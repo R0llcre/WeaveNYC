@@ -288,6 +288,8 @@ export type PostSummary = {
   updated_at: string;
   expires_at: string;
   is_owner: boolean;
+  p2p_version?: number;
+  ipfs_cid?: string | null;
 };
 
 export type PostDetail = PostSummary & {
@@ -440,6 +442,8 @@ export type Announcement = {
   published_at: string;
   updated_at: string;
   created_by: string;
+  p2p_version?: number;
+  ipfs_cid?: string | null;
 };
 
 export type AdminDashboardResponse = {
@@ -462,6 +466,170 @@ export type AnnouncementUpdateRequest = Partial<AnnouncementCreateRequest>;
 
 export type AnnouncementsResponse = {
   items: Announcement[];
+};
+
+export type P2PAggregateType = "post" | "announcement" | "report" | "moderation";
+export type P2PEventType =
+  | "post.published"
+  | "post.updated"
+  | "post.tombstoned"
+  | "announcement.published"
+  | "announcement.updated"
+  | "announcement.deleted"
+  | "report.created"
+  | "moderation.decision";
+export type P2PSyncTransport = "bootstrap" | "mdns-demo";
+
+export type P2PTopicMap = {
+  posts: string;
+  announcements: string;
+  reports: string;
+};
+
+export type CommunityLatestSnapshot = {
+  last_event_at: string | null;
+  event_count: number;
+};
+
+export type CommunityBootstrapNode = {
+  node_id: string;
+  websocket_url: string;
+  last_published_at?: string | null;
+};
+
+export type CommunityBootstrapResponse = {
+  community_id: string;
+  bootstrap_version: string;
+  anchor_node: CommunityBootstrapNode | null;
+  relay_nodes: CommunityBootstrapNode[];
+  topics: P2PTopicMap;
+  latest_snapshot: CommunityLatestSnapshot;
+  mdns_demo_enabled: boolean;
+};
+
+export type PostSummaryDag = PostSummary & {
+  p2p_version: number;
+  ipfs_cid: string | null;
+};
+
+export type AnnouncementSummaryDag = Announcement & {
+  p2p_version: number;
+  ipfs_cid: string | null;
+};
+
+export type ReportCreatedEventPayload = {
+  report_id: string;
+  target_type: "post";
+  target_id: string;
+  reason: string;
+  status: "new" | "resolved" | "dismissed";
+  created_at: string;
+};
+
+export type ModerationDecisionEventPayload = {
+  report_id: string | null;
+  target_type: "post";
+  target_id: string;
+  report_target_type: "post";
+  report_target_id: string;
+  resolution: string;
+  status: string;
+  decided_at: string;
+};
+
+export type PostSyncEventPayload = {
+  post: Partial<PostSummaryDag> & Pick<PostSummaryDag, "post_id">;
+  reason?: string | null;
+};
+
+export type AnnouncementSyncEventPayload = {
+  announcement: Partial<AnnouncementSummaryDag> & Pick<AnnouncementSummaryDag, "announcement_id">;
+};
+
+type P2PEventEnvelopeBase = {
+  sync_event_id: string;
+  community_id: string;
+  topic: string;
+  aggregate_id: string;
+  occurred_at: string;
+  actor_p2p_id?: string | null;
+  cid?: string | null;
+  signature?: string | null;
+};
+
+export type PostPublishedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "post.published";
+  aggregate_type: "post";
+  payload: PostSyncEventPayload;
+};
+
+export type PostUpdatedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "post.updated";
+  aggregate_type: "post";
+  payload: PostSyncEventPayload;
+};
+
+export type PostTombstonedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "post.tombstoned";
+  aggregate_type: "post";
+  payload: PostSyncEventPayload;
+};
+
+export type AnnouncementPublishedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "announcement.published";
+  aggregate_type: "announcement";
+  payload: AnnouncementSyncEventPayload;
+};
+
+export type AnnouncementUpdatedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "announcement.updated";
+  aggregate_type: "announcement";
+  payload: AnnouncementSyncEventPayload;
+};
+
+export type AnnouncementDeletedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "announcement.deleted";
+  aggregate_type: "announcement";
+  payload: AnnouncementSyncEventPayload;
+};
+
+export type ReportCreatedEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "report.created";
+  aggregate_type: "report";
+  payload: ReportCreatedEventPayload;
+};
+
+export type ModerationDecisionEventEnvelope = P2PEventEnvelopeBase & {
+  event_type: "moderation.decision";
+  aggregate_type: "moderation";
+  payload: ModerationDecisionEventPayload;
+};
+
+export type P2PEventEnvelope =
+  | PostPublishedEventEnvelope
+  | PostUpdatedEventEnvelope
+  | PostTombstonedEventEnvelope
+  | AnnouncementPublishedEventEnvelope
+  | AnnouncementUpdatedEventEnvelope
+  | AnnouncementDeletedEventEnvelope
+  | ReportCreatedEventEnvelope
+  | ModerationDecisionEventEnvelope;
+
+export type CommunitySyncEvent = P2PEventEnvelope;
+
+export type CommunitySyncDeltaResponse = {
+  events: CommunitySyncEvent[];
+  next_since: string | null;
+  server_time: string;
+  latest_snapshot: CommunityLatestSnapshot;
+};
+
+export type P2PSyncStatus = {
+  enabled: boolean;
+  transport: P2PSyncTransport | null;
+  peer_count: number;
+  last_synced_at: string | null;
+  latest_sync_event_id: string | null;
 };
 
 export type SpeechTranscribeResponse = {
