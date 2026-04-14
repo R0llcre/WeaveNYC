@@ -1,10 +1,10 @@
 # WeaveNYC — P2P Sync Overlay Design
 
-目标：把 `feature/m6-p2p-sync` 当前分支里的 M6 同步层写成真实可执行的设计，不把 future-state 节点网络当作已经实现。
+目标：把已经合入 `main` 的 M6 同步层写成真实可执行的设计，不把 future-state 节点网络当作已经实现。
 
-> 本章描述的是 **当前 M6 branch-local truth**。
+> 本章描述的是 **当前 M6 canonical truth**。
 >
-> `main` 仍以 `M5 completed` 为准；这里定义的是 `feature/m6-p2p-sync` 上已经接入或正在收口的 **HTTP-first + P2P sync overlay**。
+> `main` 已以 `M6 completed` 为准；这里定义的是已经接入到 `main` 的 **HTTP-first + P2P sync overlay**，后续 `M7` 只会围绕 staging truth 和 rehearsal，不会改写本章的 overlay contract。
 >
 > **authoritative write path**：帖子、公告、举报、审核决定仍先走现有 HTTP API 落库；同步层只负责 event append、live stream、offline catch-up 和只读缓存修复。
 
@@ -184,7 +184,7 @@ M6 当前没有分布式内容获取网络，但已经把版本和内容标识�
 `community_sync_events`
 
 用途：
-- 作为 branch-local M6 的 durable replay log
+- 作为 M6 的 durable replay log
 - 支撑 `/sync` catch-up
 - 支撑 snapshot 统计
 
@@ -230,7 +230,7 @@ M6 当前没有分布式内容获取网络，但已经把版本和内容标识�
 
 ## 8) Stretch demo path
 
-当前 branch-local M6 manual stretch demo 路径固定为：
+当前 M6 manual stretch demo 路径固定为：
 1. 设备 A、设备 B 加入同一社区
 2. 两端都开启 `/community` 上的 P2P sync
 3. 两端通过 `/bootstrap` 获得 websocket URL 和 topics

@@ -6,21 +6,22 @@
 >
 > **优先级**：P0（上线必须）、P1（强烈推荐）、P2（后续迭代）
 >
-> **里程碑对照**：M0-M6 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
+> **里程碑对照**：M0-M7 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前 canonical baseline**：`main = M5 completed`
+> **当前 canonical baseline**：`main = M6 completed`
 >
-> **Closed phase closeouts**：`M3 completed` · `M4 completed` · `M5 completed`
+> **Closed phase closeouts**：`M3 completed` · `M4 completed` · `M5 completed` · `M6 completed`
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 in progress on branch`
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 completed` · `M7 in progress on branch`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
 > - `Completed (M1)`：代码已落地；如 phase closeout 被重新打开，仍需以 `22_M1_Closeout.md` 为准
 > - `Completed (M2)`：代码与 closeout 已落地，并已成为当前 workspace 的已关闭基线；不再表示“当前 feature branch 待合并状态”
+> - `Completed (M6)`：P2P overlay 已合入主线；如 phase closeout 被重新打开，仍需以 `27_M6_Closeout.md` 为准
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
-> 说明：story 级 `Completed (M5)` 表示实现与 closeout 已进入当前主线；phase 级真值以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 和 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准。
+> 说明：story 级 `Completed (M6)` 表示实现与 closeout 已进入当前主线；phase 级真值以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 和 [`27_M6_Closeout.md`](./27_M6_Closeout.md) 为准。
 
 ---
 
@@ -623,9 +624,9 @@
 
 ---
 
-## Epic E11: P2P Sync（去中心化同步）— Status: `In Progress (M6 branch)`
+## Epic E11: P2P Sync（去中心化同步）— Status: `Completed (M6)`
 
-> 里程碑：M6（当前 branch-local 执行阶段）
+> 里程碑：M6（已完成）
 > 来源：[07_P2P_Node_Design](./07_P2P_Node_Design.md)
 
 ### E11-S0: Community bootstrap API — P2 · 2 SP
@@ -664,9 +665,9 @@
 
 ### E11-S4: P2P smoke harness and docs truth — P1 · 2 SP
 
-- As a developer, I can run a branch-local overlay smoke and read one consistent M6 truth set before the full implementation lands.
+- As a developer, I can run the overlay smoke and read one consistent M6 truth set after the full implementation lands.
 - Acceptance:
-  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、P2P Node Design、Data Model、Testing Strategy 对 `M6 in progress` 口径一致
+  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、P2P Node Design、Data Model、Testing Strategy 对 `M6 completed / M7 in progress` 口径一致
   - 根 `package.json` 暴露 `pnpm test:smoke:p2p`
   - `pnpm test:smoke:p2p` 作为独立 overlay smoke 命令存在，不并入当前 `main` 默认 CI gate
 
@@ -726,9 +727,31 @@
 
 ---
 
+## Epic E13: Staging Truth 收口（M7）— Status: `In Progress (M7 branch)`
+
+> 里程碑：M7（当前 branch-local 执行阶段）
+> 来源：[00_Execution_Baseline](./00_Execution_Baseline.md) + [11_Ops_Runbook](./11_Ops_Runbook.md) + [19_Deployment_Guide](./19_Deployment_Guide.md)
+
+### E13-S0: Main / branch truth alignment — P0 · 2 SP
+
+- As a reader, I can tell `main = M6 completed` and `feature/m7-staging-rehearsal = M7 in progress` from the entry docs.
+- Acceptance:
+  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、Testing Strategy 对 `M6 completed / M7 in progress` 口径一致
+  - `docs/27_M6_Closeout.md` 作为 M6 closeout 的单一入口
+
+### E13-S1: Ops / deployment future-note split — P0 · 2 SP
+
+- As an operator, I can distinguish current executable staging truth from future production / canary / observability notes.
+- Acceptance:
+  - `11_Ops_Runbook.md` 与 `19_Deployment_Guide.md` 的 future production / canary / full observability 内容已下沉到 appendix / future notes
+  - 当前可执行路径只保留 bootstrap、smoke 和 rehearsal 口径
+  - 文档不再宣称未实现的 deployment automation
+
+---
+
 ## Sprint Planning 参考（2-3 人团队）
 
-> 排期口径：下方 Sprint 表按 **3 人目标节奏**估算；如果只有 **2 人**，请把 `M5` 拆成“核心必需”和“可顺延扩展”两层，不要默认 6 周内把 `M5` 全吃掉。
+> 排期口径：下方 Sprint 表按 **3 人目标节奏**估算；如果只有 **2 人**，请把 `M6` 拆成“核心必需”和“可顺延扩展”两层，不要默认把 staging truth 收口也塞进同一周。
 
 | Sprint | 里程碑 | Epics | 总 SP | 目标 |
 |--------|--------|-------|-------|------|
@@ -738,13 +761,14 @@
 | Sprint 3 (Week 3-4) | M3 | E4 | ~16 SP | 匹配引擎 + 行动方案 + 一次刷新 + contact request inbox/accept-reject |
 | Sprint 4 (Week 4-5) | M4 | E5, E6-S0/S1/S2/S3 | ~26 SP | 聊天 + 最小审核闭环 |
 | Sprint 5 (Week 5-6) | M5 | E7 core, E1-S5, (+ E10 / E6-S4 / E8-S2/S3/S4 only with 3-person capacity) | ~33 SP | Anchor 后台核心闭环；扩展项视容量追加 |
-| Sprint 6 (Week 6+) | M6 | E11, E12-S3/S4 | ~28 SP | P2P 同步 overlay + 完整 E2E（branch-local） |
+| Sprint 6 (Week 6+) | M6 | E11, E12-S3/S4 | ~28 SP | P2P 同步 overlay 已完成并进入主线 |
+| Sprint 7 (Week 7+) | M7 | E13 | ~4 SP | staging truth 收口、ops/deployment docs 和 closeout 对齐 |
 
-**总计**：~178 SP
+**总计**：~182 SP
 
-**MVP critical path（3-person target, M0-M5）**：~150 SP
-**2-person conservative MVP（延后 E10 / E6-S4 / E8-S2/S3/S4）**：~133 SP
-**Branch-local stretch demo（M6）**：~30 SP
+**MVP critical path（3-person target, M0-M6）**：~178 SP
+**2-person conservative MVP（延后 E10 / E6-S4 / E8-S2/S3/S4）**：~160 SP
+**Branch-local truth 收口（M7）**：~4 SP
 
 ---
 

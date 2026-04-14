@@ -5,6 +5,9 @@ import {
   anonymousSessionRequestSchema,
   anonymousSessionResponseSchema,
   communityBootstrapResponseSchema,
+  notificationEmailSendRequestSchema,
+  notificationInternalJwtClaimsSchema,
+  notificationSmsSendResponseSchema,
   jwtClaimsSchema,
   p2pEventEnvelopeSchema,
   reportCreateRequestSchema,
@@ -185,5 +188,37 @@ describe("@weavenyc/shared validators", () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts internal notification JWT claims", () => {
+    const parsed = notificationInternalJwtClaimsSchema.parse({
+      sub: "api-gateway",
+      scope: "notifications_send",
+      service: "api-gateway",
+    });
+
+    expect(parsed.scope).toBe("notifications_send");
+  });
+
+  it("accepts sms notification responses", () => {
+    const parsed = notificationSmsSendResponseSchema.parse({
+      provider: "stub",
+      fallback: true,
+      message_id: "SM123",
+      to: "+15165550101",
+      demo_code: "123456",
+    });
+
+    expect(parsed.provider).toBe("stub");
+  });
+
+  it("accepts email notification requests", () => {
+    const parsed = notificationEmailSendRequestSchema.parse({
+      email: "neighbor@example.com",
+      challenge_id: "66666666-6666-4666-8666-666666666666",
+      token: "ml_token",
+    });
+
+    expect(parsed.email).toBe("neighbor@example.com");
   });
 });

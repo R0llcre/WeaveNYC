@@ -139,6 +139,18 @@ export type {
   SendConversationMessageResponse,
   ConversationMessagesResponse,
   SpeechTranscribeResponse,
+  NotificationMagicLinkSendRequest,
+  NotificationMagicLinkSendResponse,
+  NotificationEmailProvider,
+  NotificationEmailSendRequest,
+  NotificationEmailSendResponse,
+  NotificationInternalJwtClaims,
+  NotificationSendScope,
+  NotificationOtpSendRequest,
+  NotificationOtpSendResponse,
+  NotificationSmsProvider,
+  NotificationSmsSendRequest,
+  NotificationSmsSendResponse,
   UpdatePostRequest,
 } from "./types";
 export {
@@ -196,6 +208,18 @@ export {
   refreshSessionRequestSchema,
   refreshSessionResponseSchema,
 } from "./validators/auth";
+export {
+  notificationEmailSendRequestSchema,
+  notificationEmailSendResponseSchema,
+  notificationInternalJwtClaimsSchema,
+  notificationSendScopeSchema,
+  notificationMagicLinkSendRequestSchema,
+  notificationMagicLinkSendResponseSchema,
+  notificationOtpSendRequestSchema,
+  notificationOtpSendResponseSchema,
+  notificationSmsSendRequestSchema,
+  notificationSmsSendResponseSchema,
+} from "./validators/notifications";
 export {
   anonymousAuthRequestSchema as anonymousSessionRequestSchema,
   anonymousAuthResponseSchema as anonymousSessionResponseSchema,

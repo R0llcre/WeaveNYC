@@ -280,6 +280,31 @@ export const readyzResponseSchema = {
   }
 } as const;
 
+export const versionResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["service", "version", "runtime", "timestamp"],
+  properties: {
+    service: { type: "string" },
+    version: { type: "string" },
+    runtime: { type: "string" },
+    timestamp: { type: "string", format: "date-time" }
+  }
+} as const;
+
+export const metricsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["service", "version", "uptime_seconds", "node_env", "timestamp"],
+  properties: {
+    service: { type: "string" },
+    version: { type: "string" },
+    uptime_seconds: { type: "number" },
+    node_env: { type: "string" },
+    timestamp: { type: "string", format: "date-time" }
+  }
+} as const;
+
 export const resourcesQuerySchema = {
   type: "object",
   additionalProperties: false,

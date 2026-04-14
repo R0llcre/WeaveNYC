@@ -2,15 +2,15 @@
 
 状态：`CANONICAL`
 
-目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M0-M5 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
+目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M0-M6 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
 
 ---
 
 ## 1) 当前仓库真实状态
 
 - 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
-- `main` 是 canonical baseline，当前稳定基线为 `M5 completed`。
-- 当前执行分支是 `feature/m6-p2p-sync`；它承载 `M6 in progress` 的 branch-local 文档、测试与脚手架，但不改变 `main` 的 M5 真值。
+- `main` 是 canonical baseline，当前稳定基线为 `M6 completed`。
+- 当前执行分支是 `feature/m7-staging-rehearsal`；它承载 `M7 in progress` 的 branch-local 文档、测试与 staging truth 收口，但不改变 `main` 的 M6 真值。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
 - 当前可运行的共享服务面：
   - PWA：`http://localhost:3000`
@@ -29,7 +29,11 @@
   - `GET /v1/me`
   - `GET /v1/resources`
   - `GET /v1/resources/:provider_id`
-- 当前已完成并已验证的 M2-M5 API 面：
+- 当前已验证的 P2P overlay API 面：
+  - `GET /v1/communities/:community_id/bootstrap`
+  - `GET /v1/communities/:community_id/sync`
+  - `GET /v1/ws/p2p?token=...`
+- 当前已完成并已验证的 M2-M6 API 面：
   - `POST /v1/community-access/resolve`
   - `POST /v1/communities/:community_id/join`
   - `POST /v1/posts`
@@ -80,16 +84,17 @@ pnpm dev
 | `M3` | `completed` | matching、Top-3 suggestions、contact requests、recipient inbox 已完成 |
 | `M4` | `completed` | live chat、message send/read、block/report、WebSocket realtime 已完成 |
 | `M5` | `completed` | Anchor Admin、report queue、announcements、rules、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已关闭 |
-| `M6` | `in_progress_on_branch` | `feature/m6-p2p-sync` 正在实现 HTTP-first 的 P2P sync overlay；`main` 仍维持 M5 completed canonical baseline |
+| `M6` | `completed` | `main` 已承接 HTTP-first 的 P2P sync overlay canonical surface |
+| `M7` | `in_progress_on_branch` | `feature/m7-staging-rehearsal` 正在收口 staging truth、deployment/ops 文档和 rehearsal 口径；`main` 仍维持 M6 completed canonical baseline |
 
 结论：
 
-- 当前 workspace 的 canonical 阶段真值应表述为：`main = M5 completed`。
-- 当前执行真值应表述为：`feature/m6-p2p-sync = M6 in progress`。
+- 当前 workspace 的 canonical 阶段真值应表述为：`main = M6 completed`。
+- 当前执行真值应表述为：`feature/m7-staging-rehearsal = M7 in progress`。
 
 ---
 
-## 3) 已完成能力（M0-M2 基线）
+## 3) 已完成能力（M0-M6 基线）
 
 当前已经落地并完成 closeout 的仓库级事实：
 
@@ -105,9 +110,9 @@ pnpm dev
 - 当前验证命令分层：
   - canonical `main` baseline：`pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`
   - canonical integration gate：`pnpm db:migrate`、`pnpm db:seed`、`pnpm test:smoke:real`、`pnpm test:e2e`
-  - branch-local M6 overlay smoke：`pnpm test:smoke:p2p`
-  - `pnpm test:smoke:real` 只有在同一轮 fresh `db:migrate` + `db:seed` 后通过，才可计入 M5 closeout
-  - `pnpm test:smoke:p2p` 当前是 M6 bootstrap/sync overlay 的独立 smoke，不属于 `main` 默认 close gate
+  - P2P overlay smoke：`pnpm test:smoke:p2p`
+  - `pnpm test:smoke:real` 只有在同一轮 fresh `db:migrate` + `db:seed` 后通过，才可计入 M6 closeout
+  - `pnpm test:smoke:p2p` 当前是 P2P overlay 的独立 smoke，不属于 `main` 默认 close gate
   - manual / opt-in：`pnpm test:live-sources`、`pnpm dev:mint-anchor-token`
 
 当前显式接受的残余风险：
@@ -122,18 +127,19 @@ pnpm dev
 
 1. `README.md`
 2. 本文档（当前真值基线）
-3. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-4. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-5. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+3. [`27_M6_Closeout.md`](./27_M6_Closeout.md)
+4. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
+5. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
 6. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
-7. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
-8. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
-9. `01_Vision_And_Principles.md`
-10. `02_PRD.md`
-11. `03_User_Flows_And_Screens.md`
-12. `13_Implementation_Plan.md`
-13. `14_Backlog.md`
-14. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+7. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+8. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+9. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+10. `01_Vision_And_Principles.md`
+11. `02_PRD.md`
+12. `03_User_Flows_And_Screens.md`
+13. `13_Implementation_Plan.md`
+14. `14_Backlog.md`
+15. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
 
 ---
 
@@ -143,16 +149,17 @@ pnpm dev
 
 1. 本文档（`00_Execution_Baseline.md`）
 2. `README.md`
-3. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
-4. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
-5. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
-6. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
-7. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-8. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-9. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
-10. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
-11. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
-12. 历史材料：`archive/`
+3. [`27_M6_Closeout.md`](./27_M6_Closeout.md)
+4. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
+5. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
+6. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
+7. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+8. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+9. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+10. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
+11. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+12. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
+13. 历史材料：`archive/`
 
 ---
 
@@ -185,7 +192,7 @@ pnpm dev
   - `access_token`：15 分钟
   - `refresh_token`：7 天
 - Anchor Admin 主链路已经切到真实 M5 激活流：verified session -> `POST /v1/auth/anchor/activate` -> `POST /v1/auth/anchor/activate/confirm` -> `POST /v1/auth/anchor/session/start` -> `POST /v1/auth/anchor/session/verify`。
-- `pnpm dev:mint-anchor-token` 仅保留为 dev/debug fallback，不属于 M5 pilot rehearsal 或 closeout 主路径。
+- `pnpm dev:mint-anchor-token` 仅保留为 dev/debug fallback，不属于 M6 closeout 或 M7 staging rehearsal 主路径。
 
 ### 6.3 聊天与建联
 
@@ -257,8 +264,8 @@ pnpm dev
 
 ## 8) 下一步唯一入口
 
-当前主线已经承接 `M5 Anchor Admin + pilot rehearsal` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md` 与 `26_M5_Closeout.md`。
-main-first 口径下，`main` 仍以 `M5 completed` 为真；当前 branch-local 下一步入口已经固定为 `M6` 的 HTTP-first P2P sync overlay。
+当前主线已经承接 `M6 P2P sync overlay` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md`、`26_M5_Closeout.md` 与 `27_M6_Closeout.md`。
+main-first 口径下，`main` 仍以 `M6 completed` 为真；当前 branch-local 下一步入口已经固定为 `M7` 的 staging truth 收口与 rehearsal。
 
 1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
 2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)

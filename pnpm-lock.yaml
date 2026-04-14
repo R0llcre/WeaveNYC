@@ -243,6 +243,9 @@ importers:
       '@weavenyc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      fastify:
+        specifier: ^5.6.1
+        version: 5.8.4
       pg:
         specifier: ^8.16.3
         version: 8.20.0
@@ -268,6 +271,9 @@ importers:
       '@weavenyc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      fastify:
+        specifier: ^5.6.1
+        version: 5.8.4
       pg:
         specifier: ^8.16.3
         version: 8.20.0
@@ -285,6 +291,34 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@24.12.2)
 
+  services/notifications:
+    dependencies:
+      '@fastify/jwt':
+        specifier: ^9.1.0
+        version: 9.1.0
+      '@weavenyc/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      fastify:
+        specifier: ^5.6.1
+        version: 5.8.4
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^24.6.0
+        version: 24.12.2
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@24.12.2)
+
   services/posts:
     dependencies:
       '@weavenyc/p2p':
@@ -293,6 +327,9 @@ importers:
       '@weavenyc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      fastify:
+        specifier: ^5.6.1
+        version: 5.8.4
       pg:
         specifier: ^8.16.3
         version: 8.20.0
@@ -312,6 +349,9 @@ importers:
 
   services/resource-directory:
     dependencies:
+      fastify:
+        specifier: ^5.6.1
+        version: 5.8.4
       pg:
         specifier: ^8.16.3
         version: 8.20.0

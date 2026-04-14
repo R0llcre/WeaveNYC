@@ -13,13 +13,17 @@
   },
   "description": "M2 posts domain library for community join, visibility, risk, and moderation workflows.",
   "scripts": {
+    "dev": "HOST=127.0.0.1 PORT=4101 tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
+    "start": "HOST=127.0.0.1 PORT=4101 node dist/src/server.js",
+    "runtime": "HOST=127.0.0.1 PORT=4101 node dist/src/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm --dir ../.. exec vitest run services/posts/test/"
   },
   "dependencies": {
     "@weavenyc/p2p": "workspace:*",
     "@weavenyc/shared": "workspace:*",
+    "fastify": "^5.6.1",
     "pg": "^8.16.3"
   },
   "devDependencies": {

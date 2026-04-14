@@ -1108,7 +1108,19 @@ export function createTestConfig(): AppConfig {
     refreshTokenTtlSeconds: 60 * 60 * 24 * 7,
     p2pMdnsDemoEnabled: false,
     identityHashPepper: 'test-identity-pepper',
-    anchorTotpEncryptionKey: 'test-anchor-totp-encryption-key'
+    anchorTotpEncryptionKey: 'test-anchor-totp-encryption-key',
+    internalServiceJwtSecret: 'test-internal-service-jwt-secret',
+    internalServices: {
+      postsServiceUrl: null,
+      matchServiceUrl: null,
+      chatServiceUrl: null,
+      resourceDirectoryServiceUrl: null,
+      notificationsServiceUrl: null,
+    },
+    runtime: {
+      serviceName: 'api-gateway',
+      version: '0.1.0-test',
+    },
   };
 }
 

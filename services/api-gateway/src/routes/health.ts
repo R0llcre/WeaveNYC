@@ -1,6 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { healthResponseSchema, readyzResponseSchema } from '../contracts.js';
+import {
+  healthResponseSchema,
+  metricsResponseSchema,
+  readyzResponseSchema,
+  versionResponseSchema,
+} from '../contracts.js';
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
   app.get(
@@ -70,5 +75,42 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
         checks
       };
     }
+  );
+
+  app.get(
+    '/versionz',
+    {
+      schema: {
+        summary: 'Runtime version probe',
+        response: {
+          200: versionResponseSchema,
+        },
+      },
+    },
+    async () => ({
+      service: app.config.runtime.serviceName,
+      version: app.config.runtime.version,
+      runtime: process.version,
+      timestamp: new Date().toISOString(),
+    }),
+  );
+
+  app.get(
+    '/metrics',
+    {
+      schema: {
+        summary: 'Minimal runtime metrics probe',
+        response: {
+          200: metricsResponseSchema,
+        },
+      },
+    },
+    async () => ({
+      service: app.config.runtime.serviceName,
+      version: app.config.runtime.version,
+      uptime_seconds: Number(process.uptime().toFixed(3)),
+      node_env: app.config.env,
+      timestamp: new Date().toISOString(),
+    }),
   );
 };

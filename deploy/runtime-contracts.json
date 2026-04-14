@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "topology": "http-first-staging-rehearsal",
+  "runtimes": [
+    {
+      "name": "api-gateway",
+      "class": "current",
+      "package": "@weavenyc/api-gateway",
+      "workspace": "services/api-gateway",
+      "provider": "aws",
+      "artifactPath": "services/api-gateway/dist/src/server.js",
+      "buildCommand": "pnpm --filter @weavenyc/api-gateway build",
+      "serveCommand": "pnpm --filter @weavenyc/api-gateway start",
+      "smokeUrlEnv": "WEAVENYC_STAGING_API_GATEWAY_URL",
+      "healthPaths": ["/healthz", "/readyz", "/versionz", "/docs"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "posts-service",
+      "class": "current",
+      "package": "@weavenyc/posts",
+      "workspace": "services/posts",
+      "provider": "aws",
+      "artifactPath": "services/posts/dist/src/server.js",
+      "buildCommand": "pnpm --filter @weavenyc/posts build",
+      "serveCommand": "node dist/src/server.js",
+      "smokeUrlEnv": "WEAVENYC_STAGING_POSTS_SERVICE_URL",
+      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "match-service",
+      "class": "current",
+      "package": "@weavenyc/match",
+      "workspace": "services/match",
+      "provider": "aws",
+      "artifactPath": "services/match/dist/src/server.js",
+      "buildCommand": "pnpm --filter @weavenyc/match build",
+      "serveCommand": "node dist/src/server.js",
+      "smokeUrlEnv": "WEAVENYC_STAGING_MATCH_SERVICE_URL",
+      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "chat-service",
+      "class": "current",
+      "package": "@weavenyc/chat",
+      "workspace": "services/chat",
+      "provider": "aws",
+      "artifactPath": "services/chat/dist/src/server.js",
+      "buildCommand": "pnpm --filter @weavenyc/chat build",
+      "serveCommand": "node dist/src/server.js",
+      "smokeUrlEnv": "WEAVENYC_STAGING_CHAT_SERVICE_URL",
+      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "resource-directory-service",
+      "class": "current",
+      "package": "@weavenyc/resource-directory",
+      "workspace": "services/resource-directory",
+      "provider": "gcp",
+      "artifactPath": "services/resource-directory/dist/src/server.js",
+      "buildCommand": "pnpm --filter @weavenyc/resource-directory build",
+      "serveCommand": "node dist/src/server.js",
+      "smokeUrlEnv": "WEAVENYC_STAGING_RESOURCE_DIRECTORY_URL",
+      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "notifications-service",
+      "class": "current",
+      "package": "@weavenyc/notifications",
+      "workspace": "services/notifications",
+      "provider": "azure",
+      "artifactPath": "services/notifications/dist/src/server.js",
+      "buildCommand": "pnpm --filter @weavenyc/notifications build",
+      "serveCommand": "node dist/src/server.js",
+      "smokeUrlEnv": "WEAVENYC_STAGING_NOTIFICATIONS_SERVICE_URL",
+      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "pwa",
+      "class": "current",
+      "package": "@weavenyc/pwa",
+      "workspace": "apps/pwa",
+      "provider": "vercel",
+      "artifactPath": "apps/pwa/.next",
+      "buildCommand": "pnpm --filter @weavenyc/pwa build",
+      "serveCommand": "pnpm --filter @weavenyc/pwa start",
+      "smokeUrlEnv": "WEAVENYC_STAGING_PWA_URL",
+      "healthPaths": ["/"],
+      "repoPresenceRequired": true
+    },
+    {
+      "name": "anchor-admin",
+      "class": "current",
+      "package": "@weavenyc/anchor-admin",
+      "workspace": "apps/anchor-admin",
+      "provider": "vercel",
+      "artifactPath": "apps/anchor-admin/.next",
+      "buildCommand": "pnpm --filter @weavenyc/anchor-admin build",
+      "serveCommand": "pnpm --filter @weavenyc/anchor-admin start",
+      "smokeUrlEnv": "WEAVENYC_STAGING_ANCHOR_ADMIN_URL",
+      "healthPaths": ["/"],
+      "repoPresenceRequired": true
+    }
+  ]
+}

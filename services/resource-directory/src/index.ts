@@ -6,4 +6,5 @@ export * from './lib/geocoding.js';
 export * from './lib/http.js';
 export * from './lib/hours.js';
 export * from './lib/repository.js';
+export * from './runtime.js';
 export * from './types.js';

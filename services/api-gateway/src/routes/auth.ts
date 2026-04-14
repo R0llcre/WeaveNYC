@@ -50,9 +50,11 @@ import {
 import { buildOtpAuthUri, generateRecoveryCodes, generateTotpSecret, verifyTotpCode } from "../lib/totp.js";
 import {
   createMagicLinkToken,
-  StubEmailLinkProvider,
-  StubSmsProvider
 } from "../lib/verification-providers.js";
+import {
+  createMagicLinkVerificationProvider,
+  createSmsVerificationProvider
+} from "../lib/notification-delivery.js";
 import type { AuthenticatedUserRecord } from "../types.js";
 
 type AnonymousAuthBody = {
@@ -99,11 +101,10 @@ type AnchorSessionVerifyBody = {
   totp_code: string;
 };
 
-const smsProvider = new StubSmsProvider();
-
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const authAbuseStore = getAuthAbuseStore(app);
-  const emailProvider = new StubEmailLinkProvider(app.config.pwaBaseUrl);
+  const smsProvider = createSmsVerificationProvider(app);
+  const emailProvider = createMagicLinkVerificationProvider(app);
 
   app.post<{ Body: AnonymousAuthBody }>(
     "/v1/auth/anonymous",

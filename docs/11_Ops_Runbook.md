@@ -2,27 +2,32 @@
 
 目标：即使只有 2-3 人，也要把"可观测性 + 故障处理 + 数据恢复"最小化做起来。
 
-> `main` 当前仍是 `M5 completed`；M6 的 P2P node / sync overlay 目前只在 `feature/m6-p2p-sync` 分支推进，尚未成为新的 canonical runtime。
+> `main` 当前已是 `M6 completed`；`feature/m7-staging-rehearsal` 只做 staging truth 收口。M7 不新增用户端产品 surface，但会把 split runtimes、deploy scripts 和 rehearsal probe 收口成可执行 staging truth。
 
 ---
 
-## 1) 服务清单（当前 M5 运行面 / rehearsal）
+## 1) 服务清单（当前 M6 运行面 / rehearsal）
 
-**当前唯一运行中的后端 HTTP 服务**：
+**`main` 的稳定用户面仍经由 API Gateway 暴露；M7 branch-local staging rehearsal 额外拆出这些后端 runtimes**：
 
 | 服务 | 职责 | 关键依赖 |
 |------|------|----------|
 | API Gateway | 路由、鉴权、限流、resource/posts/review/speech HTTP 接口 | PostgreSQL, Redis |
+| Posts Service | community access / join、posts、review queue、announcements、rules、dashboard | PostgreSQL, Redis |
+| Match Service | matches、contact requests、recipient inbox | PostgreSQL |
+| Chat Service | conversations、messages、reports、block、realtime chat | PostgreSQL, Redis |
+| Resource Directory Service | resources read API + import host | PostgreSQL/PostGIS |
+| Notifications Service | Twilio / Resend delivery adapter | Twilio, Resend |
 
-**当前仓库内的非独立 runtime 包**：
+**当前 branch-local staging truth**：
 
 | 包 | 当前形态 | 说明 |
 |----|----------|------|
-| `services/resource-directory` | library + CLI host | M1/M2/M5 仍通过 API Gateway 暴露查询能力，不单独部署 |
-| `services/posts` | domain library | M2 的 community join / posts / review 逻辑挂在 API Gateway 下 |
-| `services/match` | domain library | M3 branch closeout：matching / contact requests / recipient inbox，不单独部署 |
-| `services/chat` | domain library | M4 branch closeout：conversations / messages / block / report / WebSocket，不单独部署 |
-| `services/notifications` | not started | 目标态能力，当前未部署 |
+| `services/resource-directory` | library + standalone runtime | `main` 仍由 API Gateway 暴露查询面；M7 rehearsal 同时验证独立 runtime 健康探针 |
+| `services/posts` | domain library + standalone runtime | staging split path 下由 Gateway 通过 internal service JWT 代理 |
+| `services/match` | domain library + standalone runtime | staging split path 下由 Gateway 代理 |
+| `services/chat` | domain library + standalone runtime | staging split path 下由 Gateway 代理 |
+| `services/notifications` | standalone runtime | 只负责短信/邮件外发；不对用户直接暴露 |
 
 **前端应用（Next.js + TypeScript，不计入微服务数量）**：
 
@@ -31,9 +36,17 @@
 | PWA（用户端） | 互助发布/搜索/匹配/聊天 | Vercel Edge |
 | Anchor Admin Console | 管理后台（审核/公告/规则） | Vercel Edge |
 
+## 2) 当前可执行 staging truth
+
+- 当前唯一稳定可执行的日常链路仍是：`pnpm install` → `docker compose up -d` → `pnpm db:migrate` → `pnpm db:seed` → `pnpm dev` → `pnpm test:smoke:real` → `pnpm test:e2e` → `pnpm test:smoke:p2p`
+- `staging` 当前已经收口为可执行 rehearsal 路径：`push main` 默认触发 `deploy-staging` 的 `apply` 路径，或手动 `workflow_dispatch` 选择 `plan/apply`
+- M7 rehearsal 要求整套 split runtime URL 与 smoke URL 都显式配置；`smoke-staging` 不再接受“只有 gateway/pwa/admin 有地址、其余服务缺省”的半接线形态
+- staging split-runtime 现在按 fail-fast 运行：gateway 和 notifications 缺少内部 JWT、下游 URL 或真实 provider 配置时，不允许 silently fallback 到 in-process / stub 路径
+- `production`、`canary`、完整 observability、跨云发布与自动回滚统一放到后面的 future notes
+
 ---
 
-## 2) SLO / SLA（建议）
+## Appendix A.0) Future SLO / SLA
 
 | 指标 | SLO 目标 | 测量方式 | 违约处理 |
 |------|----------|----------|----------|
@@ -49,15 +62,17 @@
 
 ---
 
-## 3) 监控面板（Dashboard）
+## Appendix A.1) Future Monitoring Dashboard
 
-### 3.1 Golden Signals
+### A.1.1 Dashboard Overview
+
+#### A.1.1.1 Golden Signals
 - **Latency**：p50, p95, p99（当前以 API Gateway 为主，后续按服务拆分）
 - **Traffic**：req/s, active users/hour
 - **Errors**：5xx rate, 4xx rate（按 endpoint 拆分）
 - **Saturation**：CPU %, memory %, DB connection pool usage, disk I/O
 
-### 3.2 Domain Metrics
+#### A.1.1.2 Domain Metrics
 - Posts created/day（按类别、风险等级分组）
 - Matches suggested/day
 - Verified matches/week（北极星指标）
@@ -65,7 +80,7 @@
 - Anchor 审核队列积压量
 - 新用户 7 天留存率
 
-### 3.3 推荐工具栈
+#### A.1.1.3 推荐工具栈
 
 | 用途 | 推荐工具 | 备选 | 说明 |
 |------|----------|------|------|
@@ -75,7 +90,7 @@
 | Uptime 监控 | UptimeRobot (免费版) | Better Uptime | 免费额度足够 MVP |
 | 错误追踪 | Sentry (免费版) | — | 前后端错误自动归类 |
 
-### 3.4 Grafana Dashboard 布局（建议）
+#### A.1.1.4 Grafana Dashboard 布局（建议）
 
 **Dashboard 1: Overview**
 - Row 1: 4 个 stat panel（QPS / 5xx rate / p95 latency / active users）
@@ -88,7 +103,7 @@
 
 ---
 
-## 4) 日志与追踪
+## Appendix A.2) Future Logging & Tracing
 
 ### 4.1 日志格式（JSON Structured Logging）
 ```json
@@ -138,7 +153,7 @@ loki-cli query '{} |= "sha256:7f3a"' --since=7d
 
 ---
 
-## 5) 告警规则
+## Appendix A.3) Future Alerting
 
 ### 5.1 告警分级
 
@@ -203,7 +218,7 @@ groups:
 
 ---
 
-## 6) On-Call 机制（2-3 人团队版）
+## Appendix B) Future On-Call
 
 ### 6.1 轮换策略
 - **周轮换**：每人每周轮值一次（2 人团队则每人隔周一次）
@@ -236,7 +251,7 @@ groups:
 
 ---
 
-## 7) 故障处理 Playbooks
+## Appendix C) Future Playbooks
 
 ### 7.1 官方资源查询挂了
 **Symptoms**:
@@ -316,9 +331,9 @@ groups:
    ```
 4. 通知 Anchor 使用备用渠道（Slack/电话）报告紧急情况
 
-### 7.6 M5 pilot rehearsal path
+### 7.6 M6/M7 rehearsal path
 
-当 `main` 需要复现 M5 试点演练时，按下面的顺序跑一遍：
+当 `main` 需要复现 M6 closeout / M7 staging rehearsal 时，按下面的顺序跑一遍：
 
 1. `pnpm install`
 2. `docker compose up -d`
@@ -334,7 +349,7 @@ groups:
 
 ---
 
-## 8) 备份与恢复
+## Appendix D) Future Backup / Restore
 
 ### 8.1 备份范围
 
@@ -380,7 +395,7 @@ psql -h staging-db -U weavenyc -d weavenyc_staging -c "
 
 ---
 
-## 9) 发布流程（Deployment Pipeline）
+## Appendix E) Future Deployment Pipeline
 
 ### 9.1 环境
 | 环境 | 用途 | 部署方式 |
@@ -415,13 +430,13 @@ npm run deploy -- --tag v1.2.3
 - `MATCH_ALGORITHM_VERSION`: 匹配算法版本（可灰度切换）
 
 说明：
-- 当前 branch-local M6 没有单独的 server-side `ENABLE_P2P_SYNC` 开关；同步 overlay 作为 branch 内实现面始终存在
+- 当前 canonical M6 没有单独的 server-side `ENABLE_P2P_SYNC` 开关；同步 overlay 作为主线实现面始终存在
 - `mDNS` 默认关闭；默认 discovery 路径始终是 bootstrap
 - 只有在显式打开上述 server/client demo flags 时，PWA 才显示实验性 mDNS toggle
 
 ---
 
-## 10) 安全运营检查清单（每周）
+## Appendix F) Future Security Ops
 
 - [ ] 检查 Sentry 未解决的错误数量
 - [ ] 检查审核队列是否有超时未处理的举报

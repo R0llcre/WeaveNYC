@@ -1,6 +1,6 @@
 import 'fastify';
 
-import type { AuthTokenClaims } from './types.js';
+import type { AuthTokenClaims, InternalServiceTokenClaims } from './types.js';
 import type { AppConfig } from './config.js';
 import type { AuthenticatedUserRecord } from './types.js';
 import type { ChatService } from '@weavenyc/chat';
@@ -32,11 +32,22 @@ declare module 'fastify' {
     syncRuntime: P2PSyncRuntime;
     userStore: UserStore;
     authenticate: (request: FastifyRequest) => Promise<void>;
+    serviceJwt: {
+      sign: (payload: InternalServiceTokenClaims) => string;
+      verify: <T extends object = InternalServiceTokenClaims>(token: string) => Promise<T>;
+    };
   }
 }
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
     user: AuthTokenClaims;
+  }
+
+  interface FastifyJWTNamespace {
+    serviceJwt: {
+      payload: InternalServiceTokenClaims;
+      user: InternalServiceTokenClaims;
+    };
   }
 }

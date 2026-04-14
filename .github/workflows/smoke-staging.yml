@@ -1,0 +1,66 @@
+name: Smoke Staging
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Deploy Staging
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-staging
+  cancel-in-progress: false
+
+jobs:
+  smoke-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    environment: staging
+
+    env:
+      WEAVENYC_DEPLOY_PROFILE: staging
+      NODE_ENV: production
+      WEAVENYC_STAGING_SMOKE_MODE: remote
+      WEAVENYC_STAGING_RUN_REAL_API_SMOKE: "1"
+      WEAVENYC_STAGING_RUN_P2P_SMOKE: "1"
+      WEAVENYC_STAGING_API_GATEWAY_URL: ${{ vars.WEAVENYC_STAGING_API_GATEWAY_URL }}
+      WEAVENYC_STAGING_POSTS_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_POSTS_SERVICE_URL }}
+      WEAVENYC_STAGING_MATCH_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_MATCH_SERVICE_URL }}
+      WEAVENYC_STAGING_CHAT_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_CHAT_SERVICE_URL }}
+      WEAVENYC_STAGING_RESOURCE_DIRECTORY_URL: ${{ vars.WEAVENYC_STAGING_RESOURCE_DIRECTORY_URL }}
+      WEAVENYC_STAGING_NOTIFICATIONS_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_NOTIFICATIONS_SERVICE_URL }}
+      WEAVENYC_STAGING_PWA_URL: ${{ vars.WEAVENYC_STAGING_PWA_URL }}
+      WEAVENYC_STAGING_ANCHOR_ADMIN_URL: ${{ vars.WEAVENYC_STAGING_ANCHOR_ADMIN_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run staging smoke
+        run: pnpm exec tsx scripts/staging/smoke-staging.ts
+
+      - name: Upload smoke report
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-smoke-report
+          path: .staging/smoke-report.json
+          if-no-files-found: error
