@@ -261,6 +261,37 @@ describe("p2p sync routes", () => {
     );
   });
 
+  it("mints a fresh websocket token on each bootstrap request", async () => {
+    const userStore = new InMemoryUserStore();
+    const member = createUserRecord({ communityIds: [communityId], level: "verified" });
+    userStore.users.set(member.userId, member);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+    const memberToken = signUser(app, member);
+
+    const firstResponse = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityId}/bootstrap`,
+      headers: { authorization: `Bearer ${memberToken}` },
+    });
+    const secondResponse = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityId}/bootstrap`,
+      headers: { authorization: `Bearer ${memberToken}` },
+    });
+
+    expect(firstResponse.statusCode).toBe(200);
+    expect(secondResponse.statusCode).toBe(200);
+
+    const firstToken = new URL(firstResponse.json().anchor_node.websocket_url as string).searchParams.get("token");
+    const secondToken = new URL(secondResponse.json().anchor_node.websocket_url as string).searchParams.get("token");
+
+    expect(firstToken).toEqual(expect.any(String));
+    expect(secondToken).toEqual(expect.any(String));
+    expect(firstToken).not.toBe(secondToken);
+  });
+
   it("uses an opaque cursor that preserves same-timestamp siblings", async () => {
     const userStore = new InMemoryUserStore();
     const member = createUserRecord({ communityIds: [communityId], level: "verified" });

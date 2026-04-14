@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
 
 import {
@@ -140,6 +141,7 @@ export const p2pSyncRoutes: FastifyPluginAsync = async (app) => {
           community_ids: actor.communityIds,
           anchor_community_id: actor.anchorCommunityId ?? undefined,
           mfa_verified_at: actor.mfaVerifiedAt ?? undefined,
+          jti: randomUUID(),
           scope: "p2p_ws",
           community_id: communityId,
         },

@@ -211,7 +211,7 @@ function getPeerCount() {
   return 0;
 }
 
-async function bootstrapAndSync() {
+async function bootstrapAndSync(options: { retryOnFailure?: boolean } = {}) {
   postStatus('connecting');
 
   try {
@@ -238,6 +238,9 @@ async function bootstrapAndSync() {
       }),
       error: message,
     });
+    if (options.retryOnFailure && !currentState.shuttingDown) {
+      scheduleReconnect();
+    }
   }
 }
 
@@ -289,7 +292,9 @@ function scheduleReconnect() {
 
   currentState.reconnectTimer = self.setTimeout(() => {
     currentState.reconnectTimer = null;
-    connectSocket();
+    // Bootstrap mints short-lived websocket credentials, so reconnects must
+    // refresh bootstrap state before opening a new socket.
+    void bootstrapAndSync({ retryOnFailure: true });
   }, 5_000);
 }
 
