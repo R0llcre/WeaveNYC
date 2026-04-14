@@ -1,6 +1,6 @@
 # WeaveNYC — API Spec (HTTP Surface, Main-First)
 
-目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；当前 canonical surface 已覆盖 M0-M5，M6/P2P 相关内容统一放到文末的 future appendix / notes。
+目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；`main` 的 canonical surface 已覆盖 M0-M5。当前 `feature/m6-p2p-sync` 的 branch-local P2P additions 记录在第 8 节，但不应被误读成 `main` 已上线能力。
 
 约定：
 - HTTP Base URL（示例）：`https://api.weavenyc.local`
@@ -610,120 +610,145 @@ Request:
 
 ---
 
-## Future Appendix B: P2P Message Schemas (JSON)
+## 8) M6 Branch Additions: P2P Contracts (In Progress)
 
 > **命名约定**：事件类型使用过去式（表示已发生的事实），与 [07_P2P_Node_Design §3.2](./07_P2P_Node_Design.md) 保持一致。
-> 完整事件类型列表：`post.published`, `post.updated`, `post.tombstoned`, `report.created`, `moderation.decision`, `announcement.published`
+> 完整事件类型列表：`post.published`, `post.updated`, `post.tombstoned`, `announcement.published`, `announcement.updated`, `announcement.deleted`, `report.created`, `moderation.decision`
+>
+> **当前 overlay 边界**：这里只描述当前 branch 会真实同步的最小 payload。`report.created` / `moderation.decision` 只覆盖 post-target 事件；`detail_text`、`conversation_id`、`affected_user_id` 不进入社区同步 payload。
 
 ### 8.1 post.published
 ```json
 {
-  "event_id": "evt_...",
+  "sync_event_id": "evt_...",
   "event_type": "post.published",
   "community_id": "comm_...",
-  "actor": "anon_user_...",
-  "ts": "2026-02-26T00:00:00Z",
+  "topic": "weavenyc/comm_.../posts",
+  "aggregate_type": "post",
+  "aggregate_id": "p_...",
+  "occurred_at": "2026-02-26T00:00:00Z",
+  "actor_p2p_id": "actor_...",
+  "cid": "bafy...",
   "payload": {
     "post_id": "p_...",
-    "cid": "bafy...",
-    "version": 1,
+    "p2p_version": 1,
+    "ipfs_cid": "bafy...",
     "post_type": "offer",
     "category": "food"
-  },
-  "signature": "..."
+  }
 }
 ```
 
 ### 8.2 post.updated
 ```json
 {
-  "event_id": "evt_...",
+  "sync_event_id": "evt_...",
   "event_type": "post.updated",
   "community_id": "comm_...",
-  "actor": "anon_user_...",
-  "ts": "2026-02-26T01:00:00Z",
+  "topic": "weavenyc/comm_.../posts",
+  "aggregate_type": "post",
+  "aggregate_id": "p_...",
+  "occurred_at": "2026-02-26T01:00:00Z",
+  "actor_p2p_id": "actor_...",
+  "cid": "bafy_new...",
   "payload": {
     "post_id": "p_...",
-    "prev_cid": "bafy_old...",
-    "cid": "bafy_new...",
-    "version": 2,
+    "p2p_version": 2,
+    "ipfs_cid": "bafy_new...",
     "changes": { "body": "Updated description", "expires_at": "2026-02-28T00:00:00Z" }
-  },
-  "signature": "..."
+  }
 }
 ```
 
 ### 8.3 post.tombstoned
 ```json
 {
-  "event_id": "evt_...",
+  "sync_event_id": "evt_...",
   "event_type": "post.tombstoned",
   "community_id": "comm_...",
-  "actor": "anon_user_...",
-  "ts": "2026-02-26T02:00:00Z",
+  "topic": "weavenyc/comm_.../posts",
+  "aggregate_type": "post",
+  "aggregate_id": "p_...",
+  "occurred_at": "2026-02-26T02:00:00Z",
+  "actor_p2p_id": "actor_...",
+  "cid": "bafy_old...",
   "payload": {
     "post_id": "p_...",
-    "cid": "bafy_old...",
     "reason": "closed_by_owner"
-  },
-  "signature": "..."
+  }
 }
 ```
 
 ### 8.4 moderation.decision
 ```json
 {
-  "event_id": "evt_...",
+  "sync_event_id": "evt_...",
   "event_type": "moderation.decision",
   "community_id": "comm_...",
-  "actor": "anchor_actor_...",
-  "ts": "2026-02-26T00:00:00Z",
+  "topic": "weavenyc/comm_.../reports",
+  "aggregate_type": "moderation",
+  "aggregate_id": "ma_...",
+  "occurred_at": "2026-02-26T00:00:00Z",
+  "actor_p2p_id": "anchor_actor_...",
+  "cid": "bafy_mod...",
   "payload": {
-    "post_id": "p_...",
-    "decision": "approve",
-    "reason": "Content verified",
-    "by": { "node_id": "anchor_...", "community_id": "comm_..." }
-  },
-  "signature": "..."
+    "report_id": "r_...",
+    "target_type": "post",
+    "target_id": "p_...",
+    "report_target_type": "post",
+    "report_target_id": "p_...",
+    "resolution": "approve",
+    "status": "resolved",
+    "decided_at": "2026-02-26T00:00:00Z"
+  }
 }
 ```
 
 ### 8.5 report.created
 ```json
 {
-  "event_id": "evt_...",
+  "sync_event_id": "evt_...",
   "event_type": "report.created",
   "community_id": "comm_...",
-  "actor": "anon_user_...",
-  "ts": "2026-02-26T00:00:00Z",
+  "topic": "weavenyc/comm_.../reports",
+  "aggregate_type": "report",
+  "aggregate_id": "r_...",
+  "occurred_at": "2026-02-26T00:00:00Z",
+  "actor_p2p_id": "actor_...",
+  "cid": "bafy_rep...",
   "payload": {
     "report_id": "r_...",
     "target_type": "post",
     "target_id": "p_...",
-    "reason": "scam"
-  },
-  "signature": "..."
+    "reason": "scam",
+    "status": "new",
+    "created_at": "2026-02-26T00:00:00Z"
+  }
 }
 ```
 
 ### 8.6 announcement.published
 ```json
 {
-  "event_id": "evt_...",
+  "sync_event_id": "evt_...",
   "event_type": "announcement.published",
   "community_id": "comm_...",
-  "actor": "anchor_actor_...",
-  "ts": "2026-02-26T00:00:00Z",
+  "topic": "weavenyc/comm_.../announcements",
+  "aggregate_type": "announcement",
+  "aggregate_id": "ann_...",
+  "occurred_at": "2026-02-26T00:00:00Z",
+  "actor_p2p_id": "anchor_actor_...",
+  "cid": "bafy_ann...",
   "payload": {
     "announcement_id": "ann_...",
     "title": "Pantry drive this Saturday",
     "body": "...",
-    "cid": "bafy_ann...",
-    "by": { "node_id": "anchor_...", "community_id": "comm_..." }
-  },
-  "signature": "..."
+    "ipfs_cid": "bafy_ann..."
+  }
 }
 ```
+
+> 当前 runtime 仍不 attach 或 verify envelope signatures；`signature` 不属于本分支的运行时 contract。
 
 ### 8.7 Community Bootstrap
 `GET /v1/communities/{community_id}/bootstrap`
@@ -732,36 +757,73 @@ Response:
 ```json
 {
   "community_id": "comm_...",
-  "bootstrap_version": 1,
-  "anchor_nodes": [
-    {
-      "node_id": "anchor_...",
-      "endpoint": "wss://anchor.weavenyc.local/p2p",
-      "last_seen_at": "2026-02-26T00:00:00Z"
-    }
-  ],
-  "relay_nodes": [
-    {
-      "node_id": "relay_...",
-      "endpoint": "wss://relay.weavenyc.local/p2p"
-    }
-  ],
+  "bootstrap_version": "m6-anchor-sync-v1",
+  "anchor_node": {
+    "node_id": "anchor_...",
+    "websocket_url": "ws://127.0.0.1:4000/v1/ws/p2p?token=ws_jwt_..."
+  },
+  "relay_nodes": [],
   "topics": {
     "posts": "weavenyc/{community_id}/posts",
     "reports": "weavenyc/{community_id}/reports",
     "announcements": "weavenyc/{community_id}/announcements"
   },
   "latest_snapshot": {
-    "posts_cid": "bafy...",
-    "announcements_cid": "bafy..."
+    "last_event_at": null,
+    "event_count": 0
+  },
+  "mdns_demo_enabled": false
+}
+```
+
+Notes:
+- Branch-local discovery path for M6 clients
+- If the client is offline or no anchor is available, use cached bootstrap data and skip P2P sync
+- The browser should not depend on mDNS to join a community
+- The returned `websocket_url` carries a short-lived websocket token minted by bootstrap, not the primary API bearer token
+- Clients should prefer reusing the returned URL as-is; the current compatibility helper may still append `community_id` client-side when that query param is absent
+
+### 8.8 Community Sync Delta
+`GET /v1/communities/{community_id}/sync?since=<cursor-or-ISO>&limit=<n>`
+
+Response:
+```json
+{
+  "events": [
+    {
+      "sync_event_id": "evt_...",
+      "community_id": "comm_...",
+      "topic": "weavenyc/comm_.../posts",
+      "event_type": "post.updated",
+      "aggregate_type": "post",
+      "aggregate_id": "p_...",
+      "occurred_at": "2026-04-13T12:00:00Z",
+      "actor_p2p_id": "actor_...",
+      "cid": "bafy_new...",
+      "payload": {
+        "post": {
+          "post_id": "p_...",
+          "p2p_version": 3,
+          "ipfs_cid": "bafy_new..."
+        }
+      }
+    }
+  ],
+  "next_since": "v1.eyJvY2N1cnJlZF9hdCI6IjIwMjYtMDQtMTNUMTI6MDA6MDBaIiwic3luY19ldmVudF9pZCI6ImV2dF8uLi4ifQ",
+  "server_time": "2026-04-13T12:00:01Z",
+  "latest_snapshot": {
+    "last_event_at": "2026-04-13T12:00:00Z",
+    "event_count": 1
   }
 }
 ```
 
 Notes:
-- Future-only discovery path for P2P M6 clients
-- If the client is offline or no anchor is available, use cached bootstrap data and skip P2P sync
-- The browser should not depend on mDNS to join a community
+- Branch-local catch-up path for offline recovery after the client reconnects
+- The authoritative write path remains the existing HTTP APIs for posts, announcements, reports, and moderation
+- Clients should treat this as a replay stream for cache repair, not a replacement for canonical HTTP reads
+- `since` 首次请求可传 ISO timestamp；后续请求应直接回传服务端返回的 opaque `next_since`
+- `report.created` / `moderation.decision` 只包含 post-target 的最小社区可见字段，不携带 chat/user report 上下文
 
 ---
 

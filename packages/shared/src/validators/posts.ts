@@ -133,6 +133,8 @@ export const postSummarySchema = z.object({
   updated_at: z.string().datetime(),
   expires_at: z.string().datetime(),
   is_owner: z.boolean(),
+  p2p_version: z.number().int().positive().optional(),
+  ipfs_cid: z.string().min(1).nullable().optional(),
 });
 
 export const postDetailSchema = postSummarySchema.extend({

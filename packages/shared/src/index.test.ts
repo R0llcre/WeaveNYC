@@ -4,7 +4,9 @@ import {
   adminReportQueueResponseSchema,
   anonymousSessionRequestSchema,
   anonymousSessionResponseSchema,
+  communityBootstrapResponseSchema,
   jwtClaimsSchema,
+  p2pEventEnvelopeSchema,
   reportCreateRequestSchema,
   resourceListResponseSchema
 } from "./index";
@@ -81,6 +83,79 @@ describe("@weavenyc/shared validators", () => {
 
     expect(parsed.target_type).toBe("post");
     expect(parsed.conversation_id).toBeUndefined();
+  });
+
+  it("accepts M6 bootstrap responses", () => {
+    const parsed = communityBootstrapResponseSchema.parse({
+      community_id: "44444444-4444-4444-8444-444444444444",
+      bootstrap_version: "m6-demo-v1",
+      anchor_node: {
+        node_id: "12D3KooWAnchorPeer",
+        websocket_url: "wss://anchor.weavenyc.local/p2p"
+      },
+      relay_nodes: [
+        {
+          node_id: "12D3KooWRelayPeer",
+          websocket_url: "wss://relay.weavenyc.local/p2p",
+          last_published_at: null
+        }
+      ],
+      topics: {
+        posts: "weavenyc/demo/posts",
+        announcements: "weavenyc/demo/announcements",
+        reports: "weavenyc/demo/reports"
+      },
+      latest_snapshot: {
+        last_event_at: "2026-04-13T12:00:00.000Z",
+        event_count: 1
+      },
+      mdns_demo_enabled: false
+    });
+
+    expect(parsed.topics.posts).toContain("posts");
+  });
+
+  it("accepts post sync envelopes", () => {
+    const parsed = p2pEventEnvelopeSchema.parse({
+      sync_event_id: "88888888-8888-4888-8888-888888888888",
+      community_id: "44444444-4444-4444-8444-444444444444",
+      topic: "weavenyc/demo/posts",
+      event_type: "post.published",
+      aggregate_type: "post",
+      aggregate_id: "77777777-7777-4777-8777-777777777777",
+      occurred_at: "2026-04-13T12:00:00.000Z",
+      actor_p2p_id: "edge-demo-peer",
+      cid: "bafybeigdyrztv4",
+      signature: "sig_demo",
+      payload: {
+        post: {
+          post_id: "77777777-7777-4777-8777-777777777777",
+          status: "active",
+        },
+      }
+    });
+
+    expect(parsed.aggregate_type).toBe("post");
+  });
+
+  it("rejects mismatched event and payload combinations", () => {
+    const parsed = p2pEventEnvelopeSchema.safeParse({
+      sync_event_id: "88888888-8888-4888-8888-888888888888",
+      community_id: "44444444-4444-4444-8444-444444444444",
+      topic: "weavenyc/demo/reports",
+      event_type: "report.created",
+      aggregate_type: "post",
+      aggregate_id: "77777777-7777-4777-8777-777777777777",
+      occurred_at: "2026-04-13T12:00:00.000Z",
+      cid: "bafybeigdyrztv4",
+      payload: {
+        post: {
+          post_id: "77777777-7777-4777-8777-777777777777",
+        },
+      }
+    });
+
+    expect(parsed.success).toBe(false);
   });
 
   it("rejects admin report queue items with deprecated in_review status", () => {

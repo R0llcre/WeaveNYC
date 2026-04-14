@@ -15,6 +15,7 @@ import type { AuthAbuseStore } from '../src/lib/identity.js';
 import type { RefreshTokenStore } from '../src/lib/refresh-token-store.js';
 import type { ResourceDirectoryService } from '../src/lib/resource-directory.js';
 import type { SpeechProvider } from '../src/lib/speech-providers.js';
+import { InMemoryP2PSyncRuntime, type P2PSyncRuntime } from '../src/lib/sync-runtime.js';
 import type { UserStore } from '../src/lib/user-store.js';
 import type {
   AuthenticatedUserRecord,
@@ -323,6 +324,15 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
     const result = await super.decideReport(input);
     if (result) {
       const report = this.reports.get(input.reportId);
+      const moderationTargetType =
+        input.decision === 'suspend_user' ? 'user' : report?.target_type ?? result.targetType;
+      const moderationTargetId =
+        input.decision === 'suspend_user'
+          ? report?.target_type === 'post'
+            ? this.postOwners.get(report.target_id) ?? report.target_id
+            : report?.target_id ?? result.targetId
+          : report?.target_id ?? result.targetId;
+
       if (input.decision === 'remove_post') {
         const post = report ? this.postsService.posts.get(report.target_id) : null;
         if (post) {
@@ -333,10 +343,7 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
       }
 
       if (input.decision === 'suspend_user' && report) {
-        const suspendedUserId =
-          report.target_type === 'post'
-            ? this.postOwners.get(report.target_id) ?? report.target_id
-            : report.target_id;
+        const suspendedUserId = moderationTargetId;
         const user = this.userStore.users.get(suspendedUserId);
         if (user) {
           this.userStore.users.set(suspendedUserId, {
@@ -345,6 +352,14 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
           });
         }
       }
+
+      return {
+        ...result,
+        moderationTargetType,
+        moderationTargetId,
+        reportTargetType: report?.target_type ?? result.targetType,
+        reportTargetId: report?.target_id ?? result.targetId,
+      };
     }
 
     return result;
@@ -372,12 +387,12 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
       (report) =>
         report.community_id === input.communityId &&
         report.target_type === 'post' &&
-        report.target_id === input.postId &&
-        report.status !== 'dismissed' &&
-        report.status !== 'resolved',
+      report.target_id === input.postId &&
+      report.status !== 'dismissed' &&
+      report.status !== 'resolved',
     );
     if (openReports.length < threshold) {
-      return false;
+      return null;
     }
 
     for (const report of openReports) {
@@ -387,6 +402,10 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
       this.reports.set(report.report_id, report);
     }
 
+    const moderationActionIds = Object.fromEntries(
+      openReports.map((report) => [report.report_id, randomUUID()]),
+    );
+
     const post = this.postsService.posts.get(input.postId);
     if (post) {
       post.status = 'removed';
@@ -394,7 +413,18 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
       this.postsService.posts.set(post.postId, post);
     }
 
-    return true;
+    const anchorUserId = Array.from(this.userStore.users.values()).find(
+      (user) => user.role === 'anchor' && user.communityIds?.includes(input.communityId) && user.status === 'active',
+    )?.userId ?? null;
+
+    return {
+      postId: input.postId,
+      communityId: input.communityId,
+      anchorUserId,
+      reportIds: openReports.map((report) => report.report_id),
+      moderationActionIds,
+      syncEvents: [],
+    };
   }
 
   override async getMessageContext(messageId: string) {
@@ -1076,6 +1106,7 @@ export function createTestConfig(): AppConfig {
       publicKey: readFileSync(resolve(import.meta.dirname, '../../../infra/dev/jwt-public.pem'), 'utf8')
     },
     refreshTokenTtlSeconds: 60 * 60 * 24 * 7,
+    p2pMdnsDemoEnabled: false,
     identityHashPepper: 'test-identity-pepper',
     anchorTotpEncryptionKey: 'test-anchor-totp-encryption-key'
   };
@@ -1093,6 +1124,7 @@ export async function createTestApp(options: {
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
   speechProvider?: SpeechProvider;
+  syncRuntime?: P2PSyncRuntime;
 } = {}) {
   const authAbuseStore = options.authAbuseStore ?? new InMemoryAuthAbuseStore();
   const postsService = options.postsService ?? new InMemoryPostsService();
@@ -1100,6 +1132,7 @@ export async function createTestApp(options: {
   const refreshTokenStore = options.refreshTokenStore ?? new InMemoryRefreshTokenStore();
   const resourceDirectory = options.resourceDirectory ?? new InMemoryResourceDirectory();
   const speechProvider = options.speechProvider ?? new InMemorySpeechProvider();
+  const syncRuntime = options.syncRuntime ?? new InMemoryP2PSyncRuntime();
   const linkedMatchRepository =
     options.matchService
       ? null
@@ -1136,6 +1169,7 @@ export async function createTestApp(options: {
     refreshTokenStore,
     resourceDirectory,
     speechProvider,
+    syncRuntime,
     logger: false
   });
 
@@ -1164,7 +1198,8 @@ export async function createTestApp(options: {
     userStore,
     refreshTokenStore,
     resourceDirectory,
-    speechProvider
+    speechProvider,
+    syncRuntime
   };
 }
 

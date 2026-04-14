@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
-import type { AdminReportQueueItem, ReportDecisionResponse } from "@weavenyc/shared";
+import { createCommunitySyncEvent } from "@weavenyc/p2p";
+
+import type { AdminReportQueueItem } from "@weavenyc/shared";
 
 import {
   decodeConversationCursor,
@@ -69,6 +71,7 @@ export class InMemoryChatRepository implements ChatRepository {
   readonly reports = new Map<string, ReportRecord>();
   readonly postCommunityIds = new Map<string, string>();
   readonly postOwners = new Map<string, string>();
+  readonly activeAnchorUserIds = new Map<string, string>();
   readonly userStatuses = new Map<string, "active" | "suspended" | "deleted">();
 
   async close() {}
@@ -90,6 +93,10 @@ export class InMemoryChatRepository implements ChatRepository {
 
   seedPostOwner(postId: string, userId: string) {
     this.postOwners.set(postId, userId);
+  }
+
+  seedActiveAnchorUserId(communityId: string, userId: string) {
+    this.activeAnchorUserIds.set(communityId, userId);
   }
 
   seedUserStatus(userId: string, status: "active" | "suspended" | "deleted") {
@@ -158,7 +165,7 @@ export class InMemoryChatRepository implements ChatRepository {
     body: string;
     safetyFlags: ChatMessage["safety_flags"];
     sentAt: string;
-  }) {
+  }): Promise<ChatMessage> {
     const message: ChatMessage = {
       message_id: randomUUID(),
       conversation_id: input.conversationId,
@@ -295,7 +302,34 @@ export class InMemoryChatRepository implements ChatRepository {
       resolved_at: null,
     };
     this.reports.set(report.report_id, report);
-    return report;
+    return {
+      report,
+      syncEvents:
+        report.target_type === "post"
+          ? [
+              {
+                sync_event_id: randomUUID(),
+                community_id: report.community_id,
+                topic: `weavenyc/${report.community_id}/reports`,
+                event_type: "report.created" as const,
+                aggregate_type: "report" as const,
+                aggregate_id: report.report_id,
+                occurred_at: report.created_at,
+                actor_p2p_id: `actor_${report.reporter_user_id.slice(0, 8)}`,
+                cid: null,
+                payload: {
+                  report_id: report.report_id,
+                  target_type: "post" as const,
+                  target_id: report.target_id,
+                  reason: report.reason,
+                  status: report.status,
+                  created_at: report.created_at,
+                },
+                signature: null,
+              },
+            ]
+          : [],
+    };
   }
 
   async listReportQueuePage(input: {
@@ -356,7 +390,7 @@ export class InMemoryChatRepository implements ChatRepository {
     notes: string | null;
     anchorUserId: string;
     decidedAt: string;
-  }): Promise<ReportDecisionResponse | null> {
+  }): Promise<import("./types.js").ReportDecisionResult | null> {
     void input.notes;
     void input.anchorUserId;
     const report = this.reports.get(input.reportId);
@@ -370,6 +404,21 @@ export class InMemoryChatRepository implements ChatRepository {
         status: report.status,
         resolution: report.resolution ?? "none",
         decided_at: report.resolved_at ?? report.created_at,
+        communityId: report.community_id,
+        targetType: report.target_type,
+        targetId: report.target_id,
+        moderationTargetType: report.target_type,
+        moderationTargetId:
+          input.decision === "suspend_user"
+            ? report.target_type === "post"
+              ? this.postOwners.get(report.target_id) ?? report.target_id
+              : report.target_id
+            : report.target_id,
+        reportTargetType: report.target_type,
+        reportTargetId: report.target_id,
+        conversationId: report.conversation_id,
+        moderationActionId: null,
+        syncEvents: [],
       };
     }
 
@@ -391,12 +440,67 @@ export class InMemoryChatRepository implements ChatRepository {
       this.userStatuses.set(affectedUserId, "suspended");
     }
 
+    const moderationActionId = randomUUID();
+    const syncEvents =
+      report.target_type === "post"
+        ? [
+            createCommunitySyncEvent({
+              communityId: report.community_id,
+              topicKey: "reports",
+              eventType: "moderation.decision",
+              aggregateType: "moderation",
+              aggregateId: moderationActionId,
+              actorUserId: input.anchorUserId,
+              occurredAt: input.decidedAt,
+              payload: {
+                report_id: report.report_id,
+                target_type: "post",
+                target_id: report.target_id,
+                report_target_type: "post",
+                report_target_id: report.target_id,
+                resolution: report.resolution ?? "none",
+                status: report.status,
+                decided_at: input.decidedAt,
+              },
+            }),
+            ...(report.resolution === "remove_post"
+              ? [
+                  createCommunitySyncEvent({
+                    communityId: report.community_id,
+                    topicKey: "posts",
+                    eventType: "post.tombstoned",
+                    aggregateType: "post",
+                    aggregateId: report.target_id,
+                    actorUserId: input.anchorUserId,
+                    occurredAt: input.decidedAt,
+                    payload: {
+                      post: {
+                        post_id: report.target_id,
+                      },
+                      reason: "report_queue_remove_post",
+                    },
+                  }),
+                ]
+              : []),
+          ]
+        : [];
+
     return {
       report_id: report.report_id,
       status: report.status,
       resolution: report.resolution ?? "none",
       decided_at: input.decidedAt,
       affected_user_id: affectedUserId,
+      communityId: report.community_id,
+      targetType: report.target_type,
+      targetId: report.target_id,
+      moderationTargetType: input.decision === "suspend_user" ? "user" : report.target_type,
+      moderationTargetId: input.decision === "suspend_user" ? affectedUserId ?? report.target_id : report.target_id,
+      reportTargetType: report.target_type,
+      reportTargetId: report.target_id,
+      conversationId: report.conversation_id,
+      moderationActionId,
+      syncEvents,
     };
   }
 
@@ -410,9 +514,11 @@ export class InMemoryChatRepository implements ChatRepository {
         report.status !== "resolved",
     ).length;
     if (reportCount < 3) {
-      return false;
+      return null;
     }
 
+    const moderationActionIds: Record<string, string> = {};
+    const resolvedAt = new Date().toISOString();
     for (const report of this.reports.values()) {
       if (
         report.community_id === input.communityId &&
@@ -423,12 +529,68 @@ export class InMemoryChatRepository implements ChatRepository {
       ) {
         report.status = "resolved";
         report.resolution = "remove_post";
-        report.resolved_at = new Date().toISOString();
+        report.resolved_at = resolvedAt;
         this.reports.set(report.report_id, report);
+        moderationActionIds[report.report_id] = randomUUID();
       }
     }
 
-    return true;
+    const reportIds = Array.from(this.reports.values())
+      .filter(
+        (report) =>
+          report.community_id === input.communityId &&
+          report.target_type === 'post' &&
+          report.target_id === input.postId,
+      )
+      .map((report) => report.report_id);
+
+    const syncEvents = [
+      ...reportIds.map((reportId) =>
+        createCommunitySyncEvent({
+          communityId: input.communityId,
+          topicKey: "reports",
+          eventType: "moderation.decision",
+          aggregateType: "moderation",
+          aggregateId: moderationActionIds[reportId] ?? randomUUID(),
+          actorUserId: this.activeAnchorUserIds.get(input.communityId) ?? null,
+          occurredAt: resolvedAt,
+          payload: {
+            report_id: reportId,
+            target_type: "post",
+            target_id: input.postId,
+            report_target_type: "post",
+            report_target_id: input.postId,
+            resolution: "remove_post",
+            status: "resolved",
+            decided_at: resolvedAt,
+          },
+        }),
+      ),
+      createCommunitySyncEvent({
+        communityId: input.communityId,
+        topicKey: "posts",
+        eventType: "post.tombstoned",
+        aggregateType: "post",
+        aggregateId: input.postId,
+        actorUserId: this.activeAnchorUserIds.get(input.communityId) ?? null,
+        occurredAt: resolvedAt,
+        payload: {
+          post: {
+            post_id: input.postId,
+          },
+          reason: "auto_hide_report_threshold",
+        },
+      }),
+    ];
+
+    return {
+      postId: input.postId,
+      communityId: input.communityId,
+      anchorUserId: this.activeAnchorUserIds.get(input.communityId) ?? null,
+      reportIds,
+      moderationActionIds,
+      syncEvents,
+    };
   }
 
   async getMessage(messageId: string, conversationId: string) {

@@ -28,6 +28,7 @@ describeDb("db bootstrap", () => {
       anchor_invites: string | null;
       community_rulesets: string | null;
       announcements: string | null;
+      community_sync_events: string | null;
     }>(`
       select
         to_regclass('public.users') as users,
@@ -35,7 +36,8 @@ describeDb("db bootstrap", () => {
         to_regclass('public.conversations') as conversations,
         to_regclass('public.anchor_invites') as anchor_invites,
         to_regclass('public.community_rulesets') as community_rulesets,
-        to_regclass('public.announcements') as announcements;
+        to_regclass('public.announcements') as announcements,
+        to_regclass('public.community_sync_events') as community_sync_events;
     `);
 
     expect(tables.rows[0]).toMatchObject({
@@ -44,7 +46,8 @@ describeDb("db bootstrap", () => {
       conversations: "conversations",
       anchor_invites: "anchor_invites",
       community_rulesets: "community_rulesets",
-      announcements: "announcements"
+      announcements: "announcements",
+      community_sync_events: "community_sync_events"
     });
   });
 

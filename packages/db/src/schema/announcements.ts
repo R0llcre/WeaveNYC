@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { communities } from "./communities";
 import { announcementStatusEnum } from "./enums";
@@ -15,6 +15,8 @@ export const announcements = pgTable(
     body: text("body").notNull(),
     status: announcementStatusEnum("status").notNull().default("active"),
     isPinned: boolean("is_pinned").notNull().default(false),
+    ipfsCid: varchar("ipfs_cid", { length: 100 }),
+    p2pVersion: integer("p2p_version").notNull().default(1),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.userId),

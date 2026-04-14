@@ -1,5 +1,28 @@
-const CACHE_NAME = 'weavenyc-m0-shell-v1';
+const CACHE_NAME = 'weavenyc-shell-v2';
 const CORE_ASSETS = ['/', '/manifest.webmanifest', '/icons/app-icon.svg', '/icons/maskable-icon.svg'];
+const STATIC_DESTINATIONS = new Set(['style', 'script', 'worker', 'image', 'font']);
+
+function isCacheableStaticRequest(request) {
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
+
+  if (request.headers.has('authorization') || url.pathname.startsWith('/v1/')) {
+    return false;
+  }
+
+  if (request.destination && STATIC_DESTINATIONS.has(request.destination)) {
+    return true;
+  }
+
+  return (
+    CORE_ASSETS.includes(url.pathname) ||
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/icons/')
+  );
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -31,6 +54,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (!isCacheableStaticRequest(event.request)) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -38,8 +65,10 @@ self.addEventListener('fetch', (event) => {
       }
 
       return fetch(event.request).then((networkResponse) => {
-        const copy = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        if (networkResponse.ok) {
+          const copy = networkResponse.clone();
+          void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
         return networkResponse;
       });
     }),

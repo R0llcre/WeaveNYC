@@ -3,14 +3,14 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const migrations = ["0000_m0_initial.sql", "0001_m1_remediation.sql", "0002_m2_community_posts.sql", "0003_m3_matching_inbox.sql", "0004_m4_chat_safety.sql", "0005_m4_report_broadening.sql", "0006_m5_anchor_admin.sql", "0007_m5_contract_hardening.sql", "0008_m5_report_status_cleanup.sql"]
+const migrations = ["0000_m0_initial.sql", "0001_m1_remediation.sql", "0002_m2_community_posts.sql", "0003_m3_matching_inbox.sql", "0004_m4_chat_safety.sql", "0005_m4_report_broadening.sql", "0006_m5_anchor_admin.sql", "0007_m5_contract_hardening.sql", "0008_m5_report_status_cleanup.sql", "0009_m6_p2p_sync.sql"]
   .map((filename) =>
     readFileSync(path.resolve(process.cwd(), "packages/db/migrations", filename), "utf8")
   )
   .join("\n");
 
 describe("initial migration", () => {
-  it("contains required M0 through M5 constraints", () => {
+  it("contains required M0 through M6 constraints", () => {
     expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_dataset_versions_source_version");
     expect(migrations).toContain("PRIMARY KEY (user_id, community_id)");
     expect(migrations).toContain("CREATE UNIQUE INDEX IF NOT EXISTS uq_resources_active_source_ref");
@@ -52,5 +52,10 @@ describe("initial migration", () => {
     expect(migrations).toContain("alter type report_status rename to report_status_old");
     expect(migrations).toContain("create type report_status as enum ('new', 'resolved', 'dismissed')");
     expect(migrations).toContain("alter column anchor_user_id drop not null");
+    expect(migrations).toContain("ADD COLUMN IF NOT EXISTS p2p_version integer NOT NULL DEFAULT 1");
+    expect(migrations).toContain("ADD COLUMN IF NOT EXISTS ipfs_cid varchar(100)");
+    expect(migrations).toContain("CREATE TABLE IF NOT EXISTS community_sync_events");
+    expect(migrations).toContain("CREATE INDEX IF NOT EXISTS idx_community_sync_events_community_occurred_at");
+    expect(migrations).toContain("CREATE INDEX IF NOT EXISTS idx_community_sync_events_aggregate_occurred_at");
   });
 });

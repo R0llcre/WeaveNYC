@@ -1,13 +1,13 @@
 # WeaveNYC — Implementation Plan (Phased Execution Roadmap)
 
-> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 以 `main = M5 completed` 为准；M5 closeout 见 [26_M5_Closeout](./26_M5_Closeout.md)。
+> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 以 `main = M5 completed` 为准；当前执行分支 `feature/m6-p2p-sync` 正在推进 `M6`。M5 closeout 见 [26_M5_Closeout](./26_M5_Closeout.md)。
 
 ---
 
 ## 0) 怎么用这份计划
 
 - `P0`、`M0` 已经完成，不再作为待排阶段。
-- `M1`、`M2`、`M3`、`M4`、`M5` 已完成；`M6` 仍是下一阶段可选项。
+- `M1`、`M2`、`M3`、`M4`、`M5` 已完成；`M6` 是当前 branch-local 执行阶段。
 - 每个阶段都看 3 件事：做什么、阶段结束必须产出什么、满足什么门槛才能进入下一阶段。
 - `14_Backlog.md` 是任务池；本文件负责决定“现在先做哪一批”。
 
@@ -34,11 +34,11 @@
 | `M3` 匹配与行动方案 | Completed | 4-6 天 | 对 Request 返回可行动方案并完成最小建联闭环 | 匹配服务、Top-3 结果页、一次刷新、官方资源兜底、解释标签、`contact_requests`、recipient inbox、accept/reject | 发布 request 后稳定得到 3 个建议；recipient 可在 app 内 accept/reject；accept 创建 conversation，后续聊天由 M4 接手 |
 | `M4` 联系与聊天安全 | Completed | 5-7 天 | 把 accepted conversation 升级成真实聊天与安全闭环 | 会话列表、消息发送/读取、聊天页、举报/拉黑、敏感信息拦截、WebSocket realtime | 已接受的 request 可进入真实会话并收发消息；安全动作可用；6-lane review gate 关闭后进入 M5 |
 | `M5` Anchor Admin + 试点准备 | Completed | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本、pilot rehearsal | Anchor activate/login、moderation、announcements、rules、dashboard、rehearsal、validation 和 6-lane review gate 全部关闭 |
-| `M6` P2P 同步（仅在核心 MVP 完成后） | Optional next phase | 1-2 周 | 做课程加分项 | Edge opt-in、Anchor pin/index、同步恢复 | 两设备可跨节点看到同一帖子 |
+| `M6` P2P 同步 overlay | In progress on branch | 1-2 周 | 在现有 HTTP-first 产品上补 P2P 加分演示 | bootstrap/sync API、Edge worker、Anchor publish/replay、离线 catch-up | 两设备可跨节点看到同一份帖子/公告状态 |
 
-> `M0-M5` 是 MVP critical path；`M6` 只在前面稳定后再排，不计入 MVP 必需项。
+> `M0-M5` 已是完成的 MVP critical path；`M6` 当前按 Stretch Demo 推进，但仍不回写为 `main` 已关闭阶段。
 
-> 当前 `M5` closeout / rehearsal 状态以 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准；后续是否进入 `M6` 取决于下一轮排期。
+> 当前 `M5` closeout / rehearsal 状态以 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准；`M6` 的 branch-local 真值以 `README`、[`00_Execution_Baseline.md`](./00_Execution_Baseline.md)、[`07_P2P_Node_Design.md`](./07_P2P_Node_Design.md) 和 [`12_Testing_Strategy.md`](./12_Testing_Strategy.md) 的一致口径为准。
 
 ---
 
@@ -203,26 +203,29 @@
 - Transportation / Childcare 默认进入审核
 - Anchor 审核通过后用户端状态正确更新
 
-### M6（Week 6+）：P2P 同步（可作为加分项，非 MVP critical path）
+### M6（当前 branch-local 执行阶段）：P2P 同步 overlay
 
 做什么：
 
-- Edge opt-in 到 Helia / IPFS
-- Anchor pin / index / replay
-- 提供 `community bootstrap` API 作为 Anchor discovery 的默认入口；`mDNS` 只作为实验性补充，不作为默认依赖
-- 基础冲突解决和离线恢复
+- 在现有 HTTP-first 写路径上叠加 P2P sync overlay，不改写主业务 authoritative source
+- 提供 `community bootstrap` API 和 `sync` catch-up API，作为浏览器 worker 的默认 discovery / recovery 入口
+- Edge 通过 WebWorker 维护 opt-in 同步状态、本地缓存和离线只读恢复
+- Anchor node 以内嵌模块方式挂在 `api-gateway`，负责 publish / replay / relay
+- `mDNS` 只作为实验性 demo 开关，不作为默认依赖
 
 阶段产出：
 
-- Edge 发布到 P2P
-- Anchor 可见和恢复同步
-- 通过 bootstrap API 能拿到 Anchor 节点 / seed 信息
-- 课程加分演示路径
+- `GET /v1/communities/:community_id/bootstrap`
+- `GET /v1/communities/:community_id/sync`
+- `pnpm test:smoke:p2p` 独立 overlay smoke
+- 社区页 P2P sync 状态卡和离线只读缓存说明
+- 两设备 + 一次离线恢复的 Stretch Demo 路径
 
 进入下一阶段门槛：
 
-- 仅在 M0-M5 核心路径稳定后才进入
-- 两台设备能通过 Anchor 看到同一个帖子
+- 两台设备能通过 bootstrap + P2P 看到同一份帖子/公告状态
+- 设备离线恢复后能通过 catch-up 追平 `posts + announcements + reports/moderation events`
+- `Anchor wins` 语义能覆盖 stale P2P copy
 
 ---
 
@@ -231,7 +234,7 @@
 - `P0-M1`：已关闭，作为历史记录保留
 - `M2-M3`：前端、后端、数据结构和流程规则可以并行推进
 - `M5`：Anchor Admin 与试点准备依赖前面的 auth / posts / matching / chat 稳定
-- `M6`：只在 M5 稳定后再拉出支线，且不计入 MVP 主线容量
+- `M6`：当前支线聚焦 P2P overlay，不并入新的聊天/通知/admin 范围
 
 ---
 
@@ -241,7 +244,9 @@
 
 当前执行起点：
 
-- 如需继续推进，先确认是否先把当前 `M5` 分支合回 `main`，再评估是否值得启动 `M6`
+- 当前起点固定为 `feature/m6-p2p-sync`
+- `main` 继续代表 `M5 completed`
+- M6 当前在 branch 上已经进入实现中：`packages/p2p`、bootstrap/sync routes、PWA worker 与 `pnpm test:smoke:p2p` 都已接通，但这些能力仍只属于 branch-local truth，不回写为 `main` 已上线能力
 - 不再继续把 `E0-M4` 这类已关闭阶段 story 当作当前待办
 - 其余 auth / PWA platform story 是否已完成，一律以 [`14_Backlog.md`](./14_Backlog.md) 的当前状态标记为准
 

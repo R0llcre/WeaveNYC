@@ -22,6 +22,7 @@ export default defineConfig({
       "packages/**/*.test.ts",
       "services/**/*.test.ts",
       "apps/**/*.test.ts",
+      "tests/docs/**/*.test.ts",
     ],
     coverage: {
       enabled: false,

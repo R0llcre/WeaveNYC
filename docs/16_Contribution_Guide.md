@@ -1,6 +1,8 @@
 # WeaveNYC — Contribution Guide
 
 > 状态：`main` 的稳定基线是 `M5 completed`。本文档只描述当前可运行命令、M5 closeout 记录和当前 main-first 真值。
+>
+> `feature/m6-p2p-sync` 的 branch-local 文档 / overlay smoke 会额外出现 `pnpm test:smoke:p2p`，但它不属于当前 `main` 默认 close gate。
 
 ---
 
@@ -111,12 +113,14 @@ M5 canonical surface：
   - `pnpm test:e2e`
 - Manual / opt-in：
   - `pnpm test:live-sources`
+  - `pnpm test:smoke:p2p`
   - `pnpm dev:mint-anchor-token`
 - 说明：
   - `pnpm test:smoke:real` 直接打本地 Fastify，不走浏览器 route mock
   - 若 `/readyz` 不可用，`pnpm test:smoke:real` 会先自启动 `api-gateway`
   - `pnpm test:smoke:real` 只在 fresh `pnpm db:migrate` + `pnpm db:seed` 后通过时，才能计入当前 M5 closeout
   - `pnpm test:e2e` 仍是 fixture-backed browser smoke
+  - `pnpm test:smoke:p2p` 当前是 M6 bootstrap/sync overlay 的独立 smoke，不并入 `main` 默认 gate
   - `pnpm test:live-sources` 不进默认 CI
   - `pnpm dev:mint-anchor-token` 只是 dev/debug fallback，不属于 M5 closeout 必经路径
 
@@ -218,6 +222,7 @@ weavenyc/
 ├── packages/
 │   ├── shared/
 │   ├── db/
+│   ├── p2p/                 # M6 branch-local event/DAG/sync helpers
 │   └── test-utils/
 ├── infra/
 │   ├── docker-compose.yml
@@ -241,6 +246,7 @@ weavenyc/
 - `services/match` 当前承载 match batching、contact request state machine、recipient inbox、accept/reject，但不单独启动。
 - `services/chat` 当前承载 conversations、messages、block/report、message safety、WebSocket fan-out，但不单独启动。
 - `packages/db` 持有 schema、migration、seed、测试。
+- `packages/p2p` 当前承载 M6 branch-local 的 event envelope、CID/DAG、merge/replay helper；它不是独立 runtime。
 
 ---
 

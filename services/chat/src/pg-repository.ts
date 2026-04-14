@@ -1,4 +1,7 @@
-import type { AdminReportQueueItem, ReportDecisionResponse } from "@weavenyc/shared";
+import { randomUUID } from "node:crypto";
+
+import type { AdminReportQueueItem } from "@weavenyc/shared";
+import { appendCommunitySyncEvent } from "@weavenyc/p2p";
 
 import { encodeConversationCursor, encodeMessageCursor } from "./repository.js";
 import { ChatServiceError } from "./types.js";
@@ -80,8 +83,8 @@ type ReportRow = {
   reporter_user_id: string;
   status: "new" | "resolved" | "dismissed";
   resolution: "remove_post" | "suspend_user" | "warn" | "none" | null;
-  created_at: string;
-  resolved_at: string | null;
+  created_at: Date | string;
+  resolved_at: Date | string | null;
 };
 
 type ReportQueueRow = ReportRow & {
@@ -141,6 +144,10 @@ function mapBlock(row: BlockRow): BlockRecord {
   };
 }
 
+function toIsoTimestamp(value: Date | string) {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
 function mapReport(row: ReportRow): ReportRecord {
   return {
     report_id: row.report_id,
@@ -153,15 +160,15 @@ function mapReport(row: ReportRow): ReportRecord {
     reporter_user_id: row.reporter_user_id,
     status: row.status,
     resolution: row.resolution,
-    created_at: row.created_at,
-    resolved_at: row.resolved_at,
+    created_at: toIsoTimestamp(row.created_at),
+    resolved_at: row.resolved_at ? toIsoTimestamp(row.resolved_at) : null,
   };
 }
 
-function encodeReportCursor(row: { created_at: string; report_id: string }) {
+function encodeReportCursor(row: { created_at: Date | string; report_id: string }) {
   return Buffer.from(
     JSON.stringify({
-      createdAt: row.created_at,
+      createdAt: toIsoTimestamp(row.created_at),
       reportId: row.report_id,
     }),
     "utf8",
@@ -195,7 +202,7 @@ function mapReportQueueItem(row: ReportQueueRow): AdminReportQueueItem {
     target_id: row.target_id,
     reason: row.reason,
     status: row.status,
-    created_at: row.created_at,
+    created_at: toIsoTimestamp(row.created_at),
     reporter_user_id: row.reporter_user_id,
     reporter_alias: row.reporter_alias ?? "Neighbor",
     priority: row.priority,
@@ -445,7 +452,7 @@ export class PgChatRepository implements ChatRepository {
     body: string;
     safetyFlags: ChatMessage["safety_flags"];
     sentAt: string;
-  }) {
+  }): Promise<ChatMessage> {
     const result = await this.pool.query<MessageRow>(
       `
         insert into messages (
@@ -588,49 +595,78 @@ export class PgChatRepository implements ChatRepository {
     reporterUserId: string;
     createdAt: string;
   }) {
-    const result = await this.pool.query<ReportRow>(
-      `
-        insert into reports (
-          community_id,
-          target_type,
-          target_id,
-          reason,
-          detail_text,
-          conversation_id,
-          reporter_user_id,
-          status,
-          resolution,
-          created_at
-        )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz)
-        returning
-          report_id,
-          community_id,
-          target_type,
-          target_id,
-          reason,
-          detail_text,
-          conversation_id,
-          reporter_user_id,
-          status,
-          resolution,
-          created_at,
-          resolved_at
-      `,
-      [
-        input.communityId,
-        input.targetType,
-        input.targetId,
-        input.reason,
-        input.detailText,
-        input.conversationId,
-        input.reporterUserId,
-        "new",
-        null,
-        input.createdAt,
-      ],
-    );
-    return mapReport(result.rows[0]!);
+    return this.withTransaction(async (client) => {
+      const result = await client.query<ReportRow>(
+        `
+          insert into reports (
+            community_id,
+            target_type,
+            target_id,
+            reason,
+            detail_text,
+            conversation_id,
+            reporter_user_id,
+            status,
+            resolution,
+            created_at
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz)
+          returning
+            report_id,
+            community_id,
+            target_type,
+            target_id,
+            reason,
+            detail_text,
+            conversation_id,
+            reporter_user_id,
+            status,
+            resolution,
+            created_at,
+            resolved_at
+        `,
+        [
+          input.communityId,
+          input.targetType,
+          input.targetId,
+          input.reason,
+          input.detailText,
+          input.conversationId,
+          input.reporterUserId,
+          "new",
+          null,
+          input.createdAt,
+        ],
+      );
+      const report = mapReport(result.rows[0]!);
+      const syncEvents =
+        report.target_type === "post"
+          ? [
+              await appendCommunitySyncEvent(client, {
+                communityId: report.community_id,
+                topicKey: "reports",
+                eventType: "report.created",
+                aggregateType: "report",
+                aggregateId: report.report_id,
+                actorUserId: report.reporter_user_id,
+                occurredAt: report.created_at,
+                payload: {
+                  report_id: report.report_id,
+                  target_type: "post",
+                  target_id: report.target_id,
+                  reason: report.reason,
+                  status: report.status,
+                  created_at: report.created_at,
+                },
+              }),
+            ]
+          : [];
+
+      return {
+        report,
+        syncEvents,
+      };
+    });
   }
 
   async listReportQueuePage(input: {
@@ -728,7 +764,7 @@ export class PgChatRepository implements ChatRepository {
     notes: string | null;
     anchorUserId: string;
     decidedAt: string;
-  }): Promise<ReportDecisionResponse | null> {
+  }): Promise<import("./types.js").ReportDecisionResult | null> {
     return this.withTransaction(async (client) => {
       const target = await client.query<ReportQueueRow>(
         `
@@ -781,26 +817,37 @@ export class PgChatRepository implements ChatRepository {
         [input.communityId, input.reportId],
       );
 
-      const report = target.rows[0];
-      if (!report) {
-        return null;
-      }
+    const report = target.rows[0];
+    if (!report) {
+      return null;
+    }
 
-      if (report.status === "resolved" || report.status === "dismissed") {
-        return {
-          report_id: report.report_id,
-          status: report.status,
-          resolution: report.resolution ?? "none",
-          decided_at: report.resolved_at ?? report.created_at,
-        };
-      }
+    if (report.status === "resolved" || report.status === "dismissed") {
+      return {
+        report_id: report.report_id,
+        status: report.status,
+        resolution: report.resolution ?? "none",
+        decided_at: toIsoTimestamp(report.resolved_at ?? report.created_at),
+        communityId: report.community_id,
+        targetType: report.target_type,
+        targetId: report.target_id,
+        moderationTargetType: report.target_type,
+        moderationTargetId: report.target_id,
+        reportTargetType: report.target_type,
+        reportTargetId: report.target_id,
+        conversationId: report.conversation_id,
+        moderationActionId: null,
+        syncEvents: [],
+      };
+    }
 
       if (input.decision === "remove_post" && report.target_type !== "post") {
         throw new ChatServiceError("remove_post is only valid for post reports", "invalid_input");
       }
 
-      const nextStatus = input.decision === "dismiss" ? "dismissed" : "resolved";
-      const resolution = input.decision === "dismiss" ? "none" : input.decision;
+      const nextStatus: "dismissed" | "resolved" = input.decision === "dismiss" ? "dismissed" : "resolved";
+      const resolution: "none" | "warn" | "remove_post" | "suspend_user" =
+        input.decision === "dismiss" ? "none" : input.decision;
       const moderationTargetType =
         input.decision === "suspend_user" ? "user" : report.target_type;
       const moderationTargetId =
@@ -842,9 +889,11 @@ export class PgChatRepository implements ChatRepository {
         [input.reportId, nextStatus, resolution, input.decidedAt],
       );
 
+      const moderationActionId = randomUUID();
       await client.query(
         `
           insert into moderation_actions (
+            action_id,
             report_id,
             anchor_user_id,
             community_id,
@@ -854,9 +903,10 @@ export class PgChatRepository implements ChatRepository {
             reason,
             created_at
           )
-          values ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz)
         `,
         [
+          moderationActionId,
           input.reportId,
           input.anchorUserId,
           input.communityId,
@@ -868,18 +918,76 @@ export class PgChatRepository implements ChatRepository {
         ],
       );
 
+      const syncEvents =
+        report.target_type === "post"
+          ? [
+              await appendCommunitySyncEvent(client, {
+                communityId: input.communityId,
+                topicKey: "reports",
+                eventType: "moderation.decision",
+                aggregateType: "moderation",
+                aggregateId: moderationActionId,
+                actorUserId: input.anchorUserId,
+                occurredAt: input.decidedAt,
+                payload: {
+                  report_id: report.report_id,
+                  target_type: "post",
+                  target_id: report.target_id,
+                  report_target_type: "post",
+                  report_target_id: report.target_id,
+                  resolution,
+                  status: nextStatus,
+                  decided_at: input.decidedAt,
+                },
+              }),
+              ...(resolution === "remove_post"
+                ? [
+                    await appendCommunitySyncEvent(client, {
+                      communityId: input.communityId,
+                      topicKey: "posts",
+                      eventType: "post.tombstoned",
+                      aggregateType: "post",
+                      aggregateId: report.target_id,
+                      actorUserId: input.anchorUserId,
+                      occurredAt: input.decidedAt,
+                      payload: {
+                        post: {
+                          post_id: report.target_id,
+                          community_id: input.communityId,
+                          status: "removed",
+                          updated_at: input.decidedAt,
+                        },
+                        reason: "report_queue_remove_post",
+                      },
+                    }),
+                  ]
+                : []),
+            ]
+          : [];
+
       return {
         report_id: input.reportId,
         status: nextStatus,
         resolution,
         decided_at: input.decidedAt,
         affected_user_id: affectedUserId,
+        communityId: input.communityId,
+        targetType: report.target_type,
+        targetId: report.target_id,
+        moderationTargetType,
+        moderationTargetId,
+        reportTargetType: report.target_type,
+        reportTargetId: report.target_id,
+        conversationId: report.conversation_id,
+        moderationActionId,
+        syncEvents,
       };
     });
   }
 
-  async autoHidePostIfThresholdReached(input: { communityId: string; postId: string }): Promise<boolean> {
+  async autoHidePostIfThresholdReached(input: { communityId: string; postId: string }) {
     return this.withTransaction(async (client) => {
+      const decidedAt = new Date().toISOString();
       const thresholdResult = await client.query<{ threshold: number }>(
         `
           select coalesce(cr.auto_hide_report_threshold, 3)::int as threshold
@@ -905,22 +1013,22 @@ export class PgChatRepository implements ChatRepository {
       );
 
       if ((countResult.rows[0]?.report_count ?? 0) < threshold) {
-        return false;
+        return null;
       }
 
       const result = await client.query<{ post_id: string }>(
         `
           update posts
           set status = 'removed',
-              updated_at = now()
+              updated_at = $2::timestamptz
           where post_id = $1
             and status in ('active', 'pending_review')
           returning post_id
         `,
-        [input.postId],
+        [input.postId, decidedAt],
       );
       if (Number(result.rowCount ?? 0) === 0) {
-        return false;
+        return null;
       }
 
       const reportResult = await client.query<{ report_id: string }>(
@@ -952,21 +1060,23 @@ export class PgChatRepository implements ChatRepository {
           update reports
           set status = 'resolved',
               resolution = 'remove_post',
-              resolved_at = now()
+              resolved_at = $3::timestamptz
           where community_id = $1
             and target_type = 'post'
             and target_id = $2
             and status not in ('dismissed', 'resolved')
         `,
-        [input.communityId, input.postId],
+        [input.communityId, input.postId, decidedAt],
       );
 
       const openReportIds = reportResult.rows.map((row) => row.report_id);
       const anchorUserId = anchorResult.rows[0]?.anchor_user_id ?? null;
-      if (openReportIds.length > 0) {
-        await client.query(
+      const moderationRows =
+        openReportIds.length > 0
+          ? await client.query<{ action_id: string; report_id: string }>(
           `
             insert into moderation_actions (
+              action_id,
               report_id,
               anchor_user_id,
               community_id,
@@ -977,6 +1087,7 @@ export class PgChatRepository implements ChatRepository {
               created_at
             )
             select
+              gen_random_uuid(),
               report_id,
               $1,
               $2,
@@ -984,15 +1095,81 @@ export class PgChatRepository implements ChatRepository {
               'post',
               $3,
               'auto_hide_report_threshold',
-              now()
+              $5::timestamptz
             from reports
             where report_id = any($4::uuid[])
+            returning action_id, report_id
           `,
-          [anchorUserId, input.communityId, input.postId, openReportIds],
-        );
+          [anchorUserId, input.communityId, input.postId, openReportIds, decidedAt],
+        )
+          : { rows: [] };
+      const moderationActionIds = new Map(
+        moderationRows.rows.map((row) => [row.report_id, row.action_id]),
+      );
+
+      for (const reportId of openReportIds) {
+        if (!moderationActionIds.has(reportId)) {
+          throw new ChatServiceError(
+            `missing moderation action id for auto-hide report ${reportId}`,
+            "internal_error",
+          );
+        }
       }
 
-      return true;
+      const syncEvents = [
+        ...(
+          await Promise.all(
+            openReportIds.map((reportId) =>
+              appendCommunitySyncEvent(client, {
+                communityId: input.communityId,
+                topicKey: "reports",
+                eventType: "moderation.decision",
+                aggregateType: "moderation",
+                aggregateId: moderationActionIds.get(reportId)!,
+                actorUserId: anchorUserId,
+                payload: {
+                  report_id: reportId,
+                  target_type: "post",
+                  target_id: input.postId,
+                  report_target_type: "post",
+                  report_target_id: input.postId,
+                  resolution: "remove_post",
+                  status: "resolved",
+                  decided_at: decidedAt,
+                },
+                occurredAt: decidedAt,
+              }),
+            ),
+          )
+        ),
+        await appendCommunitySyncEvent(client, {
+          communityId: input.communityId,
+          topicKey: "posts",
+          eventType: "post.tombstoned",
+          aggregateType: "post",
+          aggregateId: input.postId,
+          actorUserId: anchorUserId,
+          occurredAt: decidedAt,
+          payload: {
+            post: {
+              post_id: input.postId,
+              community_id: input.communityId,
+              status: "removed",
+              updated_at: decidedAt,
+            },
+            reason: "auto_hide_report_threshold",
+          },
+        }),
+      ];
+
+      return {
+        postId: input.postId,
+        communityId: input.communityId,
+        anchorUserId,
+        reportIds: openReportIds,
+        moderationActionIds: Object.fromEntries(moderationActionIds.entries()),
+        syncEvents,
+      };
     });
   }
 

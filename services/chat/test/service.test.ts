@@ -255,7 +255,7 @@ describe("DefaultChatService", () => {
       blockedUserId: recipient.userId,
     });
 
-    const report = await service.submitReport({
+    const submission = await service.submitReport({
       actor: requester,
       conversationId: conversation.conversation_id,
       targetType: "message",
@@ -264,8 +264,8 @@ describe("DefaultChatService", () => {
       detailText: "Asked for sensitive information",
     });
 
-    expect(report.target_type).toBe("message");
-    expect(report.community_id).toBe(communityId);
+    expect(submission.report.target_type).toBe("message");
+    expect(submission.report.community_id).toBe(communityId);
     expect(hooks.onReportCreated).toHaveBeenCalledOnce();
   });
 
@@ -274,7 +274,7 @@ describe("DefaultChatService", () => {
     const conversation = seedConversation(repository);
     const service = new DefaultChatService(repository, defaultChatSafetyDetector, {});
 
-    const report = await service.submitReport({
+    const submission = await service.submitReport({
       actor: requester,
       targetType: "post",
       targetId: conversation.related_post_ids[0]!,
@@ -282,8 +282,54 @@ describe("DefaultChatService", () => {
       detailText: "Needs moderator review",
     });
 
-    expect(report.target_type).toBe("post");
-    expect(report.community_id).toBe(communityId);
+    expect(submission.report.target_type).toBe("post");
+    expect(submission.report.community_id).toBe(communityId);
+  });
+
+  it("returns the anchor identity when auto-hide removes a post", async () => {
+    const repository = new InMemoryChatRepository();
+    const conversation = seedConversation(repository);
+    repository.seedActiveAnchorUserId(communityId, "88888888-8888-4888-8888-888888888888");
+    repository.reports.set("99999999-9999-4999-8999-999999999991", {
+      report_id: "99999999-9999-4999-8999-999999999991",
+      community_id: communityId,
+      target_type: "post",
+      target_id: conversation.related_post_ids[0]!,
+      reason: "unsafe_behavior",
+      detail_text: "First report",
+      conversation_id: null,
+      reporter_user_id: requester.userId,
+      status: "new",
+      resolution: null,
+      created_at: "2026-04-10T12:00:00.000Z",
+      resolved_at: null,
+    });
+    repository.reports.set("99999999-9999-4999-8999-999999999992", {
+      report_id: "99999999-9999-4999-8999-999999999992",
+      community_id: communityId,
+      target_type: "post",
+      target_id: conversation.related_post_ids[0]!,
+      reason: "unsafe_behavior",
+      detail_text: "Second report",
+      conversation_id: null,
+      reporter_user_id: recipient.userId,
+      status: "new",
+      resolution: null,
+      created_at: "2026-04-10T12:01:00.000Z",
+      resolved_at: null,
+    });
+    const service = new DefaultChatService(repository, defaultChatSafetyDetector, {}, () => new Date("2026-04-10T12:05:00.000Z"));
+
+    const submission = await service.submitReport({
+      actor: requester,
+      targetType: "post",
+      targetId: conversation.related_post_ids[0]!,
+      reason: "unsafe_behavior",
+      detailText: "Third report triggers threshold",
+    });
+
+    expect(submission.autoHiddenPostId).toBe(conversation.related_post_ids[0]!);
+    expect(submission.autoHiddenActorUserId).toBe("88888888-8888-4888-8888-888888888888");
   });
 
   it("creates a user report without conversation context when the community is unambiguous", async () => {
@@ -291,7 +337,7 @@ describe("DefaultChatService", () => {
     seedConversation(repository);
     const service = new DefaultChatService(repository, defaultChatSafetyDetector, {});
 
-    const report = await service.submitReport({
+    const submission = await service.submitReport({
       actor: requester,
       targetType: "user",
       targetId: recipient.userId,
@@ -300,8 +346,8 @@ describe("DefaultChatService", () => {
       detailText: "Unsafe coordination outside the app",
     });
 
-    expect(report.target_type).toBe("user");
-    expect(report.community_id).toBe(communityId);
+    expect(submission.report.target_type).toBe("user");
+    expect(submission.report.community_id).toBe(communityId);
   });
 
   it("enforces the send rate limit", async () => {

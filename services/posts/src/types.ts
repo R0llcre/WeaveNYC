@@ -4,6 +4,7 @@ import type {
   AnnouncementCreateRequest,
   AnnouncementUpdateRequest,
   AnnouncementsResponse,
+  CommunitySyncEvent,
   CommunityAccessEntry,
   CommunityAccessResolveResponse,
   CommunityRules,
@@ -137,6 +138,7 @@ export type CreatePostResult = {
   postId: string;
   status: PostStatus;
   riskLevel: RiskLevel;
+  syncEvents?: CommunitySyncEvent[];
 };
 
 export type CursorPage<T> = {
@@ -152,19 +154,21 @@ export type PostsService = {
   createPost(input: CreatePostInput): Promise<CreatePostResult>;
   listPosts(input: ListPostsInput): Promise<PostsListResponse>;
   getPostDetail(actor: PostActor, postId: string): Promise<PostDetail>;
-  updatePost(input: UpdatePostInput): Promise<PostDetail>;
-  closePost(actor: PostActor, postId: string): Promise<PostDetail>;
-  removePost(actor: PostActor, postId: string): Promise<PostDetail>;
+  updatePost(input: UpdatePostInput): Promise<SyncedPostDetail>;
+  closePost(actor: PostActor, postId: string): Promise<SyncedPostDetail>;
+  removePost(actor: PostActor, postId: string): Promise<SyncedPostDetail>;
   listMyPosts(input: ListMyPostsInput): Promise<MyPostsResponse>;
   listReviewQueue(input: ReviewQueueInput): Promise<ReviewQueueResponse>;
-  decideReview(input: ReviewDecisionInput): Promise<ReviewDecisionResponse>;
+  decideReview(input: ReviewDecisionInput): Promise<
+    ReviewDecisionResponse & { moderationActionId?: string | null; syncEvents?: CommunitySyncEvent[] }
+  >;
   getAdminDashboard(input: AdminDashboardInput): Promise<AdminDashboardResponse>;
   getCommunityRules(input: CommunityRulesInput): Promise<CommunityRules>;
   updateCommunityRules(input: UpdateCommunityRulesInput): Promise<CommunityRules>;
   listAnnouncements(input: ListAnnouncementsInput): Promise<AnnouncementsResponse>;
-  createAnnouncement(input: CreateAnnouncementInput): Promise<Announcement>;
-  updateAnnouncement(input: UpdateAnnouncementInput): Promise<Announcement>;
-  deleteAnnouncement(input: DeleteAnnouncementInput): Promise<Announcement>;
+  createAnnouncement(input: CreateAnnouncementInput): Promise<SyncedAnnouncement>;
+  updateAnnouncement(input: UpdateAnnouncementInput): Promise<SyncedAnnouncement>;
+  deleteAnnouncement(input: DeleteAnnouncementInput): Promise<SyncedAnnouncement>;
 };
 
 export type CommunityRecord = CommunitySummary;
@@ -191,6 +195,20 @@ export type PostRecord = {
   updatedAt: string;
   createdBy: string;
   contactPref: ContactPreference | null;
+  p2pVersion?: number;
+  ipfsCid?: string | null;
+};
+
+export type SyncedPostDetail = PostDetail & {
+  p2p_version?: number;
+  ipfs_cid?: string | null;
+  syncEvents?: CommunitySyncEvent[];
+};
+
+export type SyncedAnnouncement = Announcement & {
+  p2p_version?: number;
+  ipfs_cid?: string | null;
+  syncEvents?: CommunitySyncEvent[];
 };
 
 export class PostsServiceError extends Error {

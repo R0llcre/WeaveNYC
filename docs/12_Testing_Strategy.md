@@ -1,34 +1,32 @@
 # WeaveNYC — Testing Strategy
 
-目标：用最小成本把当前已落地的高风险路径测扎实：资源导入、资源搜索、session 升级、refresh rotation，以及从首页到详情/收藏的 PWA 主路径；同时明确区分默认 CI、真实 API smoke、以及手工 live-source 验证。
+目标：把当前 `main = M5 completed` 的默认验证链和 `feature/m6-p2p-sync` 的 branch-local 验证链分清楚，避免把尚未落地的 P2P surface 混进默认 CI，同时给 M6 实现留出清晰的 smoke / E2E 入口。
 
 ---
 
-## 1) 测试分层
+## 1) 当前测试分层
 
-| 层级 | 覆盖目标 | 当前工具 |
+| 层级 | 覆盖目标 | 当前入口 |
 |------|----------|----------|
-| Unit | parser、hours、validators、auth/session helpers、merge/geocode util | Vitest |
-| Integration | Fastify route + PostgreSQL/Redis + shared contracts | Vitest |
+| Unit | helpers、validators、纯函数、协议工具 | `pnpm test` |
+| Integration | Fastify route + PostgreSQL/Redis + shared contracts | `pnpm test` |
+| Docs truth | README / Baseline / Plan / Backlog / API / Testing Strategy 是否一致 | `pnpm test` |
 | Real API smoke | 已启动 API + DB + Redis + seed 的真实 HTTP 路径 | `pnpm test:smoke:real` |
-| E2E smoke | `Language -> ZIP -> List -> Detail -> Bookmark` | Playwright |
-| Live-source smoke | CFC / Island Harvest 源可达、parser shape、record count sanity | `pnpm test:live-sources` |
+| Browser smoke | PWA / Admin 的关键页面和主路径 | `pnpm test:e2e` |
+| Live-source smoke | CFC / Island Harvest 上游源可达和 parser shape | `pnpm test:live-sources` |
+| P2P smoke | M6 bootstrap / sync overlay 的 branch-local 真实 smoke | `pnpm test:smoke:p2p` |
 
-### 1.1 当前工具真值
+说明：
 
-| 用途 | 工具 | 说明 |
-|------|------|------|
-| 单元测试 / 集成测试 | **Vitest** | 当前仓库统一使用 |
-| HTTP / route 测试 | **Vitest + Fastify inject** | 不额外引入 Supertest |
-| 数据库集成测试 | **PostgreSQL + Redis（docker compose）** | 本地可跑；CI 默认不启用 live DB integration |
-| Real API smoke | **Node fetch + tsx** | 不走浏览器 route mock，直接打本地 Fastify |
-| E2E 浏览器测试 | **Playwright** | 当前 browser smoke 仍使用 fixture-backed route mocking |
-| API Contract 测试 | **Zod** + **tsc** | 请求/响应 schema 校验 |
-| Live-source smoke | **CLI + real sources** | 默认 opt-in，不阻塞 CI |
+- `pnpm test` 继续代表默认单元/集成/文档真值检查。
+- `pnpm test:smoke:real` 继续代表 `main` 的真实 HTTP smoke。
+- `pnpm test:smoke:p2p` 是 `feature/m6-p2p-sync` 的独立 overlay smoke，不并入当前 `main` 默认 close gate。
 
-### 1.2 当前 CI 真值
+---
 
-默认 CI 跑：
+## 2) 当前默认 gate（main / M5）
+
+默认 CI 和本地基线仍以 `main = M5 completed` 为准：
 
 ```bash
 pnpm install --frozen-lockfile
@@ -45,135 +43,159 @@ pnpm test:e2e
 
 说明：
 
-- `pnpm test:smoke:real` 是默认 CI 的真实 HTTP smoke，要求 API gateway、PostgreSQL、Redis、seed 都真正启动
-- `pnpm test:e2e` 仍使用 fixture-backed browser smoke，不依赖真实外部源
-- `pnpm test:live-sources` 是 opt-in 手工 smoke，不放进默认 CI
-- Docker-backed DB integration 仍保留为本地/人工验证项
+- `pnpm test:smoke:real` 会在 `/readyz` 不可用时先自启动 `api-gateway`
+- `pnpm test:e2e` 仍是 browser smoke，不替代真实 API smoke
+- `pnpm test:live-sources` 和 `pnpm dev:mint-anchor-token` 继续保留为 manual / opt-in
+- `pnpm test:smoke:p2p` 当前不进默认 CI，因为 M6 业务 surface 仍在 branch 上实现中
 
 ---
 
-## 2) M1 必过用例
+## 3) M6 branch-local 验证链
 
-### 2.1 Zero Cold Start（官方资源目录）
+### 3.1 目标
 
-| 用例 | 输入 | 期望输出 | 级别 |
-|------|------|----------|------|
-| ZIP 搜索 | ZIP=11735 | 返回 ≥3 个官方资源 | Real API smoke + Integration |
-| 当前开放筛选 | ZIP + open_now=true | 只返回当前开放资源 | Unit（时间逻辑）+ Integration |
-| 无效 ZIP | ZIP=00000 | 400 错误 + 前端给出可纠正提示 | Integration + E2E |
-| 资源缺字段 | provider 缺 phone | 返回结果，详情页不崩 | Integration + E2E |
-| 收藏回读 | 收藏资源后刷新页面 | bookmark 仍存在 | E2E |
+`M6` 的验证目标不是重测 M1-M5，而是新增这 5 类能力：
 
-### 2.2 Auth / Session（M1 范围）
+- bootstrap discovery
+- sync delta / catch-up
+- HTTP write -> durable sync event append -> second client catch-up
+- Edge 本地缓存与离线只读恢复
+- report / moderation 的 P2P replay 语义
 
-| 用例 | 输入 | 期望输出 | 级别 |
-|------|------|----------|------|
-| 匿名会话 | `POST /v1/auth/anonymous` | 返回 access/refresh token + `level=anonymous` | Real API smoke + Integration |
-| OTP 升级 | start + verify | 用户升级到 `verified` | Real API smoke + Integration |
-| Magic link fallback | start + verify | 用户升级到 `verified` | Real API smoke + Integration |
-| Refresh rotation | old refresh token | 返回新 token，旧 token 失效 | Real API smoke + Integration |
-| Refresh replay | 已消费 refresh token 再次使用 | refresh family 被撤销 | Real API smoke + Integration |
+### 3.2 当前 smoke 命令
 
-### 2.3 Live-source smoke（opt-in）
-
-| 用例 | 输入 | 期望输出 | 级别 |
-|------|------|----------|------|
-| CFC live probe | `pnpm test:live-sources` | CFC source reachable，parser 输出 `recordCount > 0` | Manual smoke |
-| Island Harvest live probe | `pnpm test:live-sources` | Island Harvest source reachable，parser 输出 `recordCount > 0` | Manual smoke |
-| 脏数据容错 | live source 含缺 ZIP/地址记录 | adapter 跳过坏记录，不致整批失败 | Unit + Manual smoke |
-
----
-
-## 3) 测试数据管理
-
-### 3.1 Seed Data（固定种子）
-
-```typescript
-export const TEST_SEED = {
-  resources: [
-    // 当前 seed 至少包含 11735 附近的 4 条官方资源
-  ],
-  users: [
-    { id: 'user_anonymous', level: 'anonymous' },
-    { id: 'user_verified', level: 'verified' },
-    { id: 'user_anchor', level: 'anchor' },
-  ],
-};
+```bash
+pnpm test:smoke:p2p
 ```
+
+当前定位：
+
+- 它是 branch-local 的真实 overlay smoke，不属于 `main` 默认 close gate
+- 它会沿用 `test:smoke:real` 的自启动策略；在本地没有现成 API 时，会先执行 `db:migrate` + `db:seed` 再自启 `api-gateway`
+- 当前命令默认 hard-fail；bootstrap / sync surface 缺失或事件链不成立都会直接失败
+
+建议环境变量：
+
+| 变量 | 默认值 | 作用 |
+|------|--------|------|
+| `WEAVENYC_API_BASE_URL` | `http://127.0.0.1:4000` | P2P smoke 访问的 API 基地址 |
+| `WEAVENYC_P2P_COMMUNITY_ID` | seeded community id | smoke 默认验证的社区 |
+
+### 3.3 M6 当前 smoke 覆盖
+
+- 两个已入社区的 client 都能成功调用 `GET /v1/communities/:community_id/bootstrap`
+- bootstrap response 至少验证：
+  - `community_id`
+  - `bootstrap_version`
+  - `anchor_node`
+  - `relay_nodes`
+  - `topics`
+  - `latest_snapshot`
+  - `mdns_demo_enabled`
+- bootstrap 返回的 `websocket_url` 必须带短时 websocket token，且不能回显主 API bearer token
+- 一个 writer client 通过现有 HTTP `POST /v1/posts` 成功写入 low-risk request
+- 另一个 reader client 使用 `GET /v1/communities/:community_id/sync?since=...` 抓到该次写入产生的 `post.published`
+- `post.published` delta 至少验证：
+  - `aggregate_type = post`
+  - `aggregate_id = created post_id`
+  - `topic = weavenyc/{community_id}/posts`
+- `payload.post.p2p_version = 1`
+- `payload.post.ipfs_cid` 已写入
+- anchor 公告发布后，reader 通过 `/sync` 抓到 `announcement.published`
+- post-target report 创建后，reader 通过 `/sync` 抓到 `report.created`
+- anchor report decision 后，reader 通过 `/sync` 抓到 `moderation.decision`
+- reader 使用返回的 `next_since` 再打一次 `/sync`，必须得到空 `events`，证明 unseen catch-up 生效
+
+当前 smoke 不额外承担这些路径：
+
+- websocket live fanout
+- 浏览器 worker 双端 live cache update
+- 浏览器断线重连后的 UI 级恢复
+
+这些仍由 integration tests、`pnpm test:smoke:real` 和后续更高层演示路径覆盖。
+
+---
+
+## 4) M6 测试计划
+
+### 4.1 Unit
+
+- event envelope shape / replay ordering / dedupe
+- DAG serialization for posts and announcements
+- version bump and merge rules
+- `mDNS` env gate visibility（默认 off；显式开启路径有 unit coverage）
+
+### 4.2 Integration
+
+- `GET /v1/communities/:community_id/bootstrap`
+- `GET /v1/communities/:community_id/sync`
+- post create/update/remove -> event append + publish + `ipfs_cid` / `p2p_version` update
+- announcement CRUD -> event append + publish + `ipfs_cid` / `p2p_version` update
+- report create and moderation decision -> event append + replay visibility
+- offline catch-up returns only unseen events and advances cursor
+- chat/message routes remain untouched and do not emit P2P events
+
+### 4.3 Browser / E2E
+
+- 当前 `pnpm test:e2e` 仍是 M1-M5 的 fixture-backed browser smoke
+- 现有浏览器用例不直接覆盖 M6 的 `/bootstrap`、`/sync`、worker 双端同步或断线恢复
+- M6 的社区页 sync card、worker/Dexie/offline UI 路径目前依赖 unit/integration + `pnpm test:smoke:p2p` + manual demo 验证
+- “设备 B 无整页刷新看到更新” 和 “断线后 UI 自动恢复” 目前仍是 manual stretch demo 目标，不算当前 browser automation 已证明项
+- experimental `mDNS` toggle 仍保持 dev/demo-only，不进入默认 browser gate
+
+### 4.4 Real demo / smoke
+
+新增：
+
+```bash
+pnpm test:smoke:p2p
+```
+
+当前覆盖：
+
+- bootstrap
+- two-client membership bootstrap
+- HTTP post write -> `post.published` replay
+- announcement publish -> `announcement.published` replay
+- post report create -> `report.created` replay
+- anchor report decision -> `moderation.decision` replay
+- empty / unseen catch-up
+
+剩余拆分：
+
+- worker/Dexie/offline UI path：unit/integration + manual demo
 
 说明：
 
-- M1 默认 fixture-backed browser tests 不依赖真实 CFC / Island Harvest 源
-- `pnpm test:live-sources` 才会触发真实源验证
-
-### 3.2 数据生成脚本
-
-```bash
-pnpm db:seed
-docker compose down -v
-```
-
-### 3.3 测试隔离策略
-
-- **Unit tests**：纯内存，无外部依赖
-- **Integration tests**：默认使用 fixture data 或本地 docker compose 数据库
-- **Real API smoke**：要求本地 API + Redis + PostgreSQL + seed 处于可用状态
-- **E2E tests**：默认通过 Playwright route mocking 保持稳定
+- `mDNS` 不进默认 CI gate，只做 dev/demo opt-in smoke
+- 当前命令已经是可执行的 overlay smoke，不再只是 shape-only scaffold
 
 ---
 
-## 4) 当前验证切分
+## 5) Close gate（M6）
 
-### 4.1 Real API smoke
+当 M6 进入真正 closeout 时，预期 gate 为：
 
 ```bash
-docker compose up -d
-pnpm db:migrate
-pnpm db:seed
-pnpm --filter @weavenyc/api-gateway start
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm test:e2e
 pnpm test:smoke:real
+pnpm test:smoke:p2p
 ```
 
-覆盖：
+6-lane review gate：
 
-- `GET /healthz`
-- `GET /readyz`
-- `POST /v1/auth/anonymous`
-- `POST /v1/auth/refresh`
-- `POST /v1/auth/refresh` replay -> `401`
-- `GET /v1/me`（401 / 200）
-- `POST /v1/auth/otp/start` + `verify`
-- `POST /v1/auth/magic-link/start` + `verify`
-- `GET /v1/resources?zip=11735&limit=5`
-- `GET /v1/resources/:provider_id?zip=11735`
-- `GET /docs`
+1. Docs truth / phase boundary
+2. P2P protocol / event model / versioning
+3. Bootstrap / sync API / embedded anchor runtime
+4. Edge worker / Dexie cache / offline recovery
+5. Report + moderation sync semantics
+6. Stretch demo / mDNS / skeptic review
 
-### 4.2 Fixture-backed browser smoke
+当前状态：
 
-```typescript
-test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'ES', exact: true }).click();
-  await page.getByRole('button', { name: 'Crear sesión anónima' }).click();
-
-  await page.getByPlaceholder('11735').fill('11735');
-  await page.getByRole('button', { name: 'Ver recursos cercanos' }).click();
-  await expect(page.locator('article').first()).toContainText('St. Kilian');
-
-  await page.getByRole('button', { name: 'Guardar' }).first().click();
-  await page.reload();
-  await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
-
-  await page.getByRole('link', { name: 'Ver detalles' }).first().click();
-  await expect(page.getByText('Horario semanal')).toBeVisible();
-});
-```
-
----
-
-## 5) 当前接受的测试限制
-
-- CI 默认不跑 live-source smoke
-- Browser smoke 仍不覆盖真实 API / DB / Redis 集成
-- CI 默认不跑完整 Docker-backed DB integration suite
-- CFC live probe 依赖本地 `pdftotext` 与上游 PDF 结构
+- `main` 仍以 M5 gate 为准
+- `feature/m6-p2p-sync` 只提前接入文档真值和 branch-local smoke，不提前宣称 M6 已关闭

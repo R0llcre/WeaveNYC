@@ -77,13 +77,13 @@
 
 ---
 
-## ADR-0004: Tech stack — Full-stack TypeScript + PostgreSQL + libp2p
+## ADR-0004: Tech stack — Full-stack TypeScript + PostgreSQL + HTTP-first P2P overlay
 **Status**: Accepted
 
 **Context**:
 - 团队 2-3 人，需要最大化开发效率，统一语言栈
 - 产品形态：PWA（移动优先）+ Web 管理后台 + REST API + P2P 节点
-- 核心 P2P 栈是 libp2p / IPFS（JS 生态最成熟），前端用 TS/JS 可直接复用代码、类型、加密/签名逻辑
+- 当前实现需要在既有 HTTP 产品上叠加一层可演示、可回放的 P2P sync overlay，而不是做一轮 P2P-first rewrite
 - 需要地理查询（ZIP/距离）、多云部署友好
 - 课程要求：P2P/去中心化 + 至少 3 大云 + 至少 3 种 PaaS
 
@@ -99,7 +99,7 @@
 | 本地离线数据 | **IndexedDB (Dexie.js)** | 结构化本地存储、支持索引查询、PWA 离线核心 |
 | i18n | **next-intl** | 与 Next.js App Router 深度集成、类型安全、Server Component 原生支持 |
 | 地图 | **Leaflet + OpenStreetMap** | 免费、无 API Key、避免 Mapbox 费用和依赖 |
-| P2P 客户端 | **libp2p-js / Helia (IPFS)** | 跑在 WebWorker 避免阻塞 UI，与后端共享消息协议 |
+| P2P 客户端 | **WebWorker + WebSocket + HTTP catch-up** | 直接复用现有 API gateway bootstrap/sync contract，保证 HTTP-first 主线不被重写 |
 | Schema 校验 | **Zod** | 运行时校验 + TypeScript 类型推导，前后端共享 |
 
 **后端（Service Layer）**:
@@ -117,7 +117,7 @@
 | 职责 | 选型 | 理由 |
 |------|------|------|
 | 中心索引 | **PostgreSQL + PostGIS** | 地理查询、关系型、跨云可迁移（RDS/Cloud SQL/Azure DB） |
-| 内容存储 | **IPFS (Helia)** | 内容寻址、不可变、P2P 共享，帖子摘要走 IPFS |
+| 同步事件存储 | **PostgreSQL `community_sync_events` + CID** | 先保证 durable replay、cursor catch-up 和 branch-local stretch demo；CID 仅作为内容指纹，不依赖完整 IPFS runtime |
 | 对象存储 | **S3 / GCS / Azure Blob** | 官方目录快照、备份、大文件 |
 | 客户端本地 | **IndexedDB (Dexie.js)** | 草稿、最近浏览、离线缓存、用户偏好 |
 
@@ -131,18 +131,19 @@
 | 多云部署 | AWS Lambda + GCP Cloud Run + Azure Functions | 不同服务可部署到不同云，满足课程 3 云 3 PaaS 要求 |
 
 **Consequences**:
-- 全栈 TypeScript：共享 DTO、校验规则、错误码、加密签名逻辑、P2P message schema
+- 全栈 TypeScript：共享 DTO、校验规则、错误码和 P2P event schema
 - PostGIS 提供原生地理查询，无需额外服务
-- libp2p/Helia 的 JS 实现与前后端同语言，可直接复用消息结构和加密逻辑
+- HTTP-first overlay 保留现有 authoritative write/read path，只把 P2P 限定为 sync/catch-up 增强层
 - 多云部署变成"部署配置"而不是"重写系统"：同一套 Node.js 服务可以跑在 Lambda / Cloud Run / Azure Functions
 - PWA "扫码即用、免安装"对低门槛至关重要
 
 **Alternatives**:
-- Flutter：跨端强但 libp2p/IPFS 在 Dart 生态需要桥接，团队成本上升
+- Flutter：跨端强但课程周期内要再做独立 P2P/同步桥接，团队成本上升
 - React Native (Expo)：如果需要原生推送/蓝牙/WiFi Direct 深度能力可考虑，但先 PWA 跑通核心价值
 - Python (FastAPI)：NLP/数据处理强，但前后端语言不统一增加维护成本
 - MongoDB Atlas：多云托管可行但地理+结构化+审计场景 Postgres 更合适
 - Express：成熟但性能不如 Fastify，缺乏内置 schema 验证
+- libp2p / Helia full-node rewrite：探索价值存在，但超出当前 HTTP-first M6 stretch demo 的可控范围
 
 ---
 
@@ -201,7 +202,7 @@
 **Decision**:
 - 帖子列表采用最终一致（eventually consistent）
 - Anchor 的审核决定具有最终裁决权（moderation decision wins）
-- 事件以 `event_id` 去重，帖子以 `post_id + version` 排序
+- 事件以 `sync_event_id` 去重，帖子/公告按 `p2p_version` 与 `updated_at` 处理覆盖顺序
 
 **Consequences**:
 - 用户可能短暂看到已被下架的内容（直到同步完成）

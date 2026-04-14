@@ -13,6 +13,7 @@
   "dependencies": {
     "@weavenyc/chat": "workspace:*",
     "@weavenyc/match": "workspace:*",
+    "@weavenyc/p2p": "workspace:*",
     "@weavenyc/posts": "workspace:*",
     "@weavenyc/resource-directory": "workspace:*",
     "@weavenyc/shared": "workspace:*",

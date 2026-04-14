@@ -14,6 +14,7 @@ import {
   reviewQueueListResponseSchema,
   reviewQueueQuerySchema,
 } from '../contracts.js';
+import { fanoutSyncEvents, publishModerationDecisionEvent, publishPostEvent } from '../lib/p2p-events.js';
 import { isAnchorForCommunity, loadCurrentActor } from '../lib/require-anchor.js';
 
 type ReviewQueueQuery = {
@@ -105,12 +106,40 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
 
         const params = postParamsValidator.parse(request.params);
         const body = reviewDecisionBodySchema.parse(request.body);
-        return await app.postsService.decideReview({
+        const decision = await app.postsService.decideReview({
           actor,
           postId: params.post_id,
           decision: body.decision,
           notes: body.notes,
         });
+        if (decision.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, decision.syncEvents, { postId: decision.post_id });
+        } else {
+          const post = await app.postsService.getPostDetail(actor, params.post_id);
+          await publishPostEvent(app, {
+            eventType: post.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+            post,
+            actorUserId: actor.userId,
+            reason: body.decision,
+          });
+          await publishModerationDecisionEvent(app, {
+            communityId: post.community_id,
+            aggregateId: decision.moderationActionId ?? post.post_id,
+            actorUserId: actor.userId,
+            reportId: `post-review:${decision.post_id}:${decision.decided_at}`,
+            targetType: 'post',
+            targetId: decision.post_id,
+            reportTargetType: 'post',
+            reportTargetId: decision.post_id,
+            resolution: body.decision,
+            status: decision.status,
+            decidedAt: decision.decided_at,
+          });
+        }
+        const response = { ...decision };
+        delete response.moderationActionId;
+        delete response.syncEvents;
+        return response;
       } catch (error) {
         return replyWithPostsError(reply, error);
       }

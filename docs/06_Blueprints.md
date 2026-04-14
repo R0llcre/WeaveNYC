@@ -98,6 +98,7 @@ flowchart LR
 
 ### 2.2 Logical (To-Be)
 > 不绑定具体云厂商，只描述服务与数据流。
+> 当前 `feature/m6-p2p-sync` 已经把这部分收口为 **HTTP-first + P2P sync overlay**；下面保留的 libp2p / full-node 拓扑属于更激进的未来蓝图，不是当前 branch 的 runtime 真值。
 
 **服务分层**
 - Client Layer
@@ -152,6 +153,7 @@ flowchart TB
 
 ### 2.3 Physical (To-Be)
 > 物理层把”逻辑服务”落到具体部署拓扑。详见 [07_P2P_Node_Design](./07_P2P_Node_Design.md) 和 [ADR-0004](./15_ADR_Log.md)。
+> 当前 branch 真实落地仍是：`api-gateway` 内嵌单个 Anchor sync runtime + browser worker 通过 bootstrap / websocket / HTTP catch-up 接入；下面的 full-node / relay 蓝图不应被当成当前实现。
 
 **节点类别（3 类）**
 
@@ -237,10 +239,9 @@ flowchart LR
 - 只做“近似位置”与“社区可见”
 
 ### 3.2 Transition 1：P2P 同步（增强隐私与自治）
-- 引入 P2P 内容寻址存储（Helia / IPFS）
-- Anchor 运行 libp2p 完整节点，充当 GossipSub Relay + IPFS Pin 节点
-- Edge 运行 libp2p-js (WebWorker) + Helia Client，通过 WebRTC/WebSocket 连接
-- Edge 可选择 opt-in 同步帖子到 P2P 网络
+- 当前 branch 只做 HTTP-first 的 P2P sync overlay：bootstrap、live websocket、offline catch-up
+- `mDNS` 仍然只是 demo-only 标志，不是默认 discovery 路径
+- 完整 libp2p / Helia 内容网络保留为未来探索，不属于当前 M6 运行面
 
 ### 3.3 Transition 2：弹性与多社区扩展
 - 多 Anchor 多社区
@@ -255,4 +256,3 @@ flowchart LR
 - 是否明确：哪些数据“默认本地”，哪些可以 opt-in 同步？
 - 是否明确：哪些动作需要 Anchor 审核？
 - 是否明确：官方资源永远兜底？
-

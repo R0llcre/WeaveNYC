@@ -173,6 +173,7 @@ export type CommunityAnnouncement = {
   community_id: string;
   title: string;
   body: string;
+  p2p_version?: number | null;
   is_pinned: boolean;
   status?: string | null;
   published_at?: string | null;
@@ -183,6 +184,108 @@ export type CommunityAnnouncement = {
 export type CommunityAnnouncementsResponse = {
   items: CommunityAnnouncement[];
   next_cursor: string | null;
+};
+
+export type P2PTransportLabel = 'bootstrap' | 'mdns-demo';
+export type P2PSyncPhase = 'disabled' | 'connecting' | 'ready' | 'degraded' | 'offline';
+export type P2PSyncSource = 'network' | 'cache';
+export type CommunitySyncEventType =
+  | 'post.published'
+  | 'post.updated'
+  | 'post.tombstoned'
+  | 'announcement.published'
+  | 'announcement.updated'
+  | 'announcement.deleted'
+  | 'report.created'
+  | 'moderation.decision';
+export type CommunitySyncAggregateType = 'post' | 'announcement' | 'report' | 'moderation';
+
+export type CommunityBootstrapNode = {
+  node_id: string;
+  websocket_url: string;
+  last_published_at?: string | null;
+};
+
+export type CommunitySnapshot = {
+  last_event_at: string | null;
+  event_count: number;
+};
+
+export type P2PTopicMap = {
+  posts: string;
+  announcements: string;
+  reports: string;
+};
+
+export type CommunityBootstrapResponse = {
+  community_id: string;
+  bootstrap_version: string;
+  anchor_node: CommunityBootstrapNode | null;
+  relay_nodes: CommunityBootstrapNode[];
+  topics: P2PTopicMap;
+  latest_snapshot: CommunitySnapshot | null;
+  mdns_demo_enabled: boolean;
+};
+
+export type CommunitySyncEvent = {
+  sync_event_id: string;
+  community_id: string;
+  event_type: CommunitySyncEventType;
+  aggregate_type: CommunitySyncAggregateType;
+  aggregate_id: string;
+  actor_p2p_id: string | null;
+  payload: Record<string, unknown> | null;
+  cid: string | null;
+  occurred_at: string;
+};
+
+export type CommunitySyncDeltaResponse = {
+  events: CommunitySyncEvent[];
+  next_since: string | null;
+  server_time: string;
+  latest_snapshot: CommunitySnapshot | null;
+};
+
+export type P2PKeyMaterial = {
+  communityId: string;
+  peerId: string;
+  createdAt: string;
+};
+
+export type P2PEventCursor = {
+  communityId: string;
+  since: string | null;
+  updatedAt: string;
+};
+
+export type CachedPostsValue = {
+  communityId: string;
+  scope: PostScope;
+  items: PostSummary[];
+  next_cursor: string | null;
+  updatedAt: string;
+  source: P2PSyncSource;
+};
+
+export type CachedAnnouncementsValue = {
+  communityId: string;
+  items: CommunityAnnouncement[];
+  next_cursor: string | null;
+  updatedAt: string;
+  source: P2PSyncSource;
+};
+
+export type P2PSyncStatus = {
+  communityId: string;
+  enabled: boolean;
+  mdnsDemoEnabled: boolean;
+  phase: P2PSyncPhase;
+  peerId: string | null;
+  peerCount: number;
+  transportLabel: P2PTransportLabel;
+  lastSyncAt: string | null;
+  latestSnapshot: CommunitySnapshot | null;
+  lastError: string | null;
 };
 
 export type ContactPreference = {
@@ -223,6 +326,7 @@ export type PostSummary = {
   updated_at: string;
   expires_at: string;
   is_owner: boolean;
+  p2p_version?: number | null;
 };
 
 export type PostDetail = PostSummary & {

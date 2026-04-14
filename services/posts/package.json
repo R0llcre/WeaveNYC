@@ -18,6 +18,7 @@
     "test": "pnpm --dir ../.. exec vitest run services/posts/test/"
   },
   "dependencies": {
+    "@weavenyc/p2p": "workspace:*",
     "@weavenyc/shared": "workspace:*",
     "pg": "^8.16.3"
   },

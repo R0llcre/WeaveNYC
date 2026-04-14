@@ -1,17 +1,17 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { announcements, anchorInvites, anchors, communityRulesets, reports } from "../src/schema";
+import { announcements, anchorInvites, anchors, communityRulesets, communitySyncEvents, posts, reports } from "../src/schema";
 import { describe, expect, it } from "vitest";
 
 import { seedIds, seedValues } from "../seed/fixtures";
 
-const migrationPaths = ["0000_m0_initial.sql", "0001_m1_remediation.sql", "0002_m2_community_posts.sql", "0003_m3_matching_inbox.sql", "0004_m4_chat_safety.sql", "0005_m4_report_broadening.sql", "0006_m5_anchor_admin.sql", "0007_m5_contract_hardening.sql", "0008_m5_report_status_cleanup.sql"].map((filename) =>
+const migrationPaths = ["0000_m0_initial.sql", "0001_m1_remediation.sql", "0002_m2_community_posts.sql", "0003_m3_matching_inbox.sql", "0004_m4_chat_safety.sql", "0005_m4_report_broadening.sql", "0006_m5_anchor_admin.sql", "0007_m5_contract_hardening.sql", "0008_m5_report_status_cleanup.sql", "0009_m6_p2p_sync.sql"].map((filename) =>
   path.resolve(__dirname, "../migrations", filename)
 );
 
 describe("@weavenyc/db migration contract", () => {
-  it("contains the required M0 through M5 invariants", () => {
+  it("contains the required M0 through M6 invariants", () => {
     const sql = migrationPaths.map((migrationPath) => readFileSync(migrationPath, "utf8")).join("\n");
 
     expect(sql).toContain("uq_dataset_versions_source_version");
@@ -50,6 +50,12 @@ describe("@weavenyc/db migration contract", () => {
     expect(sql).toContain("idx_moderation_actions_report_id");
     expect(sql).toContain("report_status_old");
     expect(sql).toContain("anchor_user_id drop not null");
+    expect(sql).toContain("ALTER TABLE posts");
+    expect(sql).toContain("p2p_version integer NOT NULL DEFAULT 1");
+    expect(sql).toContain("ALTER TABLE announcements");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS community_sync_events");
+    expect(sql).toContain("idx_community_sync_events_community_occurred_at");
+    expect(sql).toContain("idx_community_sync_events_aggregate_occurred_at");
   });
 
   it("uses deterministic M5 fixture ids and values", () => {
@@ -61,11 +67,14 @@ describe("@weavenyc/db migration contract", () => {
     expect(seedValues.datasetVersion).toBe("cfc_active_2026-04-04");
   });
 
-  it("keeps schema exports aligned with M5 admin storage", () => {
+  it("keeps schema exports aligned with M6 sync storage", () => {
     expect(anchorInvites.codeHash.getSQLType()).toBe("varchar(64)");
     expect(communityRulesets.autoHideReportThreshold.getSQLType()).toBe("integer");
     expect(anchors.totpSecretCiphertext.getSQLType()).toBe("text");
     expect(announcements.isPinned.getSQLType()).toBe("boolean");
+    expect(announcements.ipfsCid.getSQLType()).toBe("varchar(100)");
+    expect(posts.p2pVersion.getSQLType()).toBe("integer");
     expect(reports.conversationId.getSQLType()).toBe("uuid");
+    expect(communitySyncEvents.payloadJson.getSQLType()).toBe("jsonb");
   });
 });

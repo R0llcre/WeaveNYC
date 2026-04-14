@@ -48,6 +48,12 @@ import type {
   CommunityAccessResolveResult,
   CommunityAnnouncement,
   CommunityAnnouncementsResponse,
+  CommunityBootstrapResponse,
+  CommunitySnapshot,
+  CommunitySyncDeltaResponse,
+  CommunitySyncEvent,
+  CommunitySyncEventType,
+  CommunitySyncAggregateType,
   CreatePostInput,
   CreatePostResult,
   EndpointProbe,
@@ -84,6 +90,194 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function readString(value: unknown, ...keys: string[]) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  for (const key of keys) {
+    if (typeof value[key] === 'string') {
+      return value[key] as string;
+    }
+  }
+
+  return null;
+}
+
+function readNumber(value: unknown, ...keys: string[]) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  for (const key of keys) {
+    if (typeof value[key] === 'number' && Number.isFinite(value[key])) {
+      return value[key] as number;
+    }
+  }
+
+  return null;
+}
+
+function toCommunitySnapshot(value: unknown): CommunitySnapshot | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    last_event_at: readString(value, 'last_event_at', 'lastEventAt'),
+    event_count:
+      typeof value.event_count === 'number'
+        ? value.event_count
+        : typeof value.eventCount === 'number'
+          ? value.eventCount
+          : 0,
+  };
+}
+
+function getDefaultTopics(communityId: string) {
+  return {
+    posts: `weavenyc/${communityId}/posts`,
+    announcements: `weavenyc/${communityId}/announcements`,
+    reports: `weavenyc/${communityId}/reports`,
+  };
+}
+
+function toBootstrapNode(value: unknown) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const nodeId = readString(value, 'node_id', 'nodeId', 'peer_id', 'peerId', 'id');
+  const websocketUrl = readString(value, 'websocket_url', 'websocketUrl', 'url', 'ws_url', 'wsUrl', 'multiaddr');
+
+  if (!nodeId || !websocketUrl) {
+    return null;
+  }
+
+  return {
+    node_id: nodeId,
+    websocket_url: websocketUrl,
+    last_published_at: readString(value, 'last_published_at', 'lastPublishedAt'),
+  };
+}
+
+function parseCommunityBootstrapResponse(input: unknown, expectedCommunityId: string): CommunityBootstrapResponse {
+  if (!isRecord(input)) {
+    throw new Error('Invalid community bootstrap response.');
+  }
+
+  const communityId = readString(input, 'community_id', 'communityId') ?? expectedCommunityId;
+  const relayNodesRaw = Array.isArray(input.relay_nodes)
+    ? input.relay_nodes
+    : Array.isArray(input.relayNodes)
+      ? input.relayNodes
+      : [];
+  const relayNodes = relayNodesRaw
+    .map((item) => toBootstrapNode(item))
+    .filter((item): item is NonNullable<ReturnType<typeof toBootstrapNode>> => Boolean(item));
+  const topics = isRecord(input.topics)
+    ? {
+        posts: readString(input.topics, 'posts') ?? getDefaultTopics(communityId).posts,
+        announcements:
+          readString(input.topics, 'announcements') ?? getDefaultTopics(communityId).announcements,
+        reports: readString(input.topics, 'reports') ?? getDefaultTopics(communityId).reports,
+      }
+    : getDefaultTopics(communityId);
+
+  return {
+    community_id: communityId,
+    bootstrap_version: readString(input, 'bootstrap_version', 'bootstrapVersion') ?? 'v1',
+    anchor_node: toBootstrapNode(input.anchor_node ?? input.anchorNode),
+    relay_nodes: relayNodes,
+    topics,
+    latest_snapshot: toCommunitySnapshot(input.latest_snapshot ?? input.latestSnapshot),
+    mdns_demo_enabled:
+      typeof input.mdns_demo_enabled === 'boolean'
+        ? input.mdns_demo_enabled
+        : typeof input.mdnsDemoEnabled === 'boolean'
+          ? input.mdnsDemoEnabled
+          : false,
+  };
+}
+
+function isCommunitySyncEventType(value: string): value is CommunitySyncEventType {
+  return [
+    'post.published',
+    'post.updated',
+    'post.tombstoned',
+    'announcement.published',
+    'announcement.updated',
+    'announcement.deleted',
+    'report.created',
+    'moderation.decision',
+  ].includes(value);
+}
+
+function isCommunitySyncAggregateType(value: string): value is CommunitySyncAggregateType {
+  return ['post', 'announcement', 'report', 'moderation'].includes(value);
+}
+
+function toCommunitySyncEvent(value: unknown, communityId: string): CommunitySyncEvent | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const eventType = readString(value, 'event_type', 'eventType');
+  const aggregateType = readString(value, 'aggregate_type', 'aggregateType');
+  const syncEventId = readString(value, 'sync_event_id', 'syncEventId', 'event_id', 'eventId');
+  const aggregateId = readString(value, 'aggregate_id', 'aggregateId');
+  const occurredAt = readString(value, 'occurred_at', 'occurredAt');
+
+  if (
+    !eventType ||
+    !aggregateType ||
+    !syncEventId ||
+    !aggregateId ||
+    !occurredAt ||
+    !isCommunitySyncEventType(eventType) ||
+    !isCommunitySyncAggregateType(aggregateType)
+  ) {
+    return null;
+  }
+
+  return {
+    sync_event_id: syncEventId,
+    community_id: readString(value, 'community_id', 'communityId') ?? communityId,
+    event_type: eventType,
+    aggregate_type: aggregateType,
+    aggregate_id: aggregateId,
+    actor_p2p_id: readString(value, 'actor_p2p_id', 'actorP2pId'),
+    payload: isRecord(value.payload)
+      ? value.payload
+      : isRecord(value.payload_json)
+        ? value.payload_json
+        : isRecord(value.payloadJson)
+          ? value.payloadJson
+          : null,
+    cid: readString(value, 'cid'),
+    occurred_at: occurredAt,
+  };
+}
+
+function parseCommunitySyncDeltaResponse(input: unknown, communityId: string): CommunitySyncDeltaResponse {
+  if (!isRecord(input)) {
+    throw new Error('Invalid community sync response.');
+  }
+
+  const rawEvents = Array.isArray(input.events) ? input.events : [];
+  const events = rawEvents
+    .map((item) => toCommunitySyncEvent(item, communityId))
+    .filter((item): item is CommunitySyncEvent => Boolean(item));
+  const serverTime = readString(input, 'server_time', 'serverTime') ?? new Date().toISOString();
+
+  return {
+    events,
+    next_since: readString(input, 'next_since', 'nextSince'),
+    server_time: serverTime,
+    latest_snapshot: toCommunitySnapshot(input.latest_snapshot ?? input.latestSnapshot),
+  };
+}
+
 function toCommunityAnnouncement(value: unknown): CommunityAnnouncement | null {
   if (!isRecord(value)) {
     return null;
@@ -113,6 +307,7 @@ function toCommunityAnnouncement(value: unknown): CommunityAnnouncement | null {
     community_id: communityId,
     title,
     body,
+    p2p_version: readNumber(value, 'p2p_version', 'p2pVersion'),
     is_pinned:
       typeof value.is_pinned === "boolean"
         ? value.is_pinned
@@ -179,6 +374,21 @@ export function getChatWebSocketUrl(accessToken: string) {
   url.pathname = '/v1/ws/chat';
   url.search = '';
   url.searchParams.set('token', accessToken);
+  return url.toString();
+}
+
+export function getCommunitySyncWebSocketUrl(
+  websocketUrl: string,
+  accessToken: string,
+  communityId: string,
+) {
+  const url = new URL(websocketUrl);
+  if (!url.searchParams.has('token')) {
+    url.searchParams.set('token', accessToken);
+  }
+  if (!url.searchParams.has('community_id')) {
+    url.searchParams.set('community_id', communityId);
+  }
   return url.toString();
 }
 
@@ -429,6 +639,50 @@ export async function joinCommunity(
       }),
     },
     joinCommunityResponseSchema,
+  );
+}
+
+export async function getCommunityBootstrap(
+  accessToken: string,
+  communityId: string,
+): Promise<CommunityBootstrapResponse> {
+  return requestJson(
+    `/v1/communities/${communityId}/bootstrap`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    {
+      parse: (input) => parseCommunityBootstrapResponse(input, communityId),
+    },
+  );
+}
+
+export async function getCommunitySyncDelta(
+  accessToken: string,
+  communityId: string,
+  input: { since?: string | null; limit?: number } = {},
+): Promise<CommunitySyncDeltaResponse> {
+  const params = new URLSearchParams();
+  if (input.since) {
+    params.set('since', input.since);
+  }
+  if (input.limit) {
+    params.set('limit', String(input.limit));
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return requestJson(
+    `/v1/communities/${communityId}/sync${suffix}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    {
+      parse: (value) => parseCommunitySyncDeltaResponse(value, communityId),
+    },
   );
 }
 
@@ -893,6 +1147,8 @@ export type {
   ConversationsListResponse,
   ContactRequestInboxResponse,
   CommunityAnnouncementsResponse,
+  CommunityBootstrapResponse,
+  CommunitySyncDeltaResponse,
   MatchContactResult,
   MatchResultsResponse,
   PostDetail,

@@ -77,6 +77,25 @@ export {
   sendConversationMessageResponseSchema,
 } from "./validators/chat";
 export {
+  announcementSyncEventPayloadSchema,
+  communityBootstrapNodeSchema,
+  communityBootstrapResponseSchema,
+  communityLatestSnapshotSchema,
+  communitySyncDeltaResponseSchema,
+  communitySyncEventSchema,
+  moderationDecisionEventPayloadSchema,
+  p2pAggregateTypeSchema,
+  p2pEventEnvelopeSchema,
+  p2pEventTypeSchema,
+  p2pSyncStatusSchema,
+  p2pSyncTransportSchema,
+  p2pTopicMapSchema,
+  postSummaryDagSchema,
+  postSyncEventPayloadSchema,
+  announcementSummaryDagSchema,
+  reportCreatedEventPayloadSchema,
+} from "./validators/p2p";
+export {
   communityAccessResolveRequestSchema,
   communityAccessResolveResponseSchema,
   communitySummarySchema,

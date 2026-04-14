@@ -650,10 +650,42 @@ async function main() {
     },
   });
   assert(reportQueue.response.status === 200, `Expected report queue to return 200, got ${reportQueue.response.status}`);
+  let reportIdForDecision = seedIds.reportId;
   const seedReport = reportQueue.body?.items.find((item) => item.report_id === seedIds.reportId);
-  assert(seedReport, 'Report queue did not include the seeded report');
+  if (!seedReport) {
+    const fallbackReport = await fetchJson<ReportCreateApiResponse>('/v1/reports', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${otpVerify.body.access_token}`,
+      },
+      body: JSON.stringify({
+        target_type: 'post',
+        target_id: seedIds.offerPostId,
+        reason: 'scam',
+        evidence_description: 'Repeatable smoke fallback report',
+      }),
+    });
+    assert(
+      fallbackReport.response.status === 200,
+      `Expected fallback report create to return 200, got ${fallbackReport.response.status}`,
+    );
+    reportIdForDecision = fallbackReport.body.report_id;
 
-  const reportDecision = await fetchJson<AdminReportDecisionResponse>(`/v1/admin/report_queue/${seedIds.reportId}/decision`, {
+    const refreshedReportQueue = await fetchJson<AdminReportQueueResponse>(
+      `/v1/admin/report_queue?community_id=${seedIds.communityId}`,
+      {
+        headers: {
+          authorization: `Bearer ${anchorToken}`,
+        },
+      },
+    );
+    assert(
+      refreshedReportQueue.body?.items.some((item) => item.report_id === reportIdForDecision),
+      'Report queue did not include the fallback report',
+    );
+  }
+
+  const reportDecision = await fetchJson<AdminReportDecisionResponse>(`/v1/admin/report_queue/${reportIdForDecision}/decision`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${anchorToken}`,

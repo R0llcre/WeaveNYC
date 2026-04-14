@@ -10,6 +10,7 @@
 
 - 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
 - `main` 是 canonical baseline，当前稳定基线为 `M5 completed`。
+- 当前执行分支是 `feature/m6-p2p-sync`；它承载 `M6 in progress` 的 branch-local 文档、测试与脚手架，但不改变 `main` 的 M5 真值。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
 - 当前可运行的共享服务面：
   - PWA：`http://localhost:3000`
@@ -79,11 +80,12 @@ pnpm dev
 | `M3` | `completed` | matching、Top-3 suggestions、contact requests、recipient inbox 已完成 |
 | `M4` | `completed` | live chat、message send/read、block/report、WebSocket realtime 已完成 |
 | `M5` | `completed` | Anchor Admin、report queue、announcements、rules、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已关闭 |
-| `M6` | `optional_next_phase` | 是否启动取决于 M5 分支合回 `main` 之后的下一轮排期决策 |
+| `M6` | `in_progress_on_branch` | `feature/m6-p2p-sync` 正在实现 HTTP-first 的 P2P sync overlay；`main` 仍维持 M5 completed canonical baseline |
 
 结论：
 
 - 当前 workspace 的 canonical 阶段真值应表述为：`main = M5 completed`。
+- 当前执行真值应表述为：`feature/m6-p2p-sync = M6 in progress`。
 
 ---
 
@@ -103,7 +105,9 @@ pnpm dev
 - 当前验证命令分层：
   - canonical `main` baseline：`pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build`
   - canonical integration gate：`pnpm db:migrate`、`pnpm db:seed`、`pnpm test:smoke:real`、`pnpm test:e2e`
+  - branch-local M6 overlay smoke：`pnpm test:smoke:p2p`
   - `pnpm test:smoke:real` 只有在同一轮 fresh `db:migrate` + `db:seed` 后通过，才可计入 M5 closeout
+  - `pnpm test:smoke:p2p` 当前是 M6 bootstrap/sync overlay 的独立 smoke，不属于 `main` 默认 close gate
   - manual / opt-in：`pnpm test:live-sources`、`pnpm dev:mint-anchor-token`
 
 当前显式接受的残余风险：
@@ -254,7 +258,7 @@ pnpm dev
 ## 8) 下一步唯一入口
 
 当前主线已经承接 `M5 Anchor Admin + pilot rehearsal` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md` 与 `26_M5_Closeout.md`。
-main-first 口径下，下一步唯一入口是决定是否启动 `M6`；`M6` 属于后续可选阶段，不再被未关闭的 M5 gate 阻塞。
+main-first 口径下，`main` 仍以 `M5 completed` 为真；当前 branch-local 下一步入口已经固定为 `M6` 的 HTTP-first P2P sync overlay。
 
 1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
 2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)

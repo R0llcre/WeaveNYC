@@ -132,6 +132,28 @@ importers:
         specifier: ^8.11.11
         version: 8.20.0
 
+  packages/p2p:
+    dependencies:
+      '@ipld/dag-json':
+        specifier: ^10.2.5
+        version: 10.2.7
+      '@weavenyc/shared':
+        specifier: workspace:*
+        version: link:../shared
+      multiformats:
+        specifier: ^13.4.1
+        version: 13.4.2
+    devDependencies:
+      '@types/node':
+        specifier: ^24.6.0
+        version: 24.12.2
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.2
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@24.12.2)
+
   packages/shared:
     dependencies:
       zod:
@@ -166,6 +188,9 @@ importers:
       '@weavenyc/match':
         specifier: workspace:*
         version: link:../match
+      '@weavenyc/p2p':
+        specifier: workspace:*
+        version: link:../../packages/p2p
       '@weavenyc/posts':
         specifier: workspace:*
         version: link:../posts
@@ -212,6 +237,9 @@ importers:
 
   services/chat:
     dependencies:
+      '@weavenyc/p2p':
+        specifier: workspace:*
+        version: link:../../packages/p2p
       '@weavenyc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -259,6 +287,9 @@ importers:
 
   services/posts:
     dependencies:
+      '@weavenyc/p2p':
+        specifier: workspace:*
+        version: link:../../packages/p2p
       '@weavenyc/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -880,6 +911,10 @@ packages:
   '@ioredis/commands@1.5.1':
     resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
 
+  '@ipld/dag-json@10.2.7':
+    resolution: {integrity: sha512-G+pXbOV6JpNUQrB+4H+0apnE85M9V0JjSjc7Mm2DdKbC6Qn8so9UYIGnJps+ZRMAvGUieO2iCZbAFLeWE2snvA==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
@@ -1484,6 +1519,10 @@ packages:
   caniuse-lite@1.0.30001785:
     resolution: {integrity: sha512-blhOL/WNR+Km1RI/LCVAvA73xplXA7ZbjzI4YkMK9pa6T/P3F2GxjNpEkyw5repTw9IvkyrjyHpwjnhZ5FOvYQ==}
 
+  cborg@5.1.0:
+    resolution: {integrity: sha512-OwailRORD5pIyxaLKKVdGHQ2OXWmYW7YsjDXnl64cIwWdQiyXRffVFsL34JR5c+BEeeSOHADM3cy/QNERH1SUw==}
+    hasBin: true
+
   chai@5.3.3:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
     engines: {node: '>=18'}
@@ -1934,6 +1973,9 @@ packages:
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
+  multiformats@13.4.2:
+    resolution: {integrity: sha512-eh6eHCrRi1+POZ3dA+Dq1C6jhP1GNtr9CRINMb67OKzqW9I5DUuZM/3jLPlzhgpGeiNUlEGEbkCYChXMCc/8DQ==}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -2913,6 +2955,11 @@ snapshots:
 
   '@ioredis/commands@1.5.1': {}
 
+  '@ipld/dag-json@10.2.7':
+    dependencies:
+      cborg: 5.1.0
+      multiformats: 13.4.2
+
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@lukeed/ms@2.0.2': {}
@@ -3394,6 +3441,8 @@ snapshots:
 
   caniuse-lite@1.0.30001785: {}
 
+  cborg@5.1.0: {}
+
   chai@5.3.3:
     dependencies:
       assertion-error: 2.0.1
@@ -3825,6 +3874,8 @@ snapshots:
       obliterator: 2.0.5
 
   ms@2.1.3: {}
+
+  multiformats@13.4.2: {}
 
   nanoid@3.3.11: {}
 

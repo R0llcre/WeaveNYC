@@ -1,4 +1,4 @@
-import { index, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { communities } from "./communities";
 import { users } from "./users";
@@ -53,6 +53,7 @@ export const posts = pgTable(
     verificationState: verificationEnum("verification_state").notNull().default("unverified"),
     contactPref: jsonb("contact_pref"),
     ipfsCid: varchar("ipfs_cid", { length: 100 }),
+    p2pVersion: integer("p2p_version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },

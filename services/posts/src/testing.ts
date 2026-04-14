@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { createCommunitySyncEvent } from '@weavenyc/p2p';
 import type {
   AdminDashboardResponse,
   Announcement,
@@ -521,10 +522,51 @@ export class InMemoryPostsService implements PostsService {
           : 'pending_review';
     post.updatedAt = new Date().toISOString();
     this.posts.set(input.postId, post);
+    const moderationActionId = randomUUID();
     return {
       post_id: post.postId,
       status: post.status,
-      decided_at: new Date().toISOString(),
+      decided_at: post.updatedAt,
+      moderationActionId,
+      syncEvents: [
+        createCommunitySyncEvent({
+          communityId: post.communityId,
+          topicKey: 'posts',
+          eventType: post.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+          aggregateType: 'post',
+          aggregateId: post.postId,
+          actorUserId: input.actor.userId,
+          occurredAt: post.updatedAt,
+          payload: {
+            post: {
+              post_id: post.postId,
+              community_id: post.communityId,
+              status: post.status,
+              updated_at: post.updatedAt,
+            },
+            reason: input.decision,
+          },
+        }),
+        createCommunitySyncEvent({
+          communityId: post.communityId,
+          topicKey: 'reports',
+          eventType: 'moderation.decision',
+          aggregateType: 'moderation',
+          aggregateId: moderationActionId,
+          actorUserId: input.actor.userId,
+          occurredAt: post.updatedAt,
+          payload: {
+            report_id: null,
+            target_type: 'post',
+            target_id: post.postId,
+            report_target_type: 'post',
+            report_target_id: post.postId,
+            resolution: input.decision,
+            status: post.status,
+            decided_at: post.updatedAt,
+          },
+        }),
+      ],
     };
   }
 

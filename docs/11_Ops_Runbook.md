@@ -2,6 +2,8 @@
 
 目标：即使只有 2-3 人，也要把"可观测性 + 故障处理 + 数据恢复"最小化做起来。
 
+> `main` 当前仍是 `M5 completed`；M6 的 P2P node / sync overlay 目前只在 `feature/m6-p2p-sync` 分支推进，尚未成为新的 canonical runtime。
+
 ---
 
 ## 1) 服务清单（当前 M5 运行面 / rehearsal）
@@ -407,9 +409,15 @@ npm run deploy -- --tag v1.2.3
 
 ### 9.4 Feature Flags（推荐）
 对高风险功能使用 feature flag 控制灰度：
-- `ENABLE_P2P_SYNC`: P2P 同步功能开关
+- `P2P_MDNS_DEMO_ENABLED`: 控制 bootstrap metadata 是否暴露 `mdns_demo_enabled=true`
+- `NEXT_PUBLIC_P2P_MDNS_DEMO_ENABLED`: 控制 PWA 是否显示 dev/demo-only 的 mDNS toggle
 - `ENABLE_VOICE_INPUT`: 语音输入功能开关
 - `MATCH_ALGORITHM_VERSION`: 匹配算法版本（可灰度切换）
+
+说明：
+- 当前 branch-local M6 没有单独的 server-side `ENABLE_P2P_SYNC` 开关；同步 overlay 作为 branch 内实现面始终存在
+- `mDNS` 默认关闭；默认 discovery 路径始终是 bootstrap
+- 只有在显式打开上述 server/client demo flags 时，PWA 才显示实验性 mDNS toggle
 
 ---
 

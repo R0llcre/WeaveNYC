@@ -11,6 +11,7 @@ import {
   adminReportQueueResponseSchema,
   errorResponseSchema,
 } from "../contracts.js";
+import { fanoutSyncEvents, publishModerationDecisionEvent, publishPostEvent } from "../lib/p2p-events.js";
 import { isAnchorForCommunity, loadCurrentActor } from "../lib/require-anchor.js";
 
 type ReportQueueQuery = {
@@ -125,10 +126,51 @@ export const reportQueueRoutes: FastifyPluginAsync = async (app) => {
           decision: body.decision,
           notes: body.notes,
         });
+        if (decision.syncEvents !== undefined) {
+          await fanoutSyncEvents(app, decision.syncEvents, {
+            reportId: decision.report_id,
+          });
+        } else {
+          await publishModerationDecisionEvent(app, {
+            communityId: decision.communityId,
+            aggregateId: decision.moderationActionId ?? decision.report_id,
+            actorUserId: actor.userId,
+            reportId: decision.report_id,
+            targetType: decision.moderationTargetType,
+            targetId: decision.moderationTargetId,
+            reportTargetType: decision.reportTargetType,
+            reportTargetId: decision.reportTargetId,
+            resolution: decision.resolution,
+            status: decision.status,
+            decidedAt: decision.decided_at,
+            affectedUserId: decision.affected_user_id ?? null,
+            conversationId: decision.conversationId ?? null,
+          });
+          if (decision.targetType === "post" && decision.resolution === "remove_post") {
+            await publishPostEvent(app, {
+              eventType: "post.tombstoned",
+              actorUserId: actor.userId,
+              post: {
+                post_id: decision.targetId,
+                community_id: decision.communityId,
+                status: "removed",
+                updated_at: decision.decided_at,
+              },
+              reason: "report_queue_remove_post",
+            });
+          }
+        }
         if (decision.resolution === "suspend_user" && decision.affected_user_id) {
           app.chatRealtimeHub.disconnectUser(decision.affected_user_id, "Suspended user");
         }
-        return decision;
+        const response = {
+          report_id: decision.report_id,
+          status: decision.status,
+          resolution: decision.resolution,
+          decided_at: decision.decided_at,
+          affected_user_id: decision.affected_user_id,
+        };
+        return response;
       } catch (error) {
         return replyWithChatError(reply, error);
       }
