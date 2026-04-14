@@ -21,6 +21,12 @@ import {
   createPgResourceDirectoryService,
   type ResourceDirectoryService
 } from './lib/resource-directory.js';
+import {
+  createHttpChatService,
+  createHttpMatchService,
+  createHttpPostsService,
+  createHttpResourceDirectoryService
+} from './lib/http-domain-services.js';
 import { createRedisRefreshTokenStore, type RefreshTokenStore } from './lib/refresh-token-store.js';
 import { createStubSpeechProvider, type SpeechProvider } from './lib/speech-providers.js';
 import {
@@ -28,6 +34,7 @@ import {
   RedisP2PSyncRuntime,
   type P2PSyncRuntime,
 } from './lib/sync-runtime.js';
+import { runWithRequestContext } from './lib/request-context.js';
 import { createPgUserStore, type UserStore } from './lib/user-store.js';
 import { authRoutes } from './routes/auth.js';
 import { adminCommunityRoutes } from './routes/admin-community.js';
@@ -80,27 +87,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     createRedisRefreshTokenStore(config.redisUrl, config.refreshTokenTtlSeconds);
   const authAbuseStore =
     options.authAbuseStore ?? createRedisAuthAbuseStore(config.redisUrl, config.identityHashPepper);
-  const resourceDirectory =
-    options.resourceDirectory ?? createPgResourceDirectoryService(config.databaseUrl);
-  const matchService =
-    options.matchService ??
-    createMatchService(
-      createPgMatchRepository(config.databaseUrl, async (zip: string) => {
-        const result = await resourceDirectory.searchResources({
-          zip,
-          limit: 50,
-        });
-        return result.items;
-      }),
-    );
-  const chatService =
-    options.chatService ??
-    new DefaultChatService(new PgChatRepository(new Pool({ connectionString: config.databaseUrl })));
   const chatRealtimeHub =
     options.chatRealtimeHub ??
     (config.env === 'test' ? new InMemoryChatRealtimeHub() : new RedisChatRealtimeHub(config.redisUrl));
-  const postsService =
-    options.postsService ?? createPostsService(createPostsRepository(config.databaseUrl));
   const speechProvider = options.speechProvider ?? createStubSpeechProvider();
   const syncRuntime =
     options.syncRuntime ??
@@ -113,18 +102,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           nodeId: deriveAnchorSyncNodeId(config),
           mdnsDemoEnabled: config.p2pMdnsDemoEnabled,
         }));
-
-  app.decorate('config', config);
-  app.decorate('userStore', userStore);
-  app.decorate('refreshTokenStore', refreshTokenStore);
-  app.decorate('authAbuseStore', authAbuseStore);
-  app.decorate('chatRealtimeHub', chatRealtimeHub);
-  app.decorate('chatService', chatService);
-  app.decorate('matchService', matchService);
-  app.decorate('postsService', postsService);
-  app.decorate('resourceDirectory', resourceDirectory);
-  app.decorate('speechProvider', speechProvider);
-  app.decorate('syncRuntime', syncRuntime);
 
   await app.register(fastifyCors, {
     origin(origin, callback) {
@@ -189,6 +166,65 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
   });
 
+  await app.register(fastifyJwt, {
+    namespace: 'serviceJwt',
+    secret: config.internalServiceJwtSecret,
+    sign: {
+      algorithm: 'HS256',
+      iss: `${config.jwt.issuer}:internal`,
+      expiresIn: '5m',
+    },
+    verify: {
+      algorithms: ['HS256'],
+      allowedIss: `${config.jwt.issuer}:internal`,
+    },
+  });
+
+  const internalClientContext = {
+    config,
+    serviceJwt: app.serviceJwt
+  };
+  const resourceDirectory =
+    options.resourceDirectory ??
+    (config.internalServices.resourceDirectoryServiceUrl
+      ? createHttpResourceDirectoryService(internalClientContext)
+      : createPgResourceDirectoryService(config.databaseUrl));
+  const matchService =
+    options.matchService ??
+    (config.internalServices.matchServiceUrl
+      ? createHttpMatchService(internalClientContext)
+      : createMatchService(
+          createPgMatchRepository(config.databaseUrl, async (zip: string) => {
+            const result = await resourceDirectory.searchResources({
+              zip,
+              limit: 50
+            });
+            return result.items;
+          })
+        ));
+  const chatService =
+    options.chatService ??
+    (config.internalServices.chatServiceUrl
+      ? createHttpChatService(internalClientContext)
+      : new DefaultChatService(new PgChatRepository(new Pool({ connectionString: config.databaseUrl }))));
+  const postsService =
+    options.postsService ??
+    (config.internalServices.postsServiceUrl
+      ? createHttpPostsService(internalClientContext)
+      : createPostsService(createPostsRepository(config.databaseUrl)));
+
+  app.decorate('config', config);
+  app.decorate('userStore', userStore);
+  app.decorate('refreshTokenStore', refreshTokenStore);
+  app.decorate('authAbuseStore', authAbuseStore);
+  app.decorate('chatRealtimeHub', chatRealtimeHub);
+  app.decorate('chatService', chatService);
+  app.decorate('matchService', matchService);
+  app.decorate('postsService', postsService);
+  app.decorate('resourceDirectory', resourceDirectory);
+  app.decorate('speechProvider', speechProvider);
+  app.decorate('syncRuntime', syncRuntime);
+
   app.decorate('authenticate', async (request) => {
     await request.jwtVerify();
     const currentUser = await app.userStore.getAuthUserById(request.user.sub);
@@ -208,6 +244,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       ...currentUser,
       mfaVerifiedAt: request.user.mfa_verified_at,
     };
+  });
+
+  app.addHook('onRequest', (request, _reply, done) => {
+    runWithRequestContext({ requestId: request.id }, done);
   });
 
   app.addHook('onClose', async () => {

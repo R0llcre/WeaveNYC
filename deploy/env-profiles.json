@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "development": {
+      "groups": {
+        "runtime": [
+          "NODE_ENV",
+          "LOG_LEVEL",
+          "API_PORT",
+          "PWA_PORT",
+          "PWA_BASE_URL",
+          "DATABASE_URL",
+          "REDIS_URL",
+          "JWT_SIGNING_PRIVATE_KEY",
+          "JWT_SIGNING_PUBLIC_KEY",
+          "P2P_MDNS_DEMO_ENABLED",
+          "NEXT_PUBLIC_P2P_MDNS_DEMO_ENABLED",
+          "IDENTITY_HASH_PEPPER",
+          "ANCHOR_TOTP_ENCRYPTION_KEY"
+        ],
+        "deploy": [],
+        "integrations": [],
+        "cloud": []
+      },
+      "forbidden": {
+        "runtime": [
+          "IDENTITY_HASH_PEPPER=__production__",
+          "ANCHOR_TOTP_ENCRYPTION_KEY=__production__"
+        ]
+      }
+    },
+    "test": {
+      "groups": {
+        "runtime": [
+          "NODE_ENV",
+          "DATABASE_URL",
+          "REDIS_URL",
+          "JWT_SIGNING_PRIVATE_KEY",
+          "JWT_SIGNING_PUBLIC_KEY",
+          "IDENTITY_HASH_PEPPER",
+          "ANCHOR_TOTP_ENCRYPTION_KEY"
+        ],
+        "deploy": [],
+        "integrations": [],
+        "cloud": []
+      },
+      "forbidden": {
+        "runtime": [
+          "IDENTITY_HASH_PEPPER=weavenyc-dev-identity-pepper",
+          "ANCHOR_TOTP_ENCRYPTION_KEY=weavenyc-dev-anchor-totp-encryption-key"
+        ]
+      }
+    },
+    "staging": {
+      "groups": {
+        "runtime": [
+          "NODE_ENV",
+          "LOG_LEVEL",
+          "DATABASE_URL",
+          "REDIS_URL",
+          "JWT_SIGNING_PRIVATE_KEY",
+          "JWT_SIGNING_PUBLIC_KEY",
+          "IDENTITY_HASH_PEPPER",
+          "ANCHOR_TOTP_ENCRYPTION_KEY",
+          "INTERNAL_SERVICE_JWT_SECRET",
+          "P2P_MDNS_DEMO_ENABLED",
+          "NEXT_PUBLIC_P2P_MDNS_DEMO_ENABLED",
+          "POSTS_SERVICE_URL",
+          "MATCH_SERVICE_URL",
+          "CHAT_SERVICE_URL",
+          "RESOURCE_DIRECTORY_SERVICE_URL",
+          "NOTIFICATIONS_SERVICE_URL"
+        ],
+        "deploy": [
+          "WEAVENYC_STAGING_API_GATEWAY_URL",
+          "WEAVENYC_STAGING_POSTS_SERVICE_URL",
+          "WEAVENYC_STAGING_MATCH_SERVICE_URL",
+          "WEAVENYC_STAGING_CHAT_SERVICE_URL",
+          "WEAVENYC_STAGING_RESOURCE_DIRECTORY_URL",
+          "WEAVENYC_STAGING_NOTIFICATIONS_SERVICE_URL",
+          "WEAVENYC_STAGING_PWA_URL",
+          "WEAVENYC_STAGING_ANCHOR_ADMIN_URL"
+        ],
+        "integrations": [
+          "NOTIFICATIONS_DEMO_BASE_URL",
+          "TWILIO_ACCOUNT_SID",
+          "TWILIO_AUTH_TOKEN",
+          "TWILIO_MESSAGING_SERVICE_SID",
+          "RESEND_API_KEY",
+          "RESEND_FROM_EMAIL"
+        ],
+        "cloud": [
+          "AWS_REGION",
+          "GCP_PROJECT_ID",
+          "AZURE_SUBSCRIPTION_ID",
+          "VERCEL_TOKEN"
+        ]
+      },
+      "forbidden": {
+        "runtime": [
+          "IDENTITY_HASH_PEPPER=weavenyc-dev-identity-pepper",
+          "ANCHOR_TOTP_ENCRYPTION_KEY=weavenyc-dev-anchor-totp-encryption-key"
+        ]
+      }
+    },
+    "production": {
+      "groups": {
+        "runtime": [
+          "NODE_ENV",
+          "DATABASE_URL",
+          "REDIS_URL",
+          "JWT_SIGNING_PRIVATE_KEY",
+          "JWT_SIGNING_PUBLIC_KEY",
+          "IDENTITY_HASH_PEPPER",
+          "ANCHOR_TOTP_ENCRYPTION_KEY",
+          "INTERNAL_SERVICE_JWT_SECRET",
+          "POSTS_SERVICE_URL",
+          "MATCH_SERVICE_URL",
+          "CHAT_SERVICE_URL",
+          "RESOURCE_DIRECTORY_SERVICE_URL",
+          "NOTIFICATIONS_SERVICE_URL"
+        ],
+        "deploy": [
+          "WEAVENYC_PRODUCTION_API_GATEWAY_URL",
+          "WEAVENYC_PRODUCTION_POSTS_SERVICE_URL",
+          "WEAVENYC_PRODUCTION_MATCH_SERVICE_URL",
+          "WEAVENYC_PRODUCTION_CHAT_SERVICE_URL",
+          "WEAVENYC_PRODUCTION_RESOURCE_DIRECTORY_URL",
+          "WEAVENYC_PRODUCTION_NOTIFICATIONS_SERVICE_URL",
+          "WEAVENYC_PRODUCTION_PWA_URL",
+          "WEAVENYC_PRODUCTION_ANCHOR_ADMIN_URL"
+        ],
+        "integrations": [
+          "NOTIFICATIONS_DEMO_BASE_URL",
+          "TWILIO_ACCOUNT_SID",
+          "TWILIO_AUTH_TOKEN",
+          "TWILIO_MESSAGING_SERVICE_SID",
+          "RESEND_API_KEY",
+          "RESEND_FROM_EMAIL"
+        ],
+        "cloud": [
+          "AWS_REGION",
+          "GCP_PROJECT_ID",
+          "AZURE_SUBSCRIPTION_ID",
+          "VERCEL_TOKEN"
+        ]
+      },
+      "forbidden": {
+        "runtime": [
+          "IDENTITY_HASH_PEPPER=weavenyc-dev-identity-pepper",
+          "ANCHOR_TOTP_ENCRYPTION_KEY=weavenyc-dev-anchor-totp-encryption-key"
+        ]
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 > 从代码到生产的完整部署流程。补充 [11_Ops_Runbook](./11_Ops_Runbook.md) 和 [16_Contribution_Guide](./16_Contribution_Guide.md) 中的部署相关内容。
 >
-> **状态说明**：本文档是 **target-state deployment design**。当前仓库尚未具备本文档中描述的 CI/CD、云资源配置、Docker 基础设施与应用代码，请先以 [00_Execution_Baseline](./00_Execution_Baseline.md) 为准。
+> **状态说明**：本文档当前只保留 **可执行 staging truth**；production / canary / multi-cloud / full observability 都下沉为 appendix 或 future notes。请先以 [00_Execution_Baseline](./00_Execution_Baseline.md) 为准。
 
 ---
 
@@ -11,12 +11,25 @@
 | 环境 | 用途 | 触发方式 | URL |
 |------|------|----------|-----|
 | **local** | 开发调试 | `pnpm dev` | `localhost:3000/4000` |
-| **staging** | 集成测试 + Demo | PR 合入 `dev` 时自动部署 | `staging.weavenyc.org` |
-| **production** | 正式上线 | PR 合入 `main` 时自动部署（需审批） | `app.weavenyc.org` |
+| **staging** | 集成测试 + rehearsal | `push main` 自动 apply，或手动 `workflow_dispatch` | `WEAVENYC_STAGING_*` 对应的 runtime / app URL |
+| **production** | 未来 notes | 未启用 | `app.weavenyc.org` |
+
+## 2) 当前可执行 staging truth
+
+- 当前本地验证链仍是：`pnpm install` → `docker compose up -d` → `pnpm db:migrate` → `pnpm db:seed` → `pnpm dev`
+- 当前 branch-local staging deploy 链已经落地为：
+  - `.github/workflows/deploy-staging.yml`
+  - `.github/workflows/smoke-staging.yml`
+  - `.github/workflows/backup-restore-rehearsal.yml`
+- `push main` 默认进入 `deploy-staging` 的 `apply` 路径；`workflow_dispatch` 允许显式选择 `plan` 或 `apply`
+- `smoke-staging` 的自动触发只跟随 `push main` 的 deploy；如果是手动 `workflow_dispatch` 跑 `plan/apply`，需要显式再触发一次 smoke workflow
+- `smoke-staging` 现在要求完整 split-runtime URL 集合：gateway、posts、match、chat、resource-directory、notifications、pwa、anchor-admin 缺一不可
+- staging split-runtime 当前使用共享 PostgreSQL/PostGIS + Redis，不做物理分库；gateway 与下游服务依赖 internal service JWT，notifications 走真实 `Twilio + Resend` 配置
+- `pnpm test:smoke:real`、`pnpm test:e2e`、`pnpm test:smoke:p2p` 继续作为当前可执行验证链的一部分，优先服务于 rehearsal / closeout
 
 ---
 
-## 2) 基础设施架构（多云）
+## Appendix A) Future Multi-Cloud Infrastructure
 
 > 满足课程 3 云 3 PaaS 要求，详见 [ADR-0004](./15_ADR_Log.md) 和 [06_Blueprints §2.3](./06_Blueprints.md)。
 
@@ -44,9 +57,9 @@
 
 ---
 
-## 3) CI/CD 流水线（GitHub Actions）
+## Appendix B) Future CI/CD Pipeline
 
-### 3.1 流水线概览
+### B.1 流水线概览
 
 ```
 push to feature/* ──> lint + typecheck + unit test
@@ -62,7 +75,7 @@ PR to main ─────────> require: CI pass + 1 review + staging sm
 main branch ────────> build → deploy to production → health check → notify
 ```
 
-### 3.2 主要 Workflow 文件
+### B.2 主要 Workflow 文件
 
 **`.github/workflows/ci.yml`**（PR 检查）:
 ```yaml
@@ -177,7 +190,7 @@ jobs:
       - run: pnpm test:smoke --base-url https://staging.weavenyc.org
 ```
 
-### 3.3 Release Gate 检查清单
+### B.3 Release Gate 检查清单
 
 部署到 production 前必须通过：
 
@@ -192,9 +205,9 @@ jobs:
 
 ---
 
-## 4) 数据库迁移流程
+## Appendix C) Future DB Migration Flow
 
-### 4.1 正常迁移
+### C.1 正常迁移
 
 ```bash
 # 1) 修改 Drizzle schema
@@ -214,7 +227,7 @@ pnpm db:migrate           # 再次执行确认幂等
 # 5) 提交 PR（migration SQL 文件随代码一起 review）
 ```
 
-### 4.2 破坏性变更（两步走）
+### C.2 破坏性变更（两步走）
 
 详见 [04_Data_Sources §5](./04_Data_Sources.md)。
 
@@ -223,7 +236,7 @@ Step 1 (Release N):   添加新列/表（兼容旧代码）
 Step 2 (Release N+1): 迁移数据 → 删除旧列/表
 ```
 
-### 4.3 紧急回滚
+### C.3 紧急回滚
 
 ```bash
 # 回滚最近一次 migration
@@ -239,9 +252,9 @@ git revert HEAD && git push origin main  # 触发重新部署
 
 ---
 
-## 5) Docker 配置
+## Appendix D) Future Docker Config
 
-### 5.1 docker-compose.yml（本地开发）
+### D.1 docker-compose.yml（本地开发）
 
 ```yaml
 # infra/docker-compose.yml
@@ -268,7 +281,7 @@ volumes:
   redisdata:
 ```
 
-### 5.2 Dockerfile（服务构建）
+### D.2 Dockerfile（服务构建）
 
 ```dockerfile
 # infra/Dockerfile
@@ -297,9 +310,9 @@ CMD ["node", "dist/server.js"]
 
 ---
 
-## 6) 环境变量管理
+## Appendix E) Future Environment Variable Management
 
-### 6.1 Secret 管理
+### E.1 Secret 管理
 
 | 环境 | 方式 | 工具 |
 |------|------|------|
@@ -307,7 +320,7 @@ CMD ["node", "dist/server.js"]
 | staging | GitHub Environment Secrets | GitHub Actions 注入 |
 | production | 云平台 Secret Manager | AWS Secrets Manager / GCP Secret Manager |
 
-### 6.2 必要环境变量
+### E.2 必要环境变量
 
 | 变量 | staging | production | 说明 |
 |------|---------|------------|------|
@@ -322,11 +335,11 @@ CMD ["node", "dist/server.js"]
 
 ---
 
-## 7) 监控与告警
+## Appendix F) Future Monitoring & Alerting
 
 部署后的健康检查和监控，详见 [11_Ops_Runbook](./11_Ops_Runbook.md)。
 
-### 7.1 部署后自动检查
+### F.1 部署后自动检查
 
 ```bash
 # 部署完成后自动运行
@@ -334,7 +347,7 @@ curl -sf https://app.weavenyc.org/health || exit 1
 curl -sf https://app.weavenyc.org/v1/resources?zip=11735 || exit 1
 ```
 
-### 7.2 金丝雀发布（Phase 2）
+### F.2 金丝雀发布（Phase 2）
 
 MVP 阶段使用蓝绿部署（全量切换）；Phase 2 引入金丝雀发布：
 - 10% 流量 → 新版本
@@ -343,7 +356,7 @@ MVP 阶段使用蓝绿部署（全量切换）；Phase 2 引入金丝雀发布�
 
 ---
 
-## 8) 回滚策略
+## Appendix G) Future Rollback Strategy
 
 | 组件 | 回滚方式 | 时间目标 |
 |------|----------|----------|

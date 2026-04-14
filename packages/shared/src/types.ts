@@ -71,6 +71,50 @@ export type MagicLinkVerifyRequest = {
   token: string;
 };
 
+export type NotificationSendScope = "notifications_send";
+
+export type NotificationInternalJwtClaims = {
+  sub: string;
+  scope: NotificationSendScope;
+  service: string;
+  iat?: number;
+  exp?: number;
+};
+
+export type NotificationSmsProvider = "stub" | "twilio";
+
+export type NotificationEmailProvider = "stub" | "resend";
+
+export type NotificationOtpSendRequest = {
+  phone: string;
+  code: string;
+  challenge_id: string;
+};
+
+export type NotificationOtpSendResponse = {
+  provider: NotificationSmsProvider;
+  fallback: boolean;
+  demo_code?: string;
+};
+
+export type NotificationMagicLinkSendRequest = {
+  email: string;
+  token: string;
+  challenge_id: string;
+};
+
+export type NotificationMagicLinkSendResponse = {
+  provider: NotificationEmailProvider;
+  fallback: boolean;
+  demo_token?: string;
+  demo_url?: string;
+};
+
+export type NotificationSmsSendRequest = NotificationOtpSendRequest;
+export type NotificationSmsSendResponse = NotificationOtpSendResponse;
+export type NotificationEmailSendRequest = NotificationMagicLinkSendRequest;
+export type NotificationEmailSendResponse = NotificationMagicLinkSendResponse;
+
 export type JwtClaims = {
   sub: string;
   level: UserLevel;

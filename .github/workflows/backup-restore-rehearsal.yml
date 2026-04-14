@@ -1,0 +1,92 @@
+name: Backup Restore Rehearsal
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-restore-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  backup-restore-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      WEAVENYC_DEPLOY_PROFILE: development
+      WEAVENYC_BACKUP_MODE: local-compose
+      WEAVENYC_BACKUP_SHADOW_DATABASE_URL: postgres://weavenyc:weavenyc@localhost:5432/weavenyc_shadow_restore
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Load local dev env
+        shell: bash
+        run: |
+          set -a
+          source ./.env.example
+          set +a
+
+      - name: Start local infrastructure
+        run: docker compose up -d
+
+      - name: Wait for local infrastructure
+        run: |
+          for service in postgres redis; do
+            container="$(docker compose ps -q "$service")"
+            if [ -z "$container" ]; then
+              echo "Service $service is not running"
+              docker compose ps
+              exit 1
+            fi
+            for attempt in $(seq 1 30); do
+              status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")"
+              if [ "$status" = "healthy" ]; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                docker logs "$container" || true
+                echo "Service $service ($container) did not become healthy"
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Seed database
+        run: pnpm db:seed
+
+      - name: Run backup restore rehearsal
+        run: pnpm exec tsx scripts/staging/backup-restore-rehearsal.ts
+
+      - name: Upload backup restore report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-restore-report
+          path: .staging/backup-restore-report.json
+          if-no-files-found: error
+
+      - name: Stop local infrastructure
+        if: always()
+        run: docker compose down -v

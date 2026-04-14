@@ -1,12 +1,13 @@
 # WeaveNYC — API Spec (HTTP Surface, Main-First)
 
-目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；`main` 的 canonical surface 已覆盖 M0-M5。当前 `feature/m6-p2p-sync` 的 branch-local P2P additions 记录在第 8 节，但不应被误读成 `main` 已上线能力。
+目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；`main` 的 canonical surface 已覆盖 M0-M6。当前 `feature/m7-staging-rehearsal` 只承接 staging truth 收口，不新增用户端 HTTP product surface。
 
 约定：
 - HTTP Base URL（示例）：`https://api.weavenyc.local`
 - Auth：MVP 可用 JWT（匿名账户也能拿 token）
 - 所有时间：ISO8601 UTC
 - 示例中的 `p_...`、`c_...`、`comm_...` 仅为可读占位符；实际持久化 ID 统一使用 UUID（见 [20_DB_Schema_Reference](./20_DB_Schema_Reference.md)）
+- M7 branch-local 额外引入的 `/healthz`、`/readyz`、`/versionz`、`/metrics` 属于 runtime health / ops probes，不算新的用户端 product API surface
 
 ---
 
@@ -522,7 +523,7 @@ Notes:
 
 ## Appendix A: M5 Anchor Admin API（canonical current surface）
 
-> 以下接口已经进入 `main` 的 canonical surface，并已通过 M5 closeout 与 6-lane review gate。
+> 以下接口已经进入 `main` 的 canonical surface，并已通过 M6 closeout 与 6-lane review gate。
 
 ### 7.1 Anchor Activate
 `POST /v1/auth/anchor/activate`
@@ -610,12 +611,12 @@ Request:
 
 ---
 
-## 8) M6 Branch Additions: P2P Contracts (In Progress)
+## 8) M6 P2P Contracts (Canonical)
 
 > **命名约定**：事件类型使用过去式（表示已发生的事实），与 [07_P2P_Node_Design §3.2](./07_P2P_Node_Design.md) 保持一致。
 > 完整事件类型列表：`post.published`, `post.updated`, `post.tombstoned`, `announcement.published`, `announcement.updated`, `announcement.deleted`, `report.created`, `moderation.decision`
 >
-> **当前 overlay 边界**：这里只描述当前 branch 会真实同步的最小 payload。`report.created` / `moderation.decision` 只覆盖 post-target 事件；`detail_text`、`conversation_id`、`affected_user_id` 不进入社区同步 payload。
+> **当前 overlay 边界**：这里只描述当前 canonical 会真实同步的最小 payload。`report.created` / `moderation.decision` 只覆盖 post-target 事件；`detail_text`、`conversation_id`、`affected_user_id` 不进入社区同步 payload。
 
 ### 8.1 post.published
 ```json
@@ -777,7 +778,7 @@ Response:
 ```
 
 Notes:
-- Branch-local discovery path for M6 clients
+- Canonical discovery path for P2P clients
 - If the client is offline or no anchor is available, use cached bootstrap data and skip P2P sync
 - The browser should not depend on mDNS to join a community
 - The returned `websocket_url` carries a short-lived websocket token minted by bootstrap, not the primary API bearer token
@@ -819,7 +820,7 @@ Response:
 ```
 
 Notes:
-- Branch-local catch-up path for offline recovery after the client reconnects
+- Canonical catch-up path for offline recovery after the client reconnects
 - The authoritative write path remains the existing HTTP APIs for posts, announcements, reports, and moderation
 - Clients should treat this as a replay stream for cache repair, not a replacement for canonical HTTP reads
 - `since` 首次请求可传 ISO timestamp；后续请求应直接回传服务端返回的 opaque `next_since`

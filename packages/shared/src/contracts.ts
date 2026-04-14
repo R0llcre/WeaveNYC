@@ -38,6 +38,18 @@ export {
   resourceSummarySchema,
 } from "./validators/resources";
 export {
+  notificationEmailSendRequestSchema,
+  notificationEmailSendResponseSchema,
+  notificationInternalJwtClaimsSchema,
+  notificationSendScopeSchema,
+  notificationMagicLinkSendRequestSchema,
+  notificationMagicLinkSendResponseSchema,
+  notificationOtpSendRequestSchema,
+  notificationOtpSendResponseSchema,
+  notificationSmsSendRequestSchema,
+  notificationSmsSendResponseSchema,
+} from "./validators/notifications";
+export {
   contactRequestDecisionResponseSchema,
   contactRequestInboxItemSchema,
   contactRequestInboxQuerySchema,

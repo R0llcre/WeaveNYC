@@ -13,13 +13,17 @@
   },
   "description": "M3 matching domain library for action plans, contact requests, and accepted-conversation linkage.",
   "scripts": {
+    "dev": "HOST=127.0.0.1 PORT=4102 tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
+    "start": "HOST=127.0.0.1 PORT=4102 node dist/src/server.js",
+    "runtime": "HOST=127.0.0.1 PORT=4102 node dist/src/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm --dir ../.. exec vitest run services/match/test/"
   },
   "dependencies": {
     "@weavenyc/resource-directory": "workspace:*",
     "@weavenyc/shared": "workspace:*",
+    "fastify": "^5.6.1",
     "pg": "^8.16.3"
   },
   "devDependencies": {

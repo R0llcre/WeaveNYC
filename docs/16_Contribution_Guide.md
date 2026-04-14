@@ -1,8 +1,8 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：`main` 的稳定基线是 `M5 completed`。本文档只描述当前可运行命令、M5 closeout 记录和当前 main-first 真值。
+> 状态：`main` 的稳定基线是 `M6 completed`。本文档只描述当前可运行命令、M6 closeout 记录和当前 main-first 真值。
 >
-> `feature/m6-p2p-sync` 的 branch-local 文档 / overlay smoke 会额外出现 `pnpm test:smoke:p2p`，但它不属于当前 `main` 默认 close gate。
+> `feature/m7-staging-rehearsal` 的 branch-local 文档 / staging truth 收口会额外出现 `pnpm test:smoke:p2p`，但它不属于当前 `main` 默认 close gate。
 
 ---
 
@@ -56,8 +56,9 @@ pnpm dev
 - PWA `/verify`：OTP + magic-link fallback
 - PWA `/dev/m0`：保留 M0 debug
 - Anchor Admin：`/login`、`/activate`、`/`、`/review`、`/announcements`、`/rules`
+- P2P overlay：`GET /v1/communities/:community_id/bootstrap`、`GET /v1/communities/:community_id/sync`、`GET /v1/ws/p2p?token=...`
 
-当前 canonical M2-M5 additions：
+当前 canonical M2-M6 additions：
 
 - `POST /v1/community-access/resolve`
 - `POST /v1/communities/:community_id/join`
@@ -89,7 +90,7 @@ pnpm dev
 - PWA `/contact-requests`：兼容性 redirect 到 `/inbox`
 - Dev-only fallback helper：`pnpm dev:mint-anchor-token`
 
-M5 canonical surface：
+M6 canonical surface：
 
 - Anchor login / activation / TOTP step-up
 - Review queue 的 `Posts` / `Reports` 双 tab
@@ -118,11 +119,11 @@ M5 canonical surface：
 - 说明：
   - `pnpm test:smoke:real` 直接打本地 Fastify，不走浏览器 route mock
   - 若 `/readyz` 不可用，`pnpm test:smoke:real` 会先自启动 `api-gateway`
-  - `pnpm test:smoke:real` 只在 fresh `pnpm db:migrate` + `pnpm db:seed` 后通过时，才能计入当前 M5 closeout
+  - `pnpm test:smoke:real` 只在 fresh `pnpm db:migrate` + `pnpm db:seed` 后通过时，才能计入当前 M6 closeout
   - `pnpm test:e2e` 仍是 fixture-backed browser smoke
-  - `pnpm test:smoke:p2p` 当前是 M6 bootstrap/sync overlay 的独立 smoke，不并入 `main` 默认 gate
+  - `pnpm test:smoke:p2p` 当前是 P2P overlay 的独立 smoke，不并入 `main` 默认 gate
   - `pnpm test:live-sources` 不进默认 CI
-  - `pnpm dev:mint-anchor-token` 只是 dev/debug fallback，不属于 M5 closeout 必经路径
+  - `pnpm dev:mint-anchor-token` 只是 dev/debug fallback，不属于 M6 closeout 必经路径
 
 ### 1.5 环境变量
 
@@ -167,9 +168,9 @@ cp .env.example .env.local
 - `GET /v1/resources`
 - `GET /v1/resources/:provider_id`
 
-### 1.7 M5 closeout path
+### 1.7 M6 closeout path
 
-当前 `main` 的 M5 closeout / rehearsal 路径固定如下：
+当前 `main` 的 M6 closeout / rehearsal 路径固定如下：
 
 ```bash
 pnpm install
@@ -202,7 +203,7 @@ Closeout / rehearsal 顺序：
 - `pnpm test:smoke:real` 必须基于同一轮 fresh `pnpm db:migrate` + `pnpm db:seed`
 - `pnpm dev:mint-anchor-token` 只用于 dev/debug fallback，不作为文档真值或 closeout gate
 
-当前 M5 closeout 与 review gate 记录在 [`docs/26_M5_Closeout.md`](./26_M5_Closeout.md)。
+当前 M6 closeout 与 review gate 记录在 [`docs/27_M6_Closeout.md`](./27_M6_Closeout.md)。
 
 ---
 
@@ -222,7 +223,7 @@ weavenyc/
 ├── packages/
 │   ├── shared/
 │   ├── db/
-│   ├── p2p/                 # M6 branch-local event/DAG/sync helpers
+│   ├── p2p/                 # M6 canonical event/DAG/sync helpers
 │   └── test-utils/
 ├── infra/
 │   ├── docker-compose.yml
@@ -246,7 +247,7 @@ weavenyc/
 - `services/match` 当前承载 match batching、contact request state machine、recipient inbox、accept/reject，但不单独启动。
 - `services/chat` 当前承载 conversations、messages、block/report、message safety、WebSocket fan-out，但不单独启动。
 - `packages/db` 持有 schema、migration、seed、测试。
-- `packages/p2p` 当前承载 M6 branch-local 的 event envelope、CID/DAG、merge/replay helper；它不是独立 runtime。
+- `packages/p2p` 当前承载 M6 canonical 的 event envelope、CID/DAG、merge/replay helper；它不是独立 runtime。
 
 ---
 

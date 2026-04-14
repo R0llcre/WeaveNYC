@@ -15,6 +15,19 @@ export interface AuthTokenClaims {
   exp?: number;
 }
 
+export interface InternalServiceTokenClaims {
+  sub: string;
+  iss: string;
+  aud: string;
+  scope: 'internal_service';
+  request_id: string;
+  actor?: AuthTokenClaims & {
+    status?: UserStatus;
+  };
+  iat?: number;
+  exp?: number;
+}
+
 export interface CommunityJoinTokenClaims {
   sub: string;
   community_id: string;

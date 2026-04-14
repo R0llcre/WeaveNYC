@@ -13,14 +13,18 @@
   },
   "description": "M1 resource ingestion library and CLI host for official directories.",
   "scripts": {
+    "dev": "HOST=127.0.0.1 PORT=4104 tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "resources:import:cfc": "tsx src/cli.ts cfc-active",
     "resources:import:island-harvest": "tsx src/cli.ts island-harvest",
     "resources:sync": "tsx src/cli.ts sync",
+    "start": "HOST=127.0.0.1 PORT=4104 node dist/src/server.js",
+    "runtime": "HOST=127.0.0.1 PORT=4104 node dist/src/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm --dir ../.. exec vitest run services/resource-directory/test/"
   },
   "dependencies": {
+    "fastify": "^5.6.1",
     "pg": "^8.16.3"
   },
   "devDependencies": {

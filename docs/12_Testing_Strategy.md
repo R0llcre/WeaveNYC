@@ -1,6 +1,6 @@
 # WeaveNYC — Testing Strategy
 
-目标：把当前 `main = M5 completed` 的默认验证链和 `feature/m6-p2p-sync` 的 branch-local 验证链分清楚，避免把尚未落地的 P2P surface 混进默认 CI，同时给 M6 实现留出清晰的 smoke / E2E 入口。
+目标：把当前 `main = M6 completed` 的默认验证链和 `feature/m7-staging-rehearsal` 的 branch-local staging truth 收口分清楚，避免把未来的 staging / production 叙述混进默认 CI。
 
 ---
 
@@ -14,19 +14,19 @@
 | Real API smoke | 已启动 API + DB + Redis + seed 的真实 HTTP 路径 | `pnpm test:smoke:real` |
 | Browser smoke | PWA / Admin 的关键页面和主路径 | `pnpm test:e2e` |
 | Live-source smoke | CFC / Island Harvest 上游源可达和 parser shape | `pnpm test:live-sources` |
-| P2P smoke | M6 bootstrap / sync overlay 的 branch-local 真实 smoke | `pnpm test:smoke:p2p` |
+| P2P smoke | M6 bootstrap / sync overlay 的 canonical 真实 smoke | `pnpm test:smoke:p2p` |
 
 说明：
 
 - `pnpm test` 继续代表默认单元/集成/文档真值检查。
 - `pnpm test:smoke:real` 继续代表 `main` 的真实 HTTP smoke。
-- `pnpm test:smoke:p2p` 是 `feature/m6-p2p-sync` 的独立 overlay smoke，不并入当前 `main` 默认 close gate。
+- `pnpm test:smoke:p2p` 是 `main` 上的 P2P overlay smoke，不并入默认 CI gate，但属于 canonical validation 链。
 
 ---
 
-## 2) 当前默认 gate（main / M5）
+## 2) 当前默认 gate（main / M6）
 
-默认 CI 和本地基线仍以 `main = M5 completed` 为准：
+默认 CI 和本地基线仍以 `main = M6 completed` 为准：
 
 ```bash
 pnpm install --frozen-lockfile
@@ -46,15 +46,21 @@ pnpm test:e2e
 - `pnpm test:smoke:real` 会在 `/readyz` 不可用时先自启动 `api-gateway`
 - `pnpm test:e2e` 仍是 browser smoke，不替代真实 API smoke
 - `pnpm test:live-sources` 和 `pnpm dev:mint-anchor-token` 继续保留为 manual / opt-in
-- `pnpm test:smoke:p2p` 当前不进默认 CI，因为 M6 业务 surface 仍在 branch 上实现中
+- `pnpm test:smoke:p2p` 当前不进默认 CI，因为仍是手动触发的 overlay smoke
+
+当前 `feature/m7-staging-rehearsal` 额外收口的 branch-local staging gate：
+
+- `deploy-staging`：`push main` 默认走 `apply`；`workflow_dispatch` 可显式选择 `plan/apply`
+- `smoke-staging`：要求完整 split-runtime URL 集合，remote smoke 不再接受半接线 topology；自动触发只跟随 `push main` 的 deploy，手动 `plan/apply` 后如需验证需显式再跑一次 smoke workflow
+- `backup-restore-rehearsal`：手动触发，验证 nightly backup metadata 和 restore-to-shadow DB 路径
 
 ---
 
-## 3) M6 branch-local 验证链
+## 3) M6 canonical P2P 验证链
 
 ### 3.1 目标
 
-`M6` 的验证目标不是重测 M1-M5，而是新增这 5 类能力：
+`M6` 的验证目标不是重测 M1-M5，而是验证 P2P overlay 的这 5 类能力：
 
 - bootstrap discovery
 - sync delta / catch-up
@@ -70,7 +76,7 @@ pnpm test:smoke:p2p
 
 当前定位：
 
-- 它是 branch-local 的真实 overlay smoke，不属于 `main` 默认 close gate
+- 它是 `main` 上的真实 overlay smoke，不属于默认 CI gate
 - 它会沿用 `test:smoke:real` 的自启动策略；在本地没有现成 API 时，会先执行 `db:migrate` + `db:seed` 再自启 `api-gateway`
 - 当前命令默认 hard-fail；bootstrap / sync surface 缺失或事件链不成立都会直接失败
 
@@ -137,9 +143,9 @@ pnpm test:smoke:p2p
 
 ### 4.3 Browser / E2E
 
-- 当前 `pnpm test:e2e` 仍是 M1-M5 的 fixture-backed browser smoke
-- 现有浏览器用例不直接覆盖 M6 的 `/bootstrap`、`/sync`、worker 双端同步或断线恢复
-- M6 的社区页 sync card、worker/Dexie/offline UI 路径目前依赖 unit/integration + `pnpm test:smoke:p2p` + manual demo 验证
+- 当前 `pnpm test:e2e` 仍是 fixture-backed browser smoke
+- 现有浏览器用例不直接覆盖 `/bootstrap`、`/sync`、worker 双端同步或断线恢复
+- 社区页 sync card、worker/Dexie/offline UI 路径目前依赖 unit/integration + `pnpm test:smoke:p2p` + manual demo 验证
 - “设备 B 无整页刷新看到更新” 和 “断线后 UI 自动恢复” 目前仍是 manual stretch demo 目标，不算当前 browser automation 已证明项
 - experimental `mDNS` toggle 仍保持 dev/demo-only，不进入默认 browser gate
 
@@ -197,5 +203,5 @@ pnpm test:smoke:p2p
 
 当前状态：
 
-- `main` 仍以 M5 gate 为准
-- `feature/m6-p2p-sync` 只提前接入文档真值和 branch-local smoke，不提前宣称 M6 已关闭
+- `main` 仍以 M6 gate 为准
+- `feature/m7-staging-rehearsal` 只接入 staging truth 收口，不再把 M6 当 branch-local 未完成项

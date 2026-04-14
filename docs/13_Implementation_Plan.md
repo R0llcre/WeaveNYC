@@ -1,13 +1,13 @@
 # WeaveNYC — Implementation Plan (Phased Execution Roadmap)
 
-> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 以 `main = M5 completed` 为准；当前执行分支 `feature/m6-p2p-sync` 正在推进 `M6`。M5 closeout 见 [26_M5_Closeout](./26_M5_Closeout.md)。
+> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 以 `main = M6 completed` 为准；当前执行分支 `feature/m7-staging-rehearsal` 正在推进 `M7`。M6 closeout 见 [27_M6_Closeout](./27_M6_Closeout.md)。
 
 ---
 
 ## 0) 怎么用这份计划
 
 - `P0`、`M0` 已经完成，不再作为待排阶段。
-- `M1`、`M2`、`M3`、`M4`、`M5` 已完成；`M6` 是当前 branch-local 执行阶段。
+- `M1`、`M2`、`M3`、`M4`、`M5`、`M6` 已完成；`M7` 是当前 branch-local 执行阶段。
 - 每个阶段都看 3 件事：做什么、阶段结束必须产出什么、满足什么门槛才能进入下一阶段。
 - `14_Backlog.md` 是任务池；本文件负责决定“现在先做哪一批”。
 
@@ -19,7 +19,7 @@
 - Backend B：API + DB + 匹配 + 风控规则
 - Infra/Node C（可选）：P2P/IPFS + Anchor 节点 + 部署脚本
 
-> 这份路线图按 **3 人目标节奏**排；如果只有 **2 人**，请把 `M5` 后半和 `M6` 视为顺延，不要把它们硬塞进 6 周主线。
+> 这份路线图按 **3 人目标节奏**排；如果只有 **2 人**，请把 `M6` 后半和 `M7` 视为顺延，不要把它们硬塞进 6 周主线。
 
 ---
 
@@ -34,11 +34,12 @@
 | `M3` 匹配与行动方案 | Completed | 4-6 天 | 对 Request 返回可行动方案并完成最小建联闭环 | 匹配服务、Top-3 结果页、一次刷新、官方资源兜底、解释标签、`contact_requests`、recipient inbox、accept/reject | 发布 request 后稳定得到 3 个建议；recipient 可在 app 内 accept/reject；accept 创建 conversation，后续聊天由 M4 接手 |
 | `M4` 联系与聊天安全 | Completed | 5-7 天 | 把 accepted conversation 升级成真实聊天与安全闭环 | 会话列表、消息发送/读取、聊天页、举报/拉黑、敏感信息拦截、WebSocket realtime | 已接受的 request 可进入真实会话并收发消息；安全动作可用；6-lane review gate 关闭后进入 M5 |
 | `M5` Anchor Admin + 试点准备 | Completed | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本、pilot rehearsal | Anchor activate/login、moderation、announcements、rules、dashboard、rehearsal、validation 和 6-lane review gate 全部关闭 |
-| `M6` P2P 同步 overlay | In progress on branch | 1-2 周 | 在现有 HTTP-first 产品上补 P2P 加分演示 | bootstrap/sync API、Edge worker、Anchor publish/replay、离线 catch-up | 两设备可跨节点看到同一份帖子/公告状态 |
+| `M6` P2P 同步 overlay | Completed | 1-2 周 | 在现有 HTTP-first 产品上补 P2P 同步 overlay | bootstrap/sync API、Edge worker、Anchor publish/replay、离线 catch-up | 两设备可跨节点看到同一份帖子/公告状态 |
+| `M7` staging rehearsal / truth 收口 | In progress on branch | 1-2 周 | 把 deployment / ops / testing / docs 统一成当前可执行 staging truth | README、baseline、ops、deployment、testing、closeout 收口 | 入口文档不再混入 future production/canary 口径 |
 
-> `M0-M5` 已是完成的 MVP critical path；`M6` 当前按 Stretch Demo 推进，但仍不回写为 `main` 已关闭阶段。
+> `M0-M6` 已是完成的 MVP critical path；`M7` 当前按 staging rehearsal 推进，但仍不回写为 `main` 已关闭阶段。
 
-> 当前 `M5` closeout / rehearsal 状态以 [`26_M5_Closeout.md`](./26_M5_Closeout.md) 为准；`M6` 的 branch-local 真值以 `README`、[`00_Execution_Baseline.md`](./00_Execution_Baseline.md)、[`07_P2P_Node_Design.md`](./07_P2P_Node_Design.md) 和 [`12_Testing_Strategy.md`](./12_Testing_Strategy.md) 的一致口径为准。
+> 当前 `M6` closeout 状态以 [`27_M6_Closeout.md`](./27_M6_Closeout.md) 为准；`M7` 的 branch-local 真值以 `README`、[`00_Execution_Baseline.md`](./00_Execution_Baseline.md)、[`11_Ops_Runbook.md`](./11_Ops_Runbook.md)、[`19_Deployment_Guide.md`](./19_Deployment_Guide.md) 和 [`12_Testing_Strategy.md`](./12_Testing_Strategy.md) 的一致口径为准。
 
 ---
 
@@ -203,7 +204,7 @@
 - Transportation / Childcare 默认进入审核
 - Anchor 审核通过后用户端状态正确更新
 
-### M6（当前 branch-local 执行阶段）：P2P 同步 overlay
+### M6（Completed）：P2P 同步 overlay
 
 做什么：
 
@@ -227,6 +228,26 @@
 - 设备离线恢复后能通过 catch-up 追平 `posts + announcements + reports/moderation events`
 - `Anchor wins` 语义能覆盖 stale P2P copy
 
+### M7（当前 branch-local 执行阶段）：staging rehearsal / truth 收口
+
+做什么：
+
+- 把 `README`、baseline、testing、ops、deployment、closeout 收口到 `M6 completed / M7 in progress`
+- 把 production / canary / full observability 下沉到 future notes
+- 让 staging truth 和可执行验证链保持一致，不再继续引用旧的 branch-local P2P 口径
+
+阶段产出：
+
+- `README.md`、`00_Execution_Baseline.md`、`11_Ops_Runbook.md`、`12_Testing_Strategy.md`、`13_Implementation_Plan.md`、`14_Backlog.md`、`19_Deployment_Guide.md`
+- `27_M6_Closeout.md`
+- 对外可执行的 staging rehearsal 说明
+
+进入下一阶段门槛：
+
+- 入口文档不再出现 `M5 completed / 旧的 branch-local P2P 口径`，而是统一为 `M6 completed / M7 in progress`
+- `main = M6 completed`、`feature/m7-staging-rehearsal = M7 in progress` 的口径一致
+- `production` / `canary` / `full observability` 已下沉到 appendix 或 future notes
+
 ---
 
 ## 4) 并行策略（2-3 人团队）
@@ -234,7 +255,8 @@
 - `P0-M1`：已关闭，作为历史记录保留
 - `M2-M3`：前端、后端、数据结构和流程规则可以并行推进
 - `M5`：Anchor Admin 与试点准备依赖前面的 auth / posts / matching / chat 稳定
-- `M6`：当前支线聚焦 P2P overlay，不并入新的聊天/通知/admin 范围
+- `M6`：已合入主线，当前 P2P overlay 作为 canonical surface 保留
+- `M7`：当前支线聚焦 staging truth 收口，不并入新的产品功能范围
 
 ---
 
@@ -244,9 +266,9 @@
 
 当前执行起点：
 
-- 当前起点固定为 `feature/m6-p2p-sync`
-- `main` 继续代表 `M5 completed`
-- M6 当前在 branch 上已经进入实现中：`packages/p2p`、bootstrap/sync routes、PWA worker 与 `pnpm test:smoke:p2p` 都已接通，但这些能力仍只属于 branch-local truth，不回写为 `main` 已上线能力
+- 当前起点固定为 `feature/m7-staging-rehearsal`
+- `main` 继续代表 `M6 completed`
+- M6 当前已经合入 `main`，`packages/p2p`、bootstrap/sync routes、PWA worker 与 `pnpm test:smoke:p2p` 都已接通；`M7` 只在 docs / ops / staging truth 收口上继续推进
 - 不再继续把 `E0-M4` 这类已关闭阶段 story 当作当前待办
 - 其余 auth / PWA platform story 是否已完成，一律以 [`14_Backlog.md`](./14_Backlog.md) 的当前状态标记为准
 
