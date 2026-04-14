@@ -7,7 +7,7 @@ export const internalServiceClaimsSchema = z.object({
   sub: z.string().min(1),
   scope: z.literal('internal_service'),
   aud: z.literal('notifications-service'),
-  iss: z.literal('weavenyc-api-gateway:internal'),
+  iss: z.string().min(1),
   request_id: z.string().min(1).optional(),
   actor: z
     .object({
@@ -47,7 +47,10 @@ export async function authenticateInternalService(request: FastifyRequest, reply
 }
 
 export function mintInternalServiceToken(
-  app: { jwt: { sign(payload: InternalServiceClaims, options?: Record<string, unknown>): string } },
+  app: {
+    jwt: { sign(payload: InternalServiceClaims, options?: Record<string, unknown>): string };
+    config?: { internalJwt: { issuer: string } };
+  },
   input?: Partial<Pick<InternalServiceClaims, 'sub' | 'actor'>>,
 ) {
   return app.jwt.sign(
@@ -55,7 +58,7 @@ export function mintInternalServiceToken(
       sub: input?.sub ?? 'api-gateway',
       scope: 'internal_service',
       aud: 'notifications-service',
-      iss: 'weavenyc-api-gateway:internal',
+      iss: app.config?.internalJwt.issuer ?? 'weavenyc-api-gateway:internal',
       actor: input?.actor,
     },
     {

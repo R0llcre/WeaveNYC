@@ -201,4 +201,43 @@ describe('@weavenyc/notifications runtime', () => {
       }),
     ).rejects.toThrow('Missing required notifications callback base URL');
   });
+
+  it('accepts a configurable internal JWT issuer', async () => {
+    const app = await buildNotificationsApp({
+      config: {
+        env: 'development',
+        logLevel: 'info',
+        server: {
+          host: '127.0.0.1',
+          port: 0,
+        },
+        internalJwt: {
+          issuer: 'weavenyc-custom-internal-issuer',
+          secret: 'dev-secret',
+        },
+        providerMode: 'stub',
+        demoBaseUrl: 'http://localhost:3000',
+      },
+    });
+    apps.push(app);
+
+    const token = mintInternalServiceToken(app, {
+      sub: 'api-gateway',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/internal/notifications/send-otp',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        phone: '+15165550101',
+        code: '123456',
+        challenge_id: randomUUID(),
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
 });

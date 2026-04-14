@@ -4,6 +4,7 @@ import {
   captureChecked,
   fetchJson,
   forbiddenEnvHits,
+  isHealthyProbeStatus,
   missingEnvKeys,
   optionalEnv,
   readEnvProfiles,
@@ -29,6 +30,18 @@ type SmokeReport = {
     p2p: boolean;
   };
 };
+
+function assertHealthyChecks(checks: SmokeReport["checks"]) {
+  const failures = checks.flatMap((check) =>
+    check.paths
+      .filter((path) => !isHealthyProbeStatus(path.status))
+      .map((path) => `${check.runtime} ${path.path} -> ${path.status}`),
+  );
+
+  if (failures.length > 0) {
+    throw new Error(`Staging smoke detected unhealthy probes: ${failures.join(", ")}`);
+  }
+}
 
 async function main() {
   const profile = process.env.WEAVENYC_DEPLOY_PROFILE?.trim() || "staging";
@@ -110,6 +123,8 @@ async function main() {
   };
 
   const reportPath = writeScratchJson("smoke-report.json", report);
+
+  assertHealthyChecks(report.checks);
 
   if (report.delegatedSmoke?.realApi) {
     await spawnRealSmoke(gatewayUrl);

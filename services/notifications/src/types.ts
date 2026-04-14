@@ -36,7 +36,7 @@ export type InternalServiceClaims = {
   sub: string;
   scope: 'internal_service';
   aud: 'notifications-service';
-  iss: 'weavenyc-api-gateway:internal';
+  iss: string;
   request_id?: string;
   actor?: {
     sub: string;

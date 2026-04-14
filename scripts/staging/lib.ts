@@ -90,6 +90,10 @@ export function forbiddenEnvHits(forbidden: string[], source: NodeJS.ProcessEnv 
   return hits;
 }
 
+export function isHealthyProbeStatus(status: number) {
+  return status >= 200 && status < 400;
+}
+
 export function readRuntimeContracts() {
   return loadJson<{
     schemaVersion: number;

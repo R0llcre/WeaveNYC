@@ -143,7 +143,9 @@ export function createHttpPostsService(context: InternalClientContext): PostsSer
           path: '/internal/v1/posts/join-community',
           method: 'POST',
           actor: toInternalActor({ userId: input.userId, level: 'anonymous', role: 'user' }),
-          body: input,
+          body: {
+            community_id: input.communityId,
+          },
         });
       } catch (error) {
         throw mapPostsError(error as InternalServiceError);
@@ -200,7 +202,7 @@ export function createHttpPostsService(context: InternalClientContext): PostsSer
             anchorCommunityId: actor.anchorCommunityId,
             mfaVerifiedAt: actor.mfaVerifiedAt,
           }),
-          body: { postId },
+          body: { post_id: postId },
         });
       } catch (error) {
         throw mapPostsError(error as InternalServiceError);
@@ -219,7 +221,10 @@ export function createHttpPostsService(context: InternalClientContext): PostsSer
             anchorCommunityId: input.actor.anchorCommunityId,
             mfaVerifiedAt: input.actor.mfaVerifiedAt,
           }),
-          body: input,
+          body: {
+            post_id: input.postId,
+            request: input.request,
+          },
         });
       } catch (error) {
         throw mapPostsError(error as InternalServiceError);
@@ -238,7 +243,7 @@ export function createHttpPostsService(context: InternalClientContext): PostsSer
             anchorCommunityId: actor.anchorCommunityId,
             mfaVerifiedAt: actor.mfaVerifiedAt,
           }),
-          body: { actor, postId },
+          body: { post_id: postId },
         });
       } catch (error) {
         throw mapPostsError(error as InternalServiceError);
@@ -257,7 +262,7 @@ export function createHttpPostsService(context: InternalClientContext): PostsSer
             anchorCommunityId: actor.anchorCommunityId,
             mfaVerifiedAt: actor.mfaVerifiedAt,
           }),
-          body: { actor, postId },
+          body: { post_id: postId },
         });
       } catch (error) {
         throw mapPostsError(error as InternalServiceError);
@@ -758,7 +763,7 @@ export function createHttpChatService(context: InternalClientContext): ChatServi
             mfaVerifiedAt: input.actor.mfaVerifiedAt,
           }),
           body: {
-            communityId: input.communityId,
+            community_id: input.communityId,
             status: input.status,
             cursor: input.cursor,
             limit: input.limit,
@@ -782,8 +787,8 @@ export function createHttpChatService(context: InternalClientContext): ChatServi
             mfaVerifiedAt: input.actor.mfaVerifiedAt,
           }),
           body: {
-            communityId: input.communityId,
-            reportId: input.reportId,
+            community_id: input.communityId,
+            report_id: input.reportId,
             decision: input.decision,
             notes: input.notes,
           },
