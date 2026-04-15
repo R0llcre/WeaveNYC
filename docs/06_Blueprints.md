@@ -98,7 +98,7 @@ flowchart LR
 
 ### 2.2 Logical (To-Be)
 > 不绑定具体云厂商，只描述服务与数据流。
-> 当前 `feature/m6-p2p-sync` 已经把这部分收口为 **HTTP-first + P2P sync overlay**；下面保留的 libp2p / full-node 拓扑属于更激进的未来蓝图，不是当前 branch 的 runtime 真值。
+> 当前 `main` 已经把这部分收口为 **HTTP-first + P2P sync overlay**；下面保留的 libp2p / full-node 拓扑属于更激进的未来蓝图，不是当前 canonical runtime 真值。
 
 **服务分层**
 - Client Layer

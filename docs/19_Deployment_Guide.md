@@ -17,7 +17,7 @@
 ## 2) 当前可执行 staging truth
 
 - 当前本地验证链仍是：`pnpm install` → `docker compose up -d` → `pnpm db:migrate` → `pnpm db:seed` → `pnpm dev`
-- 当前 branch-local staging deploy 链已经落地为：
+- 当前 `main` 已承接的 staging deploy 链为：
   - `.github/workflows/deploy-staging.yml`
   - `.github/workflows/smoke-staging.yml`
   - `.github/workflows/backup-restore-rehearsal.yml`
@@ -26,6 +26,7 @@
 - `smoke-staging` 现在要求完整 split-runtime URL 集合：gateway、posts、match、chat、resource-directory、notifications、pwa、anchor-admin 缺一不可
 - staging split-runtime 当前使用共享 PostgreSQL/PostGIS + Redis，不做物理分库；gateway 与下游服务依赖 internal service JWT，notifications 走真实 `Twilio + Resend` 配置
 - `pnpm test:smoke:real`、`pnpm test:e2e`、`pnpm test:smoke:p2p` 继续作为当前可执行验证链的一部分，优先服务于 rehearsal / closeout
+- 当前阶段真值固定为：`main = M7 completed`，下一阶段入口固定为 `M8 Pilot Readiness`
 
 ---
 

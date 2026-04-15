@@ -1,13 +1,13 @@
 # WeaveNYC — Implementation Plan (Phased Execution Roadmap)
 
-> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 以 `main = M6 completed` 为准；当前执行分支 `feature/m7-staging-rehearsal` 正在推进 `M7`。M6 closeout 见 [27_M6_Closeout](./27_M6_Closeout.md)。
+> 本文档用于 **排阶段、分时间、定产出**。当前 workspace 的 canonical baseline 以 `main = M7 completed` 为准；`M7` closeout 见 [28_M7_Closeout](./28_M7_Closeout.md)。
 
 ---
 
 ## 0) 怎么用这份计划
 
 - `P0`、`M0` 已经完成，不再作为待排阶段。
-- `M1`、`M2`、`M3`、`M4`、`M5`、`M6` 已完成；`M7` 是当前 branch-local 执行阶段。
+- `M1`、`M2`、`M3`、`M4`、`M5`、`M6`、`M7` 已完成；`M8` 是当前下一阶段。
 - 每个阶段都看 3 件事：做什么、阶段结束必须产出什么、满足什么门槛才能进入下一阶段。
 - `14_Backlog.md` 是任务池；本文件负责决定“现在先做哪一批”。
 
@@ -35,11 +35,12 @@
 | `M4` 联系与聊天安全 | Completed | 5-7 天 | 把 accepted conversation 升级成真实聊天与安全闭环 | 会话列表、消息发送/读取、聊天页、举报/拉黑、敏感信息拦截、WebSocket realtime | 已接受的 request 可进入真实会话并收发消息；安全动作可用；6-lane review gate 关闭后进入 M5 |
 | `M5` Anchor Admin + 试点准备 | Completed | 5-7 天 | 管理后台和演示准备就绪 | Review Queue、公告、规则配置、种子数据、试点脚本、pilot rehearsal | Anchor activate/login、moderation、announcements、rules、dashboard、rehearsal、validation 和 6-lane review gate 全部关闭 |
 | `M6` P2P 同步 overlay | Completed | 1-2 周 | 在现有 HTTP-first 产品上补 P2P 同步 overlay | bootstrap/sync API、Edge worker、Anchor publish/replay、离线 catch-up | 两设备可跨节点看到同一份帖子/公告状态 |
-| `M7` staging rehearsal / truth 收口 | In progress on branch | 1-2 周 | 把 deployment / ops / testing / docs 统一成当前可执行 staging truth | README、baseline、ops、deployment、testing、closeout 收口 | 入口文档不再混入 future production/canary 口径 |
+| `M7` staging rehearsal / truth 收口 | Completed | 1-2 周 | 把 deployment / ops / testing / docs 统一成当前可执行 staging truth | split runtimes、deploy/smoke/backup workflows、env/runtime contract、README/baseline/ops/deployment/testing/closeout 收口 | 入口文档不再混入 future production/canary 口径 |
+| `M8` pilot readiness | Pending | 1 周 | 把当前 split-runtime staging truth 收口成可重复的 pilot readiness baseline，不新增产品 surface、不做 production cutover | pilot env matrix、secret ownership、rehearsal checklist、ops minimum readiness、rollback/recovery、go/no-go checklist | 同一套 `main` 基线可重复完成 staging / pilot rehearsal：deploy -> smoke -> core user journey -> anchor journey -> P2P rehearsal -> restore-to-shadow；不涉及 production deploy |
 
-> `M0-M6` 已是完成的 MVP critical path；`M7` 当前按 staging rehearsal 推进，但仍不回写为 `main` 已关闭阶段。
+> `M0-M7` 已是完成的 MVP critical path；`M8` 只做 Pilot Readiness，不进入新产品功能或 production cutover。
 
-> 当前 `M6` closeout 状态以 [`27_M6_Closeout.md`](./27_M6_Closeout.md) 为准；`M7` 的 branch-local 真值以 `README`、[`00_Execution_Baseline.md`](./00_Execution_Baseline.md)、[`11_Ops_Runbook.md`](./11_Ops_Runbook.md)、[`19_Deployment_Guide.md`](./19_Deployment_Guide.md) 和 [`12_Testing_Strategy.md`](./12_Testing_Strategy.md) 的一致口径为准。
+> 当前 `M7` closeout 状态以 [`28_M7_Closeout.md`](./28_M7_Closeout.md) 为准；下一阶段 `M8` 的计划真值以 `README`、[`00_Execution_Baseline.md`](./00_Execution_Baseline.md)、[`11_Ops_Runbook.md`](./11_Ops_Runbook.md)、[`12_Testing_Strategy.md`](./12_Testing_Strategy.md)、[`19_Deployment_Guide.md`](./19_Deployment_Guide.md) 和本文件的一致口径为准。
 
 ---
 
@@ -228,25 +229,47 @@
 - 设备离线恢复后能通过 catch-up 追平 `posts + announcements + reports/moderation events`
 - `Anchor wins` 语义能覆盖 stale P2P copy
 
-### M7（当前 branch-local 执行阶段）：staging rehearsal / truth 收口
+### M7（Completed）：staging rehearsal / truth 收口
 
 做什么：
 
-- 把 `README`、baseline、testing、ops、deployment、closeout 收口到 `M6 completed / M7 in progress`
+- 把 `README`、baseline、testing、ops、deployment、closeout 收口到 `M7 completed`
 - 把 production / canary / full observability 下沉到 future notes
-- 让 staging truth 和可执行验证链保持一致，不再继续引用旧的 branch-local P2P 口径
+- 让 staging truth 和可执行验证链保持一致，不再继续引用 branch-local phase truth
 
 阶段产出：
 
 - `README.md`、`00_Execution_Baseline.md`、`11_Ops_Runbook.md`、`12_Testing_Strategy.md`、`13_Implementation_Plan.md`、`14_Backlog.md`、`19_Deployment_Guide.md`
-- `27_M6_Closeout.md`
-- 对外可执行的 staging rehearsal 说明
+- `28_M7_Closeout.md`
+- 已进入主线的 staging rehearsal 说明
 
 进入下一阶段门槛：
 
-- 入口文档不再出现 `M5 completed / 旧的 branch-local P2P 口径`，而是统一为 `M6 completed / M7 in progress`
-- `main = M6 completed`、`feature/m7-staging-rehearsal = M7 in progress` 的口径一致
+- 入口文档统一为 `main = M7 completed / M8 pending`
+- 不再保留 branch-local runtime truth 作为入口叙述
 - `production` / `canary` / `full observability` 已下沉到 appendix 或 future notes
+
+### M8（Pending）：Pilot Readiness
+
+做什么：
+
+- 把当前 split-runtime staging truth 推进到可重复的 pilot readiness baseline
+- 明确 staging / pilot 两套 env matrix、secret ownership、runtime URL 和 callback URL
+- 固化 deploy -> smoke -> core user journey -> anchor journey -> P2P rehearsal -> restore-to-shadow 的 pilot rehearsal 路径
+- 补齐最小 ops readiness：Sentry、uptime checks、request_id、structured JSON logs、rollback/recovery、incident/go-no-go checklist
+
+阶段产出：
+
+- `M8` 计划、backlog、ops/deployment/testing 文档明确到 pilot readiness
+- pilot deployment contract
+- restore-to-shadow / rollback / incident 模板
+- pilot go/no-go checklist
+
+进入下一阶段门槛：
+
+- 同一套 `main` 基线可重复完成 deploy staging -> smoke -> real auth -> core user journey -> anchor journey -> P2P rehearsal -> restore-to-shadow
+- pilot truth 在 README / Baseline / Plan / Backlog / Ops / Testing / Deployment 中无冲突
+- `M8` 不新增新产品功能、不新增新的用户端 HTTP API、不承诺 production cutover
 
 ---
 
@@ -256,7 +279,8 @@
 - `M2-M3`：前端、后端、数据结构和流程规则可以并行推进
 - `M5`：Anchor Admin 与试点准备依赖前面的 auth / posts / matching / chat 稳定
 - `M6`：已合入主线，当前 P2P overlay 作为 canonical surface 保留
-- `M7`：当前支线聚焦 staging truth 收口，不并入新的产品功能范围
+- `M7`：已完成 closeout，作为当前主线 staging truth 保留
+- `M8`：聚焦 pilot readiness，不并入新的产品功能范围
 
 ---
 
@@ -266,28 +290,24 @@
 
 当前执行起点：
 
-- 当前起点固定为 `feature/m7-staging-rehearsal`
-- `main` 继续代表 `M6 completed`
-- M6 当前已经合入 `main`，`packages/p2p`、bootstrap/sync routes、PWA worker 与 `pnpm test:smoke:p2p` 都已接通；`M7` 只在 docs / ops / staging truth 收口上继续推进
+- 当前起点固定为 `main = M7 completed`
+- M7 当前已经合入 `main`，split runtimes、staging workflows、runtime/env contract 和 closeout 证据都应以主线事实为准
+- 当前下一阶段固定为 `M8 Pilot Readiness`
 - 不再继续把 `E0-M4` 这类已关闭阶段 story 当作当前待办
 - 其余 auth / PWA platform story 是否已完成，一律以 [`14_Backlog.md`](./14_Backlog.md) 的当前状态标记为准
 
-- Core services
-  - Community Membership
-  - Posts
-  - Matching
-  - Moderation
-  - Chat
+- Pilot environment contract
+  - staging / pilot env matrix
+  - runtime URL / callback URL / secret ownership
 
-- Frontend
-  - Post compose
-  - Community feed
-  - Match results
-  - Inbox
-  - Settings
+- Rehearsal workflows
+  - deploy staging
+  - smoke staging
+  - pilot execution checklist
+  - restore-to-shadow rehearsal
 
-- Anchor Admin
-  - Login
-  - Queue
-  - Announcement
-  - Rules
+- Ops minimum readiness
+  - Sentry / uptime checks
+  - structured JSON logs / request_id tracing
+  - rollback / incident templates
+  - go / no-go checklist

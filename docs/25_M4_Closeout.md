@@ -4,13 +4,13 @@
 
 日期：`2026-04-11`
 
-说明：本文档记录 `M4` closeout；当前 canonical baseline 已继续推进到 `main = M5 completed`。M5 closeout 见 [`26_M5_Closeout.md`](./26_M5_Closeout.md)。
+说明：本文档记录 `M4` closeout。它保留 M4 关单事实；当前 canonical baseline 已继续推进到 `main = M7 completed`，以 [`28_M7_Closeout.md`](./28_M7_Closeout.md) 为最新阶段 closeout 入口。
 
 ---
 
 ## 1) Scope Closed
 
-当前 `feature/m4-chat-safety` 分支已经完成 M4 冻结范围：
+本轮 M4 closeout 已完成的冻结范围：
 
 - accepted `contact_request` 可进入真实 `conversation`
 - `GET /v1/conversations` / `GET /v1/conversations/:conversation_id` 可用
@@ -71,11 +71,5 @@
 
 ## 5) Next Phase
 
-下一阶段唯一入口：`M5`
-
-`M5` 负责：
-
-- Anchor Admin 登录与激活
-- review queue UI
-- 公告与规则配置
-- pilot prep / demo rehearsal
+- `M4` 已完成 closeout
+- 后续阶段已经继续推进；当前下一阶段入口以最新 closeout 文档为准

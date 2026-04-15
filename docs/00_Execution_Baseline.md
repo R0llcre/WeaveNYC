@@ -2,15 +2,15 @@
 
 状态：`CANONICAL`
 
-目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M0-M6 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
+目的：把当前仓库真实状态、阶段状态、文档优先级和已经冻结的 M0-M7 决策写成单一基线，避免继续引用 pre-M1 口径，也避免把 branch closeout 当成 canonical baseline。
 
 ---
 
 ## 1) 当前仓库真实状态
 
 - 当前仓库已经不是 docs-only planning repo，而是 **可本地 bootstrap 的 monorepo**。
-- `main` 是 canonical baseline，当前稳定基线为 `M6 completed`。
-- 当前执行分支是 `feature/m7-staging-rehearsal`；它承载 `M7 in progress` 的 branch-local 文档、测试与 staging truth 收口，但不改变 `main` 的 M6 真值。
+- `main` 是 canonical baseline，当前稳定基线为 `M7 completed`。
+- `main` 当前同时承接用户端 HTTP surface、P2P overlay 和 split-runtime staging rehearsal truth；不再保留 branch-local phase truth 作为入口叙述。
 - 当前根目录真实包含：`apps/`、`services/`、`packages/`、`infra/`、`.github/`、`docs/`、`diagrams/`、`templates/`、`archive/`、`README.md`、`docker-compose.yml`、`package.json`、`pnpm-workspace.yaml`、`.env.example`。
 - 当前可运行的共享服务面：
   - PWA：`http://localhost:3000`
@@ -85,16 +85,17 @@ pnpm dev
 | `M4` | `completed` | live chat、message send/read、block/report、WebSocket realtime 已完成 |
 | `M5` | `completed` | Anchor Admin、report queue、announcements、rules、dashboard、pilot rehearsal、real smoke、E2E 和 6-lane review gate 已关闭 |
 | `M6` | `completed` | `main` 已承接 HTTP-first 的 P2P sync overlay canonical surface |
-| `M7` | `in_progress_on_branch` | `feature/m7-staging-rehearsal` 正在收口 staging truth、deployment/ops 文档和 rehearsal 口径；`main` 仍维持 M6 completed canonical baseline |
+| `M7` | `completed` | split-runtime staging rehearsal、deploy/smoke/backup-rehearsal workflows、env/runtime contract 和 docs truth 已收口到主线 |
+| `M8` | `pending` | 下一阶段固定为 Pilot Readiness，只做试点上线准备，不新增产品功能或 production cutover |
 
 结论：
 
-- 当前 workspace 的 canonical 阶段真值应表述为：`main = M6 completed`。
-- 当前执行真值应表述为：`feature/m7-staging-rehearsal = M7 in progress`。
+- 当前 workspace 的 canonical 阶段真值应表述为：`main = M7 completed`。
+- 当前下一阶段真值应表述为：`M8 = pending (Pilot Readiness)`。
 
 ---
 
-## 3) 已完成能力（M0-M6 基线）
+## 3) 已完成能力（M0-M7 基线）
 
 当前已经落地并完成 closeout 的仓库级事实：
 
@@ -114,10 +115,18 @@ pnpm dev
   - `pnpm test:smoke:real` 只有在同一轮 fresh `db:migrate` + `db:seed` 后通过，才可计入 M6 closeout
   - `pnpm test:smoke:p2p` 当前是 P2P overlay 的独立 smoke，不属于 `main` 默认 close gate
   - manual / opt-in：`pnpm test:live-sources`、`pnpm dev:mint-anchor-token`
+- 当前 M7 staging rehearsal truth 已进入主线：
+  - `deploy/runtime-contracts.json` 将 split runtimes 标记为当前形态
+  - `.github/workflows/deploy-staging.yml`、`.github/workflows/smoke-staging.yml`、`.github/workflows/backup-restore-rehearsal.yml` 已落地
+  - staging env/runtime contract 由 `deploy/env-profiles.json` 和 `scripts/staging/*` 固化
+  - staging split-runtime 采用 fail-fast：缺少内部 JWT、下游 URL 或真实 provider 配置时不允许 silently fallback
 
 当前显式接受的残余风险：
 
 - CI 默认仍不跑 live-source smoke
+- 当前完成的是 staging rehearsal，不代表 production rollout
+- observability 仍是最小组合，不是 full ops stack
+- backup/restore 当前是 rehearsal 级验证，不是 production DR program
 - CFC live adapter 依赖上游 PDF 结构与本地 `pdftotext`
 - [`packages/db/test/db.integration.test.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/packages/db/test/db.integration.test.ts) 仍为 opt-in
 
@@ -127,19 +136,20 @@ pnpm dev
 
 1. `README.md`
 2. 本文档（当前真值基线）
-3. [`27_M6_Closeout.md`](./27_M6_Closeout.md)
-4. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
-5. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
-6. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
-7. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
-8. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-9. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-10. `01_Vision_And_Principles.md`
-11. `02_PRD.md`
-12. `03_User_Flows_And_Screens.md`
-13. `13_Implementation_Plan.md`
-14. `14_Backlog.md`
-15. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+3. [`28_M7_Closeout.md`](./28_M7_Closeout.md)
+4. [`27_M6_Closeout.md`](./27_M6_Closeout.md)
+5. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
+6. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
+7. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
+8. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+9. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+10. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+11. `01_Vision_And_Principles.md`
+12. `02_PRD.md`
+13. `03_User_Flows_And_Screens.md`
+14. `13_Implementation_Plan.md`
+15. `14_Backlog.md`
+16. `04_Data_Sources.md`、`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
 
 ---
 
@@ -149,17 +159,18 @@ pnpm dev
 
 1. 本文档（`00_Execution_Baseline.md`）
 2. `README.md`
-3. [`27_M6_Closeout.md`](./27_M6_Closeout.md)
-4. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
-5. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
-6. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
-7. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
-8. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
-9. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
-10. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
-11. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
-12. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
-13. 历史材料：`archive/`
+3. [`28_M7_Closeout.md`](./28_M7_Closeout.md)
+4. [`27_M6_Closeout.md`](./27_M6_Closeout.md)
+5. [`26_M5_Closeout.md`](./26_M5_Closeout.md)
+6. [`25_M4_Closeout.md`](./25_M4_Closeout.md)
+7. [`24_M3_Closeout.md`](./24_M3_Closeout.md)
+8. [`23_M2_Closeout.md`](./23_M2_Closeout.md)
+9. [`22_M1_Closeout.md`](./22_M1_Closeout.md)
+10. [`21_M0_Closeout.md`](./21_M0_Closeout.md)
+11. 产品与交互：`02_PRD.md`、`03_User_Flows_And_Screens.md`
+12. 工程契约：`09_API_Spec.md`、`18_Auth_Design.md`、`08_Data_Model.md`、`20_DB_Schema_Reference.md`
+13. 计划与阶段状态：`13_Implementation_Plan.md`、`14_Backlog.md`
+14. 历史材料：`archive/`
 
 ---
 
@@ -265,7 +276,7 @@ pnpm dev
 ## 8) 下一步唯一入口
 
 当前主线已经承接 `M6 P2P sync overlay` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md`、`26_M5_Closeout.md` 与 `27_M6_Closeout.md`。
-main-first 口径下，`main` 仍以 `M6 completed` 为真；当前 branch-local 下一步入口已经固定为 `M7` 的 staging truth 收口与 rehearsal。
+main-first 口径下，`main` 当前以 `M7 completed` 为真；下一阶段入口固定为 `M8 Pilot Readiness`。
 
 1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
 2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)

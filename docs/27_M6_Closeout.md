@@ -4,7 +4,7 @@
 
 日期：`2026-04-14`
 
-说明：本文档记录 `M6` closeout 的验证链和 review gate。当前 `main` 的 canonical baseline 已收口到 `M6 completed`；`feature/m7-staging-rehearsal` 是当前 `M7 in progress` 的 branch-local truth。
+说明：本文档记录 `M6` closeout 的验证链和 review gate。它保留 M6 关单事实；当前 `main` 的 canonical baseline 已进一步推进到 `M7 completed`，以 [`28_M7_Closeout.md`](./28_M7_Closeout.md) 为最新阶段 closeout 入口。
 
 ---
 
@@ -59,8 +59,8 @@
 当前状态：
 
 - 6 条 lane 已全部返回 `No material findings`
-- 当前主线阶段状态已经切到 `M6 completed / M7 in progress`
-- 当前验证证据以上面的命令通过结果为准；`main` 已承接 M6 canonical baseline
+- 当前主线阶段状态已经从 `M6 completed` 继续推进到 `M7 completed`
+- 当前验证证据以上面的命令通过结果为准；`main` 已承接 M6 canonical baseline，后续阶段状态以更新后的 closeout 文档为准
 
 ---
 
@@ -68,13 +68,13 @@
 
 - `pnpm test:live-sources` 仍然是 manual / opt-in
 - `packages/db/test/db.integration.test.ts` 仍然是 opt-in
-- 当前 `M7` 仍处于 staging truth 收口阶段，deployment / ops / production / canary 仍然只在 docs 里作为 future notes 存在
-- 当前剩余风险不在于 M6 不可运行，而在于 M7 还未形成可重复的 staging rehearsal automation
+- 本文档不再承载当前阶段入口；当前阶段剩余风险与后续计划以 `M7` closeout 文档为准
+- 当前剩余风险不在于 M6 不可运行，而在于更高阶段的 deployment / ops / pilot readiness 仍需单独收口
 
 ---
 
 ## 5) Next Phase
 
 - `M6` 已完成 closeout
-- 下一阶段入口是 `M7 in progress`
-- `M7` 的目标是把 `README`、`00_Execution_Baseline.md`、`11_Ops_Runbook.md`、`12_Testing_Strategy.md`、`13_Implementation_Plan.md`、`14_Backlog.md`、`19_Deployment_Guide.md` 的 truth 收口保持一致
+- 当前最新阶段入口已推进到 `M7 completed`
+- 下一阶段固定为 `M8 Pilot Readiness`

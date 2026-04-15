@@ -1,8 +1,8 @@
 # WeaveNYC — Contribution Guide
 
-> 状态：`main` 的稳定基线是 `M6 completed`。本文档只描述当前可运行命令、M6 closeout 记录和当前 main-first 真值。
+> 状态：`main` 的稳定基线是 `M7 completed`。本文档只描述当前可运行命令、M7 closeout 记录和当前 main-first 真值。
 >
-> `feature/m7-staging-rehearsal` 的 branch-local 文档 / staging truth 收口会额外出现 `pnpm test:smoke:p2p`，但它不属于当前 `main` 默认 close gate。
+> 下一阶段固定为 `M8 Pilot Readiness`。`pnpm test:smoke:p2p` 仍然是当前 canonical validation 链的一部分，但不并入默认 CI gate。
 
 ---
 
@@ -90,7 +90,7 @@ pnpm dev
 - PWA `/contact-requests`：兼容性 redirect 到 `/inbox`
 - Dev-only fallback helper：`pnpm dev:mint-anchor-token`
 
-M6 canonical surface：
+M7 canonical admin + staging additions：
 
 - Anchor login / activation / TOTP step-up
 - Review queue 的 `Posts` / `Reports` 双 tab
@@ -119,11 +119,11 @@ M6 canonical surface：
 - 说明：
   - `pnpm test:smoke:real` 直接打本地 Fastify，不走浏览器 route mock
   - 若 `/readyz` 不可用，`pnpm test:smoke:real` 会先自启动 `api-gateway`
-  - `pnpm test:smoke:real` 只在 fresh `pnpm db:migrate` + `pnpm db:seed` 后通过时，才能计入当前 M6 closeout
+  - `pnpm test:smoke:real` 只在 fresh `pnpm db:migrate` + `pnpm db:seed` 后通过时，才能计入当前 M7 closeout
   - `pnpm test:e2e` 仍是 fixture-backed browser smoke
   - `pnpm test:smoke:p2p` 当前是 P2P overlay 的独立 smoke，不并入 `main` 默认 gate
   - `pnpm test:live-sources` 不进默认 CI
-  - `pnpm dev:mint-anchor-token` 只是 dev/debug fallback，不属于 M6 closeout 必经路径
+  - `pnpm dev:mint-anchor-token` 只是 dev/debug fallback，不属于 M7 closeout 必经路径
 
 ### 1.5 环境变量
 
@@ -168,9 +168,9 @@ cp .env.example .env.local
 - `GET /v1/resources`
 - `GET /v1/resources/:provider_id`
 
-### 1.7 M6 closeout path
+### 1.7 M7 closeout path
 
-当前 `main` 的 M6 closeout / rehearsal 路径固定如下：
+当前 `main` 的 M7 closeout / rehearsal 路径固定如下：
 
 ```bash
 pnpm install
@@ -204,6 +204,7 @@ Closeout / rehearsal 顺序：
 - `pnpm dev:mint-anchor-token` 只用于 dev/debug fallback，不作为文档真值或 closeout gate
 
 当前 M6 closeout 与 review gate 记录在 [`docs/27_M6_Closeout.md`](./27_M6_Closeout.md)。
+当前 M7 closeout 与 staging rehearsal / review 记录在 [`docs/28_M7_Closeout.md`](./28_M7_Closeout.md)。
 
 ---
 
@@ -279,7 +280,7 @@ pnpm resources:import:island-harvest
 - `pnpm test:smoke:real`：真实 API smoke，需要 API gateway、PostgreSQL、Redis、seed 处于可用状态
 - `pnpm test:e2e`：fixture-backed Playwright browser smoke
 - `pnpm test:live-sources`：opt-in live-source smoke（不写库，只验证源可达 / parser shape / record count）
-- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，仅用于当前分支的 dev/debug fallback
+- `pnpm dev:mint-anchor-token`：生成非生产环境 anchor bearer token，仅用于 dev/debug fallback
 - `pnpm resources:import:cfc` / `pnpm resources:import:island-harvest`：真实导入命令
 
 ---

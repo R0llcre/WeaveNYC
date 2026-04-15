@@ -1,13 +1,13 @@
 # WeaveNYC — API Spec (HTTP Surface, Main-First)
 
-目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；`main` 的 canonical surface 已覆盖 M0-M6。当前 `feature/m7-staging-rehearsal` 只承接 staging truth 收口，不新增用户端 HTTP product surface。
+目标：把当前可运行的 HTTP surface 写成“可以直接实现”的最小集合；`main` 的 canonical surface 已覆盖 M0-M7。下一阶段 `M8` 只做 pilot readiness，不新增新的用户端 HTTP product surface。
 
 约定：
 - HTTP Base URL（示例）：`https://api.weavenyc.local`
 - Auth：MVP 可用 JWT（匿名账户也能拿 token）
 - 所有时间：ISO8601 UTC
 - 示例中的 `p_...`、`c_...`、`comm_...` 仅为可读占位符；实际持久化 ID 统一使用 UUID（见 [20_DB_Schema_Reference](./20_DB_Schema_Reference.md)）
-- M7 branch-local 额外引入的 `/healthz`、`/readyz`、`/versionz`、`/metrics` 属于 runtime health / ops probes，不算新的用户端 product API surface
+- 当前 staging runtime 的 `/healthz`、`/readyz`、`/versionz`、`/metrics` 属于 ops probes，不算新的用户端 product API surface
 
 ---
 

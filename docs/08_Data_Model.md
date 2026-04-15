@@ -2,13 +2,13 @@
 
 目标：把领域实体、字段、索引、隐私分级写清楚。
 
-> 当前 `main` 的 canonical baseline 是 `M5 completed`；本文件中的 P2P 同步元数据和本地缓存扩展代表 `feature/m6-p2p-sync` 的 branch-local 设计真值。
+> 当前 `main` 的 canonical baseline 是 `M7 completed`；本文件中的 P2P 同步元数据和本地缓存扩展已经进入主线，当前只把 `M8` 作为 pilot readiness 规划边界。
 
 ---
 
 ## 1) 数据分区（Privacy by Design）
 
-> **当前 M6 branch-local 三层结构**：IndexedDB（客户端只读缓存）→ HTTP/WebSocket sync overlay（社区事件传播）→ PostgreSQL + PostGIS（authoritative data + replay log）。
+> **当前 M6 canonical 三层结构**：IndexedDB（客户端只读缓存）→ HTTP/WebSocket sync overlay（社区事件传播）→ PostgreSQL + PostGIS（authoritative data + replay log）。
 
 ### 1.1 Local-only — IndexedDB（Dexie.js）
 **默认仅本地，不离开设备**：
@@ -51,7 +51,7 @@
 | 用户账户 | `users` | 基础信息（user_id、display_name、home_zip），不存敏感信息 |
 | 社区/Anchor | `communities`, `community_access_codes`, `anchor_invites`, `anchors` | 社区元数据、加入入口、Anchor 激活与会话归属 |
 | 规则/公告 | `community_rulesets`, `announcements` | 社区审核规则、公告 banner 与公告列表 |
-| P2P 事件日志 | `community_sync_events` | branch-local M6 事件追加日志（posts / announcements / reports / moderation） |
+| P2P 事件日志 | `community_sync_events` | 当前主线使用的 M6 事件追加日志（posts / announcements / reports / moderation） |
 | 导入批次 | `dataset_versions` | 官方资源导入批次元数据（来源、记录数、状态） |
 | 社区成员关系 | `community_members` | 用户与社区的 membership 关系（联合主键 `(user_id, community_id)`） |
 | 建联请求 | `contact_requests` | 双向同意前的联系请求状态机 |
@@ -142,8 +142,8 @@ Edge (IndexedDB)  ──opt-in──>  Sync Overlay (WebSocket + /sync)  ──r
 - `title`, `body`
 - `status` (active, deleted)
 - `is_pinned` (boolean)
-- `ipfs_cid` (string, optional, M6 branch-local)
-- `p2p_version` (int, M6 branch-local)
+- `ipfs_cid` (string, optional, M6 canonical)
+- `p2p_version` (int, M6 canonical)
 - `created_by`
 - `published_at`, `updated_at`, `deleted_at`
 
@@ -181,8 +181,8 @@ Edge (IndexedDB)  ──opt-in──>  Sync Overlay (WebSocket + /sync)  ──r
 - `risk_level` (enum: low, medium, high)
 - `verification_state` (enum: unverified, verified_by_anchor, verified_by_witnesses)
 - `contact_pref` (jsonb, 可选) — 联系偏好，如 `{"in_app_chat": true, "call": false}`
-- `p2p_version` (int, M6 branch-local；内容版本单调递增)
-- `ipfs_cid` (string, optional, M6 branch-local 内容寻址标识)
+- `p2p_version` (int, M6 canonical；内容版本单调递增)
+- `ipfs_cid` (string, optional, M6 canonical 内容寻址标识)
 - `created_at`, `updated_at` (datetime)
 
 ### 2.6 MatchSuggestion
@@ -278,7 +278,7 @@ Edge (IndexedDB)  ──opt-in──>  Sync Overlay (WebSocket + /sync)  ──r
 - `notes`
 - `created_at`
 
-### 2.11 CommunitySyncEvent（M6 branch-local）
+### 2.11 CommunitySyncEvent（M6 canonical）
 字段：
 - `sync_event_id`
 - `community_id`

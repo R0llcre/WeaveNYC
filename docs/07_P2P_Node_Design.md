@@ -2,9 +2,9 @@
 
 目标：把已经合入 `main` 的 M6 同步层写成真实可执行的设计，不把 future-state 节点网络当作已经实现。
 
-> 本章描述的是 **当前 M6 canonical truth**。
+> 本章描述的是 **当前 main 上已落地的 M6 canonical truth**。
 >
-> `main` 已以 `M6 completed` 为准；这里定义的是已经接入到 `main` 的 **HTTP-first + P2P sync overlay**，后续 `M7` 只会围绕 staging truth 和 rehearsal，不会改写本章的 overlay contract。
+> `main` 当前已经收口到 `M7 completed`；这里定义的是已经接入到 `main` 的 **HTTP-first + P2P sync overlay**。后续 `M8` 只会围绕 pilot readiness 和运维收口，不会改写本章的 overlay contract。
 >
 > **authoritative write path**：帖子、公告、举报、审核决定仍先走现有 HTTP API 落库；同步层只负责 event append、live stream、offline catch-up 和只读缓存修复。
 

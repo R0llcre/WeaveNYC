@@ -1,15 +1,15 @@
 # WeaveNYC
 
-状态：`main = M6 completed (canonical baseline)` · `feature/m7-staging-rehearsal = M7 in progress`
+状态：`main = M7 completed (canonical baseline)` · `M8 = pending (next phase)`
 
-WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 是唯一 canonical baseline，当前主线已经收口到 `M6 completed`。当前执行分支 `feature/m7-staging-rehearsal` 正在做 staging truth 收口和 rehearsal 准备，不会把尚未完成的 M7 surface 冒充成 `main` 已上线能力。
+WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 是唯一 canonical baseline，当前主线已经收口到 `M7 completed`。下一阶段固定为 `M8 Pilot Readiness`，聚焦试点上线准备，不新增产品功能线。
 
 ---
 
 ## Root Layout
 
 - `apps/`：前端应用，包含 `pwa/` 和 `anchor-admin/`
-- `services/`：后端服务；`main` 的 canonical 用户面仍经由 `api-gateway/` 暴露，`feature/m7-staging-rehearsal` 上额外把 `posts/`、`match/`、`chat/`、`resource-directory/`、`notifications/` 收口成可部署 split runtimes
+- `services/`：后端服务；`main` 的 canonical 用户面仍经由 `api-gateway/` 暴露，当前 staging truth 已把 `posts/`、`match/`、`chat/`、`resource-directory/`、`notifications/` 收口成可部署 split runtimes
 - `packages/`：共享 contracts、数据库层、测试工具
 - `infra/`：本地基础设施和 dev bootstrap artifacts
 - `docker-compose.yml`：根目录 bootstrap 入口，和 `infra/docker-compose.yml` 保持一致
@@ -28,15 +28,16 @@ WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` �
 4. [docs/23_M2_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/23_M2_Closeout.md)
 5. [docs/24_M3_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/24_M3_Closeout.md)
 6. [docs/25_M4_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/25_M4_Closeout.md)
-7. [docs/27_M6_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/27_M6_Closeout.md)
-8. [docs/26_M5_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/26_M5_Closeout.md)
-9. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
-10. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
-11. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
-12. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
-13. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-14. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
-15. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
+7. [docs/28_M7_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/28_M7_Closeout.md)
+8. [docs/27_M6_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/27_M6_Closeout.md)
+9. [docs/26_M5_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/26_M5_Closeout.md)
+10. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
+11. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
+12. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
+13. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
+14. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
+15. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
+16. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
 
 ---
 
@@ -100,12 +101,12 @@ Current stable surface on `main`:
 Current verification split:
 
 - Canonical `main` baseline gates: `pnpm install --frozen-lockfile` -> `typecheck` -> `lint` -> `test` -> `build`
-- Canonical integration gates: `docker compose up -d` -> `pnpm db:migrate` -> `pnpm db:seed` -> `pnpm test:smoke:real` -> `pnpm test:e2e` -> `pnpm test:smoke:p2p`
+- Canonical integration gates: `docker compose up -d` -> `pnpm db:migrate` -> `pnpm db:seed` -> `pnpm test:smoke:real` -> `pnpm test:e2e`
 - `pnpm test:smoke:real` self-starts `api-gateway` when `/readyz` is unavailable, and only counts after a fresh `pnpm db:migrate` + `pnpm db:seed` on the current local database.
-- Manual / opt-in: `pnpm test:live-sources`, `pnpm dev:mint-anchor-token`
+- Manual / opt-in: `pnpm test:live-sources`, `pnpm test:smoke:p2p`, `pnpm dev:mint-anchor-token`
 - Formal `M1 completed` status closed on `2026-04-06`
-- Current canonical phase status is `M6 completed`; closeout truth lives in `docs/27_M6_Closeout.md`
-- Current branch-local M7 staging rehearsal path is `deploy-staging` -> `smoke-staging` -> `backup-restore-rehearsal`; `push main` is expected to run the staging deploy workflow in `apply` mode with full split-runtime env, not plan-only mode.
+- Current canonical phase status is `M7 completed`; latest closeout truth lives in `docs/28_M7_Closeout.md`
+- Current staging rehearsal path on `main` is `deploy-staging` -> `smoke-staging` -> `backup-restore-rehearsal`; `push main` runs the staging deploy workflow in `apply` mode with the split-runtime env contract.
 
 ---
 
@@ -119,7 +120,8 @@ Current verification split:
 6. `M4` 联系、聊天与安全
 7. `M5` Anchor Admin 与试点准备
 8. `M6` P2P 同步 overlay（completed）
-9. `M7` staging rehearsal / multi-cloud truth 收口（in progress on branch）
+9. `M7` staging rehearsal / multi-cloud truth 收口（completed）
+10. `M8` pilot readiness（pending）
 
 详细内容见 [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)。
 
