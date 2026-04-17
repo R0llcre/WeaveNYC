@@ -1,0 +1,60 @@
+# Docker ignore for api-gateway builds.
+# The build context is the monorepo root, so patterns below are evaluated
+# relative to that root.
+
+# VCS / IDE
+.git
+.github
+.vscode
+.claude
+.wrangler
+.idea
+
+# Build caches / OS junk
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.cache
+**/coverage
+**/playwright-report
+**/test-results
+**/.staging
+**/.DS_Store
+**/*.tsbuildinfo
+
+# Local envs (secrets live in AWS Secrets Manager in production)
+.env
+.env.local
+.env.*.local
+
+# Docs / non-runtime assets
+docs
+diagrams
+archive
+templates
+tests
+deploy
+infra/dev
+infra/docker-compose.yml
+
+# PWA / anchor-admin belong to Cloudflare Pages, not the api-gateway image
+apps
+
+# Sibling services that ship to their own runtimes (Cloud Run / Functions)
+services/notifications/test
+services/posts/test
+services/match/test
+services/chat/test
+services/resource-directory/test
+services/api-gateway/test
+
+# Package-level lockfiles we never consume inside the image
+package-lock.json
+yarn.lock
+
+# Docker-specific artifacts
+Dockerfile
+**/Dockerfile
+**/.dockerignore
+docker-compose.yml

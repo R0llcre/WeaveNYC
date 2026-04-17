@@ -1,0 +1,68 @@
+# Build context is the repo root; this file tells Docker which paths to skip
+# when sending the context to the daemon. Keep it aggressive — the only things
+# the multi-stage Dockerfile actually needs are:
+#   - root manifests + pnpm workspace
+#   - packages/shared, packages/db
+#   - services/resource-directory
+# Everything else is wasted upload + cache bloat.
+
+# VCS / editor / OS
+.git
+.gitignore
+.github
+.idea
+.vscode
+.DS_Store
+
+# Node / pnpm / build outputs
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.cache
+**/coverage
+**/.wrangler
+**/.staging
+**/.pnpm-store
+**/*.tsbuildinfo
+**/*.log
+
+# Sibling services we do not ship in this image. (The Dockerfile copies the
+# whole `services/` tree first, then explicitly `rm -rf`'s these for safety,
+# but excluding them here keeps the build context small.)
+services/api-gateway
+services/posts
+services/match
+services/chat
+services/notifications
+services/packages
+
+# Apps — frontend, not needed for this microservice.
+apps
+
+# Local dev/infra
+docker-compose.yml
+infra/dev
+infra/docker-compose.yml
+deploy
+
+# Tests / fixtures we don't need in the image
+services/resource-directory/test
+services/resource-directory/node_modules
+packages/*/test
+packages/*/node_modules
+tests
+test-results
+playwright-report
+playwright.config.ts
+
+# Secrets — belt-and-braces
+.env
+.env.*
+!.env.example
+
+# Ad-hoc / generated
+scripts/run-*.ts
+diagrams
+archive
+templates

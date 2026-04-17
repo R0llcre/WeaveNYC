@@ -1,0 +1,60 @@
+# Docker ignore for notifications builds.
+# Build context is the monorepo root; patterns are evaluated relative to it.
+
+# VCS / IDE
+.git
+.github
+.vscode
+.claude
+.wrangler
+.idea
+
+# Build caches / OS junk
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.cache
+**/coverage
+**/playwright-report
+**/test-results
+**/.staging
+**/.DS_Store
+**/*.tsbuildinfo
+
+# Local envs (Azure Container Apps reads secrets from managed secret store)
+.env
+.env.local
+.env.*.local
+
+# Docs / non-runtime assets
+docs
+diagrams
+archive
+templates
+tests
+deploy
+infra/dev
+infra/docker-compose.yml
+
+# PWA / anchor-admin — shipped to Cloudflare Pages, not this image
+apps
+
+# Sibling services that ship to their own runtimes; notifications image
+# only needs its own dist and the shared package.
+services/api-gateway
+services/chat
+services/match
+services/posts
+services/resource-directory
+services/notifications/test
+
+# Package-level lockfiles we never consume inside the image
+package-lock.json
+yarn.lock
+
+# Docker-specific artifacts
+Dockerfile
+**/Dockerfile
+**/.dockerignore
+docker-compose.yml
