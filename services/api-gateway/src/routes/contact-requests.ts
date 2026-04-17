@@ -3,7 +3,7 @@ import {
   contactRequestParamsSchema as contactRequestParamsValidator,
 } from "@weavenyc/shared";
 import { MatchServiceError } from "@weavenyc/match";
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 
 import {
   contactRequestDecisionResponseSchema,
@@ -12,6 +12,7 @@ import {
   contactRequestParamsSchema,
   errorResponseSchema,
 } from "../contracts.js";
+import { recordVerifiedMatch } from "../lib/metrics.js";
 import { loadCurrentActor } from "../lib/require-anchor.js";
 
 type ContactRequestParams = {
@@ -88,7 +89,7 @@ export const contactRequestRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const params = contactRequestParamsValidator.parse(request.params);
-        return await app.matchService.acceptContactRequest({
+        const decision = await app.matchService.acceptContactRequest({
           actor: {
             userId: actor.userId,
             level: actor.level,
@@ -96,6 +97,57 @@ export const contactRequestRoutes: FastifyPluginAsync = async (app) => {
           },
           contactRequestId: params.contact_request_id,
         });
+
+        if (decision.status === "accepted" && decision.conversation_id) {
+          try {
+            const conversation = await app.matchService.getAcceptedConversation({
+              actor: {
+                userId: actor.userId,
+                level: actor.level,
+                communityIds: actor.communityIds,
+              },
+              conversationId: decision.conversation_id,
+            });
+            const [fromPostId, toPostId] = conversation.related_post_ids;
+            const communityId = await getPostCommunityId(app, actor, toPostId ?? fromPostId ?? null);
+
+            await app.analyticsRecorder.recordEvent({
+              event_type: "contact_accepted",
+              community_id: communityId ?? undefined,
+              actor_user_id: actor.userId,
+              payload: {
+                from_post_id: fromPostId,
+                to_post_id: toPostId,
+                conversation_id: decision.conversation_id,
+                candidate_type: "neighbor_post",
+              },
+            });
+
+            // Verified matches are neighbor-to-neighbor accepted contacts,
+            // excluding official resource bounces. Only neighbor_post
+            // candidates can progress to an accepted contact request via
+            // `MatchService.createContactRequest`, so every accepted contact
+            // here qualifies as a verified match.
+            await app.analyticsRecorder.recordEvent({
+              event_type: "verified_match_created",
+              community_id: communityId ?? undefined,
+              actor_user_id: actor.userId,
+              payload: {
+                from_post_id: fromPostId,
+                to_post_id: toPostId,
+                conversation_id: decision.conversation_id,
+              },
+            });
+            recordVerifiedMatch(app);
+          } catch (error) {
+            app.log.warn(
+              { err: error, contactRequestId: params.contact_request_id },
+              "Failed to record contact_accepted analytics event",
+            );
+          }
+        }
+
+        return decision;
       } catch (error) {
         return replyWithMatchError(reply, error);
       }
@@ -154,6 +206,22 @@ async function requireActor(
   }
 
   return actor;
+}
+
+async function getPostCommunityId(
+  app: FastifyInstance,
+  actor: Awaited<ReturnType<typeof loadCurrentActor>>,
+  postId: string | null,
+): Promise<string | null> {
+  if (!postId || !actor) {
+    return null;
+  }
+  try {
+    const detail = await app.postsService.getPostDetail(actor, postId);
+    return detail.community_id;
+  } catch {
+    return null;
+  }
 }
 
 function replyWithMatchError(reply: { code(statusCode: number): unknown }, error: unknown) {

@@ -6,6 +6,18 @@ import { existsSync, readFileSync } from 'node:fs';
 import { z } from 'zod';
 import { anchorTotpEncryptionKeyEnvVar, authIdentityHashPepperEnvVar } from '@weavenyc/shared';
 
+const devCorsOriginPatterns = ['http://localhost:*', 'http://127.0.0.1:*'];
+
+function resolveCorsAllowedOrigins(raw: string | undefined, strictRuntime: boolean): string[] {
+  if (raw && raw.trim().length > 0) {
+    return raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+  }
+  return strictRuntime ? [] : [...devCorsOriginPatterns];
+}
+
 function findWorkspaceRoot(startDir: string) {
   let currentDir = startDir;
 
@@ -77,12 +89,17 @@ const envSchema = z.object({
   JWT_ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
   P2P_MDNS_DEMO_ENABLED: z.enum(['0', '1']).default('0'),
+  ALLOWED_CORS_ORIGINS: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   INTERNAL_SERVICE_JWT_SECRET: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   POSTS_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   MATCH_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   CHAT_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   RESOURCE_DIRECTORY_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   NOTIFICATIONS_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+  ENABLE_PURGE_JOB: z.preprocess(emptyStringToUndefined, z.enum(['0', '1']).optional()),
+  PURGE_JOB_CRON: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
+  SENTRY_DSN: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+  SENTRY_TRACES_SAMPLE_RATE: z.preprocess(emptyStringToUndefined, z.coerce.number().min(0).max(1).optional()),
   [authIdentityHashPepperEnvVar]: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   [anchorTotpEncryptionKeyEnvVar]: z.preprocess(emptyStringToUndefined, z.string().min(1).optional())
 });
@@ -107,6 +124,7 @@ export interface AppConfig {
   };
   refreshTokenTtlSeconds: number;
   p2pMdnsDemoEnabled: boolean;
+  corsAllowedOrigins: string[];
   identityHashPepper: string;
   anchorTotpEncryptionKey: string;
   internalServiceJwtSecret: string;
@@ -116,6 +134,14 @@ export interface AppConfig {
     chatServiceUrl: string | null;
     resourceDirectoryServiceUrl: string | null;
     notificationsServiceUrl: string | null;
+  };
+  purgeJob: {
+    enabled: boolean;
+    schedule: string;
+  };
+  sentry: {
+    dsn: string | null;
+    tracesSampleRate: number;
   };
   runtime: {
     serviceName: 'api-gateway';
@@ -191,6 +217,14 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
       `Missing required internal service URLs in staging/production: ${missingInternalServiceUrls.join(', ')}`
     );
   }
+
+  const corsAllowedOrigins = resolveCorsAllowedOrigins(env.ALLOWED_CORS_ORIGINS, strictRuntime);
+  if (strictRuntime && corsAllowedOrigins.length === 0) {
+    throw new Error(
+      'ALLOWED_CORS_ORIGINS must be set in staging/production (e.g. "https://*.weavenyc.org")'
+    );
+  }
+
   const privateKeyPath = resolve(workspaceRoot, env.JWT_SIGNING_PRIVATE_KEY);
   const publicKeyPath = resolve(workspaceRoot, env.JWT_SIGNING_PUBLIC_KEY);
   const [privateKey, publicKey] = await Promise.all([
@@ -218,6 +252,7 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
     },
     refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_SECONDS,
     p2pMdnsDemoEnabled: env.P2P_MDNS_DEMO_ENABLED === '1',
+    corsAllowedOrigins,
     identityHashPepper,
     anchorTotpEncryptionKey,
     internalServiceJwtSecret,
@@ -227,6 +262,18 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
       chatServiceUrl: env.CHAT_SERVICE_URL ?? null,
       resourceDirectoryServiceUrl: env.RESOURCE_DIRECTORY_SERVICE_URL ?? null,
       notificationsServiceUrl: env.NOTIFICATIONS_SERVICE_URL ?? null,
+    },
+    purgeJob: {
+      enabled: env.ENABLE_PURGE_JOB === '1'
+        ? true
+        : env.ENABLE_PURGE_JOB === '0'
+          ? false
+          : strictRuntime,
+      schedule: env.PURGE_JOB_CRON ?? '0 0 * * *',
+    },
+    sentry: {
+      dsn: env.SENTRY_DSN ?? null,
+      tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1,
     },
     runtime: {
       serviceName: 'api-gateway',

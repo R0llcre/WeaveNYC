@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 
 import { createMagicLinkProvider, createOtpProvider } from './lib/providers.js';
+import { attachFastifySentry, initSentryNode } from './lib/sentry.js';
 import { loadNotificationsConfig } from './config.js';
 import { notificationsRoutes } from './routes/notifications.js';
 import type { BuildNotificationsAppOptions, NotificationsConfig } from './types.js';
@@ -12,9 +13,17 @@ export interface NotificationsApp extends FastifyInstance {
 
 export async function buildNotificationsApp(options: BuildNotificationsAppOptions = {}) {
   const config = options.config ?? (await loadNotificationsConfig());
+  const sentry = initSentryNode({
+    dsn: config.sentry.dsn,
+    environment: config.env,
+    release: config.runtime.version,
+    serviceName: config.runtime.serviceName,
+    tracesSampleRate: config.sentry.tracesSampleRate,
+  });
   const app = Fastify({
     logger: options.logger ?? false,
   }) as unknown as NotificationsApp;
+  attachFastifySentry(app, sentry);
 
   const otpProvider =
     options.otpProvider ??

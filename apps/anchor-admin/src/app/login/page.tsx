@@ -12,13 +12,17 @@ import {
   type MagicLinkVerifyResponse,
   type OtpStartResponse,
   type OtpVerifyResponse,
+  AnchorRecoveryError,
   isRecord,
   normalizeAuthSession,
   readString,
+  submitAnchorRecoveryCode,
 } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 
-type LoginMode = "otp" | "magic";
+type LoginMode = "otp" | "magic" | "recovery";
+
+const RECOVERY_CODE_PATTERN = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 
 function readErrorMessage(error: unknown): string {
   if (typeof error === "string") {
@@ -40,6 +44,7 @@ export default function LoginPage() {
   const router = useRouter();
   const {
     accessToken,
+    communityIds,
     isAnchor,
     isAuthenticated,
     isVerified,
@@ -64,6 +69,10 @@ export default function LoginPage() {
   const [challengeAccessToken, setChallengeAccessToken] = useState<string | null>(null);
   const [anchorChallengeId, setAnchorChallengeId] = useState<string | null>(null);
   const [anchorTotpCodeDraft, setAnchorTotpCodeDraft] = useState("");
+  const [recoveryCodeDraft, setRecoveryCodeDraft] = useState("");
+  const [recoveryCommunityDraft, setRecoveryCommunityDraft] = useState(
+    selectedCommunityId ?? "",
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -73,6 +82,13 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     setReason(params.get("reason"));
   }, []);
+
+  useEffect(() => {
+    if (!selectedCommunityId) {
+      return;
+    }
+    setRecoveryCommunityDraft((prev) => (prev.trim().length > 0 ? prev : selectedCommunityId));
+  }, [selectedCommunityId]);
 
   const intro = useMemo(() => {
     if (reason === "idle") {
@@ -361,6 +377,94 @@ export default function LoginPage() {
     }
   };
 
+  const recoveryCommunityOptions = useMemo(() => {
+    const ids = new Set<string>();
+    for (const id of communityIds) {
+      if (id && id.trim().length > 0) {
+        ids.add(id);
+      }
+    }
+    if (selectedCommunityId && selectedCommunityId.trim().length > 0) {
+      ids.add(selectedCommunityId);
+    }
+    return Array.from(ids);
+  }, [communityIds, selectedCommunityId]);
+
+  const handleRecoveryCodeSubmit = async () => {
+    setLoginError(null);
+    setDevMessage(null);
+
+    if (!isVerified) {
+      setLoginError("Load a verified session before using the recovery code.");
+      return;
+    }
+
+    const token = accessToken ?? challengeAccessToken;
+    if (!token) {
+      setLoginError("An access token is required to submit the recovery code.");
+      return;
+    }
+
+    const selectedRecoveryCommunity = recoveryCommunityDraft.trim();
+    if (!selectedRecoveryCommunity) {
+      setLoginError("Pick a community before submitting a recovery code.");
+      return;
+    }
+
+    const normalizedCode = recoveryCodeDraft.trim().toUpperCase();
+    if (!RECOVERY_CODE_PATTERN.test(normalizedCode)) {
+      setLoginError("Recovery code must match the XXXX-XXXX format.");
+      return;
+    }
+
+    setLoading("recovery-submit");
+    try {
+      const response = await submitAnchorRecoveryCode(token, {
+        communityId: selectedRecoveryCommunity,
+        recoveryCode: normalizedCode,
+      });
+      const session = normalizeAuthSession(response);
+      if (!session) {
+        throw new Error("Recovery response did not contain session tokens.");
+      }
+
+      signInWithTokens(session, {
+        selectedCommunityId: selectedRecoveryCommunity,
+      });
+      router.push("/");
+    } catch (error) {
+      if (error instanceof AnchorRecoveryError) {
+        if (error.status === 400) {
+          const remaining =
+            typeof error.remainingAttempts === "number"
+              ? error.remainingAttempts
+              : "?";
+          setLoginError(`Invalid or already-used code, ${remaining} left`);
+        } else if (error.status === 429) {
+          const secondsRaw =
+            typeof error.retryAfterSeconds === "number"
+              ? Math.max(error.retryAfterSeconds, 1)
+              : null;
+          if (secondsRaw !== null) {
+            const minutes = Math.floor(secondsRaw / 60);
+            const seconds = secondsRaw % 60;
+            setLoginError(`Too many attempts, retry in ${minutes}m ${seconds}s`);
+          } else {
+            setLoginError("Too many attempts, retry later.");
+          }
+        } else if (error.status === 404) {
+          setLoginError("Not an anchor of this community");
+        } else {
+          setLoginError(error.message);
+        }
+      } else {
+        setLoginError(readErrorMessage(error));
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const handleDevBootstrap = () => {
     setLoginError(null);
     setDevMessage(null);
@@ -460,10 +564,100 @@ export default function LoginPage() {
               >
                 Magic link
               </button>
+              <button
+                className="tab"
+                data-active={mode === "recovery" ? "true" : "false"}
+                data-testid="recovery-code-tab"
+                disabled={!isVerified}
+                onClick={() => {
+                  setMode("recovery");
+                  setChallengeId(null);
+                }}
+                type="button"
+              >
+                Recovery code
+              </button>
             </div>
           </div>
 
-          {mode === "otp" ? (
+          {mode === "recovery" ? (
+            <div className="stack">
+              <label className="field">
+                <span className="field-label">Anchor community</span>
+                {recoveryCommunityOptions.length > 0 ? (
+                  <select
+                    className="input"
+                    data-testid="recovery-code-community-select"
+                    value={recoveryCommunityDraft}
+                    onChange={(event) => setRecoveryCommunityDraft(event.target.value)}
+                  >
+                    <option value="">Select a community</option>
+                    {recoveryCommunityOptions.map((id) => (
+                      <option key={id} value={id}>
+                        {id}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className="input"
+                    data-testid="recovery-code-community-select"
+                    placeholder="comm_..."
+                    value={recoveryCommunityDraft}
+                    onChange={(event) => setRecoveryCommunityDraft(event.target.value)}
+                  />
+                )}
+                <span className="field-help">
+                  The community whose anchor recovery code you are redeeming.
+                </span>
+              </label>
+
+              <label className="field">
+                <span className="field-label">Recovery code</span>
+                <input
+                  className="input"
+                  data-testid="recovery-code-input"
+                  placeholder="XXXX-XXXX"
+                  autoComplete="one-time-code"
+                  value={recoveryCodeDraft}
+                  onChange={(event) => setRecoveryCodeDraft(event.target.value)}
+                />
+                <span className="field-help">
+                  Recovery codes are one-time. Format matches <code>XXXX-XXXX</code> and is case insensitive.
+                </span>
+              </label>
+
+              <div className="button-row">
+                <button
+                  className="button primary"
+                  data-testid="recovery-code-submit"
+                  disabled={loading === "recovery-submit" || !isVerified}
+                  onClick={() => void handleRecoveryCodeSubmit()}
+                  type="button"
+                >
+                  {loading === "recovery-submit" ? "Submitting..." : "Use recovery code"}
+                </button>
+                <button
+                  className="button ghost"
+                  onClick={() => {
+                    setRecoveryCodeDraft("");
+                  }}
+                  type="button"
+                >
+                  Clear code
+                </button>
+              </div>
+
+              <div className="hero-callout">
+                <strong>Session state</strong>
+                <div className="muted">
+                  {isVerified
+                    ? "Verified session ready — submit the code to open the anchor console."
+                    : "Load a verified session first (OTP or magic link)."}
+                </div>
+              </div>
+            </div>
+          ) : mode === "otp" ? (
             <div className="stack">
               <label className="field">
                 <span className="field-label">Phone number</span>

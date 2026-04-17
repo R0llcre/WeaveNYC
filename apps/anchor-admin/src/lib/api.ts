@@ -59,6 +59,17 @@ export type AnchorSessionVerifyResponse = AnchorActivationConfirmResponse & {
   issued_via?: string;
 };
 
+export type AnchorSessionRecoveryResponse = AnchorActivationConfirmResponse & {
+  issued_via?: string;
+  remaining_attempts?: number;
+};
+
+export type AnchorSessionRecoveryErrorBody = {
+  message?: string;
+  remaining_attempts?: number;
+  retry_after_seconds?: number;
+};
+
 export type OtpStartResponse = {
   challenge_id: string;
   expires_in_seconds?: number;
@@ -316,6 +327,81 @@ export function normalizeStringList(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+export class AnchorRecoveryError extends Error {
+  status: number;
+  remainingAttempts: number | null;
+  retryAfterSeconds: number | null;
+  body: unknown;
+
+  constructor(
+    message: string,
+    status: number,
+    remainingAttempts: number | null,
+    retryAfterSeconds: number | null,
+    body: unknown,
+  ) {
+    super(message);
+    this.name = "AnchorRecoveryError";
+    this.status = status;
+    this.remainingAttempts = remainingAttempts;
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.body = body;
+  }
+}
+
+export async function submitAnchorRecoveryCode(
+  accessToken: string,
+  input: { communityId: string; recoveryCode: string },
+): Promise<AnchorSessionRecoveryResponse> {
+  const response = await fetch(
+    `${DEFAULT_API_BASE_URL}/v1/auth/anchor/session/recovery`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        community_id: input.communityId,
+        recovery_code: input.recoveryCode.trim().toUpperCase(),
+      }),
+      cache: "no-store",
+    },
+  );
+
+  const rawText = await response.text();
+  let payload: unknown = null;
+  if (rawText.length > 0) {
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      payload = rawText;
+    }
+  }
+
+  if (!response.ok) {
+    const remainingAttempts = isRecord(payload)
+      ? readNumber(payload, "remaining_attempts") ?? null
+      : null;
+    const retryAfterHeader = response.headers.get("retry-after");
+    const retryAfterSeconds = retryAfterHeader
+      ? Number.parseInt(retryAfterHeader, 10)
+      : null;
+    const message =
+      (isRecord(payload) ? readString(payload, "message", "detail", "error") : null) ??
+      `Recovery request failed with status ${response.status}`;
+    throw new AnchorRecoveryError(
+      message,
+      response.status,
+      remainingAttempts,
+      Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null,
+      payload,
+    );
+  }
+
+  return (payload ?? {}) as AnchorSessionRecoveryResponse;
 }
 
 export async function fetchHealth(endpoint: string): Promise<HealthStatus> {

@@ -1,3 +1,9 @@
+import { createHash } from "node:crypto";
+
+function hashAnchorInviteCode(code: string): string {
+  return createHash("sha256").update(code.toUpperCase()).digest("hex");
+}
+
 export const seedIds = {
   anonymousUserId: "11111111-1111-4111-8111-111111111111",
   verifiedUserId: "22222222-2222-4222-8222-222222222222",
@@ -24,14 +30,51 @@ export const seedIds = {
   resolvedReportId: "efefefef-efef-4fef-8fef-efefefefefef",
   moderationActionId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   verificationLogId: "12121212-1212-4212-8212-121212121212",
-  changeLogId: "34343434-3434-4343-8343-343434343434"
+  changeLogId: "34343434-3434-4343-8343-343434343434",
+
+  // Queens (11368 — Corona) pilot community fixtures
+  queensCommunityId: "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1",
+  queensAnchorId: "a2a2a2a2-a2a2-4a2a-8a2a-a2a2a2a2a2a2",
+  queensAnchorInviteId: "a3a3a3a3-a3a3-4a3a-8a3a-a3a3a3a3a3a3",
+  queensInviteAccessCodeId: "a4a4a4a4-a4a4-4a4a-8a4a-a4a4a4a4a4a4",
+  queensQrAccessCodeId: "a5a5a5a5-a5a5-4a5a-8a5a-a5a5a5a5a5a5",
+  queensRulesetId: "a6a6a6a6-a6a6-4a6a-8a6a-a6a6a6a6a6a6",
+  queensAnnouncementId: "a7a7a7a7-a7a7-4a7a-8a7a-a7a7a7a7a7a7",
+  queensAnchorUserId: "a8a8a8a8-a8a8-4a8a-8a8a-a8a8a8a8a8a8",
+  queensSeedUserId: "a9a9a9a9-a9a9-4a9a-8a9a-a9a9a9a9a9a9",
+  queensProviderIds: [
+    "aa010101-0101-4101-8101-010101010101",
+    "aa020202-0202-4202-8202-020202020202",
+    "aa030303-0303-4303-8303-030303030303",
+    "aa040404-0404-4404-8404-040404040404"
+  ] as const,
+  queensRequestPostId: "ab010101-0101-4101-8101-010101010101",
+  queensOfferPostId: "ab020202-0202-4202-8202-020202020202",
+
+  // Bronx (10474 — Hunts Point) pilot community fixtures
+  bronxCommunityId: "b1b1b1b1-b1b1-4b1b-8b1b-b1b1b1b1b1b1",
+  bronxAnchorId: "b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2",
+  bronxAnchorInviteId: "b3b3b3b3-b3b3-4b3b-8b3b-b3b3b3b3b3b3",
+  bronxInviteAccessCodeId: "b4b4b4b4-b4b4-4b4b-8b4b-b4b4b4b4b4b4",
+  bronxQrAccessCodeId: "b5b5b5b5-b5b5-4b5b-8b5b-b5b5b5b5b5b5",
+  bronxRulesetId: "b6b6b6b6-b6b6-4b6b-8b6b-b6b6b6b6b6b6",
+  bronxAnnouncementId: "b7b7b7b7-b7b7-4b7b-8b7b-b7b7b7b7b7b7",
+  bronxAnchorUserId: "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b8b8",
+  bronxSeedUserId: "b9b9b9b9-b9b9-4b9b-8b9b-b9b9b9b9b9b9",
+  bronxProviderIds: [
+    "ba010101-0101-4101-8101-010101010101",
+    "ba020202-0202-4202-8202-020202020202",
+    "ba030303-0303-4303-8303-030303030303"
+  ] as const,
+  bronxRequestPostId: "bb010101-0101-4101-8101-010101010101",
+  bronxOfferPostId: "bb020202-0202-4202-8202-020202020202"
 } as const;
 
 export const seedValues = {
   communityInviteCode: "FARMINGDALE-HELP",
   communityQrToken: "FARMINGDALE-QR",
   anchorInviteCode: "WEAVE-ANCHOR-11735",
-  anchorInviteCodeHash: "0bfcff2038e295d2c298e1267788eb3809785fd648712c16daa33a4d8f1617f1",
+  anchorInviteCodeHash: hashAnchorInviteCode("WEAVE-ANCHOR-11735"),
   anchorTotpSecret: "JBSWY3DPEHPK3PXP",
   anchorTotpSecretCiphertext:
     "AAECAwQFBgcICQoL.9PEJAG8ZtSayC07NMgKepQ._8TUg1U-fKOzerIFHWm2MA",
@@ -46,5 +89,23 @@ export const seedValues = {
   datasetChecksum: "demo_checksum",
   announcementTitle: "Pantry hours updated this week",
   announcementBody:
-    "Please check the updated pantry schedule before visiting. Call first if you need a same-day referral."
+    "Please check the updated pantry schedule before visiting. Call first if you need a same-day referral.",
+
+  // Queens (11368) pilot community
+  queensInviteCode: "QUEENS-CORONA-HELP",
+  queensQrToken: "QUEENS-CORONA-QR",
+  queensAnchorInviteCode: "WEAVE-ANCHOR-Q113",
+  queensAnchorInviteCodeHash: hashAnchorInviteCode("WEAVE-ANCHOR-Q113"),
+  queensAnnouncementTitle: "Welcome to the Queens pilot community",
+  queensAnnouncementBody:
+    "Corona neighbors can now use WeaveNYC to trade requests, offers, and pantry information. Reach out to the anchor for help getting started.",
+
+  // Bronx (10474) pilot community
+  bronxInviteCode: "BRONX-HUNTS-POINT-HELP",
+  bronxQrToken: "BRONX-HUNTS-POINT-QR",
+  bronxAnchorInviteCode: "WEAVE-ANCHOR-BX104",
+  bronxAnchorInviteCodeHash: hashAnchorInviteCode("WEAVE-ANCHOR-BX104"),
+  bronxAnnouncementTitle: "Welcome to the Bronx pilot community",
+  bronxAnnouncementBody:
+    "Hunts Point neighbors can now coordinate food and mutual aid requests through WeaveNYC. The anchor is available for verifications and referrals."
 } as const;

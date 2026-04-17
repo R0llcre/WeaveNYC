@@ -4,8 +4,11 @@ import type { AuthTokenClaims, InternalServiceTokenClaims } from './types.js';
 import type { AppConfig } from './config.js';
 import type { AuthenticatedUserRecord } from './types.js';
 import type { ChatService } from '@weavenyc/chat';
+import type { AnalyticsRecorder } from './lib/analytics.js';
 import type { AuthAbuseStore } from './lib/identity.js';
 import type { ChatRealtimeHub } from './lib/chat-realtime.js';
+import type { WeaveMetrics } from './lib/metrics.js';
+import type { PurgeJob } from './lib/purge-job.js';
 import type { RefreshTokenStore } from './lib/refresh-token-store.js';
 import type { ResourceDirectoryService } from './lib/resource-directory.js';
 import type { SpeechProvider } from './lib/speech-providers.js';
@@ -17,15 +20,19 @@ import type { PostsService } from '@weavenyc/posts';
 declare module 'fastify' {
   interface FastifyRequest {
     currentUser?: AuthenticatedUserRecord;
+    metricsStartTime?: bigint;
   }
 
   interface FastifyInstance {
     config: AppConfig;
+    analyticsRecorder: AnalyticsRecorder;
     authAbuseStore: AuthAbuseStore;
     chatRealtimeHub: ChatRealtimeHub;
     chatService: ChatService;
     matchService: MatchService;
+    metrics: WeaveMetrics;
     postsService: PostsService;
+    purgeJob: PurgeJob;
     refreshTokenStore: RefreshTokenStore;
     resourceDirectory: ResourceDirectoryService;
     speechProvider: SpeechProvider;

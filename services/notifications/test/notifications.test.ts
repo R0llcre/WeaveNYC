@@ -29,6 +29,14 @@ describe('@weavenyc/notifications runtime', () => {
         },
         providerMode: 'stub',
         demoBaseUrl: 'http://localhost:3000',
+        sentry: {
+          dsn: null,
+          tracesSampleRate: 0.1,
+        },
+        runtime: {
+          serviceName: 'notifications-service',
+          version: '0.1.0-test',
+        },
       },
     });
     apps.push(app);
@@ -217,6 +225,14 @@ describe('@weavenyc/notifications runtime', () => {
         },
         providerMode: 'stub',
         demoBaseUrl: 'http://localhost:3000',
+        sentry: {
+          dsn: null,
+          tracesSampleRate: 0.1,
+        },
+        runtime: {
+          serviceName: 'notifications-service',
+          version: '0.1.0-test',
+        },
       },
     });
     apps.push(app);

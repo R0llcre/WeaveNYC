@@ -12,11 +12,18 @@ import { Pool } from 'pg';
 import { createHash } from 'node:crypto';
 
 import { loadConfig, type AppConfig } from './config.js';
+import {
+  createPgAnalyticsRecorder,
+  InMemoryAnalyticsRecorder,
+  type AnalyticsRecorder,
+} from './lib/analytics.js';
 import { InMemoryChatRealtimeHub, RedisChatRealtimeHub, type ChatRealtimeHub } from './lib/chat-realtime.js';
 import {
   createRedisAuthAbuseStore,
   type AuthAbuseStore
 } from './lib/identity.js';
+import { createWeaveMetrics, normalizeRouteLabel, type WeaveMetrics } from './lib/metrics.js';
+import { attachFastifySentry, initSentryNode } from './lib/sentry.js';
 import {
   createPgResourceDirectoryService,
   type ResourceDirectoryService
@@ -27,6 +34,7 @@ import {
   createHttpPostsService,
   createHttpResourceDirectoryService
 } from './lib/http-domain-services.js';
+import { createPurgeJob, type PurgeJob } from './lib/purge-job.js';
 import { createRedisRefreshTokenStore, type RefreshTokenStore } from './lib/refresh-token-store.js';
 import { createStubSpeechProvider, type SpeechProvider } from './lib/speech-providers.js';
 import {
@@ -36,6 +44,8 @@ import {
 } from './lib/sync-runtime.js';
 import { runWithRequestContext } from './lib/request-context.js';
 import { createPgUserStore, type UserStore } from './lib/user-store.js';
+import { accountRoutes } from './routes/account.js';
+import { analyticsRoutes } from './routes/analytics.js';
 import { authRoutes } from './routes/auth.js';
 import { adminCommunityRoutes } from './routes/admin-community.js';
 import { communityAccessRoutes } from './routes/community-access.js';
@@ -54,12 +64,15 @@ import { conversationRoutes } from './routes/conversations.js';
 import { p2pSyncRoutes } from './routes/p2p-sync.js';
 
 export interface BuildAppOptions {
+  analyticsRecorder?: AnalyticsRecorder;
   authAbuseStore?: AuthAbuseStore;
   chatRealtimeHub?: ChatRealtimeHub;
   chatService?: ChatService;
   config?: AppConfig;
   matchService?: MatchService;
+  metrics?: WeaveMetrics;
   postsService?: PostsService;
+  purgeJob?: PurgeJob;
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
   speechProvider?: SpeechProvider;
@@ -75,11 +88,31 @@ function deriveAnchorSyncNodeId(config: AppConfig) {
     .slice(0, 16);
 }
 
+function compileCorsOriginMatcher(pattern: string): (origin: string) => boolean {
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  const regex = new RegExp(`^${escaped}$`);
+  return (origin) => regex.test(origin);
+}
+
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const config = options.config ?? (await loadConfig());
+
+  // Sentry must be initialised before the Fastify app so that any early
+  // require-time errors are captured. When the DSN is empty the bootstrap
+  // returns a no-op shell and `attachFastifySentry` is a no-op too.
+  const sentry = initSentryNode({
+    dsn: config.sentry.dsn,
+    environment: config.env,
+    release: config.runtime.version,
+    serviceName: config.runtime.serviceName,
+    tracesSampleRate: config.sentry.tracesSampleRate,
+  });
+
   const app = Fastify({
     logger: options.logger ?? false
   });
+
+  const metrics = options.metrics ?? createWeaveMetrics();
 
   const userStore = options.userStore ?? createPgUserStore(config.databaseUrl);
   const refreshTokenStore =
@@ -103,6 +136,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           mdnsDemoEnabled: config.p2pMdnsDemoEnabled,
         }));
 
+  const corsOriginMatchers = config.corsAllowedOrigins.map(compileCorsOriginMatcher);
   await app.register(fastifyCors, {
     origin(origin, callback) {
       if (!origin) {
@@ -110,7 +144,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return;
       }
 
-      const allowed = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+      const allowed = corsOriginMatchers.some((matcher) => matcher(origin));
       callback(allowed ? null : new Error('Origin not allowed'), allowed);
     }
   });
@@ -213,7 +247,37 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       ? createHttpPostsService(internalClientContext)
       : createPostsService(createPostsRepository(config.databaseUrl)));
 
+  let purgeJobPool: Pool | null = null;
+  const purgeJob =
+    options.purgeJob ??
+    (() => {
+      purgeJobPool = new Pool({ connectionString: config.databaseUrl });
+      return createPurgeJob({
+        pool: purgeJobPool,
+        enabled: config.purgeJob.enabled,
+        schedule: config.purgeJob.schedule,
+        actorHashPepper: config.identityHashPepper,
+        logger: app.log,
+      });
+    })();
+
+  let analyticsRecorderPool: Pool | null = null;
+  const analyticsRecorder: AnalyticsRecorder =
+    options.analyticsRecorder ??
+    (config.env === 'test'
+      ? new InMemoryAnalyticsRecorder({ hashPepper: config.identityHashPepper })
+      : (() => {
+          analyticsRecorderPool = new Pool({ connectionString: config.databaseUrl });
+          return createPgAnalyticsRecorder(
+            analyticsRecorderPool,
+            config.identityHashPepper,
+            app.log,
+          );
+        })());
+
+  app.decorate('analyticsRecorder', analyticsRecorder);
   app.decorate('config', config);
+  app.decorate('metrics', metrics);
   app.decorate('userStore', userStore);
   app.decorate('refreshTokenStore', refreshTokenStore);
   app.decorate('authAbuseStore', authAbuseStore);
@@ -221,9 +285,35 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate('chatService', chatService);
   app.decorate('matchService', matchService);
   app.decorate('postsService', postsService);
+  app.decorate('purgeJob', purgeJob);
   app.decorate('resourceDirectory', resourceDirectory);
   app.decorate('speechProvider', speechProvider);
   app.decorate('syncRuntime', syncRuntime);
+
+  attachFastifySentry(app, sentry);
+
+  // HTTP instrumentation: track request timing and count by method / route /
+  // status. We sample `process.hrtime.bigint()` at the earliest available
+  // hook (`onRequest`) so the histogram captures the full server-side
+  // processing window. Prometheus scrapes this via `/metrics`.
+  app.addHook('onRequest', async (request) => {
+    request.metricsStartTime = process.hrtime.bigint();
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    if (request.metricsStartTime === undefined) {
+      return;
+    }
+
+    const endedAt = process.hrtime.bigint();
+    const durationSeconds = Number(endedAt - request.metricsStartTime) / 1_000_000_000;
+    const route = normalizeRouteLabel(request.routeOptions.url, request.url);
+    const method = request.method;
+    const statusCode = String(reply.statusCode);
+
+    metrics.httpRequestsTotal.inc({ method, route, status_code: statusCode });
+    metrics.httpRequestDurationSeconds.observe({ method, route }, durationSeconds);
+  });
 
   app.decorate('authenticate', async (request) => {
     await request.jwtVerify();
@@ -250,6 +340,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     runWithRequestContext({ requestId: request.id }, done);
   });
 
+  app.addHook('onListen', async () => {
+    purgeJob.start();
+  });
+
   app.addHook('onClose', async () => {
     const maybeCloseSpeechProvider = app.speechProvider.close ? app.speechProvider.close() : Promise.resolve();
     await Promise.all([
@@ -260,14 +354,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       app.chatService.close(),
       app.matchService.close(),
       app.postsService.close(),
+      app.purgeJob.stop(),
       app.resourceDirectory.close(),
       app.syncRuntime.close(),
+      app.analyticsRecorder.close(),
       maybeCloseSpeechProvider
     ]);
+    if (purgeJobPool) {
+      await purgeJobPool.end();
+    }
+    if (analyticsRecorderPool) {
+      await analyticsRecorderPool.end().catch(() => undefined);
+    }
   });
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(accountRoutes);
   await app.register(adminCommunityRoutes);
   await app.register(communityAccessRoutes);
   await app.register(matchRoutes);
@@ -282,6 +385,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(p2pSyncRoutes);
   await app.register(resourceRoutes);
   await app.register(speechRoutes);
+  await app.register(analyticsRoutes);
 
   return app;
 }

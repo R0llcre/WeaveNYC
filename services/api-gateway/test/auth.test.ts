@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -13,6 +13,7 @@ import {
   InMemoryUserStore,
   createTestApp,
   createTestConfig,
+  createUserRecord,
 } from './helpers.js';
 
 describe('POST /v1/auth/anonymous', () => {
@@ -557,5 +558,213 @@ describe('POST /v1/auth/anonymous', () => {
     expect(first).toHaveLength(64);
     expect(first).not.toBe(second);
     expect(first).not.toBe(third);
+  });
+});
+
+describe('POST /v1/auth/anchor/session/recovery', () => {
+  const apps: Array<{ close: () => Promise<unknown> }> = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((entry) => entry.close()));
+  });
+
+  function hashRecoveryCode(code: string) {
+    return createHash('sha256').update(code.trim().toUpperCase()).digest('hex');
+  }
+
+  async function setupAnchorSession({
+    authAbuseStore,
+    userStore,
+    recoveryCode,
+    extraCodes = [],
+  }: {
+    authAbuseStore?: InMemoryAuthAbuseStore;
+    userStore: InMemoryUserStore;
+    recoveryCode: string;
+    extraCodes?: string[];
+  }) {
+    const communityId = '44444444-4444-4444-8444-444444444444';
+    const anchorUser = createUserRecord({
+      userId: '33333333-3333-4333-8333-333333333333',
+      level: 'anchor',
+      role: 'anchor',
+      communityIds: [communityId],
+      anchorCommunityId: communityId,
+      mfaVerifiedAt: new Date().toISOString(),
+    });
+    userStore.users.set(anchorUser.userId, anchorUser);
+    userStore.anchors.set(communityId, {
+      anchorId: randomUUID(),
+      userId: anchorUser.userId,
+      communityId,
+      orgName: 'Test Anchor Org',
+      status: 'active',
+      totpSecretCiphertext: null,
+      recoveryCodesHashes: [recoveryCode, ...extraCodes].map(hashRecoveryCode),
+      activatedAt: new Date().toISOString(),
+      lastMfaAt: new Date().toISOString(),
+    });
+
+    const { app } = await createTestApp({ userStore, authAbuseStore });
+    apps.push(app);
+
+    const accessToken = app.jwt.sign(
+      {
+        sub: anchorUser.userId,
+        level: anchorUser.level,
+        role: anchorUser.role,
+        community_ids: anchorUser.communityIds,
+        anchor_community_id: anchorUser.anchorCommunityId ?? undefined,
+        mfa_verified_at: anchorUser.mfaVerifiedAt,
+      },
+      {
+        algorithm: 'RS256',
+        iss: app.config.jwt.issuer,
+        expiresIn: app.config.jwt.accessTokenTtl,
+      },
+    );
+
+    return { app, accessToken, communityId, anchorUser };
+  }
+
+  it('consumes a valid recovery code and returns remaining_attempts', async () => {
+    const userStore = new InMemoryUserStore();
+    const recoveryCode = 'ABCD-1111';
+    const { app, accessToken, communityId } = await setupAnchorSession({
+      userStore,
+      recoveryCode,
+      extraCodes: ['BCDE-2222', 'CDEF-3333'],
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/session/recovery',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {
+        community_id: communityId,
+        recovery_code: recoveryCode,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.user.level).toBe('anchor');
+    expect(body.issued_via).toBe('anchor_session');
+    expect(body.remaining_attempts).toBeGreaterThanOrEqual(0);
+    expect(body.remaining_attempts).toBeLessThanOrEqual(5);
+  });
+
+  it('returns 400 with remaining_attempts when the recovery code is invalid', async () => {
+    const userStore = new InMemoryUserStore();
+    const { app, accessToken, communityId } = await setupAnchorSession({
+      userStore,
+      recoveryCode: 'ABCD-1111',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/session/recovery',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {
+        community_id: communityId,
+        recovery_code: 'ZZZZ-ZZZZ',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = response.json();
+    expect(body.message).toContain('invalid');
+    expect(body.remaining_attempts).toBeGreaterThanOrEqual(0);
+  });
+
+  it('returns 429 with retry-after header when the rate limit blocks the attempt', async () => {
+    const authAbuseStore = new InMemoryAuthAbuseStore();
+    const userStore = new InMemoryUserStore();
+    const anchorUserId = '33333333-3333-4333-8333-333333333333';
+    authAbuseStore.recoveryCodeDecisions.set(anchorUserId, {
+      allowed: false,
+      retryAfterSeconds: 120,
+      remaining: 0,
+    });
+
+    const { app, accessToken, communityId } = await setupAnchorSession({
+      authAbuseStore,
+      userStore,
+      recoveryCode: 'ABCD-1111',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/session/recovery',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {
+        community_id: communityId,
+        recovery_code: 'ABCD-1111',
+      },
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('120');
+    const body = response.json();
+    expect(body.remaining_attempts).toBe(0);
+    expect(body.message).toContain('120s');
+    expect(authAbuseStore.seenRecoveryKeys).toContain(anchorUserId);
+  });
+
+  it('returns 404 with remaining_attempts when the user is not an anchor of that community', async () => {
+    const userStore = new InMemoryUserStore();
+    const { app, accessToken } = await setupAnchorSession({
+      userStore,
+      recoveryCode: 'ABCD-1111',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/session/recovery',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {
+        community_id: '55555555-5555-4555-8555-555555555555',
+        recovery_code: 'ABCD-1111',
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json();
+    expect(body.message).toContain('Anchor account not found');
+    expect(body.remaining_attempts).toBeGreaterThanOrEqual(0);
+  });
+
+  it('counts every recovery attempt against the per-user rate limit', async () => {
+    const authAbuseStore = new InMemoryAuthAbuseStore();
+    const userStore = new InMemoryUserStore();
+    const { app, accessToken, communityId, anchorUser } = await setupAnchorSession({
+      authAbuseStore,
+      userStore,
+      recoveryCode: 'ABCD-1111',
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/session/recovery',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {
+        community_id: communityId,
+        recovery_code: 'WRONG-CODE',
+      },
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/session/recovery',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {
+        community_id: communityId,
+        recovery_code: 'ABCD-1111',
+      },
+    });
+
+    expect(
+      authAbuseStore.seenRecoveryKeys.filter((entry) => entry === anchorUser.userId).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

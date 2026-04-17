@@ -112,19 +112,19 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
           decision: body.decision,
           notes: body.notes,
         });
+        const postDetail = await app.postsService.getPostDetail(actor, params.post_id);
         if (decision.syncEvents !== undefined) {
           await fanoutSyncEvents(app, decision.syncEvents, { postId: decision.post_id });
         } else {
-          const post = await app.postsService.getPostDetail(actor, params.post_id);
           await publishPostEvent(app, {
-            eventType: post.status === 'removed' ? 'post.tombstoned' : 'post.updated',
-            post,
+            eventType: postDetail.status === 'removed' ? 'post.tombstoned' : 'post.updated',
+            post: postDetail,
             actorUserId: actor.userId,
             reason: body.decision,
           });
           await publishModerationDecisionEvent(app, {
-            communityId: post.community_id,
-            aggregateId: decision.moderationActionId ?? post.post_id,
+            communityId: postDetail.community_id,
+            aggregateId: decision.moderationActionId ?? postDetail.post_id,
             actorUserId: actor.userId,
             reportId: `post-review:${decision.post_id}:${decision.decided_at}`,
             targetType: 'post',
@@ -136,6 +136,34 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
             decidedAt: decision.decided_at,
           });
         }
+
+        await app.analyticsRecorder.recordEvent({
+          event_type: 'anchor_decision',
+          community_id: postDetail.community_id,
+          actor_user_id: actor.userId,
+          payload: {
+            decision: body.decision,
+            target_type: 'post',
+            post_id: decision.post_id,
+            status: decision.status,
+          },
+        });
+
+        if (body.decision === 'approve' && decision.status === 'active') {
+          await app.analyticsRecorder.recordEvent({
+            event_type: 'post_published',
+            community_id: postDetail.community_id,
+            actor_user_id: postDetail.is_owner ? actor.userId : undefined,
+            payload: {
+              post_id: decision.post_id,
+              post_type: postDetail.post_type,
+              category: postDetail.category,
+              risk_level: postDetail.risk_level,
+              via: 'anchor_review',
+            },
+          });
+        }
+
         const response = { ...decision };
         delete response.moderationActionId;
         delete response.syncEvents;
