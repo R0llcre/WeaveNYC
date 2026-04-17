@@ -489,6 +489,16 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
 
   await page.goto('/');
 
+  // New-user guard sends the browser to /onboarding/language on first visit.
+  // Walk through the language + ZIP gate so home can mount for the rest of
+  // the smoke scenario.
+  await page.waitForURL((url) => url.pathname.includes('/onboarding/language'));
+  await page.getByTestId('onboarding-language-en').click();
+  await page.waitForURL((url) => url.pathname.includes('/onboarding/location'));
+  await page.getByTestId('onboarding-location-zip-input').fill('11735');
+  await page.getByTestId('onboarding-location-submit').click();
+  await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
+
   await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 

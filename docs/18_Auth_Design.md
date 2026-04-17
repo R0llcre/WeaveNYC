@@ -90,7 +90,7 @@ Client                          API Gateway              SMS Provider
 ```
 
 **安全细节**：
-- 验证码 6 位数字，有效期 5 分钟
+- 验证码 6 位数字，有效期 10 分钟（`otpChallengeTtlSeconds = 10 * 60`，定义见 `packages/shared/src/auth.ts`）
 - 同一手机号 Rate limit：3 次/小时
 - 手机号存储为 `HMAC-SHA256(IDENTITY_HASH_PEPPER, salt + ":" + normalized_phone)`，同时持久化随机 salt；不存明文
 - 用途：仅用于验证身份和防滥用，不用于推送（推送走 Push Notification Token）
@@ -263,7 +263,7 @@ function requireCommunity(communityIdParam: string) {
 - JWT 签名算法：RS256（非对称，密钥轮换更安全）
 - 密钥轮换：每 90 天自动轮换签名密钥（旧密钥保留 24h 用于验证）
 - 黑名单：用户被封禁时，将 `user_id` 加入 Redis 黑名单，所有请求即时拒绝
-- CORS：仅允许 `*.weavenyc.org` 和 `localhost:*`（开发）
+- CORS：通过 `ALLOWED_CORS_ORIGINS` 环境变量配置（逗号分隔，支持 `*` 通配符），生产必须显式设置（如 `https://*.weavenyc.org`），开发默认回退 `http://localhost:*,http://127.0.0.1:*`，staging/production 未设置会在启动时报错
 
 ### 7.3 Anchor MFA
 

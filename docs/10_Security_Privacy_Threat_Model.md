@@ -143,20 +143,78 @@
 - 被遗忘权（注销流程覆盖）
 - 数据可携带性：后续可增加"导出我的数据"功能
 
-### 6.4 数据删除 API
+### 6.4 数据删除 API（M8 三步流程）
 
+出于 M8 pilot 安全审计要求，删号改为 OTP / magic-link 再认证的三步流程：
+`/v1/account/delete/request` → `/v1/account/delete/confirm` →
+（30 天窗口内可选）`/v1/account/undelete`。详细契约见
+`docs/09_API_Spec.md §1.9`。
+
+**Step 1：请求挑战**
 ```
-POST /v1/account/delete
+POST /v1/account/delete/request
 Authorization: Bearer <token>
 ```
-Request:
-```json
-{ "confirmation": "DELETE_MY_ACCOUNT", "reason": "no_longer_needed" }
+- 速率限制：每账号每小时 3 次（`authAbuseStore.checkAccountDeleteRequest`）。
+- 未绑定 phone/email 的匿名用户 → `409 cannot_verify_identity`。
+- 绑定 phone 时发 SMS OTP；否则 fallback 到 email magic-link。
+- 响应 `{challenge_id, masked_destination, delivery_channel, expires_in_seconds}`。
+
+**Step 2：确认删除**
 ```
-Response:
-```json
-{ "status": "deletion_scheduled", "purge_date": "2026-03-24T00:00:00Z" }
+POST /v1/account/delete/confirm
+Authorization: Bearer <token>
+Body: { challenge_id, code, reason? }
 ```
+- **Last-anchor 安全检查**：对于调用者所在的每个 community，若其为该社区
+  唯一活跃 anchor（`countActiveAnchorsInCommunity(communityId,
+  excludeUserId=self) === 0`），返回 `409 last_anchor_blocks_delete`。
+  目的是避免社区在操作者删号后失去唯一运营方。用户必须先让另一位 anchor
+  通过 `POST /v1/auth/anchor/activate` 激活，才能继续删除。
+- Verify challenge → 错误码 `invalid` 5 次后失效；`expired` / `missing`
+  同样要求重新发起 Step 1。
+- 事务内：
+  - `UPDATE users SET status='deleted', display_name=NULL,
+    preferred_languages=NULL, home_zip=NULL, phone_hash=NULL,
+    phone_hash_salt=NULL, email_hash=NULL, email_hash_salt=NULL,
+    deleted_at=now(), purge_at=now()+interval '30 days',
+    deletion_reason=$reason, updated_at=now()`
+  - `UPDATE anchors SET status='revoked' WHERE user_id=$userId AND status='active'`
+  - `refreshTokenStore.revokeUserSessions(userId)`（所有 refresh token
+    家族立即吊销，access token 最长 15 分钟内自然过期）
+  - `analyticsRecorder.recordEvent({event_type:'account_deleted', actor_user_id:
+    userId, payload:{reason, had_anchor_role}})`
+- 响应 `202 {status:'deletion_scheduled', purge_date, user_id,
+  undelete_recovery_token}`。`undelete_recovery_token` 为一次性 capability，
+  仅在本次响应中明文返回一次；服务端只保留 sha256 hash（TTL 与 `purge_at`
+  对齐）。
+
+**Step 3：可选的 Undelete（30 天软删除窗口内）**
+```
+POST /v1/account/undelete
+Body: { user_id, recovery_token }
+```
+- 成功：`status='active'`, 清空 `deleted_at/purge_at/deletion_reason`，
+  `level='anonymous'`，`PII 不恢复`。用户需重新绑定 phone/email 才能
+  重新获得 verified 等级；community 成员资格 / anchor 角色同样需要重新激活。
+- 过了 `purge_at` → `410 Gone`。
+- Token 不匹配或已使用 → `400`。
+
+**OTP 再认证要求**：
+- Step 1 发出的 OTP / magic-link 与正常身份升级使用的 `refresh-token-store`
+  challenge 同一套抽象（kind `account_delete`），但独立速率限制与过期窗口。
+- 确认阶段必须同时校验 `challenge.userId === current_user.sub`，防止
+  跨账号注入。
+
+**PII 保留权衡**：选择在 delete 时立即清空 PII + 一次性 recovery token，
+而不是保留 PII hash 30 天：
+- 满足被遗忘权的用户预期（"我按了删除，数据就不在了"）。
+- Recovery token 的服务端足迹仅为 sha256 + TTL，不可逆推原始信息。
+- 代价：undelete 后用户失去原有 verified / anchor 状态，需要重新绑定
+  与重新激活；认为这是正确的安全默认（避免"撤销删除"变成无声升权通道）。
+
+**撤销旧端点**：M8 完成后 `POST /v1/account/delete` 单步接口下线。客户端
+必须迁移到 `request` → `confirm` 两步。
 
 ---
 

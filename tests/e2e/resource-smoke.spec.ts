@@ -222,12 +222,19 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
 
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'ES', exact: true }).click();
+  // First-visit guard redirects to /onboarding/language. Pick Spanish via the
+  // stable testid, then fill the ZIP on the location gate and land back home.
+  await page.waitForURL((url) => url.pathname.startsWith('/onboarding/language'));
+  await page.getByTestId('onboarding-language-es').click();
+  await page.waitForURL((url) => url.pathname.startsWith('/onboarding/location'));
+  await page.getByTestId('onboarding-location-zip-input').fill('11735');
+  await page.getByTestId('onboarding-location-submit').click();
+  await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
+
   await expect(page.getByTestId('create-session')).toBeVisible();
   await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
-  await page.getByPlaceholder('11735').fill('11735');
   await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');
 
@@ -236,7 +243,9 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
 
   await page.locator('[data-testid^="resource-detail-"]').first().click();
-  await page.waitForURL('**/resources/77777777-7777-4777-8777-777777777777');
+  await page.waitForURL((url) =>
+    url.pathname.startsWith('/resources/77777777-7777-4777-8777-777777777777'),
+  );
   await expect(page.getByText('Horario semanal')).toBeVisible();
   await expect(page.getByText('Notas')).toBeVisible();
 

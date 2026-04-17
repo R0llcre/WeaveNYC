@@ -28,6 +28,56 @@
 - `pnpm test:smoke:real`、`pnpm test:e2e`、`pnpm test:smoke:p2p` 继续作为当前可执行验证链的一部分，优先服务于 rehearsal / closeout
 - 当前阶段真值固定为：`main = M7 completed`，下一阶段入口固定为 `M8 Pilot Readiness`
 
+## 2.5) M8 pilot — live AWS deploy (2026-04-16)
+
+The pilot `api-gateway` container is deployed to AWS App Runner in region `us-east-1`:
+
+| Item | Value |
+|------|-------|
+| App Runner service | `weavenyc-api-gateway` (0.25 vCPU / 0.5 GB) |
+| Default URL | `https://hykmfmcf58.us-east-1.awsapprunner.com` |
+| Public API URL | `https://api.weavenyc.org` (Cloudflare DNS-only → App Runner custom domain) |
+| Image | `590517422743.dkr.ecr.us-east-1.amazonaws.com/weavenyc-api-gateway:v0.1.3` |
+| Database | RDS Postgres `weavenyc-pilot` (PostGIS, 11 migrations applied) |
+| Redis | **Not yet deployed** — `REDIS_URL` still points at `localhost:6379` |
+
+Deploy artifacts and step-by-step runbook live in [`infra/aws/README.md`](../infra/aws/README.md).
+
+**Probe contract while Redis is unresolved:**
+
+- `GET /healthz` → `200 {"status":"ok"}` — reflects process liveness only.
+- `GET /readyz` → `503 {"status":"degraded", "checks":[{"postgres":"ok"},{"redis":"degraded"}]}` — will stay 503 until `REDIS_URL` is rotated to an Upstash or ElastiCache endpoint.
+
+To rotate `REDIS_URL` without rebuilding the image (see also `infra/aws/README.md` §6.1):
+
+```bash
+SERVICE_ARN="arn:aws:apprunner:us-east-1:590517422743:service/weavenyc-api-gateway/07509b0481ce4b099e40085ed79bb506"
+aws apprunner describe-service --service-arn "$SERVICE_ARN" --region us-east-1 \
+  --query 'Service.SourceConfiguration' > /tmp/src.json
+
+python3 - <<'PY'
+import json
+with open('/tmp/src.json') as f: s = json.load(f)
+s['ImageRepository']['ImageConfiguration']['RuntimeEnvironmentVariables']['REDIS_URL'] = \
+  'rediss://default:<password>@global-xxxxx.upstash.io:6379'
+json.dump({'SourceConfiguration': s}, open('/tmp/new-src.json', 'w'))
+PY
+
+aws apprunner update-service \
+  --service-arn "$SERVICE_ARN" \
+  --cli-input-json file:///tmp/new-src.json \
+  --region us-east-1
+```
+
+App Runner redeploys in ~5 minutes; `/readyz` will flip to `200 {"status":"ok"}` once the subscriber/publisher ioredis clients complete their first handshake.
+
+**Smoke commands confirmed passing on 2026-04-16:**
+
+```bash
+curl -sS https://api.weavenyc.org/healthz   # 200 {"status":"ok", ...}
+curl -sS https://api.weavenyc.org/readyz    # 503 while Redis URL is localhost
+```
+
 ---
 
 ## Appendix A) Future Multi-Cloud Infrastructure
