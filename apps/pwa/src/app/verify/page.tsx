@@ -1,13 +1,13 @@
-import { headers } from 'next/headers';
 import { Suspense } from 'react';
 
 import { VerifyScreen } from '@/components/verify-screen';
-import { coerceSupportedLanguage, messages } from '@/lib/i18n';
+import { messages } from '@/lib/i18n';
 
-export default async function VerifyPage() {
-  const requestHeaders = await headers();
-  const initialLanguage = coerceSupportedLanguage(requestHeaders.get('accept-language'));
-  const copy = messages[initialLanguage];
+export default function VerifyPage() {
+  // Default to English for the static shell fallback; the VerifyScreen
+  // client component re-renders with the user's selected language after
+  // hydration.
+  const copy = messages.en;
 
   return (
     <Suspense

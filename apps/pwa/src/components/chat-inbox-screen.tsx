@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { Button, Card, PageHeader } from '@/components/ui';
 import { getChatWebSocketUrl } from '@/lib/api';
 import {
   useAcceptContactRequest,
@@ -107,14 +108,14 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
     return (
       <main className="shell">
         <div className="shell__inner">
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('inboxNeedsSession')}</p>
               <Link className="button button--primary" href="/">
                 {t('backHome')}
               </Link>
             </div>
-          </section>
+          </Card>
         </div>
       </main>
     );
@@ -124,14 +125,14 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
     return (
       <main className="shell">
         <div className="shell__inner">
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('inboxNeedsVerified')}</p>
               <Link className="button button--primary" href={`/verify?return_to=${encodeURIComponent(returnToPath)}`}>
                 {t('inboxVerifyAction')}
               </Link>
             </div>
-          </section>
+          </Card>
         </div>
       </main>
     );
@@ -140,39 +141,67 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('inboxTitle')}</span>
-            <div className="actions actions--tight">
+        <PageHeader
+          eyebrow={t('inboxTitle')}
+          title={t('inboxTitle')}
+          subtitle={t('inboxCopy')}
+          actions={
+            <>
               <ContactInboxLink />
               <Link className="hero__link" href="/community">
                 {t('inboxBackHome')}
               </Link>
-            </div>
-          </div>
-          <h1>{t('inboxTitle')}</h1>
-          <p>{t('inboxCopy')}</p>
-          <div className="hero__meta">
-            <span className="meta-chip meta-chip--accent">{t('inboxPendingCount', { count: pendingCount })}</span>
-            <span className="meta-chip">{t('inboxUnreadCount', { count: unreadTotal })}</span>
-            <span className="meta-chip">{t('inboxViewLabel', { view: activeView === 'all' ? t('inboxAllTab') : activeView === 'requests' ? t('inboxRequestsTab') : t('inboxChatsTab') })}</span>
-          </div>
-        </section>
+            </>
+          }
+        />
+        <div className="hero__meta">
+          <span className="meta-chip meta-chip--accent">{t('inboxPendingCount', { count: pendingCount })}</span>
+          <span className="meta-chip">{t('inboxUnreadCount', { count: unreadTotal })}</span>
+          <span className="meta-chip">
+            {t('inboxViewLabel', {
+              view:
+                activeView === 'all'
+                  ? t('inboxAllTab')
+                  : activeView === 'requests'
+                    ? t('inboxRequestsTab')
+                    : t('inboxChatsTab'),
+            })}
+          </span>
+        </div>
 
-        <section className="card card--results">
+        <Card className="card--results">
           <div className="section-head">
             <div>
               <h2>{t('inboxViewHeading')}</h2>
               <p className="card__subtitle">{t('inboxViewCopy')}</p>
             </div>
-            <div className="actions actions--tight">
-              <Link className={`pill ${activeView === 'all' ? 'pill--active' : ''}`} href="/inbox">
+            <div
+              className="actions actions--tight"
+              role="tablist"
+              aria-label={t('inboxViewHeading')}
+            >
+              <Link
+                aria-selected={activeView === 'all'}
+                className={`pill ${activeView === 'all' ? 'pill--active' : ''}`}
+                href="/inbox"
+                role="tab"
+              >
                 {t('inboxAllTab')}
               </Link>
-              <Link className={`pill ${activeView === 'requests' ? 'pill--active' : ''}`} href="/inbox?view=requests">
+              <Link
+                aria-selected={activeView === 'requests'}
+                className={`pill ${activeView === 'requests' ? 'pill--active' : ''}`}
+                href="/inbox?view=requests"
+                role="tab"
+              >
                 {t('inboxRequestsTab')}
               </Link>
-              <Link className={`pill ${activeView === 'chats' ? 'pill--active' : ''}`} href="/inbox?view=chats">
+              <Link
+                aria-selected={activeView === 'chats'}
+                className={`pill ${activeView === 'chats' ? 'pill--active' : ''}`}
+                href="/inbox?view=chats"
+                role="tab"
+              >
                 {t('inboxChatsTab')}
               </Link>
             </div>
@@ -186,9 +215,13 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                   <p className="card__subtitle">{t('inboxRequestsCopy')}</p>
                 </div>
                 <div className="actions actions--tight">
-                  <button className="button button--secondary" onClick={() => void inboxRequestsQuery.refetch()} type="button">
+                  <Button
+                    onClick={() => void inboxRequestsQuery.refetch()}
+                    size="sm"
+                    variant="secondary"
+                  >
                     {t('inboxRefresh')}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -219,28 +252,30 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                       {t('inboxExpires')}: {new Date(item.expires_at).toLocaleString()}
                     </p>
                     <div className="actions">
-                      <button
-                        className="button button--primary"
+                      <Button
                         disabled={acceptMutation.isPending || rejectMutation.isPending}
                         onClick={() =>
                           void acceptMutation.mutateAsync(item.contact_request_id).then((result) => {
                             if (result.conversation_id) {
-                              router.push(`/conversations/${result.conversation_id}?contact_request_id=${encodeURIComponent(item.contact_request_id)}`);
+                              router.push(
+                                `/conversations/${result.conversation_id}?contact_request_id=${encodeURIComponent(
+                                  item.contact_request_id,
+                                )}`,
+                              );
                             }
                           })
                         }
-                        type="button"
+                        variant="primary"
                       >
                         {t('inboxAccept')}
-                      </button>
-                      <button
-                        className="button button--secondary"
+                      </Button>
+                      <Button
                         disabled={acceptMutation.isPending || rejectMutation.isPending}
                         onClick={() => void rejectMutation.mutateAsync(item.contact_request_id)}
-                        type="button"
+                        variant="secondary"
                       >
                         {t('inboxReject')}
-                      </button>
+                      </Button>
                       <Link className="button button--secondary" href={`/posts/${item.to_post_id}`}>
                         {t('inboxRelatedPost')}
                       </Link>
@@ -259,9 +294,13 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                   <p className="card__subtitle">{t('inboxChatsCopy')}</p>
                 </div>
                 <div className="actions actions--tight">
-                  <button className="button button--secondary" onClick={() => void conversationsQuery.refetch()} type="button">
+                  <Button
+                    onClick={() => void conversationsQuery.refetch()}
+                    size="sm"
+                    variant="secondary"
+                  >
                     {t('inboxRefresh')}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -337,7 +376,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
               </div>
             </section>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

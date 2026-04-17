@@ -262,6 +262,117 @@ type ChromeMessages = {
   chatQuickPhraseTiming: string;
   chatQuickPhrasePublicMeet: string;
   chatQuickPhraseThanks: string;
+  // Settings screen
+  settingsTitle: string;
+  settingsBackHome: string;
+  settingsLanguageTitle: string;
+  settingsLanguageHint: string;
+  settingsPrivacyTitle: string;
+  settingsPostVisibilityLegend: string;
+  settingsVisibilityCommunity: string;
+  settingsVisibilityCommunityHint: string;
+  settingsVisibilityPublic: string;
+  settingsVisibilityPublicHint: string;
+  settingsVisibilityAnchor: string;
+  settingsVisibilityAnchorHint: string;
+  settingsLocationPrecisionLegend: string;
+  settingsPrecisionZip: string;
+  settingsPrecisionZipHint: string;
+  settingsPrecisionNeighborhood: string;
+  settingsPrecisionNeighborhoodHint: string;
+  settingsLowBandwidthLabel: string;
+  settingsLowBandwidthHint: string;
+  settingsSafetyTitle: string;
+  settingsSafetyCopy: string;
+  settingsOpenInbox: string;
+  settingsHelpTitle: string;
+  settingsHelpReport: string;
+  settingsVersion: string;
+  // Account section
+  settingsAccountTitle: string;
+  settingsAccountLevel: string;
+  settingsAccountLevelAnonymous: string;
+  settingsAccountLevelVerified: string;
+  settingsAccountLevelAnchor: string;
+  settingsAccountLevelNone: string;
+  settingsAccountUserId: string;
+  deleteAccountSummary: string;
+  deleteAccountBody: string;
+  deleteAccountReasonLabel: string;
+  deleteAccountReasonPlaceholder: string;
+  deleteAccountConfirmLabel: string;
+  // Delete reason options
+  deleteReasonNoLonger: string;
+  deleteReasonPrivacy: string;
+  deleteReasonMoving: string;
+  deleteReasonSafety: string;
+  deleteReasonOther: string;
+  // Delete flow states
+  deleteRequestButton: string;
+  deleteRequestSending: string;
+  deleteOtpSent: string;
+  deleteOtpCodeLabel: string;
+  deleteOtpVerifyButton: string;
+  deleteOtpVerifying: string;
+  deleteOtpResend: string;
+  deleteOtpInvalid: string;
+  deleteScheduled: string;
+  deleteScheduledPurge: string;
+  deleteUndeleteLink: string;
+  deleteLastAnchorError: string;
+  deleteAuthError: string;
+  deleteGenericError: string;
+  undeleteSuccess: string;
+  // Recovery code flow (shared with anchor-admin)
+  recoveryCodeTitle: string;
+  recoveryCodeHelp: string;
+  recoveryCodeInputLabel: string;
+  recoveryCodeInputPlaceholder: string;
+  recoveryCodeSubmit: string;
+  recoveryCodeInvalid: string;
+  recoveryCodeRateLimit: string;
+  recoveryCodeSuccess: string;
+  // Onboarding language screen
+  onboardingStepLanguage: string;
+  onboardingLanguageTitle: string;
+  onboardingLanguageHint: string;
+  onboardingLanguageContinueEn: string;
+  onboardingLanguageContinueEs: string;
+  onboardingLanguageContinueZh: string;
+  onboardingLanguageAlreadyDone: string;
+  onboardingGoToSettings: string;
+  // Onboarding location screen
+  onboardingStepLocation: string;
+  onboardingLocationTitle: string;
+  onboardingLocationHint: string;
+  onboardingLocationZipLabel: string;
+  onboardingLocationZipPlaceholder: string;
+  onboardingLocationZipInvalid: string;
+  onboardingLocationSubmit: string;
+  onboardingLocationUseDevice: string;
+  onboardingLocationDeviceBlocked: string;
+  onboardingLocationDeviceDenied: string;
+  onboardingLocationDevicePending: string;
+  onboardingLocationPrivacyNote: string;
+  // Errors / empty states / banners
+  errorGeneric: string;
+  errorNetwork: string;
+  errorUnauthorized: string;
+  errorRateLimit: string;
+  emptyNoResults: string;
+  emptyNoPosts: string;
+  emptyNoConversations: string;
+  emptyNoReports: string;
+  bannerPilotMode: string;
+  bannerStagingNotice: string;
+  bannerOfflineHint: string;
+  bannerSessionExpired: string;
+  bannerAccountDeleted: string;
+  buttonRetry: string;
+  buttonCancel: string;
+  buttonContinue: string;
+  buttonClose: string;
+  buttonLearnMore: string;
 };
 
 export const messages: Record<SupportedLanguage, ChromeMessages> = {
@@ -527,6 +638,117 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     chatQuickPhraseTiming: 'I need about 15 minutes before I can respond.',
     chatQuickPhrasePublicMeet: 'Can we keep this to a public pickup or meeting spot?',
     chatQuickPhraseThanks: 'Thank you. I am confirming the next step now.',
+    // Settings screen
+    settingsTitle: 'Settings',
+    settingsBackHome: 'Back to home',
+    settingsLanguageTitle: 'Language',
+    settingsLanguageHint: 'Pick the language you want to see in the app. You can change this any time.',
+    settingsPrivacyTitle: 'Privacy',
+    settingsPostVisibilityLegend: 'Who can see new posts you create',
+    settingsVisibilityCommunity: 'Community only',
+    settingsVisibilityCommunityHint: 'Only people in the same community see the post.',
+    settingsVisibilityPublic: 'Public',
+    settingsVisibilityPublicHint: 'Anyone in the app can see the post.',
+    settingsVisibilityAnchor: 'Anchor only',
+    settingsVisibilityAnchorHint: 'Only trusted community anchors can see the post.',
+    settingsLocationPrecisionLegend: 'How exact to share your location',
+    settingsPrecisionZip: 'ZIP code',
+    settingsPrecisionZipHint: 'Share your 5-digit ZIP so we can find nearby resources.',
+    settingsPrecisionNeighborhood: 'Neighborhood only',
+    settingsPrecisionNeighborhoodHint: 'Share only a neighborhood name, not the ZIP.',
+    settingsLowBandwidthLabel: 'Low-bandwidth mode',
+    settingsLowBandwidthHint: 'Turn on when you have a slow connection. Pictures and live updates are trimmed.',
+    settingsSafetyTitle: 'Safety and trust',
+    settingsSafetyCopy: 'If something feels wrong, stop and check your inbox for the next safe step.',
+    settingsOpenInbox: 'Open inbox',
+    settingsHelpTitle: 'Help and feedback',
+    settingsHelpReport: 'Report a problem',
+    settingsVersion: 'App version {version}',
+    // Account section
+    settingsAccountTitle: 'Account',
+    settingsAccountLevel: 'Current level',
+    settingsAccountLevelAnonymous: 'Anonymous',
+    settingsAccountLevelVerified: 'Verified',
+    settingsAccountLevelAnchor: 'Anchor',
+    settingsAccountLevelNone: 'No session yet',
+    settingsAccountUserId: 'User ID: {userId}',
+    deleteAccountSummary: 'Delete your account',
+    deleteAccountBody: 'We send a code to confirm. After that, your posts and messages are hidden right away. In 30 days, everything is erased for good.',
+    deleteAccountReasonLabel: 'Tell us why (optional)',
+    deleteAccountReasonPlaceholder: 'Share a short reason so we can make this better.',
+    deleteAccountConfirmLabel: 'I understand my posts and messages will be removed.',
+    // Delete reason options
+    deleteReasonNoLonger: 'I no longer need WeaveNYC',
+    deleteReasonPrivacy: 'I want more privacy',
+    deleteReasonMoving: 'I am moving away',
+    deleteReasonSafety: 'I have a safety concern',
+    deleteReasonOther: 'Another reason',
+    // Delete flow states
+    deleteRequestButton: 'Start deletion',
+    deleteRequestSending: 'Sending code...',
+    deleteOtpSent: 'We sent a code to your phone or email. Enter it below within 10 minutes.',
+    deleteOtpCodeLabel: 'Confirmation code',
+    deleteOtpVerifyButton: 'Confirm delete',
+    deleteOtpVerifying: 'Checking code...',
+    deleteOtpResend: 'Send a new code',
+    deleteOtpInvalid: 'That code did not work. Please try again.',
+    deleteScheduled: 'Your account is now hidden. You can still undo this for 30 days.',
+    deleteScheduledPurge: 'Your data will be permanently removed on {purgeDate}.',
+    deleteUndeleteLink: 'Undo deletion',
+    deleteLastAnchorError: 'You are the only anchor left in this community. Please hand off the role before deleting.',
+    deleteAuthError: 'Please sign in again to confirm this action.',
+    deleteGenericError: 'Something went wrong. Please try again in a moment.',
+    undeleteSuccess: 'Welcome back. Your account is active again.',
+    // Recovery code flow
+    recoveryCodeTitle: 'Recovery code',
+    recoveryCodeHelp: 'Lost access to your phone or email? Enter a recovery code from your anchor to get back in.',
+    recoveryCodeInputLabel: 'Recovery code',
+    recoveryCodeInputPlaceholder: 'Enter your 12-character code',
+    recoveryCodeSubmit: 'Use recovery code',
+    recoveryCodeInvalid: 'That code is not valid or has already been used.',
+    recoveryCodeRateLimit: 'Too many tries. Please wait a few minutes before trying again.',
+    recoveryCodeSuccess: 'Recovery code accepted. You are signed in.',
+    // Onboarding language screen
+    onboardingStepLanguage: 'Step 1 of 2: Language',
+    onboardingLanguageTitle: 'Pick your language',
+    onboardingLanguageHint: 'Choose the language you want to see in the app. You can change it later in Settings.',
+    onboardingLanguageContinueEn: 'Continue in English',
+    onboardingLanguageContinueEs: 'Continuar en espanol',
+    onboardingLanguageContinueZh: 'Continue in Chinese',
+    onboardingLanguageAlreadyDone: 'Language is already set.',
+    onboardingGoToSettings: 'Open Settings',
+    // Onboarding location screen
+    onboardingStepLocation: 'Step 2 of 2: Location',
+    onboardingLocationTitle: 'Where are you looking for help?',
+    onboardingLocationHint: 'We use your ZIP or neighborhood to show nearby food pantries and neighbors. We do not track your exact address.',
+    onboardingLocationZipLabel: 'ZIP code',
+    onboardingLocationZipPlaceholder: '11373',
+    onboardingLocationZipInvalid: 'Please enter a valid 5-digit ZIP.',
+    onboardingLocationSubmit: 'Save and continue',
+    onboardingLocationUseDevice: 'Use my device location',
+    onboardingLocationDeviceBlocked: 'Location is blocked by your browser. You can still enter a ZIP.',
+    onboardingLocationDeviceDenied: 'Location permission was turned off. Please enter a ZIP instead.',
+    onboardingLocationDevicePending: 'Asking your device for location...',
+    onboardingLocationPrivacyNote: 'Your location stays on this device. Only your ZIP is shared when you search.',
+    // Errors / empty states / banners
+    errorGeneric: 'Something went wrong. Please try again.',
+    errorNetwork: 'Cannot reach the network. Check your connection and try again.',
+    errorUnauthorized: 'Please sign in again to continue.',
+    errorRateLimit: 'Too many tries. Please wait a moment and try again.',
+    emptyNoResults: 'No results matched what you are looking for.',
+    emptyNoPosts: 'No posts here yet. Check back soon.',
+    emptyNoConversations: 'No conversations yet. Your chats will show up here.',
+    emptyNoReports: 'No reports in the queue right now.',
+    bannerPilotMode: 'WeaveNYC is in early pilot. Things may change as we learn with you.',
+    bannerStagingNotice: 'You are using the staging build. Data here is for testing only.',
+    bannerOfflineHint: 'You are offline. Some pages will use saved copies.',
+    bannerSessionExpired: 'Your session timed out. Please sign in again.',
+    bannerAccountDeleted: 'This account is scheduled for deletion. You can undo it from Settings.',
+    buttonRetry: 'Try again',
+    buttonCancel: 'Cancel',
+    buttonContinue: 'Continue',
+    buttonClose: 'Close',
+    buttonLearnMore: 'Learn more',
   },
   es: {
     brand: 'WeaveNYC',
@@ -790,6 +1012,117 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     chatQuickPhraseTiming: 'Necesito unos 15 minutos antes de responder.',
     chatQuickPhrasePublicMeet: 'Podemos mantener esto en un punto de encuentro o entrega público?',
     chatQuickPhraseThanks: 'Gracias. Estoy confirmando el siguiente paso ahora.',
+    // Settings screen
+    settingsTitle: 'Ajustes',
+    settingsBackHome: 'Volver al inicio',
+    settingsLanguageTitle: 'Idioma',
+    settingsLanguageHint: 'Elige el idioma que quieres ver en la app. Lo puedes cambiar cuando quieras.',
+    settingsPrivacyTitle: 'Privacidad',
+    settingsPostVisibilityLegend: 'Quién puede ver tus nuevas publicaciones',
+    settingsVisibilityCommunity: 'Solo la comunidad',
+    settingsVisibilityCommunityHint: 'Solo personas en tu comunidad ven la publicación.',
+    settingsVisibilityPublic: 'Público',
+    settingsVisibilityPublicHint: 'Cualquier persona en la app puede ver la publicación.',
+    settingsVisibilityAnchor: 'Solo anchor',
+    settingsVisibilityAnchorHint: 'Solo los anchors de confianza de tu comunidad la ven.',
+    settingsLocationPrecisionLegend: 'Qué tanto compartir tu ubicación',
+    settingsPrecisionZip: 'Código ZIP',
+    settingsPrecisionZipHint: 'Comparte tu ZIP de 5 dígitos para mostrarte recursos cercanos.',
+    settingsPrecisionNeighborhood: 'Solo vecindario',
+    settingsPrecisionNeighborhoodHint: 'Comparte solo el nombre del vecindario, no el ZIP.',
+    settingsLowBandwidthLabel: 'Modo de bajo consumo',
+    settingsLowBandwidthHint: 'Actívalo si tienes conexión lenta. Las fotos y actualizaciones en vivo se reducen.',
+    settingsSafetyTitle: 'Seguridad y confianza',
+    settingsSafetyCopy: 'Si algo se siente raro, para y revisa tu inbox para ver el siguiente paso seguro.',
+    settingsOpenInbox: 'Abrir inbox',
+    settingsHelpTitle: 'Ayuda y comentarios',
+    settingsHelpReport: 'Reportar un problema',
+    settingsVersion: 'Versión de la app {version}',
+    // Account section
+    settingsAccountTitle: 'Cuenta',
+    settingsAccountLevel: 'Nivel actual',
+    settingsAccountLevelAnonymous: 'Anónimo',
+    settingsAccountLevelVerified: 'Verificado',
+    settingsAccountLevelAnchor: 'Anchor',
+    settingsAccountLevelNone: 'Sin sesión todavía',
+    settingsAccountUserId: 'ID de usuario: {userId}',
+    deleteAccountSummary: 'Eliminar tu cuenta',
+    deleteAccountBody: 'Te mandamos un código para confirmar. Luego tus publicaciones y mensajes quedan ocultos enseguida. En 30 días se borran por completo.',
+    deleteAccountReasonLabel: 'Cuéntanos por qué (opcional)',
+    deleteAccountReasonPlaceholder: 'Escribe una razón corta para ayudarnos a mejorar.',
+    deleteAccountConfirmLabel: 'Entiendo que mis publicaciones y mensajes se van a eliminar.',
+    // Delete reason options
+    deleteReasonNoLonger: 'Ya no necesito WeaveNYC',
+    deleteReasonPrivacy: 'Quiero más privacidad',
+    deleteReasonMoving: 'Me estoy mudando',
+    deleteReasonSafety: 'Tengo una preocupación de seguridad',
+    deleteReasonOther: 'Otra razón',
+    // Delete flow states
+    deleteRequestButton: 'Empezar a eliminar',
+    deleteRequestSending: 'Enviando código...',
+    deleteOtpSent: 'Te mandamos un código a tu teléfono o correo. Ingrésalo aquí en los próximos 10 minutos.',
+    deleteOtpCodeLabel: 'Código de confirmación',
+    deleteOtpVerifyButton: 'Confirmar eliminación',
+    deleteOtpVerifying: 'Revisando el código...',
+    deleteOtpResend: 'Enviar otro código',
+    deleteOtpInvalid: 'Ese código no sirvió. Intenta de nuevo.',
+    deleteScheduled: 'Tu cuenta ya está oculta. Todavía puedes deshacer esto durante 30 días.',
+    deleteScheduledPurge: 'Tus datos se borrarán por completo el {purgeDate}.',
+    deleteUndeleteLink: 'Deshacer eliminación',
+    deleteLastAnchorError: 'Eres el único anchor en esta comunidad. Pasa el rol a otra persona antes de eliminar.',
+    deleteAuthError: 'Por favor inicia sesión otra vez para confirmar esto.',
+    deleteGenericError: 'Algo falló. Intenta de nuevo en un momento.',
+    undeleteSuccess: 'Qué bueno verte de vuelta. Tu cuenta está activa otra vez.',
+    // Recovery code flow
+    recoveryCodeTitle: 'Código de recuperación',
+    recoveryCodeHelp: 'Perdiste el acceso a tu teléfono o correo? Ingresa un código de recuperación de tu anchor para volver a entrar.',
+    recoveryCodeInputLabel: 'Código de recuperación',
+    recoveryCodeInputPlaceholder: 'Escribe tu código de 12 caracteres',
+    recoveryCodeSubmit: 'Usar código',
+    recoveryCodeInvalid: 'Ese código no es válido o ya se usó.',
+    recoveryCodeRateLimit: 'Demasiados intentos. Espera unos minutos antes de intentar de nuevo.',
+    recoveryCodeSuccess: 'Código aceptado. Ya iniciaste sesión.',
+    // Onboarding language screen
+    onboardingStepLanguage: 'Paso 1 de 2: Idioma',
+    onboardingLanguageTitle: 'Elige tu idioma',
+    onboardingLanguageHint: 'Escoge el idioma que quieres ver en la app. Lo puedes cambiar luego en Ajustes.',
+    onboardingLanguageContinueEn: 'Continuar en inglés',
+    onboardingLanguageContinueEs: 'Continuar en español',
+    onboardingLanguageContinueZh: 'Continuar en chino',
+    onboardingLanguageAlreadyDone: 'Ya elegiste el idioma.',
+    onboardingGoToSettings: 'Abrir Ajustes',
+    // Onboarding location screen
+    onboardingStepLocation: 'Paso 2 de 2: Ubicación',
+    onboardingLocationTitle: 'Dónde estás buscando ayuda?',
+    onboardingLocationHint: 'Usamos tu ZIP o vecindario para mostrarte despensas y vecinos cercanos. No guardamos tu dirección exacta.',
+    onboardingLocationZipLabel: 'Código ZIP',
+    onboardingLocationZipPlaceholder: '11373',
+    onboardingLocationZipInvalid: 'Ingresa un ZIP válido de 5 dígitos.',
+    onboardingLocationSubmit: 'Guardar y seguir',
+    onboardingLocationUseDevice: 'Usar la ubicación de mi dispositivo',
+    onboardingLocationDeviceBlocked: 'El navegador bloqueó la ubicación. Puedes escribir un ZIP a mano.',
+    onboardingLocationDeviceDenied: 'No se dio permiso de ubicación. Escribe un ZIP.',
+    onboardingLocationDevicePending: 'Pidiendo ubicación al dispositivo...',
+    onboardingLocationPrivacyNote: 'Tu ubicación se queda en este dispositivo. Solo se comparte el ZIP cuando buscas.',
+    // Errors / empty states / banners
+    errorGeneric: 'Algo falló. Intenta de nuevo.',
+    errorNetwork: 'No hay conexión. Revisa tu internet e intenta otra vez.',
+    errorUnauthorized: 'Inicia sesión otra vez para seguir.',
+    errorRateLimit: 'Demasiados intentos. Espera un momento e intenta de nuevo.',
+    emptyNoResults: 'No encontramos nada que coincida con lo que buscas.',
+    emptyNoPosts: 'Todavía no hay publicaciones. Vuelve pronto.',
+    emptyNoConversations: 'Todavía no tienes conversaciones. Tus chats aparecerán aquí.',
+    emptyNoReports: 'No hay reportes en la cola ahora mismo.',
+    bannerPilotMode: 'WeaveNYC está en pilotaje. Las cosas pueden cambiar mientras aprendemos contigo.',
+    bannerStagingNotice: 'Estás usando la versión de pruebas. Los datos de aquí son solo para testing.',
+    bannerOfflineHint: 'Estás sin conexión. Algunas páginas mostrarán datos guardados.',
+    bannerSessionExpired: 'Tu sesión expiró. Inicia sesión otra vez.',
+    bannerAccountDeleted: 'Esta cuenta está marcada para eliminar. Puedes deshacerlo desde Ajustes.',
+    buttonRetry: 'Reintentar',
+    buttonCancel: 'Cancelar',
+    buttonContinue: 'Continuar',
+    buttonClose: 'Cerrar',
+    buttonLearnMore: 'Saber más',
   },
   zh: {
     brand: 'WeaveNYC',
@@ -1053,6 +1386,117 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     chatQuickPhraseTiming: '我大概需要 15 分钟后再回复。',
     chatQuickPhrasePublicMeet: '我们可以只约在公开、安全的地点见面吗？',
     chatQuickPhraseThanks: '谢谢，我正在确认下一步安排。',
+    // 设置页
+    settingsTitle: '设置',
+    settingsBackHome: '回到主页',
+    settingsLanguageTitle: '语言',
+    settingsLanguageHint: '选择你想在这个 app 里看到的语言。你随时可以再改。',
+    settingsPrivacyTitle: '隐私',
+    settingsPostVisibilityLegend: '谁可以看到你发的新帖子',
+    settingsVisibilityCommunity: '只给社区看',
+    settingsVisibilityCommunityHint: '只有同一个社区里的人可以看到这条帖子。',
+    settingsVisibilityPublic: '公开',
+    settingsVisibilityPublicHint: '这个 app 里所有人都能看到这条帖子。',
+    settingsVisibilityAnchor: '只给 anchor',
+    settingsVisibilityAnchorHint: '只有你社区里的 anchor 可以看到。',
+    settingsLocationPrecisionLegend: '你想分享多精确的位置',
+    settingsPrecisionZip: '邮编',
+    settingsPrecisionZipHint: '分享 5 位邮编，我们好帮你找附近的资源。',
+    settingsPrecisionNeighborhood: '只分享街区名字',
+    settingsPrecisionNeighborhoodHint: '只分享街区名字，不分享邮编。',
+    settingsLowBandwidthLabel: '低流量模式',
+    settingsLowBandwidthHint: '网速慢的时候打开。图片和实时更新会减少。',
+    settingsSafetyTitle: '安全与信任',
+    settingsSafetyCopy: '如果觉得哪里不对劲，先停下来，打开 inbox 看下一步怎么做更安全。',
+    settingsOpenInbox: '打开 inbox',
+    settingsHelpTitle: '帮助与反馈',
+    settingsHelpReport: '反馈问题',
+    settingsVersion: 'App 版本 {version}',
+    // 账号信息
+    settingsAccountTitle: '账号',
+    settingsAccountLevel: '当前等级',
+    settingsAccountLevelAnonymous: '匿名',
+    settingsAccountLevelVerified: '已验证',
+    settingsAccountLevelAnchor: 'Anchor',
+    settingsAccountLevelNone: '还没有会话',
+    settingsAccountUserId: '用户 ID：{userId}',
+    deleteAccountSummary: '注销账号',
+    deleteAccountBody: '我们会发一个验证码来确认。确认之后，你的帖子和消息会马上隐藏起来。30 天后会被彻底删除。',
+    deleteAccountReasonLabel: '告诉我们为什么（选填）',
+    deleteAccountReasonPlaceholder: '简单说一下原因，可以帮我们改进。',
+    deleteAccountConfirmLabel: '我明白我的帖子和消息会被删除。',
+    // 注销原因
+    deleteReasonNoLonger: '我不再需要 WeaveNYC',
+    deleteReasonPrivacy: '我想要更多隐私',
+    deleteReasonMoving: '我要搬走了',
+    deleteReasonSafety: '我有安全上的顾虑',
+    deleteReasonOther: '其他原因',
+    // 注销流程状态
+    deleteRequestButton: '开始注销',
+    deleteRequestSending: '正在发送验证码……',
+    deleteOtpSent: '我们把验证码发到了你的手机或邮箱。请在 10 分钟内输入。',
+    deleteOtpCodeLabel: '确认验证码',
+    deleteOtpVerifyButton: '确认注销',
+    deleteOtpVerifying: '正在核对验证码……',
+    deleteOtpResend: '重新发送验证码',
+    deleteOtpInvalid: '验证码不对，请再试一次。',
+    deleteScheduled: '你的账号已经隐藏。30 天内还可以撤销。',
+    deleteScheduledPurge: '你的数据会在 {purgeDate} 被彻底删除。',
+    deleteUndeleteLink: '撤销注销',
+    deleteLastAnchorError: '你是这个社区里最后一个 anchor。请先把 anchor 身份交接给别人，再注销。',
+    deleteAuthError: '请重新登录再确认这个操作。',
+    deleteGenericError: '出了点问题，请稍等一下再试。',
+    undeleteSuccess: '欢迎回来，你的账号已经重新启用。',
+    // 恢复码
+    recoveryCodeTitle: '恢复码',
+    recoveryCodeHelp: '手机或邮箱进不去了？输入 anchor 给你的恢复码就能重新进来。',
+    recoveryCodeInputLabel: '恢复码',
+    recoveryCodeInputPlaceholder: '请输入 12 位恢复码',
+    recoveryCodeSubmit: '使用恢复码',
+    recoveryCodeInvalid: '这个恢复码无效，或者已经用过了。',
+    recoveryCodeRateLimit: '尝试太多次了，请过几分钟再试。',
+    recoveryCodeSuccess: '恢复码通过，你已经登录。',
+    // 引导页：语言
+    onboardingStepLanguage: '第 1 步（共 2 步）：语言',
+    onboardingLanguageTitle: '选择你用的语言',
+    onboardingLanguageHint: '选一个你想在这个 app 里看到的语言，之后在设置里也能改。',
+    onboardingLanguageContinueEn: '用英文继续',
+    onboardingLanguageContinueEs: '用西班牙语继续',
+    onboardingLanguageContinueZh: '用中文继续',
+    onboardingLanguageAlreadyDone: '语言已经选好了。',
+    onboardingGoToSettings: '打开设置',
+    // 引导页：位置
+    onboardingStepLocation: '第 2 步（共 2 步）：位置',
+    onboardingLocationTitle: '你在哪里找帮助？',
+    onboardingLocationHint: '我们用你的邮编或街区来显示附近的食物点和邻居。不会记录你具体的门牌号。',
+    onboardingLocationZipLabel: '邮编',
+    onboardingLocationZipPlaceholder: '11373',
+    onboardingLocationZipInvalid: '请输入有效的 5 位邮编。',
+    onboardingLocationSubmit: '保存并继续',
+    onboardingLocationUseDevice: '使用设备上的位置',
+    onboardingLocationDeviceBlocked: '浏览器把定位挡住了，你可以手动输入邮编。',
+    onboardingLocationDeviceDenied: '没有开启定位权限，请手动输入邮编。',
+    onboardingLocationDevicePending: '正在向设备请求位置……',
+    onboardingLocationPrivacyNote: '你的位置只留在这台设备上。只有在搜索的时候才会用到邮编。',
+    // 错误 / 空状态 / 横幅
+    errorGeneric: '出了点问题，请再试一次。',
+    errorNetwork: '网络连不上，请检查一下再试。',
+    errorUnauthorized: '请重新登录再继续。',
+    errorRateLimit: '尝试太多了，请稍等一下再试。',
+    emptyNoResults: '没找到和你要找的匹配的内容。',
+    emptyNoPosts: '这里还没有帖子，等一会儿再看看。',
+    emptyNoConversations: '还没有会话，你的聊天会出现在这里。',
+    emptyNoReports: '当前审核队列里没有举报。',
+    bannerPilotMode: 'WeaveNYC 还在早期试运行，我们会和你一起慢慢调整。',
+    bannerStagingNotice: '这是测试版本，这里的数据只用来测试。',
+    bannerOfflineHint: '当前没有网络，有些页面会显示之前缓存的内容。',
+    bannerSessionExpired: '会话过期了，请重新登录。',
+    bannerAccountDeleted: '这个账号已经安排注销，你可以在设置里撤销。',
+    buttonRetry: '再试一次',
+    buttonCancel: '取消',
+    buttonContinue: '继续',
+    buttonClose: '关闭',
+    buttonLearnMore: '了解更多',
   },
 };
 

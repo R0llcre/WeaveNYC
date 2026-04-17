@@ -1,27 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { Banner, Button, Card, Checkbox, Field, PageHeader } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { getSessionLabel, getTypeLabel, resourceFilterTypes } from '@/lib/i18n';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
 import { setSession } from '@/lib/slices/auth-slice';
-import {
-  completeOnboarding,
-  setLanguage,
-  setZipCode,
-  toggleBookmark,
-  toggleLowBandwidth,
-} from '@/lib/slices/preferences-slice';
+import { toggleBookmark } from '@/lib/slices/preferences-slice';
 import type { ResourceFilterType } from '@/lib/types';
-
-const supportedLanguages = ['en', 'es', 'zh'] as const;
 
 export function ResourceHome() {
   const t = useTranslations();
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const preferences = useAppSelector((state) => state.preferences);
   const session = useAppSelector((state) => state.auth.session);
@@ -31,7 +26,22 @@ export function ResourceHome() {
   const [type, setType] = useState<ResourceFilterType>('all');
   const [submittingSession, setSubmittingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [zipError, setZipError] = useState<string | null>(null);
+
+  // First-visit guard: push new users through the onboarding language/location
+  // flow. We defer the redirect by a tick so the async hydration in
+  // `providers.tsx` has a chance to repopulate preferences from IndexedDB
+  // before we decide whether onboarding was already completed. Without this
+  // defer, a page reload could race the guard and bounce a returning user
+  // back to /onboarding/language even though their preferences are saved.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timer = window.setTimeout(() => {
+      if (!preferences.onboardingComplete && !preferences.zipCode) {
+        router.replace('/onboarding/language');
+      }
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [preferences.onboardingComplete, preferences.zipCode, router]);
 
   const resourceQuery = useResources(
     {
@@ -66,100 +76,52 @@ export function ResourceHome() {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--home">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('heroEyebrow')}</span>
-          </div>
-
-          <h1>{t('heroTitle')}</h1>
-          <p>{t('heroCopy')}</p>
-
-          <div className="hero__meta">
-            <span className="meta-chip">{sessionLabel}</span>
-            {session ? <span className="meta-chip">{t('sessionIdChip', { userId: session.user.user_id })}</span> : null}
-            {preferences.zipCode ? <span className="meta-chip">{t('zipChip', { zip: preferences.zipCode })}</span> : null}
-            {community.currentCommunityId ? <span className="meta-chip">{t('homeCommunityReady')}</span> : null}
-          </div>
-
-          <div className="actions">
-            <button
-              className="button button--primary"
-              data-testid="create-session"
-              disabled={submittingSession}
-              onClick={() => void handleCreateAnonymousSession()}
-              type="button"
-            >
-              {submittingSession ? t('creatingSession') : t('createSession')}
-            </button>
-            <Link className="button button--secondary" href="/verify">
-              {t('goVerify')}
-            </Link>
-            <ContactInboxLink />
-          </div>
-
-          {sessionError ? <p className="status-copy status-copy--error">{sessionError}</p> : null}
-        </section>
-
-        <section className="card card--onboarding">
-          <div className="section-head">
-            <div>
-              <h2>{t('onboardingTitle')}</h2>
-              <p className="card__subtitle">{t('onboardingCopy')}</p>
-            </div>
-          </div>
-
-          <div className="language-row">
-            {supportedLanguages.map((language) => (
-              <button
-                className={`pill ${preferences.language === language ? 'pill--active' : ''}`}
-                key={language}
-                onClick={() => dispatch(setLanguage(language))}
-                type="button"
+        <PageHeader
+          eyebrow={t('heroEyebrow')}
+          title={t('heroTitle')}
+          subtitle={t('heroCopy')}
+          actions={
+            <>
+              <div className="hero__meta">
+                <span className="meta-chip">{sessionLabel}</span>
+                {session ? (
+                  <span className="meta-chip">{t('sessionIdChip', { userId: session.user.user_id })}</span>
+                ) : null}
+                {preferences.zipCode ? (
+                  <span className="meta-chip">{t('zipChip', { zip: preferences.zipCode })}</span>
+                ) : null}
+                {community.currentCommunityId ? (
+                  <span className="meta-chip">{t('homeCommunityReady')}</span>
+                ) : null}
+              </div>
+              <Button
+                variant="primary"
+                size="md"
+                data-testid="create-session"
+                disabled={submittingSession}
+                loading={submittingSession}
+                onClick={() => void handleCreateAnonymousSession()}
               >
-                {language.toUpperCase()}
-              </button>
-            ))}
-          </div>
+                {submittingSession ? t('creatingSession') : t('createSession')}
+              </Button>
+              <Link className="button button--secondary button--md" href="/verify">
+                {t('goVerify')}
+              </Link>
+              <ContactInboxLink />
+              <Link className="button button--ghost button--md" href="/settings">
+                {t('settingsTitle')}
+              </Link>
+            </>
+          }
+        />
 
-          <form
-            className="search-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!/^\d{5}$/.test(preferences.zipCode)) {
-                setZipError(t('zipValidation'));
-                return;
-              }
-              setZipError(null);
-              dispatch(completeOnboarding());
-            }}
-          >
-            <label className="field">
-              <span>{t('zipLabel')}</span>
-              <input
-                inputMode="numeric"
-                maxLength={5}
-                onChange={(event) => {
-                  setZipError(null);
-                  dispatch(setZipCode(event.target.value.replace(/\D/g, '').slice(0, 5)));
-                }}
-                placeholder={t('zipPlaceholder')}
-                value={preferences.zipCode}
-              />
-            </label>
-            {zipError ? <p className="status-copy status-copy--error">{zipError}</p> : null}
+        {sessionError ? (
+          <Banner tone="danger" title={t('anonymousSessionError')}>
+            {sessionError}
+          </Banner>
+        ) : null}
 
-            <label className="checkbox">
-              <input checked={preferences.lowBandwidth} onChange={() => dispatch(toggleLowBandwidth())} type="checkbox" />
-              <span>{t('lowBandwidth')}</span>
-            </label>
-
-            <button className="button button--primary" data-testid="see-nearby" type="submit">
-              {t('seeNearby')}
-            </button>
-          </form>
-        </section>
-
-        <section className="card card--community-cta">
+        <Card as="section" className="card--community-cta">
           <div className="section-head">
             <div>
               <h2>{t('communityTitle')}</h2>
@@ -167,23 +129,23 @@ export function ResourceHome() {
             </div>
           </div>
           <div className="actions">
-            <Link className="button button--primary" data-testid="join-community" href="/community/join">
+            <Link className="button button--primary button--md" data-testid="join-community" href="/community/join">
               {t('joinCommunityCta')}
             </Link>
-            <Link className="button button--secondary" data-testid="request-help" href="/posts/new?post_type=request">
+            <Link className="button button--secondary button--md" data-testid="request-help" href="/posts/new?post_type=request">
               {t('requestHelpCta')}
             </Link>
-            <Link className="button button--secondary" data-testid="offer-help" href="/posts/new?post_type=offer">
+            <Link className="button button--secondary button--md" data-testid="offer-help" href="/posts/new?post_type=offer">
               {t('offerHelpCta')}
             </Link>
-            <Link className="button button--secondary" href="/community">
+            <Link className="button button--ghost button--md" href="/community">
               {t('communityFeedHeading')}
             </Link>
             <ContactInboxLink />
           </div>
-        </section>
+        </Card>
 
-        <section className="card card--results">
+        <Card as="section" className="card--results">
           <div className="section-head">
             <div>
               <h2>{t('searchTitle')}</h2>
@@ -194,16 +156,17 @@ export function ResourceHome() {
           </div>
 
           <div className="filter-row">
-            <label className="checkbox">
-              <input checked={openNow} onChange={() => setOpenNow((value) => !value)} type="checkbox" />
-              <span>{t('filtersOpenNow')}</span>
-            </label>
-            <label className="checkbox">
-              <input checked={today} onChange={() => setToday((value) => !value)} type="checkbox" />
-              <span>{t('filtersToday')}</span>
-            </label>
-            <label className="field field--select">
-              <span>{t('filtersType')}</span>
+            <Checkbox
+              label={t('filtersOpenNow')}
+              checked={openNow}
+              onChange={() => setOpenNow((value) => !value)}
+            />
+            <Checkbox
+              label={t('filtersToday')}
+              checked={today}
+              onChange={() => setToday((value) => !value)}
+            />
+            <Field label={t('filtersType')} className="field--select">
               <select onChange={(event) => setType(event.target.value as ResourceFilterType)} value={type}>
                 {resourceFilterTypes.map((option) => (
                   <option key={option} value={option}>
@@ -211,18 +174,20 @@ export function ResourceHome() {
                   </option>
                 ))}
               </select>
-            </label>
+            </Field>
           </div>
 
           {resourceQuery.isLoading ? <p className="status-copy">{t('resourceLoadingList')}</p> : null}
           {resourceQuery.isError ? (
-            <p className="status-copy status-copy--error">
-              {resourceQuery.error instanceof Error ? resourceQuery.error.message : t('resourceLoadError')}
-            </p>
+            <Banner tone="danger" title={t('resourceLoadError')}>
+              {resourceQuery.error instanceof Error ? resourceQuery.error.message : null}
+            </Banner>
           ) : null}
-          {resourceQuery.data?.source_mode === 'fixture' ? <p className="status-copy">{t('sampleMode')}</p> : null}
+          {resourceQuery.data?.source_mode === 'fixture' ? (
+            <p className="status-copy">{t('sampleMode')}</p>
+          ) : null}
 
-          {!resourceQuery.isLoading && resourceItems.length === 0 ? (
+          {!resourceQuery.isLoading && resourceItems.length === 0 && preferences.zipCode ? (
             <div className="result-empty">{t('noResults')}</div>
           ) : null}
 
@@ -235,9 +200,13 @@ export function ResourceHome() {
                   <div className="resource-card__meta">
                     <span className="meta-chip">{getTypeLabel(activeLanguage, resource.type)}</span>
                     {resource.distance_miles !== null ? (
-                      <span className="meta-chip">{t('distanceMiles', { distance: resource.distance_miles.toFixed(1) })}</span>
+                      <span className="meta-chip">
+                        {t('distanceMiles', { distance: resource.distance_miles.toFixed(1) })}
+                      </span>
                     ) : null}
-                    {resource.is_open_now ? <span className="meta-chip meta-chip--accent">{t('filtersOpenNow')}</span> : null}
+                    {resource.is_open_now ? (
+                      <span className="meta-chip meta-chip--accent">{t('filtersOpenNow')}</span>
+                    ) : null}
                   </div>
                   <h3>{resource.name}</h3>
                   <p>{resource.address}</p>
@@ -248,34 +217,54 @@ export function ResourceHome() {
 
                   <div className="actions actions--stack">
                     <Link
-                      className="button button--secondary"
+                      className="button button--secondary button--md"
                       data-testid={`resource-detail-${resource.provider_id}`}
                       href={`/resources/${resource.provider_id}`}
                     >
                       {t('detailCta')}
                     </Link>
                     {resource.phone ? (
-                      <a className="button button--secondary" href={`tel:${resource.phone}`}>
+                      <a className="button button--ghost button--md" href={`tel:${resource.phone}`}>
                         {t('call')}
                       </a>
                     ) : null}
-                    <a className="button button--secondary" href={resource.directions_url} rel="noreferrer" target="_blank">
+                    <a
+                      className="button button--ghost button--md"
+                      href={resource.directions_url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
                       {t('directions')}
                     </a>
-                    <button
-                      className={`button ${bookmarked ? 'button--primary' : 'button--secondary'}`}
+                    <Button
+                      variant={bookmarked ? 'primary' : 'secondary'}
+                      size="md"
                       data-testid={`bookmark-${resource.provider_id}`}
                       onClick={() => dispatch(toggleBookmark(resource.provider_id))}
-                      type="button"
                     >
                       {bookmarked ? t('bookmarked') : t('save')}
-                    </button>
+                    </Button>
                   </div>
                 </article>
               );
             })}
           </div>
-        </section>
+
+          {/* "See nearby" keeps its data-testid for smoke coverage; now it
+              refreshes results once the user has completed onboarding. */}
+          <div className="actions">
+            <Button
+              variant="secondary"
+              size="md"
+              data-testid="see-nearby"
+              onClick={() => {
+                void resourceQuery.refetch();
+              }}
+            >
+              {t('seeNearby')}
+            </Button>
+          </div>
+        </Card>
       </div>
     </main>
   );

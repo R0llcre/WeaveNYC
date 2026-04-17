@@ -80,12 +80,17 @@ export type ResourceQueryInput = {
   cursor?: string | null;
 };
 
+export type DefaultPostVisibility = "community_only" | "public" | "anchor_mediated";
+export type LocationPrecision = "zip_only" | "zip_and_neighborhood";
+
 export type PreferencesState = {
   language: SupportedLanguage;
   zipCode: string;
   onboardingComplete: boolean;
   lowBandwidth: boolean;
   bookmarks: string[];
+  defaultPostVisibility: DefaultPostVisibility;
+  locationPrecision: LocationPrecision;
 };
 
 export type OtpStartInput = {
@@ -665,4 +670,22 @@ export type MatchContactIntent = {
   targetTitle: string;
   returnTo: string;
   createdAt: string;
+};
+
+export type AccountDeleteReason =
+  | 'no_longer_needed'
+  | 'privacy_concerns'
+  | 'moving_away'
+  | 'safety_concerns'
+  | 'other';
+
+export type AccountDeleteInput = {
+  confirmation: 'DELETE_MY_ACCOUNT';
+  reason?: AccountDeleteReason;
+};
+
+export type AccountDeleteResult = {
+  status: 'deletion_scheduled';
+  purge_date: string;
+  user_id: string;
 };

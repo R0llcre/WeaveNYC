@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { CommunityAnnouncements } from '@/components/community-announcements';
+import { Banner, Button, Card, Checkbox, PageHeader, Pill } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { isP2PDevDemoVisible } from '@/lib/p2p-env';
 import { useAppDispatch, useAppSelector, useCommunityP2PSync, usePosts } from '@/lib/hooks';
@@ -104,7 +105,7 @@ export function CommunityScreen() {
 
   const usingCachedPosts = Boolean(
     p2pSync.status.enabled &&
-    currentCommunity &&
+      currentCommunity &&
       cachedPosts &&
       cachedPosts.items.length > 0 &&
       (!isOnline || posts.isError),
@@ -123,55 +124,64 @@ export function CommunityScreen() {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('communityTitle')}</span>
-            <Link className="hero__link" href="/">
-              {t('backHome')}
-            </Link>
-          </div>
-          <h1>{t('communityTitle')}</h1>
-          <p>{t('communityCopy')}</p>
-          <div className="actions">
-            <Link className="button button--primary" data-testid="join-community" href="/community/join">
-              {t('joinCommunityCta')}
-            </Link>
-            <Link className="button button--secondary" data-testid="request-help" href="/posts/new?post_type=request">
-              {t('requestHelpCta')}
-            </Link>
-            <Link className="button button--secondary" data-testid="offer-help" href="/posts/new?post_type=offer">
-              {t('offerHelpCta')}
-            </Link>
-            <Link className="button button--secondary" href="/posts/mine">
-              {t('myPostsTitle')}
-            </Link>
-            <ContactInboxLink />
-          </div>
-        </section>
+        <PageHeader
+          eyebrow={t('communityTitle')}
+          title={t('communityTitle')}
+          subtitle={t('communityCopy')}
+          backHref="/"
+          actions={
+            <>
+              <Link className="button button--primary button--md" data-testid="join-community" href="/community/join">
+                {t('joinCommunityCta')}
+              </Link>
+              <Link
+                className="button button--secondary button--md"
+                data-testid="request-help"
+                href="/posts/new?post_type=request"
+              >
+                {t('requestHelpCta')}
+              </Link>
+              <Link
+                className="button button--secondary button--md"
+                data-testid="offer-help"
+                href="/posts/new?post_type=offer"
+              >
+                {t('offerHelpCta')}
+              </Link>
+              <Link className="button button--ghost button--md" href="/posts/mine">
+                {t('myPostsTitle')}
+              </Link>
+              <ContactInboxLink />
+            </>
+          }
+        />
 
         {!session ? (
-          <section className="card card--verify">
+          <Card as="section" className="card--verify">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <button
-                className="button button--primary"
+              <Button
+                variant="primary"
+                size="md"
                 data-testid="create-session"
                 disabled={creatingSession}
+                loading={creatingSession}
                 onClick={() => void handleCreateSession()}
-                type="button"
               >
                 {creatingSession ? t('creatingSession') : t('createSession')}
-              </button>
+              </Button>
             </div>
-          </section>
+          </Card>
         ) : null}
 
         {currentCommunity ? (
-          <section className="card card--results">
+          <Card as="section" className="card--results">
             <div className="section-head">
               <div>
                 <h2>{t('p2pSyncTitle')}</h2>
-                <p className="card__subtitle">{t('p2pSyncCopy', { communityName: currentCommunity.name })}</p>
+                <p className="card__subtitle">
+                  {t('p2pSyncCopy', { communityName: currentCommunity.name })}
+                </p>
               </div>
               <span
                 className={`status-badge ${
@@ -197,23 +207,34 @@ export function CommunityScreen() {
               </div>
               <div className="sync-card__metric">
                 <span>{t('p2pLastSyncLabel')}</span>
-                <strong>{p2pSync.status.lastSyncAt ? new Date(p2pSync.status.lastSyncAt).toLocaleString() : t('p2pNoSyncYet')}</strong>
+                <strong>
+                  {p2pSync.status.lastSyncAt
+                    ? new Date(p2pSync.status.lastSyncAt).toLocaleString()
+                    : t('p2pNoSyncYet')}
+                </strong>
               </div>
               <div className="sync-card__metric">
                 <span>{t('p2pPeerIdLabel')}</span>
-                <strong className="sync-card__mono">{p2pSync.status.peerId ?? t('p2pPeerIdPending')}</strong>
+                <strong className="sync-card__mono">
+                  {p2pSync.status.peerId ?? t('p2pPeerIdPending')}
+                </strong>
               </div>
             </div>
 
             {p2pSync.status.lastError ? (
-              <p className="status-copy status-copy--error">{p2pSync.status.lastError}</p>
+              <Banner tone="danger" title={t('resourceLoadError')}>
+                {p2pSync.status.lastError}
+              </Banner>
             ) : null}
 
-            {!isOnline ? <p className="status-copy">{t('p2pOfflineMode')}</p> : null}
+            {!isOnline ? (
+              <Banner tone="warning" title={t('p2pOfflineMode')} />
+            ) : null}
 
             <div className="actions">
-              <button
-                className="button button--primary"
+              <Button
+                variant="primary"
+                size="md"
                 disabled={!session}
                 onClick={() => {
                   if (p2pSync.status.enabled) {
@@ -223,32 +244,30 @@ export function CommunityScreen() {
 
                   p2pSync.enable();
                 }}
-                type="button"
-                >
-                  {p2pSync.status.enabled ? t('p2pDisableAction') : t('p2pEnableAction')}
-                </button>
-              <button
-                className="button button--secondary"
+              >
+                {p2pSync.status.enabled ? t('p2pDisableAction') : t('p2pEnableAction')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
                 disabled={!session || !p2pSync.status.enabled}
                 onClick={() => p2pSync.syncNow()}
-                type="button"
-                >
+              >
                 {t('p2pSyncNowAction')}
-              </button>
+              </Button>
             </div>
 
             {showMdnsDemoToggle ? (
-              <label className="sync-toggle" htmlFor="p2p-mdns-toggle">
-                <span>{t('p2pMdnsToggle')}</span>
-                <input
+              <div className="sync-toggle">
+                <Checkbox
+                  label={t('p2pMdnsToggle')}
+                  hint={t('p2pMdnsToggleCopy')}
                   checked={p2pSync.status.mdnsDemoEnabled}
-                  id="p2p-mdns-toggle"
                   onChange={(event) => p2pSync.setMdnsDemoEnabled(event.target.checked)}
-                  type="checkbox"
                 />
-              </label>
+              </div>
             ) : null}
-          </section>
+          </Card>
         ) : null}
 
         <CommunityAnnouncements
@@ -261,12 +280,14 @@ export function CommunityScreen() {
           language={preferences.language}
         />
 
-        <section className="card card--results">
+        <Card as="section" className="card--results">
           <div className="section-head">
             <div>
               <h2>{t('communityFeedHeading')}</h2>
               <p className="card__subtitle">
-                {currentCommunity ? `${t('currentCommunityLabel')}: ${currentCommunity.name}` : t('communityNoMembership')}
+                {currentCommunity
+                  ? `${t('currentCommunityLabel')}: ${currentCommunity.name}`
+                  : t('communityNoMembership')}
               </p>
             </div>
           </div>
@@ -274,41 +295,38 @@ export function CommunityScreen() {
           {communityState.joinedCommunities.length > 0 ? (
             <div className="language-row">
               {communityState.joinedCommunities.map((item) => (
-                <button
+                <Pill
                   key={item.community.community_id}
-                  className={`pill ${communityState.currentCommunityId === item.community.community_id ? 'pill--active' : ''}`}
+                  active={communityState.currentCommunityId === item.community.community_id}
                   onClick={() => dispatch(setCurrentCommunity(item.community.community_id))}
-                  type="button"
                 >
                   {item.community.name}
-                </button>
+                </Pill>
               ))}
             </div>
           ) : null}
 
           <div className="tab-row">
-            <button
-              className={`pill ${tab === 'community' ? 'pill--active' : ''}`}
+            <Pill
+              active={tab === 'community'}
               data-testid="community-tab"
               onClick={() => setTab('community')}
-              type="button"
             >
               {t('communityTab')}
-            </button>
-            <button
-              className={`pill ${tab === 'public' ? 'pill--active' : ''}`}
+            </Pill>
+            <Pill
+              active={tab === 'public'}
               data-testid="public-tab"
               onClick={() => setTab('public')}
-              type="button"
             >
               {t('publicTab')}
-            </button>
+            </Pill>
           </div>
 
           {tab === 'community' && !currentCommunity ? (
             <div className="result-empty">
               <p>{t('communityNoMembership')}</p>
-              <Link className="button button--primary" href="/community/join">
+              <Link className="button button--primary button--md" href="/community/join">
                 {t('joinCommunityCta')}
               </Link>
             </div>
@@ -323,13 +341,13 @@ export function CommunityScreen() {
 
           {posts.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
           {posts.isError ? (
-            <p className="status-copy status-copy--error">
+            <Banner tone="danger" title={t('resourceLoadError')}>
               {usingCachedPosts
                 ? t('p2pLiveRefreshDelayed')
                 : posts.error instanceof Error
                   ? posts.error.message
-                  : t('resourceLoadError')}
-            </p>
+                  : null}
+            </Banner>
           ) : null}
 
           {visiblePosts.length === 0 ? (
@@ -338,10 +356,15 @@ export function CommunityScreen() {
 
           <div className="resource-grid">
             {visiblePosts.map((post) => (
-              <PostCard href={`/posts/${post.post_id}`} key={post.post_id} language={preferences.language} post={post} />
+              <PostCard
+                href={`/posts/${post.post_id}`}
+                key={post.post_id}
+                language={preferences.language}
+                post={post}
+              />
             ))}
           </div>
-        </section>
+        </Card>
       </div>
     </main>
   );

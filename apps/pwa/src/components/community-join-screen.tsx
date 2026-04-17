@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
+import { Banner, Button, Card, Field, PageHeader, Pill } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { useAppDispatch, useAppSelector, useCommunityAccessResolve, useJoinCommunity } from '@/lib/hooks';
 import { parseScannedQrPayload, scanQrFromImageFile, scanQrFromVideo, supportsBarcodeDetector } from '@/lib/qr';
@@ -167,77 +168,88 @@ export function CommunityJoinScreen() {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('joinCommunityCta')}</span>
-            <Link className="hero__link" href="/community">
-              {t('backHome')}
-            </Link>
-          </div>
-          <h1>{t('joinTitle')}</h1>
-          <p>{t('joinCopy')}</p>
-        </section>
+        <PageHeader
+          eyebrow={t('joinCommunityCta')}
+          title={t('joinTitle')}
+          subtitle={t('joinCopy')}
+          backHref="/community"
+        />
 
         {!session ? (
-          <section className="card card--verify">
+          <Card as="section" className="card--verify">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
               <div className="actions">
-                <button
-                  className="button button--primary"
+                <Button
+                  variant="primary"
+                  size="md"
                   data-testid="create-session"
                   disabled={creatingSession}
+                  loading={creatingSession}
                   onClick={() => void handleCreateSession()}
-                  type="button"
                 >
                   {creatingSession ? t('creatingSession') : t('createSession')}
-                </button>
-                <Link className="button button--secondary" href="/">
+                </Button>
+                <Link className="button button--ghost button--md" href="/">
                   {t('backHome')}
                 </Link>
               </div>
             </div>
-          </section>
+          </Card>
         ) : null}
 
-        <section className="card card--verify">
+        <Card as="section" className="card--verify">
           <div className="tab-row">
-            <button
-              className={`pill ${mode === 'invite' ? 'pill--active' : ''}`}
+            <Pill
+              active={mode === 'invite'}
               data-testid="join-mode-invite"
               onClick={() => handleModeChange('invite')}
-              type="button"
             >
               {t('joinInviteMode')}
-            </button>
-            <button
-              className={`pill ${mode === 'qr' ? 'pill--active' : ''}`}
+            </Pill>
+            <Pill
+              active={mode === 'qr'}
               data-testid="join-mode-qr"
               onClick={() => handleModeChange('qr')}
-              type="button"
             >
               {t('joinQrMode')}
-            </button>
+            </Pill>
           </div>
 
           {mode === 'invite' ? (
-            <label className="field">
-              <span>{t('inviteCodeLabel')}</span>
-              <input onChange={(event) => handleInviteCodeChange(event.target.value)} value={inviteCode} />
-            </label>
+            <Field label={t('inviteCodeLabel')}>
+              <input
+                autoComplete="off"
+                onChange={(event) => handleInviteCodeChange(event.target.value)}
+                value={inviteCode}
+              />
+            </Field>
           ) : (
             <div className="verify-grid">
-              <label className="field">
-                <span>{t('qrTokenLabel')}</span>
-                <textarea onChange={(event) => handleQrTokenChange(event.target.value)} rows={3} value={qrToken} />
-              </label>
+              <Field label={t('qrTokenLabel')}>
+                <textarea
+                  onChange={(event) => handleQrTokenChange(event.target.value)}
+                  rows={3}
+                  value={qrToken}
+                />
+              </Field>
 
               <div className="actions">
-                <button className="button button--secondary" disabled={!supportsBarcodeDetector()} onClick={() => void startCamera()} type="button">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled={!supportsBarcodeDetector()}
+                  onClick={() => void startCamera()}
+                >
                   {t('qrScanCamera')}
-                </button>
-                <label className="button button--secondary file-button">
-                  <input accept="image/*" hidden onChange={(event) => void handleUploadScan(event.target.files?.[0])} type="file" />
+                </Button>
+                <label className="button button--secondary button--md file-button">
+                  <input
+                    accept="image/*"
+                    hidden
+                    onChange={(event) => void handleUploadScan(event.target.files?.[0])}
+                    type="file"
+                  />
                   {t('qrScanUpload')}
                 </label>
               </div>
@@ -245,37 +257,54 @@ export function CommunityJoinScreen() {
               {cameraReady ? (
                 <div className="camera-panel">
                   <video ref={videoRef} className="camera-panel__video" muted playsInline />
-                  <button className="button button--primary" onClick={() => void captureFromCamera()} type="button">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => void captureFromCamera()}
+                  >
                     {t('qrCapture')}
-                  </button>
+                  </Button>
                 </div>
               ) : null}
 
-              {cameraError ? <p className="status-copy status-copy--error">{cameraError}</p> : null}
+              {cameraError ? (
+                <Banner tone="warning" title={t('qrUnsupported')}>
+                  {cameraError}
+                </Banner>
+              ) : null}
             </div>
           )}
 
           <div className="actions">
-            <button
-              className="button button--primary"
+            <Button
+              variant="primary"
+              size="md"
               data-testid="resolve-community"
-              disabled={!session?.access_token || resolveMutation.isPending || (mode === 'invite' ? !inviteCode.trim() : !qrToken.trim())}
+              disabled={
+                !session?.access_token ||
+                resolveMutation.isPending ||
+                (mode === 'invite' ? !inviteCode.trim() : !qrToken.trim())
+              }
+              loading={resolveMutation.isPending}
               onClick={() => void handleResolve()}
-              type="button"
             >
               {t('resolveCommunityAction')}
-            </button>
+            </Button>
             {joinPreview ? (
-              <button className="button button--secondary" onClick={() => dispatch(clearJoinPreview())} type="button">
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={() => dispatch(clearJoinPreview())}
+              >
                 {t('clearJoinPreview')}
-              </button>
+              </Button>
             ) : null}
           </div>
 
           {resolveMutation.error ? (
-            <p className="status-copy status-copy--error">
-              {resolveMutation.error instanceof Error ? resolveMutation.error.message : t('resourceLoadError')}
-            </p>
+            <Banner tone="danger" title={t('resourceLoadError')}>
+              {resolveMutation.error instanceof Error ? resolveMutation.error.message : null}
+            </Banner>
           ) : null}
 
           {joinPreview ? (
@@ -285,19 +314,20 @@ export function CommunityJoinScreen() {
                 {t('zipChip', { zip: joinPreview.community.center_zip })} · {joinPreview.entry}
               </p>
               <div className="actions">
-                <button
-                  className="button button--primary"
+                <Button
+                  variant="primary"
+                  size="md"
                   data-testid="confirm-join"
                   disabled={joinMutation.isPending}
+                  loading={joinMutation.isPending}
                   onClick={() => void handleJoin()}
-                  type="button"
                 >
                   {t('confirmJoinAction')}
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

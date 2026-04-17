@@ -1,6 +1,11 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import type { PreferencesState, SupportedLanguage } from '@/lib/types';
+import type {
+  DefaultPostVisibility,
+  LocationPrecision,
+  PreferencesState,
+  SupportedLanguage,
+} from '@/lib/types';
 
 export const initialPreferencesState: PreferencesState = {
   language: 'en',
@@ -8,6 +13,8 @@ export const initialPreferencesState: PreferencesState = {
   onboardingComplete: false,
   lowBandwidth: false,
   bookmarks: [],
+  defaultPostVisibility: 'community_only',
+  locationPrecision: 'zip_only',
 };
 
 function uniqueBookmarks(bookmarks: string[]) {
@@ -37,6 +44,12 @@ const preferencesSlice = createSlice({
     toggleLowBandwidth(state) {
       state.lowBandwidth = !state.lowBandwidth;
     },
+    setDefaultPostVisibility(state, action: PayloadAction<DefaultPostVisibility>) {
+      state.defaultPostVisibility = action.payload;
+    },
+    setLocationPrecision(state, action: PayloadAction<LocationPrecision>) {
+      state.locationPrecision = action.payload;
+    },
     toggleBookmark(state, action: PayloadAction<string>) {
       if (state.bookmarks.includes(action.payload)) {
         state.bookmarks = state.bookmarks.filter((bookmark) => bookmark !== action.payload);
@@ -51,7 +64,9 @@ const preferencesSlice = createSlice({
 export const {
   completeOnboarding,
   hydratePreferences,
+  setDefaultPostVisibility,
   setLanguage,
+  setLocationPrecision,
   setZipCode,
   toggleBookmark,
   toggleLowBandwidth,

@@ -1,10 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
+import Link from 'next/link';
+
+import { Banner, Button, Card, Field, Pill } from '@/components/ui';
 import {
   useAppDispatch,
   useAppSelector,
@@ -95,76 +97,86 @@ export function VerifyScreen() {
     router.replace(target);
   }, [alreadyVerified, redirectedAfterVerify, returnTo, router]);
 
+  const errors = [otpStart.error, otpVerify.error, magicLinkStart.error, magicLinkVerify.error].filter(
+    (err): err is Error => err instanceof Error,
+  );
+
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
+        {/* Hero rendered inline (not via PageHeader) so the h1 can keep its
+            verify-title data-testid exactly where the smoke spec expects it. */}
+        <section className="hero">
           <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('verifyTitle')}</span>
-            <Link className="hero__link" href="/">
+            <Link href="/" className="hero__link">
               {t('backHome')}
             </Link>
+            <span className="hero__eyebrow">{t('verifyTitle')}</span>
           </div>
           <h1 data-testid="verify-title">{t('verifyTitle')}</h1>
           <p>{t('verifyCopy')}</p>
         </section>
 
-        <section className="card card--verify">
-          {!session && !hasMagicLinkQuery ? <div className="result-empty">{t('verifyNeedsSession')}</div> : null}
+        <Card as="section" className="card--verify">
+          {!session && !hasMagicLinkQuery ? (
+            <Banner tone="warning" title={t('verifyNeedsSession')} />
+          ) : null}
 
           {alreadyVerified ? (
-            <div className="result-empty">
-              <p className="status-copy">{t('verificationDone')}</p>
-            </div>
+            <Banner tone="success" title={t('verificationDone')} />
           ) : (
             <>
               <div className="tab-row">
-                <button
-                  className={`pill ${mode === 'otp' ? 'pill--active' : ''}`}
-                  onClick={() => setMode('otp')}
-                  type="button"
-                >
+                <Pill active={mode === 'otp'} onClick={() => setMode('otp')}>
                   {t('otpTab')}
-                </button>
-                <button
-                  className={`pill ${mode === 'magic' ? 'pill--active' : ''}`}
-                  onClick={() => setMode('magic')}
-                  type="button"
-                >
+                </Pill>
+                <Pill active={mode === 'magic'} onClick={() => setMode('magic')}>
                   {t('magicLinkTab')}
-                </button>
+                </Pill>
               </div>
 
               {mode === 'otp' ? (
                 <div className="verify-grid">
-                  <label className="field">
-                    <span>{t('phoneLabel')}</span>
-                    <input onChange={(event) => setPhone(event.target.value)} placeholder="+15165550101" value={phone} />
-                  </label>
+                  <Field label={t('phoneLabel')}>
+                    <input
+                      inputMode="tel"
+                      autoComplete="tel"
+                      onChange={(event) => setPhone(event.target.value)}
+                      placeholder="+15165550101"
+                      value={phone}
+                    />
+                  </Field>
                   <div className="actions">
-                    <button
-                      className="button button--primary"
+                    <Button
+                      variant="primary"
+                      size="md"
                       data-testid="send-code"
                       disabled={!session || otpStart.isPending}
+                      loading={otpStart.isPending}
                       onClick={() => otpStart.mutate({ phone })}
-                      type="button"
                     >
                       {t('sendCode')}
-                    </button>
+                    </Button>
                   </div>
                   {otpStart.data?.demo_code ? (
                     <p className="status-copy">
                       {t('demoCodeLabel')}: <strong>{otpStart.data.demo_code}</strong>
                     </p>
                   ) : null}
-                  <label className="field">
-                    <span>{t('codeLabel')}</span>
-                    <input onChange={(event) => setOtpCode(event.target.value)} value={otpCode} />
-                  </label>
-                  <button
-                    className="button button--primary"
+                  <Field label={t('codeLabel')}>
+                    <input
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      onChange={(event) => setOtpCode(event.target.value)}
+                      value={otpCode}
+                    />
+                  </Field>
+                  <Button
+                    variant="primary"
+                    size="md"
                     data-testid="verify-code"
                     disabled={!session || otpVerify.isPending || !otpStart.data}
+                    loading={otpVerify.isPending}
                     onClick={() =>
                       otpVerify.mutate(
                         {
@@ -176,30 +188,31 @@ export function VerifyScreen() {
                         },
                       )
                     }
-                    type="button"
                   >
                     {t('verifyCode')}
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="verify-grid">
-                  <label className="field">
-                    <span>{t('emailLabel')}</span>
+                  <Field label={t('emailLabel')}>
                     <input
+                      inputMode="email"
+                      autoComplete="email"
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="neighbor@example.com"
                       value={email}
                     />
-                  </label>
+                  </Field>
                   <div className="actions">
-                  <button
-                    className="button button--primary"
-                    disabled={!session || magicLinkStart.isPending}
-                    onClick={() => magicLinkStart.mutate({ email })}
-                    type="button"
-                  >
+                    <Button
+                      variant="primary"
+                      size="md"
+                      disabled={!session || magicLinkStart.isPending}
+                      loading={magicLinkStart.isPending}
+                      onClick={() => magicLinkStart.mutate({ email })}
+                    >
                       {t('sendLink')}
-                    </button>
+                    </Button>
                   </div>
                   {magicLinkStart.data?.demo_token ? (
                     <p className="status-copy">
@@ -211,13 +224,14 @@ export function VerifyScreen() {
                       <a href={magicLinkStart.data.demo_url}>{magicLinkStart.data.demo_url}</a>
                     </p>
                   ) : null}
-                  <label className="field">
-                    <span>{t('tokenLabel')}</span>
+                  <Field label={t('tokenLabel')}>
                     <input onChange={(event) => setMagicToken(event.target.value)} value={magicToken} />
-                  </label>
-                  <button
-                    className="button button--primary"
+                  </Field>
+                  <Button
+                    variant="primary"
+                    size="md"
                     disabled={magicLinkVerify.isPending || (!magicLinkStart.data && !hasMagicLinkQuery)}
+                    loading={magicLinkVerify.isPending}
                     onClick={() =>
                       magicLinkVerify.mutate(
                         {
@@ -229,23 +243,24 @@ export function VerifyScreen() {
                         },
                       )
                     }
-                    type="button"
                   >
                     {t('useDemoLink')}
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
           )}
 
-          {[otpStart.error, otpVerify.error, magicLinkStart.error, magicLinkVerify.error].map((error, index) =>
-            error ? (
-              <p className="status-copy status-copy--error" key={index}>
-                {error instanceof Error ? error.message : t('verifyError')}
-              </p>
-            ) : null,
-          )}
-        </section>
+          {errors.map((error, index) => (
+            <Banner
+              key={index}
+              tone="danger"
+              title={t('verifyError')}
+            >
+              {error.message}
+            </Banner>
+          ))}
+        </Card>
       </div>
     </main>
   );

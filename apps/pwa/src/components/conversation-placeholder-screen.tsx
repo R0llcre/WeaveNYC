@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { Card, PageHeader } from '@/components/ui';
 import { useAppSelector, useConversationPlaceholder } from '@/lib/hooks';
 
 type ConversationPlaceholderScreenProps = {
@@ -21,23 +22,23 @@ export function ConversationPlaceholderScreen({ conversationId }: ConversationPl
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('conversationPlaceholderTitle')}</span>
+        <PageHeader
+          eyebrow={t('conversationPlaceholderTitle')}
+          title={t('conversationPlaceholderTitle')}
+          subtitle={t('conversationPlaceholderCopy')}
+          actions={
             <Link className="hero__link" href="/inbox">
               {t('inboxTitle')}
             </Link>
-          </div>
-          <h1>{t('conversationPlaceholderTitle')}</h1>
-          <p>{t('conversationPlaceholderCopy')}</p>
-          <div className="hero__meta">
-            <span className="meta-chip">conversation_id: {conversationId}</span>
-            {contactRequestId ? <span className="meta-chip">contact_request_id: {contactRequestId}</span> : null}
-            <span className="meta-chip meta-chip--accent">{t('conversationPlaceholderStatus')}</span>
-          </div>
-        </section>
+          }
+        />
+        <div className="hero__meta">
+          <span className="meta-chip">conversation_id: {conversationId}</span>
+          {contactRequestId ? <span className="meta-chip">contact_request_id: {contactRequestId}</span> : null}
+          <span className="meta-chip meta-chip--accent">{t('conversationPlaceholderStatus')}</span>
+        </div>
 
-        <section className="card card--verify">
+        <Card variant="raised">
           {placeholderQuery.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
           {placeholderQuery.isError ? (
             <p className="status-copy status-copy--error">
@@ -69,7 +70,7 @@ export function ConversationPlaceholderScreen({ conversationId }: ConversationPl
               </div>
             </div>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

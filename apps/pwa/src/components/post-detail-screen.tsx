@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { Button, Card, Field, PageHeader } from '@/components/ui';
 import { useAppSelector, useClosePost, useDeletePost, usePost, useUpdatePost } from '@/lib/hooks';
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/datetime';
 import { getCategoryLabel, getPostPrivacyLabel, getPostStatusLabel, getPostTypeLabel } from '@/lib/i18n';
@@ -47,14 +48,14 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
     return (
       <main className="shell">
         <div className="shell__inner">
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
               <Link className="button button--primary" href="/">
                 {t('backHome')}
               </Link>
             </div>
-          </section>
+          </Card>
         </div>
       </main>
     );
@@ -63,28 +64,28 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('postDetailTitle')}</span>
-            <div className="actions actions--tight">
+        <PageHeader
+          eyebrow={t('postDetailTitle')}
+          title={post?.title ?? t('resourceLoading')}
+          actions={
+            <>
               <ContactInboxLink />
               <Link className="hero__link" href="/community">
                 {t('backHome')}
               </Link>
-            </div>
+            </>
+          }
+        />
+        {post ? (
+          <div className="hero__meta">
+            <span className="meta-chip">{getPostTypeLabel(preferences.language, post.post_type)}</span>
+            <span className="meta-chip">{getCategoryLabel(preferences.language, post.category)}</span>
+            <span className="meta-chip">{getPostPrivacyLabel(preferences.language, post.privacy)}</span>
+            <span className="meta-chip">{getPostStatusLabel(preferences.language, post.status)}</span>
           </div>
-          <h1>{post?.title ?? t('resourceLoading')}</h1>
-          {post ? (
-            <div className="hero__meta">
-              <span className="meta-chip">{getPostTypeLabel(preferences.language, post.post_type)}</span>
-              <span className="meta-chip">{getCategoryLabel(preferences.language, post.category)}</span>
-              <span className="meta-chip">{getPostPrivacyLabel(preferences.language, post.privacy)}</span>
-              <span className="meta-chip">{getPostStatusLabel(preferences.language, post.status)}</span>
-            </div>
-          ) : null}
-        </section>
+        ) : null}
 
-        <section className="card detail-card">
+        <Card className="detail-card">
           {postQuery.isLoading ? <p className="status-copy">{t('resourceLoading')}</p> : null}
           {postQuery.isError ? (
             <p className="status-copy status-copy--error">
@@ -96,16 +97,20 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
             <div className="verify-grid">
               {editing && formState ? (
                 <>
-                  <label className="field">
-                    <span>{t('composeTitleLabel')}</span>
-                    <input onChange={(event) => setFormState({ ...formState, title: event.target.value })} value={formState.title} />
-                  </label>
-                  <label className="field">
-                    <span>{t('composeBodyLabel')}</span>
-                    <textarea onChange={(event) => setFormState({ ...formState, body: event.target.value })} rows={6} value={formState.body} />
-                  </label>
-                  <label className="field">
-                    <span>{t('composeExpiresLabel')}</span>
+                  <Field label={t('composeTitleLabel')}>
+                    <input
+                      onChange={(event) => setFormState({ ...formState, title: event.target.value })}
+                      value={formState.title}
+                    />
+                  </Field>
+                  <Field label={t('composeBodyLabel')}>
+                    <textarea
+                      onChange={(event) => setFormState({ ...formState, body: event.target.value })}
+                      rows={6}
+                      value={formState.body}
+                    />
+                  </Field>
+                  <Field label={t('composeExpiresLabel')}>
                     <input
                       onChange={(event) =>
                         setFormState({
@@ -116,29 +121,30 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
                       type="datetime-local"
                       value={toDateTimeLocalValue(formState.expiresAt)}
                     />
-                  </label>
+                  </Field>
                   <div className="actions">
-                    <button
-                      className="button button--primary"
+                    <Button
                       onClick={() =>
-                        void updateMutation.mutateAsync({
-                          postId,
-                          patch: {
-                            title: formState.title,
-                            body: formState.body,
-                            category: formState.category,
-                            privacy: formState.privacy,
-                            expiresAt: formState.expiresAt,
-                          },
-                        }).then(() => setEditing(false))
+                        void updateMutation
+                          .mutateAsync({
+                            postId,
+                            patch: {
+                              title: formState.title,
+                              body: formState.body,
+                              category: formState.category,
+                              privacy: formState.privacy,
+                              expiresAt: formState.expiresAt,
+                            },
+                          })
+                          .then(() => setEditing(false))
                       }
-                      type="button"
+                      variant="primary"
                     >
                       {t('save')}
-                    </button>
-                    <button className="button button--secondary" onClick={() => setEditing(false)} type="button">
+                    </Button>
+                    <Button onClick={() => setEditing(false)} variant="secondary">
                       {t('clearJoinPreview')}
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : (
@@ -154,26 +160,37 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
                       </Link>
                     ) : null}
                     {post.actions.can_edit ? (
-                      <button className="button button--secondary" onClick={() => setEditing(true)} type="button">
+                      <Button onClick={() => setEditing(true)} variant="secondary">
                         {t('postEditAction')}
-                      </button>
+                      </Button>
                     ) : null}
                     {post.actions.can_close ? (
-                      <button className="button button--secondary" onClick={() => void closeMutation.mutateAsync(postId)} type="button">
+                      <Button
+                        onClick={() => void closeMutation.mutateAsync(postId)}
+                        variant="secondary"
+                      >
                         {t('postCloseAction')}
-                      </button>
+                      </Button>
                     ) : null}
                     {post.actions.can_delete ? (
-                      <button className="button button--secondary" onClick={() => void deleteMutation.mutateAsync(postId)} type="button">
-                        {t('postDeleteAction')}
-                      </button>
+                      <details className="danger-zone">
+                        <summary>{t('postDeleteAction')}</summary>
+                        <div className="actions">
+                          <Button
+                            onClick={() => void deleteMutation.mutateAsync(postId)}
+                            variant="danger"
+                          >
+                            {t('postDeleteAction')}
+                          </Button>
+                        </div>
+                      </details>
                     ) : null}
                   </div>
                 </>
               )}
             </div>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

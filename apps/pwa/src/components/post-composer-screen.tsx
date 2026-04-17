@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { Banner, Button, Card, Checkbox, Field, PageHeader, Pill } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/datetime';
 import {
@@ -134,132 +135,152 @@ export function PostComposerScreen() {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('composeTitle')}</span>
+        <PageHeader
+          eyebrow={t('composeTitle')}
+          title={t('composeTitle')}
+          subtitle={t('composeCopy')}
+          actions={
             <Link className="hero__link" href="/community">
               {t('backHome')}
             </Link>
-          </div>
-          <h1>{t('composeTitle')}</h1>
-          <p>{t('composeCopy')}</p>
-        </section>
+          }
+        />
 
         {!session ? (
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <button
-                className="button button--primary"
+              <Button
                 data-testid="create-session"
                 disabled={creatingSession}
                 onClick={() => void handleCreateSession()}
-                type="button"
+                variant="primary"
               >
                 {creatingSession ? t('creatingSession') : t('createSession')}
-              </button>
+              </Button>
             </div>
-          </section>
+          </Card>
         ) : null}
 
         {!currentCommunity ? (
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('composeNeedsCommunity')}</p>
               <Link className="button button--primary" data-testid="join-community" href="/community/join">
                 {t('joinCommunityCta')}
               </Link>
             </div>
-          </section>
+          </Card>
         ) : null}
 
         {requiresVerified && session?.user.level === 'anonymous' ? (
-          <section className="card card--verify">
-            <div className="result-empty">
-              <p>{t('composeNeedsVerified')}</p>
+          <Banner tone="warning" title={t('composeNeedsVerified')}>
+            <div className="actions">
               <Link className="button button--primary" href="/verify">
                 {t('goVerify')}
               </Link>
             </div>
-          </section>
+          </Banner>
         ) : null}
 
-        <section className="card card--verify">
-          <div className="tab-row">
-            <button className={`pill ${draft.step === 'type' ? 'pill--active' : ''}`} onClick={() => dispatch(setDraftStep('type'))} type="button">
+        <Card variant="raised">
+          <nav aria-label={t('composeTitle')} className="tab-row">
+            <Pill
+              active={draft.step === 'type'}
+              onClick={() => dispatch(setDraftStep('type'))}
+            >
               {t('composeStepType')}
-            </button>
-            <button className={`pill ${draft.step === 'compose' ? 'pill--active' : ''}`} onClick={() => dispatch(setDraftStep('compose'))} type="button">
+            </Pill>
+            <Pill
+              active={draft.step === 'compose'}
+              onClick={() => dispatch(setDraftStep('compose'))}
+            >
               {t('composeStepCompose')}
-            </button>
-            <button className={`pill ${draft.step === 'preview' ? 'pill--active' : ''}`} onClick={() => dispatch(setDraftStep('preview'))} type="button">
+            </Pill>
+            <Pill
+              active={draft.step === 'preview'}
+              onClick={() => dispatch(setDraftStep('preview'))}
+            >
               {t('composeStepPreview')}
-            </button>
-          </div>
+            </Pill>
+          </nav>
 
           {draft.step === 'type' ? (
             <div className="actions">
-              <button
-                className={`button ${draft.postType === 'request' ? 'button--primary' : 'button--secondary'}`}
+              <Button
                 data-testid="select-request"
                 onClick={() => dispatch(mergePostDraft({ postType: 'request', step: 'compose' }))}
-                type="button"
+                variant={draft.postType === 'request' ? 'primary' : 'secondary'}
               >
                 {t('requestHelpCta')}
-              </button>
-              <button
-                className={`button ${draft.postType === 'offer' ? 'button--primary' : 'button--secondary'}`}
+              </Button>
+              <Button
                 data-testid="select-offer"
                 onClick={() => dispatch(mergePostDraft({ postType: 'offer', step: 'compose' }))}
-                type="button"
+                variant={draft.postType === 'offer' ? 'primary' : 'secondary'}
               >
                 {t('offerHelpCta')}
-              </button>
+              </Button>
             </div>
           ) : null}
 
           {draft.step !== 'type' ? (
             <div className="verify-grid">
-              <label className="field">
-                <span>{t('composeCurrentCommunity')}</span>
+              <Field label={t('composeCurrentCommunity')}>
                 <input disabled value={currentCommunity?.name ?? ''} />
-              </label>
+              </Field>
 
-              <label className="field field--select">
-                <span>{t('filtersType')}</span>
-                <select onChange={(event) => dispatch(mergePostDraft({ category: event.target.value as typeof draft.category }))} value={draft.category}>
+              <Field label={t('filtersType')} className="field--select">
+                <select
+                  onChange={(event) => dispatch(mergePostDraft({ category: event.target.value as typeof draft.category }))}
+                  value={draft.category}
+                >
                   {categories.map((category) => (
                     <option key={category} value={category}>
                       {getCategoryLabel(preferences.language, category)}
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
 
-              <label className="field">
-                <span>{t('composeTitleLabel')}</span>
-                <input onChange={(event) => dispatch(mergePostDraft({ title: event.target.value }))} value={draft.title} />
-              </label>
+              <Field label={t('composeTitleLabel')}>
+                <input
+                  maxLength={140}
+                  onChange={(event) => dispatch(mergePostDraft({ title: event.target.value }))}
+                  value={draft.title}
+                />
+              </Field>
 
-              <label className="field">
-                <span>{t('composeBodyLabel')}</span>
-                <textarea onChange={(event) => dispatch(mergePostDraft({ body: event.target.value }))} rows={6} value={draft.body} />
-              </label>
+              <Field label={t('composeBodyLabel')}>
+                <textarea
+                  onChange={(event) => dispatch(mergePostDraft({ body: event.target.value }))}
+                  rows={6}
+                  value={draft.body}
+                />
+              </Field>
 
               <div className="actions">
-                <button
-                  className="button button--secondary"
+                <Button
                   data-testid="browser-speech"
                   disabled={!supportsBrowserSpeechRecognition()}
                   onClick={() => void handleBrowserSpeech()}
-                  type="button"
+                  variant="secondary"
                 >
                   {t('speechBrowserAction')}
-                </button>
-                <button className="button button--secondary" onClick={() => audioInputRef.current?.click()} type="button">
+                </Button>
+                <Button
+                  onClick={() => audioInputRef.current?.click()}
+                  variant="secondary"
+                >
                   {t('speechFallbackAction')}
-                </button>
-                <input ref={audioInputRef} accept="audio/*" hidden onChange={(event) => void handleFallbackAudio(event.target.files?.[0])} type="file" />
+                </Button>
+                <input
+                  ref={audioInputRef}
+                  accept="audio/*"
+                  hidden
+                  onChange={(event) => void handleFallbackAudio(event.target.files?.[0])}
+                  type="file"
+                />
               </div>
               {browserSpeechError ? <p className="status-copy status-copy--error">{browserSpeechError}</p> : null}
               {speechMutation.error ? (
@@ -269,12 +290,15 @@ export function PostComposerScreen() {
               ) : null}
 
               <div className="grid grid--two">
-                <label className="field">
-                  <span>{t('zipLabel')}</span>
-                  <input onChange={(event) => dispatch(mergePostDraft({ locationZip: event.target.value.replace(/\D/g, '').slice(0, 5) }))} value={draft.locationZip} />
-                </label>
-                <label className="field">
-                  <span>{t('composeExpiresLabel')}</span>
+                <Field label={t('zipLabel')}>
+                  <input
+                    onChange={(event) =>
+                      dispatch(mergePostDraft({ locationZip: event.target.value.replace(/\D/g, '').slice(0, 5) }))
+                    }
+                    value={draft.locationZip}
+                  />
+                </Field>
+                <Field label={t('composeExpiresLabel')}>
                   <input
                     onChange={(event) =>
                       dispatch(mergePostDraft({ expiresAt: fromDateTimeLocalValue(event.target.value) }))
@@ -282,56 +306,89 @@ export function PostComposerScreen() {
                     type="datetime-local"
                     value={toDateTimeLocalValue(draft.expiresAt)}
                   />
-                </label>
+                </Field>
               </div>
 
-              <label className="field field--select">
-                <span>{t('composePrivacyLabel')}</span>
-                <select onChange={(event) => dispatch(mergePostDraft({ privacy: event.target.value as typeof draft.privacy }))} value={draft.privacy}>
+              <Field label={t('composePrivacyLabel')} className="field--select">
+                <select
+                  onChange={(event) => dispatch(mergePostDraft({ privacy: event.target.value as typeof draft.privacy }))}
+                  value={draft.privacy}
+                >
                   {privacyOptions.map((privacy) => (
                     <option key={privacy} value={privacy}>
                       {getPostPrivacyLabel(preferences.language, privacy)}
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
 
               <div className="toggle-row">
-                <label className="checkbox">
-                  <input checked={draft.contactPref.inAppChat} onChange={() => dispatch(mergePostDraft({ contactPref: { ...draft.contactPref, inAppChat: !draft.contactPref.inAppChat } }))} type="checkbox" />
-                  <span>{t('composeContactChat')}</span>
-                </label>
-                <label className="checkbox">
-                  <input checked={draft.contactPref.call} onChange={() => dispatch(mergePostDraft({ contactPref: { ...draft.contactPref, call: !draft.contactPref.call } }))} type="checkbox" />
-                  <span>{t('call')}</span>
-                </label>
-                <label className="checkbox">
-                  <input checked={draft.contactPref.text} onChange={() => dispatch(mergePostDraft({ contactPref: { ...draft.contactPref, text: !draft.contactPref.text } }))} type="checkbox" />
-                  <span>{t('composeContactText')}</span>
-                </label>
+                <Checkbox
+                  checked={draft.contactPref.inAppChat}
+                  label={t('composeContactChat')}
+                  onChange={() =>
+                    dispatch(
+                      mergePostDraft({
+                        contactPref: { ...draft.contactPref, inAppChat: !draft.contactPref.inAppChat },
+                      }),
+                    )
+                  }
+                />
+                <Checkbox
+                  checked={draft.contactPref.call}
+                  label={t('call')}
+                  onChange={() =>
+                    dispatch(
+                      mergePostDraft({
+                        contactPref: { ...draft.contactPref, call: !draft.contactPref.call },
+                      }),
+                    )
+                  }
+                />
+                <Checkbox
+                  checked={draft.contactPref.text}
+                  label={t('composeContactText')}
+                  onChange={() =>
+                    dispatch(
+                      mergePostDraft({
+                        contactPref: { ...draft.contactPref, text: !draft.contactPref.text },
+                      }),
+                    )
+                  }
+                />
               </div>
 
-              <label className="field">
-                <span>{t('notesTitle')}</span>
-                <textarea onChange={(event) => dispatch(mergePostDraft({ contactPref: { ...draft.contactPref, notes: event.target.value } }))} rows={3} value={draft.contactPref.notes} />
-              </label>
+              <Field label={t('notesTitle')}>
+                <textarea
+                  onChange={(event) =>
+                    dispatch(
+                      mergePostDraft({ contactPref: { ...draft.contactPref, notes: event.target.value } }),
+                    )
+                  }
+                  rows={3}
+                  value={draft.contactPref.notes}
+                />
+              </Field>
 
               <div className="actions">
                 {draft.step === 'compose' ? (
-                  <button className="button button--primary" data-testid="preview-post" onClick={() => dispatch(setDraftStep('preview'))} type="button">
+                  <Button
+                    data-testid="preview-post"
+                    onClick={() => dispatch(setDraftStep('preview'))}
+                    variant="primary"
+                  >
                     {t('composeStepPreview')}
-                  </button>
+                  </Button>
                 ) : null}
                 {draft.step === 'preview' ? (
-                  <button
-                    className="button button--primary"
+                  <Button
                     data-testid="publish-post"
                     disabled={createPostMutation.isPending || !draft.postType || !currentCommunity}
                     onClick={() => void handlePublish()}
-                    type="button"
+                    variant="primary"
                   >
                     {createPostMutation.isPending ? t('creatingSession') : t('composePublishAction')}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
 
@@ -342,7 +399,7 @@ export function PostComposerScreen() {
               ) : null}
             </div>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { Banner, Button, Card, PageHeader } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { clearMatchContactIntent, loadMatchContactIntent, saveMatchContactIntent } from '@/lib/match-intent';
 import {
@@ -175,111 +176,102 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('matchTitle')}</span>
-            <div className="actions actions--tight">
+        <PageHeader
+          eyebrow={t('matchTitle')}
+          title={t('matchTitle')}
+          subtitle={t('matchCopy')}
+          actions={
+            <>
               <ContactInboxLink />
               <Link className="hero__link" href={`/posts/${postId}`}>
                 {t('backHome')}
               </Link>
-            </div>
-          </div>
-          <h1>{t('matchTitle')}</h1>
-          <p>{t('matchCopy')}</p>
-          <div className="hero__meta">
-            <span className="meta-chip">{headerSubtitle}</span>
-            {post ? <span className="meta-chip">{post.title}</span> : null}
-          </div>
-        </section>
+            </>
+          }
+        />
+        <div className="hero__meta">
+          <span className="meta-chip">{headerSubtitle}</span>
+          {post ? <span className="meta-chip">{post.title}</span> : null}
+        </div>
 
         {!session ? (
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <button
-                className="button button--primary"
+              <Button
                 disabled={creatingSession}
                 onClick={() => void handleCreateSession()}
-                type="button"
+                variant="primary"
               >
                 {creatingSession ? t('creatingSession') : t('createSession')}
-              </button>
+              </Button>
             </div>
-          </section>
+          </Card>
         ) : null}
 
         {actionableIntent && isVerified ? (
-          <section className="card card--verify">
-            <div className="callout">
-              <p>{t('matchContactReady', { title: actionableIntent.targetTitle })}</p>
-              <div className="actions">
-                <button
-                  className="button button--primary"
-                  disabled={contactMutation.isPending}
-                  onClick={() =>
-                    void handleContact({
-                      suggestion_id: actionableIntent.toPostId,
-                      batch_number: 1,
-                      position: 1,
-                      candidate_type: 'neighbor_post',
-                      candidate_id: actionableIntent.toPostId,
-                      score: 0,
-                      reasons: [],
-                      distance_miles: null,
-                      neighbor_post: {
-                        post_id: actionableIntent.toPostId,
-                        community_id: '',
-                        post_type: 'offer',
-                        category: 'other',
-                        title: actionableIntent.targetTitle,
-                        body: '',
-                        language: activeLanguage,
-                        location_zip: '',
-                        privacy: 'community_only',
-                        status: 'active',
-                        risk_level: 'low',
-                        created_at: actionableIntent.createdAt,
-                        updated_at: actionableIntent.createdAt,
-                        expires_at: actionableIntent.createdAt,
-                        is_owner: false,
-                      },
-                      official_resource: null,
-                    })
-                  }
-                  type="button"
-                >
-                  {t('matchContinueIntent')}
-                </button>
-                <button
-                  className="button button--secondary"
-                  onClick={() => {
-                    clearMatchContactIntent();
-                    setIntent(null);
-                  }}
-                  type="button"
-                >
-                  {t('matchClearIntent')}
-                </button>
-              </div>
+          <Banner tone="info" title={t('matchContactReady', { title: actionableIntent.targetTitle })}>
+            <div className="actions">
+              <Button
+                disabled={contactMutation.isPending}
+                onClick={() =>
+                  void handleContact({
+                    suggestion_id: actionableIntent.toPostId,
+                    batch_number: 1,
+                    position: 1,
+                    candidate_type: 'neighbor_post',
+                    candidate_id: actionableIntent.toPostId,
+                    score: 0,
+                    reasons: [],
+                    distance_miles: null,
+                    neighbor_post: {
+                      post_id: actionableIntent.toPostId,
+                      community_id: '',
+                      post_type: 'offer',
+                      category: 'other',
+                      title: actionableIntent.targetTitle,
+                      body: '',
+                      language: activeLanguage,
+                      location_zip: '',
+                      privacy: 'community_only',
+                      status: 'active',
+                      risk_level: 'low',
+                      created_at: actionableIntent.createdAt,
+                      updated_at: actionableIntent.createdAt,
+                      expires_at: actionableIntent.createdAt,
+                      is_owner: false,
+                    },
+                    official_resource: null,
+                  })
+                }
+                variant="primary"
+              >
+                {t('matchContinueIntent')}
+              </Button>
+              <Button
+                onClick={() => {
+                  clearMatchContactIntent();
+                  setIntent(null);
+                }}
+                variant="secondary"
+              >
+                {t('matchClearIntent')}
+              </Button>
             </div>
-          </section>
+          </Banner>
         ) : null}
 
         {contactResult?.status === 'pending' ? (
-          <section className="card card--verify">
-            <div className="callout">
-              <p>{t('matchContactPending')}</p>
-              <div className="actions">
-                <Link className="button button--primary" href="/inbox">
-                  {t('matchGoInbox')}
-                </Link>
-              </div>
+          <Banner tone="success" title={t('matchContactPending')}>
+            <div className="actions">
+              <Link className="button button--primary" href="/inbox">
+                {t('matchGoInbox')}
+              </Link>
             </div>
-          </section>
+          </Banner>
         ) : null}
 
-        <section className="card card--results">
+        <Card className="card--results">
           {!canShowMatches && post ? (
             <div className="result-empty">
               <p>{post.is_owner ? t('matchNeedsActiveRequest') : t('matchOwnerOnly')}</p>
@@ -311,18 +303,17 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
                   <p className="card__subtitle">{headerSubtitle}</p>
                 </div>
                 <div className="actions actions--tight">
-                  <button
-                    className="button button--secondary"
+                  <Button
                     disabled={!canRefresh}
                     onClick={() =>
                       void refreshMutation.mutateAsync().then((results) => {
                         setResultOverride(results);
                       })
                     }
-                    type="button"
+                    variant="secondary"
                   >
                     {t('matchRefreshAction')}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -352,13 +343,12 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
                           ))}
                         </div>
                         <div className="actions">
-                          <button
-                            className="button button--primary"
+                          <Button
                             onClick={() => void handleContact(item)}
-                            type="button"
+                            variant="primary"
                           >
                             {t('matchContactAction')}
-                          </button>
+                          </Button>
                           <Link className="button button--secondary" href={`/posts/${item.neighbor_post.post_id}`}>
                             {t('matchOpenPost')}
                           </Link>
@@ -411,7 +401,7 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
               )}
             </>
           ) : null}
-        </section>
+        </Card>
       </div>
     </main>
   );

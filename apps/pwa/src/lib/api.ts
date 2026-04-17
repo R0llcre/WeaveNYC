@@ -1,4 +1,10 @@
 import {
+  accountDeleteConfirmRequestSchema,
+  accountDeleteConfirmResponseSchema,
+  accountDeleteRequestRequestSchema,
+  accountDeleteRequestResponseSchema,
+  accountDeleteResponseSchema,
+  accountUndeleteConfirmResponseSchema,
   anonymousAuthResponseSchema,
   blockUserResponseSchema,
   closeConversationResponseSchema,
@@ -30,8 +36,16 @@ import {
   speechTranscribeResponseSchema,
   updatePostRequestSchema,
 } from "@weavenyc/shared";
+import type {
+  AccountDeleteConfirmResponse,
+  AccountDeleteReason,
+  AccountDeleteRequestResponse,
+  AccountUndeleteConfirmResponse,
+} from "@weavenyc/shared";
 
 import type {
+  AccountDeleteInput,
+  AccountDeleteResult,
   AnonymousSessionResponse,
   BlockUserInput,
   BlockUserResult,
@@ -1110,6 +1124,139 @@ export async function transcribeSpeech(
       body: formData,
     },
     speechTranscribeResponseSchema,
+  );
+}
+
+export async function deleteAccount(
+  accessToken: string,
+  input: AccountDeleteInput,
+): Promise<AccountDeleteResult> {
+  return requestJson(
+    '/v1/account/delete',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        confirmation: input.confirmation,
+        ...(input.reason ? { reason: input.reason } : {}),
+      }),
+    },
+    accountDeleteResponseSchema,
+  );
+}
+
+/**
+ * Step 1 of the 3-step account deletion flow introduced in M8 / W2A.
+ * The server issues a single-use OTP / magic-link challenge bound to the
+ * authenticated user; the caller then forwards the code back via
+ * {@link confirmAccountDeletion}.
+ */
+export async function requestAccountDeletion(
+  accessToken: string,
+): Promise<AccountDeleteRequestResponse> {
+  // Exported for API callers that want to parse/validate an empty request body
+  // before issuing it; the actual POST body is always `{}` per the server
+  // contract in `services/api-gateway/src/routes/account.ts`.
+  void accountDeleteRequestRequestSchema;
+  return requestJson(
+    '/v1/account/delete/request',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({}),
+    },
+    accountDeleteRequestResponseSchema,
+  );
+}
+
+export type ConfirmAccountDeletionInput = {
+  challenge_id: string;
+  code: string;
+  reason?: AccountDeleteReason;
+};
+
+export type ConfirmAccountDeletionResult = AccountDeleteConfirmResponse & {
+  undelete_recovery_token?: string;
+};
+
+/**
+ * Step 2 of the deletion flow: verifies the challenge, runs the "last anchor"
+ * safeguard server-side, soft-deletes the account, and returns the one-shot
+ * recovery token the caller needs to keep in memory (not persistence) so the
+ * user can undo within ~10 minutes.
+ */
+export async function confirmAccountDeletion(
+  accessToken: string,
+  input: ConfirmAccountDeletionInput,
+): Promise<ConfirmAccountDeletionResult> {
+  const payload: ConfirmAccountDeletionInput = {
+    challenge_id: input.challenge_id,
+    code: input.code,
+    ...(input.reason ? { reason: input.reason } : {}),
+  };
+  accountDeleteConfirmRequestSchema.parse(payload);
+  return requestJson(
+    '/v1/account/delete/confirm',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+    {
+      parse: (value): ConfirmAccountDeletionResult => {
+        const base = accountDeleteConfirmResponseSchema.parse(value);
+        const recovery =
+          typeof (value as { undelete_recovery_token?: unknown })
+            ?.undelete_recovery_token === 'string'
+            ? (value as { undelete_recovery_token: string })
+                .undelete_recovery_token
+            : undefined;
+        return recovery ? { ...base, undelete_recovery_token: recovery } : base;
+      },
+    },
+  );
+}
+
+export type UndeleteAccountInput = {
+  user_id: string;
+  recovery_token: string;
+};
+
+/**
+ * Step 3 (optional): consumes the single-use recovery token to restore a
+ * soft-deleted account within its 30-day window.
+ *
+ * The server endpoint is intentionally unauthenticated — after `confirmAccountDeletion`
+ * the caller's sessions are revoked, so the undelete flow is gated by
+ * possession of the single-use recovery_token. `accessToken` is accepted to
+ * keep the shape consistent with the rest of the account helpers, and is
+ * forwarded as a Bearer header only when non-empty.
+ */
+export async function undeleteAccount(
+  accessToken: string,
+  input: UndeleteAccountInput,
+): Promise<AccountUndeleteConfirmResponse> {
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return requestJson(
+    '/v1/account/undelete',
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        user_id: input.user_id,
+        recovery_token: input.recovery_token,
+      }),
+    },
+    accountUndeleteConfirmResponseSchema,
   );
 }
 

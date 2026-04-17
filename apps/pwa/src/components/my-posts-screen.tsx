@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { PostCard } from '@/components/post-card';
+import { Card, PageHeader } from '@/components/ui';
 import { useAppSelector, useMyPosts } from '@/lib/hooks';
 
 const statusGroups = ['active', 'pending_review', 'closed', 'removed'] as const;
@@ -21,18 +22,18 @@ export function MyPostsScreen() {
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('myPostsTitle')}</span>
+        <PageHeader
+          eyebrow={t('myPostsTitle')}
+          title={t('myPostsTitle')}
+          subtitle={t('myPostsCopy')}
+          actions={
             <Link className="hero__link" href="/community">
               {t('backHome')}
             </Link>
-          </div>
-          <h1>{t('myPostsTitle')}</h1>
-          <p>{t('myPostsCopy')}</p>
-        </section>
+          }
+        />
 
-        <section className="card card--results">
+        <Card className="card--results">
           {postsQuery.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
           {postsQuery.isError ? (
             <p className="status-copy status-copy--error">
@@ -55,7 +56,7 @@ export function MyPostsScreen() {
               </div>
             </div>
           ))}
-        </section>
+        </Card>
       </div>
     </main>
   );

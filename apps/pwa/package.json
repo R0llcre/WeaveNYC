@@ -9,6 +9,7 @@
     "build": "next build",
     "lint": "eslint src --ext .ts,.tsx",
     "start": "next start --hostname 0.0.0.0 --port 3000",
+    "test": "cd ../.. && vitest run apps/pwa",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,9 +24,12 @@
     "react-redux": "^9.2.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
     "@types/node": "^24.5.2",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.0",
+    "jsdom": "^25.0.1",
     "typescript": "^5.9.3"
   }
 }

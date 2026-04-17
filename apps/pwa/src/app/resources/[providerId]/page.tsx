@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ResourceDetailScreen } from "@/components/resource-detail-screen";
 
 type ResourceDetailPageProps = {
@@ -6,7 +8,27 @@ type ResourceDetailPageProps = {
   }>;
 };
 
+export function generateStaticParams() {
+  return [{ providerId: "placeholder" }];
+}
+
+export const dynamicParams = false;
+
 export default async function ResourceDetailPage({ params }: ResourceDetailPageProps) {
   const resolved = await params;
-  return <ResourceDetailScreen providerId={resolved.providerId} />;
+  return (
+    <Suspense
+      fallback={
+        <main className="shell">
+          <div className="shell__inner">
+            <section className="card">
+              <p>Loading…</p>
+            </section>
+          </div>
+        </main>
+      }
+    >
+      <ResourceDetailScreen providerId={resolved.providerId} />
+    </Suspense>
+  );
 }

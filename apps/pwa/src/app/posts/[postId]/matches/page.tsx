@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { MatchResultsScreen } from '@/components/match-results-screen';
 
 type MatchResultsPageProps = {
@@ -6,7 +8,27 @@ type MatchResultsPageProps = {
   }>;
 };
 
+export function generateStaticParams() {
+  return [{ postId: 'placeholder' }];
+}
+
+export const dynamicParams = false;
+
 export default async function MatchResultsPage({ params }: MatchResultsPageProps) {
   const resolvedParams = await params;
-  return <MatchResultsScreen postId={resolvedParams.postId} />;
+  return (
+    <Suspense
+      fallback={
+        <main className="shell">
+          <div className="shell__inner">
+            <section className="card">
+              <p>Loading…</p>
+            </section>
+          </div>
+        </main>
+      }
+    >
+      <MatchResultsScreen postId={resolvedParams.postId} />
+    </Suspense>
+  );
 }

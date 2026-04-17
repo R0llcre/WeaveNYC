@@ -1,12 +1,15 @@
-import { headers } from 'next/headers';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 import { Providers } from '@/components/providers';
-import { coerceSupportedLanguage } from '@/lib/i18n';
 import { PwaRegistration } from '@/components/pwa-registration';
 
 import './globals.css';
+
+// Static-export compatible: language is negotiated client-side via the
+// preferences slice. Initial shell lang attribute is 'en' for the HTML
+// document, which matches the default UI locale until hydration.
+const INITIAL_LANGUAGE = 'en';
 
 export const metadata: Metadata = {
   title: 'WeaveNYC PWA',
@@ -31,14 +34,11 @@ type RootLayoutProps = {
   children: ReactNode;
 };
 
-export default async function RootLayout({ children }: RootLayoutProps) {
-  const requestHeaders = await headers();
-  const initialLanguage = coerceSupportedLanguage(requestHeaders.get('accept-language'));
-
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang={initialLanguage} suppressHydrationWarning>
+    <html lang={INITIAL_LANGUAGE} suppressHydrationWarning>
       <body>
-        <Providers initialLanguage={initialLanguage}>
+        <Providers initialLanguage={INITIAL_LANGUAGE}>
           <PwaRegistration />
           {children}
         </Providers>

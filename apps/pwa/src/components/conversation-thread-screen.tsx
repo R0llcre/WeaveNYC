@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useEffectEvent, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
+import { Banner, Button, Card, Field, PageHeader, Pill } from '@/components/ui';
 import { getChatWebSocketUrl } from '@/lib/api';
 import {
   useAppSelector,
@@ -133,14 +134,14 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
     return (
       <main className="shell">
         <div className="shell__inner">
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
               <Link className="button button--primary" href="/">
                 {t('backHome')}
               </Link>
             </div>
-          </section>
+          </Card>
         </div>
       </main>
     );
@@ -156,14 +157,14 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
     return (
       <main className="shell">
         <div className="shell__inner">
-          <section className="card card--verify">
+          <Card variant="raised">
             <div className="result-empty">
               <p>{t('composeNeedsVerified')}</p>
               <Link className="button button--primary" href={`/verify?return_to=${returnTo}`}>
                 {t('goVerify')}
               </Link>
             </div>
-          </section>
+          </Card>
         </div>
       </main>
     );
@@ -172,29 +173,33 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
   return (
     <main className="shell">
       <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('chatThreadTitle')}</span>
-            <div className="actions actions--tight">
+        <PageHeader
+          eyebrow={t('chatThreadTitle')}
+          title={otherParticipant?.alias ?? t('chatThreadFallbackAlias')}
+          subtitle={t('chatThreadCopy')}
+          actions={
+            <>
               <ContactInboxLink />
               <Link className="hero__link" href="/inbox">
                 {t('inboxTitle')}
               </Link>
-            </div>
-          </div>
-          <h1>{otherParticipant?.alias ?? t('chatThreadFallbackAlias')}</h1>
-          <p>{t('chatThreadCopy')}</p>
-          <div className="hero__meta">
-            <span className="meta-chip meta-chip--accent">
-              {isBlocked ? t('chatThreadBlockedNotice') : isClosed ? t('postsGroup_closed') : t('chatThreadStatusLive')}
-            </span>
-            <span className="meta-chip">conversation_id: {conversationId}</span>
-            {contactRequestId ? <span className="meta-chip">contact_request_id: {contactRequestId}</span> : null}
-          </div>
-        </section>
+            </>
+          }
+        />
+        <div className="hero__meta">
+          <span className="meta-chip meta-chip--accent">
+            {isBlocked ? t('chatThreadBlockedNotice') : isClosed ? t('postsGroup_closed') : t('chatThreadStatusLive')}
+          </span>
+          <span className="meta-chip">conversation_id: {conversationId}</span>
+          {contactRequestId ? <span className="meta-chip">contact_request_id: {contactRequestId}</span> : null}
+        </div>
+
+        {isBlocked ? (
+          <Banner tone="warning" title={t('chatThreadBlockedNotice')} />
+        ) : null}
 
         <section className="chat-thread">
-          <aside className="card detail-card chat-thread__sidebar">
+          <Card as="article" className="detail-card chat-thread__sidebar">
             <div className="section-stack">
               <div>
                 <h2>{t('chatThreadDetailsTitle')}</h2>
@@ -219,14 +224,9 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
                 <div className="quick-phrases">
                   {[t('chatQuickPhraseHello'), t('chatQuickPhraseTiming'), t('chatQuickPhrasePublicMeet'), t('chatQuickPhraseThanks')].map(
                     (phrase) => (
-                      <button
-                        className="pill"
-                        key={phrase}
-                        onClick={() => setComposer(phrase)}
-                        type="button"
-                      >
+                      <Pill key={phrase} onClick={() => setComposer(phrase)}>
                         {phrase}
-                      </button>
+                      </Pill>
                     ),
                   )}
                 </div>
@@ -235,12 +235,15 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
               <div className="result-block">
                 <strong>{t('chatThreadActionsTitle')}</strong>
                 <div className="actions">
-                  <button className="button button--secondary" onClick={() => void handleReport()} type="button">
+                  <Button onClick={() => void handleReport()} variant="secondary">
                     {t('chatThreadReportAction')}
-                  </button>
-                  <button className="button button--secondary" onClick={() => void handleBlock()} type="button">
-                    {t('chatThreadBlockAction')}
-                  </button>
+                  </Button>
+                  <details className="danger-zone">
+                    <summary>{t('chatThreadBlockAction')}</summary>
+                    <Button onClick={() => void handleBlock()} variant="danger">
+                      {t('chatThreadBlockAction')}
+                    </Button>
+                  </details>
                 </div>
                 {reported ? <p className="status-copy">{t('chatThreadReportedNotice')}</p> : null}
                 {blockUserMutation.isError ? (
@@ -264,9 +267,9 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
                 </div>
               </div>
             </div>
-          </aside>
+          </Card>
 
-          <section className="card detail-card chat-thread__panel">
+          <Card className="detail-card chat-thread__panel">
             <div className="chat-thread__header">
               <div>
                 <h2>{t('chatThreadMessagesTitle')}</h2>
@@ -288,7 +291,7 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
               </p>
             ) : null}
 
-            <div className="message-list">
+            <div className="message-list" aria-live="polite">
               {!conversationQuery.isLoading && messages.length === 0 ? <div className="result-empty">{t('chatThreadEmpty')}</div> : null}
               {messages
                 .slice()
@@ -314,8 +317,11 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
                 void handleSend(composer);
               }}
             >
-              <label className="field composer__field">
-                <span>{t('chatThreadComposerLabel')}</span>
+              <Field
+                className="composer__field"
+                hint={t('chatThreadComposerHint')}
+                label={t('chatThreadComposerLabel')}
+              >
                 <textarea
                   disabled={isBlocked || isClosed || sendMessageMutation.isPending}
                   onChange={(event) => setComposer(event.target.value)}
@@ -323,24 +329,24 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
                   rows={4}
                   value={composer}
                 />
-              </label>
+              </Field>
               {sendMessageMutation.isError ? (
                 <p className="status-copy status-copy--error">
                   {sendMessageMutation.error instanceof Error ? sendMessageMutation.error.message : t('resourceLoadError')}
                 </p>
               ) : null}
               <div className="composer__footer">
-                <p className="resource-card__subtle">{t('chatThreadComposerHint')}</p>
-                <button
-                  className="button button--primary"
+                <Button
                   disabled={isBlocked || isClosed || sendMessageMutation.isPending || !composer.trim()}
+                  size="lg"
                   type="submit"
+                  variant="primary"
                 >
                   {t('chatThreadSendAction')}
-                </button>
+                </Button>
               </div>
             </form>
-          </section>
+          </Card>
         </section>
       </div>
     </main>
