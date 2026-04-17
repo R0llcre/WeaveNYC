@@ -6,8 +6,7 @@ import { useEffect, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
-import { Button, Card, PageHeader } from '@/components/ui';
-import { getChatWebSocketUrl } from '@/lib/api';
+import { Button, Card, PageHeader, Pill } from '@/components/ui';
 import {
   useAcceptContactRequest,
   useAppSelector,
@@ -16,6 +15,12 @@ import {
   useRejectContactRequest,
 } from '@/lib/hooks';
 import { getCategoryLabel, getContactRequestStatusLabel } from '@/lib/i18n';
+import {
+  selectIsVerified,
+  selectPreferences,
+  selectSession,
+} from '@/lib/selectors';
+import { useChatWebSocket } from '@/lib/use-chat-websocket';
 
 type InboxView = 'all' | 'requests' | 'chats';
 
@@ -68,9 +73,9 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const preferences = useAppSelector((state) => state.preferences);
-  const session = useAppSelector((state) => state.auth.session);
-  const isVerified = session?.user.level === 'verified' || session?.user.level === 'anchor';
+  const preferences = useAppSelector(selectPreferences);
+  const session = useAppSelector(selectSession);
+  const isVerified = useAppSelector(selectIsVerified);
   const activeView =
     searchParams.get('view') === 'requests' || searchParams.get('view') === 'chats' ? (searchParams.get('view') as InboxView) : initialView;
   const showRequests = activeView !== 'chats';
@@ -89,31 +94,25 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
   });
   const returnToPath = getViewHref(activeView);
 
+  useChatWebSocket(session?.access_token, handleSocketMessage, {
+    enabled: isVerified && Boolean(session?.access_token),
+  });
+
+  // F10: per-route document.title
   useEffect(() => {
-    if (!isVerified || !session?.access_token) {
-      return;
-    }
-
-    const socket = new WebSocket(getChatWebSocketUrl(session.access_token));
-    socket.onmessage = () => {
-      handleSocketMessage();
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [handleSocketMessage, isVerified, session?.access_token]);
+    document.title = `${t('pageTitleInbox')} \u2014 WeaveNYC`;
+  }, [t]);
 
   if (!session) {
     return (
-      <main className="shell">
+      <main className="shell" id="main-content" tabIndex={-1}>
         <div className="shell__inner">
           <Card variant="raised">
             <div className="result-empty">
               <p>{t('inboxNeedsSession')}</p>
-              <Link className="button button--primary" href="/">
+              <Button as="a" variant="primary" href="/">
                 {t('backHome')}
-              </Link>
+              </Button>
             </div>
           </Card>
         </div>
@@ -123,14 +122,14 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
 
   if (!isVerified) {
     return (
-      <main className="shell">
+      <main className="shell" id="main-content" tabIndex={-1}>
         <div className="shell__inner">
           <Card variant="raised">
             <div className="result-empty">
               <p>{t('inboxNeedsVerified')}</p>
-              <Link className="button button--primary" href={`/verify?return_to=${encodeURIComponent(returnToPath)}`}>
+              <Button as="a" variant="primary" href={`/verify?return_to=${encodeURIComponent(returnToPath)}`}>
                 {t('inboxVerifyAction')}
-              </Link>
+              </Button>
             </div>
           </Card>
         </div>
@@ -139,7 +138,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
   }
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('inboxTitle')}
@@ -180,30 +179,40 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
               role="tablist"
               aria-label={t('inboxViewHeading')}
             >
-              <Link
+              {/*
+                URL-driven tabs. Pill renders as an anchor (`as="a"`) so the
+                inbox view is a real linkable URL — deep links, back/forward,
+                middle-click-to-new-tab all keep working. `role="tab"` +
+                `aria-selected` give AT the tablist semantics; the Pill atom
+                also emits `aria-pressed` from its `active` prop.
+              */}
+              <Pill
+                as="a"
+                active={activeView === 'all'}
                 aria-selected={activeView === 'all'}
-                className={`pill ${activeView === 'all' ? 'pill--active' : ''}`}
                 href="/inbox"
                 role="tab"
               >
                 {t('inboxAllTab')}
-              </Link>
-              <Link
+              </Pill>
+              <Pill
+                as="a"
+                active={activeView === 'requests'}
                 aria-selected={activeView === 'requests'}
-                className={`pill ${activeView === 'requests' ? 'pill--active' : ''}`}
                 href="/inbox?view=requests"
                 role="tab"
               >
                 {t('inboxRequestsTab')}
-              </Link>
-              <Link
+              </Pill>
+              <Pill
+                as="a"
+                active={activeView === 'chats'}
                 aria-selected={activeView === 'chats'}
-                className={`pill ${activeView === 'chats' ? 'pill--active' : ''}`}
                 href="/inbox?view=chats"
                 role="tab"
               >
                 {t('inboxChatsTab')}
-              </Link>
+              </Pill>
             </div>
           </div>
 
@@ -276,9 +285,9 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                       >
                         {t('inboxReject')}
                       </Button>
-                      <Link className="button button--secondary" href={`/posts/${item.to_post_id}`}>
+                      <Button as="a" variant="secondary" href={`/posts/${item.to_post_id}`}>
                         {t('inboxRelatedPost')}
-                      </Link>
+                      </Button>
                     </div>
                   </article>
                 ))}
@@ -359,13 +368,13 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                             {relatedPostId ? t('inboxFromPost', { title: relatedPostId }) : t('chatThreadRelatedPostMissing')}
                           </p>
                           <div className="actions">
-                            <Link className="button button--primary" href={`/conversations/${conversation.conversation_id}`}>
+                            <Button as="a" variant="primary" href={`/conversations/${conversation.conversation_id}`}>
                               {t('inboxOpenThread')}
-                            </Link>
+                            </Button>
                             {relatedPostId ? (
-                              <Link className="button button--secondary" href={`/posts/${relatedPostId}`}>
+                              <Button as="a" variant="secondary" href={`/posts/${relatedPostId}`}>
                                 {t('inboxRelatedPost')}
-                              </Link>
+                              </Button>
                             ) : null}
                           </div>
                         </div>

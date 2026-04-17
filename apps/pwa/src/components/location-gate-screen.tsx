@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Banner, Button, Card, Field, PageHeader } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { safeReturnTo } from '@/lib/safe-return-to';
+import { selectPreferences } from '@/lib/selectors';
 import { completeOnboarding, setZipCode } from '@/lib/slices/preferences-slice';
 
 type LocationErrorKey =
@@ -25,12 +27,20 @@ export function LocationGateScreen() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const params = useSearchParams();
-  const preferences = useAppSelector((state) => state.preferences);
+  const preferences = useAppSelector(selectPreferences);
   const [localZip, setLocalZip] = useState(preferences.zipCode);
   const [zipErrorKey, setZipErrorKey] = useState<LocationErrorKey | null>(null);
   const [geoState, setGeoState] = useState<GeoState>({ kind: 'idle' });
 
-  const returnTo = params.get('return_to') ?? '/';
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitleOnboardingLocation')} \u2014 WeaveNYC`;
+  }, [t]);
+
+  // `return_to` is attacker-controlled. Validate it against a same-origin
+  // whitelist so `?return_to=https://evil.com` can't bounce the user off
+  // the origin after onboarding.
+  const returnTo = safeReturnTo(params.get('return_to'), '/');
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -79,7 +89,7 @@ export function LocationGateScreen() {
   };
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           className="hero--home"
@@ -118,7 +128,12 @@ export function LocationGateScreen() {
             ) : null}
 
             {geoState.kind === 'unavailable' ? (
-              <Banner tone="info" title={t('onboardingLocationDeviceBlocked')}>
+              // "Device location is unavailable" is a recoverable state —
+              // the user can still type a ZIP manually, so `warning` rather
+              // than `danger`; but it is not neutral `info` either, because
+              // the auto-locate affordance the user just tried to use did
+              // not work.
+              <Banner tone="warning" title={t('onboardingLocationDeviceBlocked')}>
                 {t('onboardingLocationDevicePending')}
               </Banner>
             ) : null}

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { Banner, Button, Card, PageHeader } from '@/components/ui';
@@ -24,6 +24,11 @@ import {
   getPostTypeLabel,
   getSessionLabel,
 } from '@/lib/i18n';
+import {
+  selectIsVerified,
+  selectPreferences,
+  selectSession,
+} from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
 import type { MatchContactResult, MatchSuggestion } from '@/lib/types';
 
@@ -31,27 +36,57 @@ type MatchResultsScreenProps = {
   postId: string;
 };
 
+const FRESH_RESULTS_WINDOW_MS = 60_000;
+const INTENT_CONSUMED_STORAGE_PREFIX = 'weavenyc.intent_consumed_';
+
+function markIntentConsumed(intentKey: string): boolean {
+  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
+    // When sessionStorage is unavailable, fall back to letting the caller
+    // proceed — the in-memory guards still prevent duplicate submits in
+    // the current tab.
+    return true;
+  }
+  const storageKey = `${INTENT_CONSUMED_STORAGE_PREFIX}${intentKey}`;
+  try {
+    if (window.sessionStorage.getItem(storageKey)) {
+      return false;
+    }
+    window.sessionStorage.setItem(storageKey, '1');
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
   const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
-  const session = useAppSelector((state) => state.auth.session);
-  const preferences = useAppSelector((state) => state.preferences);
-  const [creatingSession, setCreatingSession] = useState(false);
+  const session = useAppSelector(selectSession);
+  const preferences = useAppSelector(selectPreferences);
+  const [isCreatingSession, setCreatingSession] = useState(false);
   const [intent, setIntent] = useState(() => loadMatchContactIntent());
   const [resultOverride, setResultOverride] = useState<ReturnType<typeof useMatchSuggestions>['data'] | null>(null);
   const [contactResult, setContactResult] = useState<MatchContactResult | null>(null);
   const [submittedIntentKey, setSubmittedIntentKey] = useState<string | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const staleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeLanguage = preferences.language;
   const sessionLabel = session ? getSessionLabel(activeLanguage, session.user.level) : getChromeCopy(activeLanguage).sessionAnonymous;
-  const isVerified = session?.user.level === 'verified' || session?.user.level === 'anchor';
+  const isVerified = useAppSelector(selectIsVerified);
 
   const postQuery = usePost(session?.access_token, postId, Boolean(session?.access_token));
   const matchesQuery = useMatchSuggestions(session?.access_token, postId, Boolean(session?.access_token));
   const refreshMutation = useRefreshMatchSuggestions(session?.access_token, postId);
   const contactMutation = useCreateMatchContact(session?.access_token);
+
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitleMatches')} \u2014 WeaveNYC`;
+  }, [t]);
 
   useEffect(() => {
     setIntent(loadMatchContactIntent());
@@ -71,16 +106,32 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
       return;
     }
 
+    // Bug #5 fix: guard by sessionStorage so the intent is consumed at most
+    // once per key, even if the user navigates away and back.
+    if (!markIntentConsumed(intentKey)) {
+      // Already consumed in a previous mount — clear stale local state so
+      // the banner doesn't re-arm.
+      clearMatchContactIntent();
+      setIntent(null);
+      setSubmittedIntentKey(intentKey);
+      return;
+    }
+
+    // Bug #5 fix: clear the intent synchronously BEFORE firing the mutation
+    // so any re-render triggered during the async request cannot re-submit.
     setSubmittedIntentKey(intentKey);
+    const submittedFromPostId = intent.fromPostId;
+    const submittedToPostId = intent.toPostId;
+    clearMatchContactIntent();
+    setIntent(null);
+
     void contactMutation
       .mutateAsync({
-        fromPostId: intent.fromPostId,
-        toPostId: intent.toPostId,
+        fromPostId: submittedFromPostId,
+        toPostId: submittedToPostId,
       })
       .then((result) => {
         setContactResult(result);
-        clearMatchContactIntent();
-        setIntent(null);
 
         if (result.status === 'accepted' && result.conversation_id) {
           router.push(
@@ -95,6 +146,44 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
 
   const activeResults = resultOverride ?? matchesQuery.data ?? null;
   const actionableIntent = intent?.kind === 'match_contact' && intent.fromPostId === postId ? intent : null;
+
+  // Bug #6: when refresh data arrives (initial or manual), start the freshness
+  // window. After 60s we mark the view stale so the refresh button copy hints
+  // that new matches may be available.
+  useEffect(() => {
+    if (!activeResults) {
+      return;
+    }
+
+    setIsStale(false);
+    const stamp = Date.now();
+    setLastRefreshedAt(stamp);
+
+    if (staleTimerRef.current) {
+      clearTimeout(staleTimerRef.current);
+    }
+    staleTimerRef.current = setTimeout(() => {
+      setIsStale(true);
+    }, FRESH_RESULTS_WINDOW_MS);
+
+    return () => {
+      if (staleTimerRef.current) {
+        clearTimeout(staleTimerRef.current);
+        staleTimerRef.current = null;
+      }
+    };
+  }, [activeResults]);
+
+  // Reset freshness indicator if the user navigates away from this route.
+  useEffect(() => {
+    return () => {
+      if (staleTimerRef.current) {
+        clearTimeout(staleTimerRef.current);
+        staleTimerRef.current = null;
+      }
+      setIsStale(true);
+    };
+  }, [pathname]);
 
   const handleCreateSession = async () => {
     setCreatingSession(true);
@@ -158,9 +247,14 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
   const post = postQuery.data;
   const canShowMatches =
     !!post && post.is_owner && post.post_type === 'request' && post.status === 'active';
-  const canRefresh = activeResults
-    ? activeResults.refreshes_used < activeResults.max_refreshes && !refreshMutation.isPending
+  const refreshesExhausted = activeResults
+    ? activeResults.refreshes_used >= activeResults.max_refreshes
     : false;
+  const canRefresh = activeResults
+    ? !refreshesExhausted && !refreshMutation.isPending
+    : false;
+  const freshResultsVisible = Boolean(lastRefreshedAt) && !isStale && !refreshMutation.isPending;
+  const staleResultsVisible = Boolean(lastRefreshedAt) && isStale && !refreshesExhausted;
 
   const headerSubtitle = useMemo(() => {
     if (activeResults) {
@@ -174,7 +268,7 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
   }, [activeResults, sessionLabel, t]);
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('matchTitle')}
@@ -199,11 +293,11 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
               <Button
-                disabled={creatingSession}
+                disabled={isCreatingSession}
                 onClick={() => void handleCreateSession()}
                 variant="primary"
               >
-                {creatingSession ? t('creatingSession') : t('createSession')}
+                {isCreatingSession ? t('creatingSession') : t('createSession')}
               </Button>
             </div>
           </Card>
@@ -264,9 +358,9 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
         {contactResult?.status === 'pending' ? (
           <Banner tone="success" title={t('matchContactPending')}>
             <div className="actions">
-              <Link className="button button--primary" href="/inbox">
+              <Button as="a" variant="primary" href="/inbox">
                 {t('matchGoInbox')}
-              </Link>
+              </Button>
             </div>
           </Banner>
         ) : null}
@@ -304,6 +398,7 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
                 </div>
                 <div className="actions actions--tight">
                   <Button
+                    data-testid="match-refresh"
                     disabled={!canRefresh}
                     onClick={() =>
                       void refreshMutation.mutateAsync().then((results) => {
@@ -316,6 +411,25 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
                   </Button>
                 </div>
               </div>
+
+              {/* Bug #6 banners: fresh vs stale vs exhausted. */}
+              {freshResultsVisible ? (
+                <Banner
+                  data-testid="match-fresh-banner"
+                  tone="success"
+                  title={t('matchFreshResults')}
+                />
+              ) : null}
+              {staleResultsVisible ? (
+                <p className="status-copy status-copy--muted" data-testid="match-stale-hint">
+                  {t('matchStaleResults')}
+                </p>
+              ) : null}
+              {refreshesExhausted ? (
+                <p className="status-copy status-copy--muted" data-testid="match-no-more-refreshes">
+                  {t('matchNoMoreRefreshes')}
+                </p>
+              ) : null}
 
               {!activeResults || activeResults.items.length === 0 ? (
                 <div className="result-empty">{t('matchNoResults')}</div>
@@ -349,9 +463,9 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
                           >
                             {t('matchContactAction')}
                           </Button>
-                          <Link className="button button--secondary" href={`/posts/${item.neighbor_post.post_id}`}>
+                          <Button as="a" variant="secondary" href={`/posts/${item.neighbor_post.post_id}`}>
                             {t('matchOpenPost')}
-                          </Link>
+                          </Button>
                         </div>
                       </article>
                     ) : item.official_resource ? (
@@ -374,25 +488,27 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
                           ))}
                         </div>
                         <div className="actions">
-                          <Link
-                            className="button button--secondary"
+                          <Button
+                            as="a"
+                            variant="secondary"
                             href={`/resources/${item.official_resource.provider_id}`}
                           >
                             {t('detailCta')}
-                          </Link>
+                          </Button>
                           {item.official_resource.phone ? (
-                            <a className="button button--secondary" href={`tel:${item.official_resource.phone}`}>
+                            <Button as="a" variant="secondary" href={`tel:${item.official_resource.phone}`}>
                               {t('call')}
-                            </a>
+                            </Button>
                           ) : null}
-                          <a
-                            className="button button--secondary"
+                          <Button
+                            as="a"
+                            variant="secondary"
                             href={item.official_resource.directions_url}
                             rel="noreferrer"
                             target="_blank"
                           >
                             {t('directions')}
-                          </a>
+                          </Button>
                         </div>
                       </article>
                     ) : null,

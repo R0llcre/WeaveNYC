@@ -12,7 +12,7 @@ export default function VerifyPage() {
   return (
     <Suspense
       fallback={
-        <main className="shell">
+        <main className="shell" id="main-content" tabIndex={-1}>
           <div className="shell__inner">
             <section className="card">
               <p>{copy.verifyTitle}…</p>

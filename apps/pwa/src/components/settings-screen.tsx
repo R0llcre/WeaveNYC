@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -21,6 +20,7 @@ import {
   undeleteAccount,
 } from '@/lib/api';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { selectPreferences, selectSession } from '@/lib/selectors';
 import { clearSession, setSession } from '@/lib/slices/auth-slice';
 import {
   setDefaultPostVisibility,
@@ -102,12 +102,24 @@ const levelTranslationKey: Record<UserLevel, TranslationKey> = {
 };
 
 /**
- * Recovery token retention window. We deliberately keep it only in memory for
- * 10 minutes matching the pilot UX spec — after that the "Undo" button
- * disappears and the user can still recover via the token issued to their
- * phone / email, but not from this screen. Never persisted to storage.
+ * Recovery token retention window. We keep it in sessionStorage for
+ * 10 minutes matching the pilot UX spec so a refresh in the same tab does
+ * not strand the user, but a hard tab/browser close still drops the token.
+ * After 10 minutes the "Undo" button disappears and the user can still
+ * recover via the token issued to their phone / email, but not from this
+ * screen.
+ *
+ * sessionStorage is chosen (not localStorage) because the token is a
+ * short-lived credential and should not outlive the browser session.
  */
 const RECOVERY_WINDOW_MS = 10 * 60 * 1000;
+
+const RECOVERY_TOKEN_STORAGE_KEY = 'weavenyc_undelete_token';
+const RECOVERY_USER_ID_STORAGE_KEY = 'weavenyc_undelete_user_id';
+const RECOVERY_EXPIRES_AT_STORAGE_KEY = 'weavenyc_undelete_expires_at';
+const RECOVERY_PURGE_DATE_STORAGE_KEY = 'weavenyc_undelete_purge_date';
+
+const ONE_MINUTE_MS = 60 * 1000;
 
 type DeleteState =
   | { kind: 'idle' }
@@ -158,6 +170,82 @@ type DeleteState =
       recoveryExpiresAt?: number | null;
     };
 
+/** Persist the one-shot recovery token + its expiry to sessionStorage. */
+function persistRecoveryToken(input: {
+  token: string;
+  userId: string;
+  expiresAt: number;
+  purgeDate: string;
+}) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.sessionStorage.setItem(RECOVERY_TOKEN_STORAGE_KEY, input.token);
+    window.sessionStorage.setItem(RECOVERY_USER_ID_STORAGE_KEY, input.userId);
+    window.sessionStorage.setItem(
+      RECOVERY_EXPIRES_AT_STORAGE_KEY,
+      String(input.expiresAt),
+    );
+    window.sessionStorage.setItem(
+      RECOVERY_PURGE_DATE_STORAGE_KEY,
+      input.purgeDate,
+    );
+  } catch {
+    // sessionStorage may be disabled (Safari Private, quota) — proceed
+    // gracefully; the recovery token is still usable in-memory.
+  }
+}
+
+/** Remove any persisted recovery token from sessionStorage. */
+function clearPersistedRecoveryToken() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.sessionStorage.removeItem(RECOVERY_TOKEN_STORAGE_KEY);
+    window.sessionStorage.removeItem(RECOVERY_USER_ID_STORAGE_KEY);
+    window.sessionStorage.removeItem(RECOVERY_EXPIRES_AT_STORAGE_KEY);
+    window.sessionStorage.removeItem(RECOVERY_PURGE_DATE_STORAGE_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+/** Read a still-valid recovery token from sessionStorage, or null. */
+function readPersistedRecoveryToken(): {
+  token: string;
+  userId: string;
+  expiresAt: number;
+  purgeDate: string;
+} | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const token = window.sessionStorage.getItem(RECOVERY_TOKEN_STORAGE_KEY);
+    const userId = window.sessionStorage.getItem(RECOVERY_USER_ID_STORAGE_KEY);
+    const expiresAtRaw = window.sessionStorage.getItem(
+      RECOVERY_EXPIRES_AT_STORAGE_KEY,
+    );
+    const purgeDate = window.sessionStorage.getItem(
+      RECOVERY_PURGE_DATE_STORAGE_KEY,
+    );
+    const expiresAt = Number(expiresAtRaw ?? 0);
+    if (!token || !userId || !expiresAtRaw || !purgeDate) {
+      return null;
+    }
+    if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+      // Expired — best-effort cleanup so subsequent mounts don't see it.
+      clearPersistedRecoveryToken();
+      return null;
+    }
+    return { token, userId, expiresAt, purgeDate };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Map an HTTP-failure Error (thrown by `requestJson` as "path failed: HTTP
  * XXX body") onto the right i18n key. The server messages are not shown
@@ -186,17 +274,41 @@ function mapDeleteError(error: unknown): TranslationKey {
 export function SettingsScreen() {
   const t = useTranslations();
   const dispatch = useAppDispatch();
-  const router = useRouter();
-  const preferences = useAppSelector((state) => state.preferences);
-  const session = useAppSelector((state) => state.auth.session);
+  const preferences = useAppSelector(selectPreferences);
+  const session = useAppSelector(selectSession);
 
   const [deleteState, setDeleteState] = useState<DeleteState>({ kind: 'idle' });
   const [otpCode, setOtpCode] = useState('');
   const [deleteReason, setDeleteReason] = useState<AccountDeleteReason | ''>('');
   const [now, setNow] = useState(() => Date.now());
 
-  // Tick every 15s so the recovery window can disappear without a re-render
-  // from unrelated state. The timer is only running while a token is active.
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitleSettings')} \u2014 WeaveNYC`;
+  }, [t]);
+
+  // Bug 1: restore persisted recovery token on mount so a tab refresh during
+  // the 10-minute window still shows the "Undo" affordance. We only rehydrate
+  // if the token is present AND the window has not yet elapsed; otherwise we
+  // fall through to the normal idle state.
+  useEffect(() => {
+    const persisted = readPersistedRecoveryToken();
+    if (!persisted) {
+      return;
+    }
+    setDeleteState({
+      kind: 'scheduled',
+      purgeDate: persisted.purgeDate,
+      userId: persisted.userId,
+      recoveryToken: persisted.token,
+      recoveryExpiresAt: persisted.expiresAt,
+    });
+  }, []);
+
+  // Bug 2: tick every second while the recovery window is open so the visible
+  // countdown stays in sync. Previously this was 15s which was fine for the
+  // "hide the button at expiry" use case but too coarse for a live "X min Y
+  // sec left" label. The timer only runs while a token is active.
   useEffect(() => {
     if (
       deleteState.kind !== 'scheduled' &&
@@ -209,11 +321,23 @@ export function SettingsScreen() {
     }
     const id = window.setInterval(() => {
       setNow(Date.now());
-    }, 15_000);
+    }, 1000);
     return () => {
       window.clearInterval(id);
     };
   }, [deleteState]);
+
+  // Bug 1: once the window elapses, drop the persisted token so the next
+  // mount doesn't briefly show the stale state before the tick fires.
+  useEffect(() => {
+    if (
+      (deleteState.kind === 'scheduled' || deleteState.kind === 'undoing') &&
+      deleteState.recoveryExpiresAt &&
+      deleteState.recoveryExpiresAt <= now
+    ) {
+      clearPersistedRecoveryToken();
+    }
+  }, [deleteState, now]);
 
   const recoveryWindowOpen = useMemo(() => {
     if (deleteState.kind !== 'scheduled' && deleteState.kind !== 'undoing') {
@@ -223,6 +347,36 @@ export function SettingsScreen() {
       return false;
     }
     return deleteState.recoveryExpiresAt > now;
+  }, [deleteState, now]);
+
+  // Bug 2: derive visible countdown + warning tone when < 1 minute. When the
+  // window has already closed we show the "expired" copy instead; the Undo
+  // button itself is suppressed by `recoveryWindowOpen` above.
+  const countdownView = useMemo<
+    | { kind: 'open'; minutes: number; seconds: number; warning: boolean }
+    | { kind: 'expired' }
+    | null
+  >(() => {
+    if (
+      (deleteState.kind !== 'scheduled' && deleteState.kind !== 'undoing') ||
+      !deleteState.recoveryExpiresAt ||
+      !deleteState.recoveryToken
+    ) {
+      return null;
+    }
+    const remaining = deleteState.recoveryExpiresAt - now;
+    if (remaining <= 0) {
+      return { kind: 'expired' };
+    }
+    const totalSeconds = Math.max(0, Math.floor(remaining / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return {
+      kind: 'open',
+      minutes,
+      seconds,
+      warning: remaining < ONE_MINUTE_MS,
+    };
   }, [deleteState, now]);
 
   const handleExpandDangerZone = useCallback(() => {
@@ -285,12 +439,26 @@ export function SettingsScreen() {
         ...(deleteReason ? { reason: deleteReason } : {}),
       });
       const recoveryToken = result.undelete_recovery_token ?? null;
+      const recoveryExpiresAt = recoveryToken
+        ? Date.now() + RECOVERY_WINDOW_MS
+        : null;
+      // Bug 1: persist to sessionStorage so a tab refresh within the 10-min
+      // window rehydrates the Undo affordance. Missing token means the server
+      // did not issue one (e.g. demo mode) — nothing to persist.
+      if (recoveryToken && recoveryExpiresAt) {
+        persistRecoveryToken({
+          token: recoveryToken,
+          userId: result.user_id,
+          expiresAt: recoveryExpiresAt,
+          purgeDate: result.purge_date,
+        });
+      }
       setDeleteState({
         kind: 'scheduled',
         purgeDate: result.purge_date,
         userId: result.user_id,
         recoveryToken,
-        recoveryExpiresAt: recoveryToken ? Date.now() + RECOVERY_WINDOW_MS : null,
+        recoveryExpiresAt,
       });
       setOtpCode('');
       // The access token is now revoked server-side; drop it from the store
@@ -328,6 +496,9 @@ export function SettingsScreen() {
         user_id: userId,
         recovery_token: recoveryToken,
       });
+      // Bug 1: once the token is consumed server-side, remove it from
+      // sessionStorage so it is not replayed after a refresh.
+      clearPersistedRecoveryToken();
       setDeleteState({ kind: 'undone' });
       // The user must sign in again — we can't restore the original access
       // token — but we restore the pre-delete session data that we kept so
@@ -395,15 +566,9 @@ export function SettingsScreen() {
     setOtpCode('');
   }, []);
 
-  useEffect(() => {
-    if (deleteState.kind === 'undone') {
-      const id = window.setTimeout(() => {
-        router.replace('/');
-      }, 1500);
-      return () => window.clearTimeout(id);
-    }
-    return undefined;
-  }, [deleteState.kind, router]);
+  // Bug 6: the `undone` state now shows a detailed banner with a CTA to
+  // /verify, so we no longer force-redirect to "/" after 1.5s. The user taps
+  // through when they are ready.
 
   const accountLevelLabel = session
     ? t(levelTranslationKey[session.user.level])
@@ -411,8 +576,29 @@ export function SettingsScreen() {
 
   const dangerZoneOpen = deleteState.kind !== 'idle';
 
+  // Bug 5: localize the purge date using the active language. Falls back to
+  // the default locale if the Intl runtime rejects the BCP-47 tag.
+  const formattedPurgeDate = useMemo(() => {
+    if (deleteState.kind !== 'scheduled' && deleteState.kind !== 'undoing') {
+      return '';
+    }
+    const raw = new Date(deleteState.purgeDate);
+    if (Number.isNaN(raw.getTime())) {
+      return deleteState.purgeDate;
+    }
+    try {
+      return raw.toLocaleDateString(preferences.language, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch {
+      return raw.toLocaleDateString();
+    }
+  }, [deleteState, preferences.language]);
+
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('settingsBackHome')}
@@ -485,9 +671,9 @@ export function SettingsScreen() {
           <h2 id="settings-safety-heading">{t('settingsSafetyTitle')}</h2>
           <p className="muted">{t('settingsSafetyCopy')}</p>
           <div className="action-row">
-            <Link className="button button--secondary" href="/inbox">
+            <Button as="a" variant="secondary" href="/inbox">
               {t('settingsOpenInbox')}
-            </Link>
+            </Button>
           </div>
         </Card>
 
@@ -524,8 +710,15 @@ export function SettingsScreen() {
               deleteState.kind === 'expanded' ||
               deleteState.kind === 'requesting') && (
               <>
-                <Field label={t('deleteAccountReasonLabel')}>
+                {/* Bug 3: wrap the reason select in <Field> so the label is
+                    always visible (not only on focus) and the hint explains
+                    that the field is optional. */}
+                <Field
+                  label={t('deleteAccountReasonLabel')}
+                  hint={t('deleteAccountReasonHint')}
+                >
                   <select
+                    data-testid="settings-delete-reason"
                     onChange={(event) =>
                       setDeleteReason(
                         event.target.value as AccountDeleteReason | '',
@@ -568,10 +761,12 @@ export function SettingsScreen() {
                 >
                   {deleteState.maskedDestination}
                 </Banner>
-                <Field
-                  label={t('deleteOtpCodeLabel')}
-                  hint={t('deleteAccountBody')}
-                >
+                {/* Bug 4: previously this Field used `deleteAccountBody` as
+                    its hint, which both duplicated the <p> above and confused
+                    the key's role. The intended hint is the OTP-expiry copy
+                    that lives on `deleteOtpSent`, which the Banner already
+                    shows. No hint here is the correct fix. */}
+                <Field label={t('deleteOtpCodeLabel')}>
                   <input
                     data-testid="settings-delete-otp-input"
                     autoComplete="one-time-code"
@@ -624,10 +819,32 @@ export function SettingsScreen() {
                   tone="warning"
                   title={t('deleteScheduled')}
                 >
-                  {t('deleteScheduledPurge', {
-                    purgeDate: new Date(deleteState.purgeDate).toLocaleDateString(),
-                  })}
+                  {/* Bug 5: interpolate the localized purge date so the line
+                      reads naturally in EN/ES/ZH. */}
+                  {t('deleteScheduledPurge', { purgeDate: formattedPurgeDate })}
                 </Banner>
+                {/* Bug 2: live countdown + warning tone when < 1 min. */}
+                {countdownView?.kind === 'open' ? (
+                  <Banner
+                    data-testid="settings-delete-countdown"
+                    tone={countdownView.warning ? 'warning' : 'info'}
+                    title={
+                      countdownView.warning
+                        ? t('undeleteCountdownShort')
+                        : t('undeleteCountdownLong', {
+                            minutes: countdownView.minutes,
+                            seconds: countdownView.seconds,
+                          })
+                    }
+                  />
+                ) : null}
+                {countdownView?.kind === 'expired' ? (
+                  <Banner
+                    data-testid="settings-delete-countdown-expired"
+                    tone="info"
+                    title={t('undeleteExpired')}
+                  />
+                ) : null}
                 {recoveryWindowOpen ? (
                   <div className="action-row">
                     <Button
@@ -646,7 +863,27 @@ export function SettingsScreen() {
             )}
 
             {deleteState.kind === 'undone' && (
-              <Banner tone="success" title={t('undeleteSuccess')} />
+              <>
+                <Banner
+                  data-testid="settings-delete-undone"
+                  tone="success"
+                  title={t('undeleteSuccessTitle')}
+                >
+                  {t('undeleteSuccessBody')}
+                </Banner>
+                {/* Bug 6: explicit re-bind CTA. We don't auto-redirect so the
+                    user can read the banner before navigating. */}
+                <div className="action-row">
+                  <Button
+                    as="a"
+                    variant="primary"
+                    data-testid="settings-delete-undone-reverify"
+                    href="/verify"
+                  >
+                    {t('undeleteReverifyCta')}
+                  </Button>
+                </div>
+              </>
             )}
 
             {deleteState.kind === 'error' && (

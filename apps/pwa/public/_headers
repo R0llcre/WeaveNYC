@@ -4,6 +4,33 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self)
 
+# Hashed, content-addressed assets under /_next/static/** are safe to cache
+# for a year. Next.js writes a fresh filename hash whenever a chunk's bytes
+# change, so we never serve a stale entry; a long `immutable` TTL takes the
+# revalidation round-trip off repeat visits (which was hurting LCP because
+# every script tag in index.html re-fetched on revisit).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/icons/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML shells must always revalidate so a new deploy's new chunk hashes are
+# picked up on the next navigation. max-age=0 + must-revalidate means the
+# browser does a conditional GET (cheap) instead of blindly reusing stale
+# HTML that references deleted chunks.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Service worker must never be long-cached — UAs already cap this to ~24h,
+# but we explicitly force revalidation so a pushed SW update activates on
+# the next page load rather than waiting out a CDN cache entry.
 /sw.js
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=0, must-revalidate
   Service-Worker-Allowed: /

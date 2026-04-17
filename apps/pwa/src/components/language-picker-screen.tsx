@@ -3,9 +3,12 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
 import { Button, Card, PageHeader } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { safeReturnTo } from '@/lib/safe-return-to';
+import { selectPreferences } from '@/lib/selectors';
 import { setLanguage } from '@/lib/slices/preferences-slice';
 import type { SupportedLanguage } from '@/lib/types';
 
@@ -28,17 +31,25 @@ export function LanguagePickerScreen() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const params = useSearchParams();
-  const preferences = useAppSelector((state) => state.preferences);
+  const preferences = useAppSelector(selectPreferences);
 
-  const returnTo = params.get('return_to') ?? '/onboarding/location';
+  // `return_to` is attacker-controlled. Validate it against a same-origin
+  // whitelist so `?return_to=https://evil.com` can't bounce the user off
+  // the origin after onboarding.
+  const returnTo = safeReturnTo(params.get('return_to'), '/onboarding/location');
 
   const handleSelect = (language: SupportedLanguage) => {
     dispatch(setLanguage(language));
     router.push(returnTo);
   };
 
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitleOnboardingLanguage')} \u2014 WeaveNYC`;
+  }, [t]);
+
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           className="hero--home"

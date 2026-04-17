@@ -1,9 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui';
 import { useAppSelector, useContactRequestsInbox } from '@/lib/hooks';
+import { selectIsVerified, selectSession } from '@/lib/selectors';
 
 type ContactInboxLinkProps = {
   className?: string;
@@ -11,8 +12,8 @@ type ContactInboxLinkProps = {
 
 export function ContactInboxLink({ className }: ContactInboxLinkProps) {
   const t = useTranslations();
-  const session = useAppSelector((state) => state.auth.session);
-  const isVerified = session?.user.level === 'verified' || session?.user.level === 'anchor';
+  const session = useAppSelector(selectSession);
+  const isVerified = useAppSelector(selectIsVerified);
   const inboxQuery = useContactRequestsInbox(session?.access_token, { limit: 10 }, isVerified, 20_000);
   const pendingCount =
     isVerified && inboxQuery.data
@@ -23,10 +24,21 @@ export function ContactInboxLink({ className }: ContactInboxLinkProps) {
     return null;
   }
 
+  // Pending-count badge lives in the Button's trailingIcon slot so the atom
+  // renders the label + badge consistently with the rest of the PWA's button
+  // semantics (aria-hidden wrapper around the numeric chip). The visual
+  // `button--with-badge` rule still applies via className override.
   return (
-    <Link className={className ?? 'button button--secondary button--with-badge'} href="/inbox?view=requests">
-      <span>{t('inboxTitle')}</span>
-      {pendingCount > 0 ? <span className="button__badge">{pendingCount}</span> : null}
-    </Link>
+    <Button
+      as="a"
+      variant="secondary"
+      href="/inbox?view=requests"
+      className={className ?? 'button--with-badge'}
+      trailingIcon={
+        pendingCount > 0 ? <span className="inbox-badge">{pendingCount}</span> : undefined
+      }
+    >
+      {t('inboxTitle')}
+    </Button>
   );
 }

@@ -91,6 +91,21 @@ export type PreferencesState = {
   bookmarks: string[];
   defaultPostVisibility: DefaultPostVisibility;
   locationPrecision: LocationPrecision;
+  /**
+   * True when the user has explicitly picked a language (via the onboarding
+   * language picker or the settings screen). Remains false when the
+   * Providers bootstrap falls back to `navigator.language`, so subsequent
+   * visits can still pick up a browser locale change without overriding an
+   * explicit choice.
+   */
+  hasUserChosenLanguage: boolean;
+  /**
+   * Transient flag flipped to `true` by `hydratePreferences` once the async
+   * IndexedDB load completes. Never persisted to storage — it only exists
+   * to gate client-only UI that must wait for hydration (e.g. the
+   * first-visit onboarding redirect).
+   */
+  hydrationComplete: boolean;
 };
 
 export type OtpStartInput = {

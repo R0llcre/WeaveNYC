@@ -62,6 +62,33 @@ describe('ui/Button', () => {
     expect(screen.getByTestId('lead')).toBeInTheDocument();
     expect(screen.getByTestId('trail')).toBeInTheDocument();
   });
+
+  it('renders as an anchor when as="a" with href', () => {
+    render(
+      <Button as="a" href="/test" data-testid="btn-link">
+        Go
+      </Button>,
+    );
+    const link = screen.getByTestId('btn-link');
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', '/test');
+    expect(link.className).toContain('button');
+    expect(link.className).toContain('button--primary');
+    expect(link.className).toContain('button--md');
+  });
+
+  it('applies variant and size classes to anchor form', () => {
+    render(
+      <Button as="a" href="tel:+15551234" variant="secondary" size="lg" data-testid="btn-tel">
+        Call
+      </Button>,
+    );
+    const link = screen.getByTestId('btn-tel');
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', 'tel:+15551234');
+    expect(link.className).toContain('button--secondary');
+    expect(link.className).toContain('button--lg');
+  });
 });
 
 describe('ui/Card', () => {

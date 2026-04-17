@@ -1,47 +1,84 @@
 'use client';
 
-import Link from 'next/link';
+import { useMutation } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
-import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { Banner, Button, Card, Checkbox, Field, PageHeader } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { getSessionLabel, getTypeLabel, resourceFilterTypes } from '@/lib/i18n';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
+import {
+  selectCommunity,
+  selectPreferences,
+  selectSession,
+} from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
-import { toggleBookmark } from '@/lib/slices/preferences-slice';
+import { setZipCode, toggleBookmark } from '@/lib/slices/preferences-slice';
 import type { ResourceFilterType } from '@/lib/types';
+
+// ContactInboxLink is verified-user-only (renders null for anonymous). Splitting
+// it into its own chunk keeps the anonymous-first-visit JS payload smaller and
+// defers the contact-requests inbox polling setup until after LCP. `ssr: false`
+// is safe because the static-export shell already renders without it.
+const ContactInboxLink = dynamic(
+  () => import('@/components/contact-inbox-link').then((m) => ({ default: m.ContactInboxLink })),
+  { ssr: false },
+);
 
 export function ResourceHome() {
   const t = useTranslations();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const preferences = useAppSelector((state) => state.preferences);
-  const session = useAppSelector((state) => state.auth.session);
-  const community = useAppSelector((state) => state.community);
+  const preferences = useAppSelector(selectPreferences);
+  const session = useAppSelector(selectSession);
+  const community = useAppSelector(selectCommunity);
   const [openNow, setOpenNow] = useState(false);
   const [today, setToday] = useState(false);
   const [type, setType] = useState<ResourceFilterType>('all');
-  const [submittingSession, setSubmittingSession] = useState(false);
-  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  // Standardise on a React-Query mutation for the anonymous-session bootstrap
+  // so the loading/error state follows the same `isPending` / `error` shape as
+  // every other async call on the screen. Previously this file carried its own
+  // `submittingSession` + `sessionError` flags that duplicated what
+  // `useMutation` already exposes, which is exactly the async-naming drift R7
+  // flagged.
+  const anonymousSessionMutation = useMutation({
+    mutationFn: createAnonymousSession,
+    onSuccess: (response) => {
+      dispatch(setSession(response));
+    },
+  });
+  const sessionError =
+    anonymousSessionMutation.error instanceof Error
+      ? anonymousSessionMutation.error.message
+      : null;
+
+  // F10: per-route document.title so screen readers and the browser tab
+  // announce the current page instead of the static layout "WeaveNYC PWA".
+  useEffect(() => {
+    document.title = `${t('pageTitleHome')} \u2014 WeaveNYC`;
+  }, [t]);
 
   // First-visit guard: push new users through the onboarding language/location
-  // flow. We defer the redirect by a tick so the async hydration in
-  // `providers.tsx` has a chance to repopulate preferences from IndexedDB
-  // before we decide whether onboarding was already completed. Without this
-  // defer, a page reload could race the guard and bounce a returning user
-  // back to /onboarding/language even though their preferences are saved.
+  // flow. We wait for `hydrationComplete` — flipped `true` by the
+  // `hydratePreferences` reducer once IndexedDB has repopulated the slice —
+  // before making any decision. The previous implementation used a
+  // setTimeout(150ms) heuristic that could race the async hydration on
+  // slow devices and redirect returning users back to /onboarding/language.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const timer = window.setTimeout(() => {
-      if (!preferences.onboardingComplete && !preferences.zipCode) {
-        router.replace('/onboarding/language');
-      }
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [preferences.onboardingComplete, preferences.zipCode, router]);
+    if (!preferences.hydrationComplete) return;
+    if (!preferences.onboardingComplete && !preferences.zipCode) {
+      router.replace('/onboarding/language');
+    }
+  }, [
+    preferences.hydrationComplete,
+    preferences.onboardingComplete,
+    preferences.zipCode,
+    router,
+  ]);
 
   const resourceQuery = useResources(
     {
@@ -59,22 +96,8 @@ export function ResourceHome() {
   const sessionLabel = session ? getSessionLabel(activeLanguage, session.user.level) : t('sessionAnonymous');
   const nearbyCount = useMemo(() => resourceItems.length, [resourceItems]);
 
-  const handleCreateAnonymousSession = async () => {
-    setSessionError(null);
-    setSubmittingSession(true);
-
-    try {
-      const response = await createAnonymousSession();
-      dispatch(setSession(response));
-    } catch (error) {
-      setSessionError(error instanceof Error ? error.message : t('anonymousSessionError'));
-    } finally {
-      setSubmittingSession(false);
-    }
-  };
-
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('heroEyebrow')}
@@ -98,19 +121,21 @@ export function ResourceHome() {
                 variant="primary"
                 size="md"
                 data-testid="create-session"
-                disabled={submittingSession}
-                loading={submittingSession}
-                onClick={() => void handleCreateAnonymousSession()}
+                disabled={anonymousSessionMutation.isPending}
+                loading={anonymousSessionMutation.isPending}
+                onClick={() => anonymousSessionMutation.mutate()}
               >
-                {submittingSession ? t('creatingSession') : t('createSession')}
+                {anonymousSessionMutation.isPending
+                  ? t('creatingSession')
+                  : t('createSession')}
               </Button>
-              <Link className="button button--secondary button--md" href="/verify">
+              <Button as="a" variant="secondary" size="md" href="/verify">
                 {t('goVerify')}
-              </Link>
+              </Button>
               <ContactInboxLink />
-              <Link className="button button--ghost button--md" href="/settings">
+              <Button as="a" variant="ghost" size="md" href="/settings">
                 {t('settingsTitle')}
-              </Link>
+              </Button>
             </>
           }
         />
@@ -129,18 +154,18 @@ export function ResourceHome() {
             </div>
           </div>
           <div className="actions">
-            <Link className="button button--primary button--md" data-testid="join-community" href="/community/join">
+            <Button as="a" variant="primary" size="md" data-testid="join-community" href="/community/join">
               {t('joinCommunityCta')}
-            </Link>
-            <Link className="button button--secondary button--md" data-testid="request-help" href="/posts/new?post_type=request">
+            </Button>
+            <Button as="a" variant="secondary" size="md" data-testid="request-help" href="/posts/new?post_type=request">
               {t('requestHelpCta')}
-            </Link>
-            <Link className="button button--secondary button--md" data-testid="offer-help" href="/posts/new?post_type=offer">
+            </Button>
+            <Button as="a" variant="secondary" size="md" data-testid="offer-help" href="/posts/new?post_type=offer">
               {t('offerHelpCta')}
-            </Link>
-            <Link className="button button--ghost button--md" href="/community">
+            </Button>
+            <Button as="a" variant="ghost" size="md" href="/community">
               {t('communityFeedHeading')}
-            </Link>
+            </Button>
             <ContactInboxLink />
           </div>
         </Card>
@@ -188,7 +213,19 @@ export function ResourceHome() {
           ) : null}
 
           {!resourceQuery.isLoading && resourceItems.length === 0 && preferences.zipCode ? (
-            <div className="result-empty">{t('noResults')}</div>
+            <Banner
+              tone="info"
+              title={t('resourceEmptyTitle', { zip: preferences.zipCode })}
+              actionLabel={t('resourceEmptyTryAgain')}
+              onAction={() => {
+                // Clearing the ZIP returns the list to the empty-state
+                // "set a location" view, which matches what a user would
+                // want after realising their ZIP has no nearby matches.
+                dispatch(setZipCode(''));
+              }}
+            >
+              {t('resourceEmptyBody')}
+            </Banner>
           ) : null}
 
           <div className="resource-grid">
@@ -216,26 +253,30 @@ export function ResourceHome() {
                   </p>
 
                   <div className="actions actions--stack">
-                    <Link
-                      className="button button--secondary button--md"
+                    <Button
+                      as="a"
+                      variant="secondary"
+                      size="md"
                       data-testid={`resource-detail-${resource.provider_id}`}
                       href={`/resources/${resource.provider_id}`}
                     >
                       {t('detailCta')}
-                    </Link>
+                    </Button>
                     {resource.phone ? (
-                      <a className="button button--ghost button--md" href={`tel:${resource.phone}`}>
+                      <Button as="a" variant="ghost" size="md" href={`tel:${resource.phone}`}>
                         {t('call')}
-                      </a>
+                      </Button>
                     ) : null}
-                    <a
-                      className="button button--ghost button--md"
+                    <Button
+                      as="a"
+                      variant="ghost"
+                      size="md"
                       href={resource.directions_url}
                       rel="noreferrer"
                       target="_blank"
                     >
                       {t('directions')}
-                    </a>
+                    </Button>
                     <Button
                       variant={bookmarked ? 'primary' : 'secondary'}
                       size="md"

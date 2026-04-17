@@ -2,25 +2,32 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
 import { PostCard } from '@/components/post-card';
 import { Card, PageHeader } from '@/components/ui';
 import { useAppSelector, useMyPosts } from '@/lib/hooks';
+import { selectPreferences, selectSession } from '@/lib/selectors';
 
 const statusGroups = ['active', 'pending_review', 'closed', 'removed'] as const;
 
 export function MyPostsScreen() {
   const t = useTranslations();
-  const preferences = useAppSelector((state) => state.preferences);
-  const session = useAppSelector((state) => state.auth.session);
+  const preferences = useAppSelector(selectPreferences);
+  const session = useAppSelector(selectSession);
   const postsQuery = useMyPosts(session?.access_token, {}, Boolean(session));
+
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitlePostsMine')} \u2014 WeaveNYC`;
+  }, [t]);
 
   const grouped = Object.fromEntries(
     statusGroups.map((status) => [status, postsQuery.data?.items.filter((item) => item.status === status) ?? []]),
   ) as Record<(typeof statusGroups)[number], NonNullable<typeof postsQuery.data>['items']>;
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('myPostsTitle')}

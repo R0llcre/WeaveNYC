@@ -4,7 +4,9 @@
    ============================================================================ */
 
 :root {
-  color-scheme: light;
+  /* Opt out of system dark-mode auto styling; this app is explicitly light-only
+     because the color system, shadows, and glass fallbacks are tuned for cream. */
+  color-scheme: light only;
 
   /* ---------- Colors ---------- */
   --color-bg: #fbf9f5;
@@ -16,9 +18,10 @@
   --color-ink-secondary: #425066;
   --color-ink-muted: #5a6778;
 
-  --color-accent: #0e766e;
+  /* Accent warmed ~10° from cold teal toward jade — keeps "mutual aid" warmth. */
+  --color-accent: #0d7a6d;
   --color-accent-strong: #0a5a54;
-  --color-accent-soft: rgba(14, 118, 110, 0.10);
+  --color-accent-soft: rgba(13, 122, 109, 0.10);
 
   --color-success: #1f7a46;
   --color-success-soft: rgba(31, 122, 70, 0.10);
@@ -91,7 +94,7 @@
 
 html {
   background:
-    radial-gradient(circle at top, rgba(14, 118, 110, 0.12), transparent 28%),
+    radial-gradient(circle at top, rgba(13, 122, 109, 0.12), transparent 28%),
     var(--color-bg);
 }
 
@@ -100,12 +103,14 @@ body {
   min-height: 100vh;
   color: var(--color-ink-primary);
   font: var(--type-body);
+  font-size: 16px; /* Explicit 16px so iOS Safari doesn't auto-zoom inputs on focus. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Warm cream gradient — replaces cold blue radial for mutual-aid warmth. */
   background:
-    radial-gradient(circle at 20% 10%, rgba(63, 112, 155, 0.07), transparent 24%),
-    radial-gradient(circle at 80% 0%, rgba(14, 118, 110, 0.11), transparent 26%),
+    radial-gradient(circle at 20% 10%, rgba(240, 206, 168, 0.08), transparent 24%),
+    radial-gradient(circle at 80% 0%, rgba(13, 122, 109, 0.11), transparent 26%),
     linear-gradient(180deg, #fcfaf5 0%, #f3efe7 100%);
 }
 
@@ -146,12 +151,55 @@ a:hover {
 }
 
 /* ============================================================================
+   Skip-to-content link (F10 — WCAG 2.2 AA bypass-blocks requirement)
+
+   Positioned off-screen until a keyboard user tabs to it; on :focus-visible
+   it slides into the top-left so sighted keyboard users can jump past the
+   page header directly to the main landmark. The paired <main id="main-content">
+   lives on every screen component; each main carries tabIndex={-1} so the
+   browser can move focus into it programmatically when the anchor target
+   is activated.
+   ============================================================================ */
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  padding: var(--space-2) var(--space-4);
+  z-index: 999;
+  border-radius: 0 0 var(--radius-md) 0;
+  text-decoration: none;
+  font-weight: 600;
+  transition: top 150ms ease-out;
+}
+
+.skip-link:focus-visible {
+  top: 0;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Main landmark: ensure focus ring is suppressed when focus is programmatic
+   (tabIndex=-1 from skip-link activation) but preserved when users actually
+   tab to it. The :focus-visible guard already handles this, but a no-op
+   here makes the styling intention explicit for future maintainers. */
+main[id="main-content"]:focus {
+  outline: none;
+}
+
+/* ============================================================================
    Layout — shell + hero + grid
    ============================================================================ */
 
 .shell {
   min-height: 100vh;
-  padding: var(--space-8) var(--space-5) var(--space-10);
+  /* Mobile-first: tighter side padding, generous safe-area top/bottom for notched devices. */
+  padding:
+    max(var(--space-6), env(safe-area-inset-top))
+    var(--space-4)
+    max(var(--space-4), env(safe-area-inset-bottom));
 }
 
 .shell__inner {
@@ -162,10 +210,11 @@ a:hover {
 }
 
 .hero {
-  padding: var(--space-7);
+  /* Mobile-first: tighter hero padding at small viewports. */
+  padding: var(--space-4) var(--space-3) var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.95), rgba(244, 247, 242, 0.86));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 249, 246, 0.94));
   box-shadow: var(--shadow-lg);
 }
 
@@ -250,7 +299,8 @@ a:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   background: var(--color-surface);
-  box-shadow: var(--shadow-md);
+  /* Subtle accent-tinted resting shadow adds depth over the cream gradient. */
+  box-shadow: 0 8px 24px rgba(13, 122, 109, 0.06), var(--shadow-sm);
   backdrop-filter: blur(20px) saturate(120%);
   -webkit-backdrop-filter: blur(20px) saturate(120%);
   padding: var(--space-6);
@@ -287,12 +337,26 @@ a:hover {
   gap: var(--space-5);
 }
 
+/* Typographic hierarchy: h2 is a proper title (1.5rem), h3 is a subtitle
+   (1.2rem). Previously h2 was only 1.3rem, making the jump from 1rem body
+   feel flat. The new ratios give clear 3-step hierarchy (24 / 19 / 16). */
 .card h2 {
   margin: 0 0 var(--space-1);
   font-family: var(--font-family-base);
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 600;
+  line-height: 2rem;
   letter-spacing: -0.02em;
+  color: var(--color-ink-primary);
+}
+
+.card h3 {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-family-base);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.6rem;
+  letter-spacing: -0.015em;
   color: var(--color-ink-primary);
 }
 
@@ -523,26 +587,54 @@ a:hover {
   box-shadow: none;
 }
 
+/* Primary — raised accent button with a warm ambient shadow + inner highlight
+   gradient. Hover deepens the shadow for a lift cue. */
 .button--primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: #ffffff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, var(--shadow-sm);
+  box-shadow:
+    0 2px 8px rgba(14, 118, 110, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .button--primary:hover {
   background: var(--color-accent-strong);
   border-color: var(--color-accent-strong);
+  box-shadow:
+    0 4px 14px rgba(14, 118, 110, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
+.button--primary:active {
+  box-shadow:
+    0 1px 4px rgba(14, 118, 110, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* Secondary — now legible on cream (was barely visible at 5% ink). */
 .button--secondary {
-  background: rgba(24, 33, 45, 0.05);
-  border-color: rgba(24, 33, 45, 0.08);
+  background: rgba(24, 33, 45, 0.08);
+  border-color: rgba(24, 33, 45, 0.14);
   color: var(--color-ink-primary);
 }
 
 .button--secondary:hover {
-  background: rgba(24, 33, 45, 0.08);
+  background: rgba(14, 118, 110, 0.10);
+  border-color: rgba(14, 118, 110, 0.22);
+  color: var(--color-accent-strong);
+}
+
+/* Ghost — minimal chrome; the Button atom referenced this variant but no
+   CSS class existed, so buttons rendered border-less and invisible. */
+.button--ghost {
+  background: transparent;
+  border: 1px solid rgba(24, 33, 45, 0.10);
+  color: var(--color-ink-primary);
+}
+
+.button--ghost:hover {
+  background: rgba(24, 33, 45, 0.04);
   border-color: rgba(24, 33, 45, 0.14);
 }
 
@@ -550,12 +642,76 @@ a:hover {
   background: var(--color-danger);
   border-color: var(--color-danger);
   color: #ffffff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, var(--shadow-sm);
+  box-shadow:
+    0 2px 8px rgba(185, 56, 48, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .button--danger:hover {
   background: var(--color-danger-strong);
   border-color: var(--color-danger-strong);
+  box-shadow:
+    0 4px 14px rgba(185, 56, 48, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Size variants — Button atom passes size={sm|md|lg}. md is the default
+   (matches base .button). sm/lg tune padding + min-height. */
+.button--sm {
+  min-height: 36px;
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.9rem;
+}
+
+.button--md {
+  /* Inherit from base .button */
+}
+
+.button--lg {
+  min-height: 52px;
+  padding: var(--space-4) var(--space-6);
+  font-size: 1.05rem;
+}
+
+.button--loading {
+  position: relative;
+  color: transparent;
+}
+
+.button--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 720ms linear infinite;
+  color: #ffffff;
+}
+
+.button--secondary.button--loading::after,
+.button--ghost.button--loading::after {
+  color: var(--color-ink-secondary);
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button__label {
+  display: inline-flex;
+  align-items: center;
 }
 
 .button--with-badge {
@@ -564,7 +720,7 @@ a:hover {
   gap: var(--space-2);
 }
 
-.button__badge {
+.inbox-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -585,6 +741,103 @@ a:hover {
 }
 
 /* ============================================================================
+   Banner — Banner.tsx ships .banner + .banner--{tone} classes. Previously
+   undefined in CSS, so the component rendered unstyled. Four tones, each
+   pairs a soft tint background + 1px border + readable colored copy + an
+   inline action slot on the right.
+   ============================================================================ */
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  line-height: 1.55;
+}
+
+.banner__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.banner__title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.banner__content {
+  color: inherit;
+  opacity: 0.92;
+  font-size: 0.95rem;
+}
+
+.banner__content p {
+  margin: 0;
+}
+
+.banner__content p + p {
+  margin-top: var(--space-2);
+}
+
+.banner__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.banner__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: currentColor;
+  opacity: 0.7;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+}
+
+.banner__dismiss:hover {
+  background: rgba(24, 33, 45, 0.06);
+  opacity: 1;
+}
+
+.banner--info {
+  background: var(--color-info-soft);
+  border-color: rgba(27, 90, 166, 0.22);
+  color: #143f74;
+}
+
+.banner--warning {
+  background: var(--color-warning-soft);
+  border-color: rgba(168, 91, 16, 0.22);
+  color: #7a420c;
+}
+
+.banner--danger {
+  background: var(--color-danger-soft);
+  border-color: rgba(185, 56, 48, 0.22);
+  color: var(--color-danger-strong);
+}
+
+.banner--success {
+  background: var(--color-success-soft);
+  border-color: rgba(31, 122, 70, 0.22);
+  color: #155a30;
+}
+
+/* ============================================================================
    Result / callout panels
    ============================================================================ */
 
@@ -601,6 +854,8 @@ a:hover {
   line-height: 1.6;
 }
 
+/* Callout — copy now uses accent-strong for >5.5:1 contrast against soft bg.
+   Previously ink-primary on 10% accent fell near 4.3:1 and failed AA for body. */
 .callout {
   display: grid;
   gap: var(--space-3);
@@ -608,7 +863,7 @@ a:hover {
   border-radius: var(--radius-lg);
   border: 1px solid rgba(14, 118, 110, 0.18);
   background: var(--color-accent-soft);
-  color: var(--color-ink-primary);
+  color: var(--color-accent-strong);
 }
 
 .result-block {
@@ -645,17 +900,21 @@ a:hover {
   gap: var(--space-2);
 }
 
+/* Meta chip — bumped font to 14px + 1px border + a touch more padding so the
+   chip reads as deliberate UI, not a caption-sized label. */
 .meta-chip {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-pill);
   background: rgba(24, 33, 45, 0.05);
+  border: 1px solid rgba(24, 33, 45, 0.08);
   color: var(--color-ink-muted);
-  font-size: 0.84rem;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .meta-chip--accent {
   background: var(--color-accent-soft);
+  border-color: rgba(14, 118, 110, 0.18);
   color: var(--color-accent-strong);
 }
 
@@ -717,7 +976,8 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  /* Bump from 40px → 44px so pill tap-targets meet WCAG 2.5.5 like buttons. */
+  min-height: 44px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface-raised);
@@ -738,10 +998,12 @@ a:hover {
   transform: scale(0.98);
 }
 
+/* Active pill — stronger signal: accent-strong text + visible border + weight. */
 .pill--active {
   background: var(--color-accent-soft);
   color: var(--color-accent-strong);
   border-color: rgba(14, 118, 110, 0.25);
+  font-weight: 500;
 }
 
 /* ============================================================================
@@ -765,16 +1027,19 @@ a:hover {
   padding: 0;
 }
 
+/* Input — 10px vertical padding keeps text visually centered against the
+   44px min-height (was 12px, creating a weird bottom gap on auto-grow). */
 .field input,
 .field select,
 .field textarea {
   min-height: 44px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  padding: 10px var(--space-4);
   background: rgba(255, 255, 255, 0.96);
   color: var(--color-ink-primary);
   font: var(--type-body);
+  font-size: 16px; /* iOS auto-zoom guard — must be >=16px. */
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   width: 100%;
 }
@@ -785,10 +1050,11 @@ a:hover {
   opacity: 1;
 }
 
+/* Hover signals intent with an accent tint rather than a neutral darker ink. */
 .field input:hover,
 .field select:hover,
 .field textarea:hover {
-  border-color: rgba(24, 33, 45, 0.28);
+  border-color: rgba(14, 118, 110, 0.28);
 }
 
 .field input:focus-visible,
@@ -826,6 +1092,8 @@ a:hover {
   accent-color: var(--color-accent);
 }
 
+/* Radio / checkbox row — border bumped from 10% to 14% so the row reads
+   as an option and not blank negative space. Hover uses a soft accent tint. */
 .radio-row,
 .checkbox-row {
   display: grid;
@@ -833,7 +1101,7 @@ a:hover {
   gap: var(--space-3);
   align-items: start;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(24, 33, 45, 0.14);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.72);
   margin-bottom: var(--space-2);
@@ -844,8 +1112,8 @@ a:hover {
 
 .radio-row:hover,
 .checkbox-row:hover {
-  background: rgba(14, 118, 110, 0.04);
-  border-color: var(--color-border-strong);
+  background: rgba(14, 118, 110, 0.06);
+  border-color: rgba(14, 118, 110, 0.28);
 }
 
 .radio-row input[type="radio"],
@@ -1317,6 +1585,8 @@ a:hover {
   display: grid;
   gap: var(--space-5);
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  /* Safe-area bottom for notched iPhones — keeps composer above home indicator. */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .chat-thread__sidebar,
@@ -1350,20 +1620,29 @@ a:hover {
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border);
+  /* Long URLs / hashes should wrap rather than overflow the bubble. */
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .message-bubble p {
   margin: 0;
   line-height: 1.6;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
+/* Peer bubble — add a visible 1px border so it doesn't merge with the
+   card background (was pure white, invisible edge on cream). */
 .message-bubble--peer {
   background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(24, 33, 45, 0.10);
 }
 
 .message-bubble--self {
   margin-left: auto;
   background: var(--color-accent-soft);
+  border-color: rgba(14, 118, 110, 0.20);
 }
 
 .message-bubble--system {
@@ -1385,6 +1664,7 @@ a:hover {
   gap: var(--space-4);
   margin-top: var(--space-5);
   padding-top: var(--space-5);
+  padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--color-border);
 }
 
@@ -1406,9 +1686,13 @@ a:hover {
 
 /* Default (mobile) already set. */
 
+/* Tablet+ — restore generous shell + hero padding that we tightened at mobile. */
 @media (min-width: 640px) {
   .shell {
-    padding: var(--space-10) var(--space-6) var(--space-12);
+    padding:
+      max(var(--space-10), env(safe-area-inset-top))
+      var(--space-6)
+      max(var(--space-12), env(safe-area-inset-bottom));
   }
 
   .hero {
@@ -1435,8 +1719,7 @@ a:hover {
 }
 
 @media (max-width: 720px) {
-  .grid--detail,
-  .grid--two {
+  .grid--detail {
     grid-template-columns: 1fr;
   }
 
@@ -1459,10 +1742,55 @@ a:hover {
     justify-items: start;
     text-align: left;
   }
+}
 
+/* Phone-first mobile refinements. */
+@media (max-width: 640px) {
+  /* Collapse side-by-side grids to single column on narrow phones. */
+  .grid--two,
+  .verify-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stack meta-list rows (label above value) for tight widths. */
   .meta-list > div {
     grid-template-columns: 1fr;
     gap: var(--space-1);
+  }
+
+  /* Composer footer stacks vertically so long CTAs don't overflow. */
+  .composer__footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  /* Action rows — allow buttons to grow to full-width while still wrapping. */
+  .actions,
+  .action-row {
+    gap: var(--space-2);
+  }
+
+  .actions > .button,
+  .action-row > .button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Backdrop-filter is GPU-expensive on cheap Android. Solid fallback keeps
+     layout + contrast intact without thrashing compositing. */
+  .card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--color-surface-solid);
+  }
+}
+
+/* Sub-500px — single-column resource grid so auto-fit minmax(260px,1fr)
+   doesn't cause horizontal scroll on a 375px iPhone viewport. */
+@media (max-width: 499px) {
+  .resource-grid {
+    grid-template-columns: 1fr;
   }
 }
 

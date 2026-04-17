@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { Button } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import {
   createAnonymousSession,
@@ -9,6 +10,7 @@ import {
   probeEndpoint,
   type AnonymousSessionResponse,
 } from '@/lib/api';
+import { selectSession } from '@/lib/selectors';
 import { clearSession, setSession } from '@/lib/slices/auth-slice';
 
 function HealthBadge({ ok }: { ok: boolean }) {
@@ -30,7 +32,7 @@ function maskToken(token: string) {
 export function Dashboard() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
-  const session = useAppSelector((state) => state.auth.session);
+  const session = useAppSelector(selectSession);
 
   const healthzQuery = useQuery({
     queryKey: ['api-health', 'healthz'],
@@ -59,7 +61,7 @@ export function Dashboard() {
   };
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <section className="hero">
           <span className="hero__eyebrow">M0 PWA shell</span>
@@ -99,9 +101,9 @@ export function Dashboard() {
             </div>
 
             <div className="actions">
-              <button className="button button--secondary" onClick={() => void handleRefreshHealth()} type="button">
+              <Button variant="secondary" onClick={() => void handleRefreshHealth()}>
                 Refresh health
-              </button>
+              </Button>
             </div>
           </article>
 
@@ -112,17 +114,17 @@ export function Dashboard() {
             </p>
 
             <div className="actions">
-              <button
-                className="button button--primary"
+              <Button
+                variant="primary"
                 disabled={anonymousSessionMutation.isPending}
+                loading={anonymousSessionMutation.isPending}
                 onClick={() => anonymousSessionMutation.mutate()}
-                type="button"
               >
                 {anonymousSessionMutation.isPending ? 'Creating session…' : 'Create anonymous session'}
-              </button>
-              <button className="button button--secondary" onClick={() => dispatch(clearSession())} type="button">
+              </Button>
+              <Button variant="secondary" onClick={() => dispatch(clearSession())}>
                 Clear panel
-              </button>
+              </Button>
             </div>
 
             <div className="hint">

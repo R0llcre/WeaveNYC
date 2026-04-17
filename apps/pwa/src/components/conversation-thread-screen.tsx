@@ -7,7 +7,6 @@ import { useEffect, useEffectEvent, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { Banner, Button, Card, Field, PageHeader, Pill } from '@/components/ui';
-import { getChatWebSocketUrl } from '@/lib/api';
 import {
   useAppSelector,
   useBlockUser,
@@ -16,6 +15,9 @@ import {
   useCreateReport,
   useSendConversationMessage,
 } from '@/lib/hooks';
+import { selectPreferences, selectSession } from '@/lib/selectors';
+import { useChatWebSocket, type ChatWebSocketState } from '@/lib/use-chat-websocket';
+import type { ChatRealtimeEvent } from '@/lib/types';
 
 type ConversationThreadScreenProps = {
   conversationId: string;
@@ -30,14 +32,21 @@ function formatThreadTime(value: string, locale: string) {
   }).format(new Date(value));
 }
 
+function isForbiddenError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /HTTP\s+403/i.test(error.message);
+}
+
 export function ConversationThreadScreen({ conversationId }: ConversationThreadScreenProps) {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const preferences = useAppSelector((state) => state.preferences);
-  const session = useAppSelector((state) => state.auth.session);
+  const preferences = useAppSelector(selectPreferences);
+  const session = useAppSelector(selectSession);
   const [composer, setComposer] = useState('');
   const [reported, setReported] = useState(false);
+  const [wsState, setWsState] = useState<ChatWebSocketState>('connecting');
+  const [sendGuardError, setSendGuardError] = useState<string | null>(null);
   const locale = preferences.language === 'es' ? 'es-US' : preferences.language === 'zh' ? 'zh-CN' : 'en-US';
   const contactRequestId = searchParams.get('contact_request_id');
   const conversationQuery = useConversation(session?.access_token, conversationId, Boolean(session?.access_token));
@@ -54,53 +63,63 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
   const relatedPostId = conversation?.related_post_ids[0] ?? null;
   const isBlocked = conversation?.status === 'blocked';
   const isClosed = conversation?.status === 'closed';
-  const handleSocketMessage = useEffectEvent((event: MessageEvent<string>) => {
-    try {
-      const payload = JSON.parse(event.data) as {
-        event_type?: string;
-        conversation_id?: string;
-        conversation?: { conversation_id?: string };
-      };
-      if (payload.event_type === 'message.created' && payload.conversation_id === conversationId) {
-        void messagesQuery.refetch();
-        void conversationQuery.refetch();
-        return;
-      }
+  const accessDenied = isForbiddenError(conversationQuery.error);
 
-      if (payload.event_type === 'conversation.updated' && payload.conversation?.conversation_id === conversationId) {
-        void conversationQuery.refetch();
-      }
-    } catch {
-      // Ignore malformed socket payloads during development.
-    }
-  });
-
+  // F10: per-route document.title
   useEffect(() => {
-    if (!session?.access_token) {
+    document.title = `${t('pageTitleConversation')} \u2014 WeaveNYC`;
+  }, [t]);
+  const handleSocketMessage = useEffectEvent((payload: ChatRealtimeEvent) => {
+    if (payload.event_type === 'message.created' && payload.conversation_id === conversationId) {
+      void messagesQuery.refetch();
+      void conversationQuery.refetch();
       return;
     }
 
-    const socket = new WebSocket(getChatWebSocketUrl(session.access_token));
-    socket.onmessage = (event) => {
-      handleSocketMessage(event);
-    };
+    if (
+      payload.event_type === 'conversation.updated' &&
+      payload.conversation.conversation_id === conversationId
+    ) {
+      void conversationQuery.refetch();
+    }
+  });
 
-    return () => {
-      socket.close();
-    };
-  }, [conversationId, handleSocketMessage, session?.access_token]);
+  useChatWebSocket(session?.access_token, handleSocketMessage, {
+    enabled: Boolean(session?.access_token) && !accessDenied,
+    onStateChange: setWsState,
+  });
 
   async function handleSend(body: string) {
+    setSendGuardError(null);
+
     if (!body.trim() || isBlocked || isClosed) {
       return;
     }
 
-    await sendMessageMutation.mutateAsync({
-      conversationId,
-      body,
-    });
-    setComposer('');
-    void messagesQuery.refetch();
+    // Bug F5-2 fix: refresh the conversation before we send so we do not POST
+    // into a thread that was just closed/blocked while the composer was focused.
+    const refreshed = await conversationQuery.refetch();
+    const currentStatus = refreshed.data?.status ?? conversation?.status;
+    if (currentStatus && currentStatus !== 'active') {
+      setSendGuardError(
+        currentStatus === 'blocked' ? t('chatThreadBlockedNotice') : t('postsGroup_closed'),
+      );
+      return;
+    }
+
+    try {
+      await sendMessageMutation.mutateAsync({
+        conversationId,
+        body,
+      });
+      // Only clear the composer after the server acknowledges the send so a
+      // failure keeps the user's text intact (Bug F5-2 + F5-4).
+      setComposer('');
+      void messagesQuery.refetch();
+    } catch {
+      // The mutation's error state is surfaced via <Banner /> below, so we
+      // intentionally keep the textarea value and avoid throwing into React.
+    }
   }
 
   async function handleBlock() {
@@ -132,14 +151,14 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
 
   if (!session) {
     return (
-      <main className="shell">
+      <main className="shell" id="main-content" tabIndex={-1}>
         <div className="shell__inner">
           <Card variant="raised">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <Link className="button button--primary" href="/">
+              <Button as="a" variant="primary" href="/">
                 {t('backHome')}
-              </Link>
+              </Button>
             </div>
           </Card>
         </div>
@@ -155,14 +174,14 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
     );
 
     return (
-      <main className="shell">
+      <main className="shell" id="main-content" tabIndex={-1}>
         <div className="shell__inner">
           <Card variant="raised">
             <div className="result-empty">
               <p>{t('composeNeedsVerified')}</p>
-              <Link className="button button--primary" href={`/verify?return_to=${returnTo}`}>
+              <Button as="a" variant="primary" href={`/verify?return_to=${returnTo}`}>
                 {t('goVerify')}
-              </Link>
+              </Button>
             </div>
           </Card>
         </div>
@@ -170,8 +189,38 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
     );
   }
 
+  // Bug F5-3 fix: non-participant users hitting the thread URL get a 403 back
+  // from GET /v1/conversations/:id. Render an access-denied banner before we
+  // attempt to load messages so we never show partial data to the wrong user.
+  if (accessDenied) {
+    return (
+      <main className="shell" id="main-content" tabIndex={-1}>
+        <div className="shell__inner">
+          <PageHeader
+            eyebrow={t('chatThreadTitle')}
+            title={t('conversationAccessDeniedTitle')}
+            subtitle={t('chatThreadCopy')}
+            actions={
+              <>
+                <ContactInboxLink />
+                <Link className="hero__link" href="/inbox">
+                  {t('inboxTitle')}
+                </Link>
+              </>
+            }
+          />
+          <Card variant="raised">
+            <Banner tone="warning" title={t('conversationAccessDeniedTitle')}>
+              {t('conversationAccessDeniedBody')}
+            </Banner>
+          </Card>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('chatThreadTitle')}
@@ -193,6 +242,12 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
           <span className="meta-chip">conversation_id: {conversationId}</span>
           {contactRequestId ? <span className="meta-chip">contact_request_id: {contactRequestId}</span> : null}
         </div>
+
+        {wsState === 'reconnecting' ? (
+          <Banner tone="info" title={t('wsReconnecting')} />
+        ) : wsState === 'closed' ? (
+          <Banner tone="warning" title={t('wsDisconnected')} />
+        ) : null}
 
         {isBlocked ? (
           <Banner tone="warning" title={t('chatThreadBlockedNotice')} />
@@ -260,9 +315,9 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
                     {relatedPostId ? `${t('chatThreadRelatedPostLabel')} ${relatedPostId}` : t('chatThreadRelatedPostMissing')}
                   </p>
                   {relatedPostId ? (
-                    <Link className="button button--secondary" href={`/posts/${relatedPostId}`}>
+                    <Button as="a" variant="secondary" href={`/posts/${relatedPostId}`}>
                       {t('contactInboxRelatedPost')}
-                    </Link>
+                    </Button>
                   ) : null}
                 </div>
               </div>
@@ -330,10 +385,20 @@ export function ConversationThreadScreen({ conversationId }: ConversationThreadS
                   value={composer}
                 />
               </Field>
+              {sendGuardError ? (
+                <Banner tone="warning" title={sendGuardError} />
+              ) : null}
               {sendMessageMutation.isError ? (
-                <p className="status-copy status-copy--error">
-                  {sendMessageMutation.error instanceof Error ? sendMessageMutation.error.message : t('resourceLoadError')}
-                </p>
+                <Banner
+                  tone="danger"
+                  title={t('sendFailedTitle')}
+                  actionLabel={t('sendFailedRetry')}
+                  onAction={() => sendMessageMutation.reset()}
+                >
+                  {sendMessageMutation.error instanceof Error
+                    ? sendMessageMutation.error.message
+                    : t('resourceLoadError')}
+                </Banner>
               ) : null}
               <div className="composer__footer">
                 <Button

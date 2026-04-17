@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -11,6 +10,11 @@ import { createAnonymousSession } from '@/lib/api';
 import { isP2PDevDemoVisible } from '@/lib/p2p-env';
 import { useAppDispatch, useAppSelector, useCommunityP2PSync, usePosts } from '@/lib/hooks';
 import { loadCachedPosts, saveCachedPosts } from '@/lib/persistence';
+import {
+  selectCommunity,
+  selectPreferences,
+  selectSession,
+} from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
 import { setCurrentCommunity } from '@/lib/slices/community-slice';
 import { PostCard } from '@/components/post-card';
@@ -19,11 +23,11 @@ import type { CachedPostsValue } from '@/lib/types';
 export function CommunityScreen() {
   const t = useTranslations();
   const dispatch = useAppDispatch();
-  const session = useAppSelector((state) => state.auth.session);
-  const preferences = useAppSelector((state) => state.preferences);
-  const communityState = useAppSelector((state) => state.community);
+  const session = useAppSelector(selectSession);
+  const preferences = useAppSelector(selectPreferences);
+  const communityState = useAppSelector(selectCommunity);
   const [tab, setTab] = useState<'community' | 'public'>('community');
-  const [creatingSession, setCreatingSession] = useState(false);
+  const [isCreatingSession, setCreatingSession] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [cachedPosts, setCachedPosts] = useState<CachedPostsValue | null>(null);
   const currentCommunity = useMemo(
@@ -45,6 +49,11 @@ export function CommunityScreen() {
   );
   const p2pSync = useCommunityP2PSync(session?.access_token, currentCommunity?.community_id ?? null);
   const showMdnsDemoToggle = isP2PDevDemoVisible();
+
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitleCommunity')} \u2014 WeaveNYC`;
+  }, [t]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -122,7 +131,7 @@ export function CommunityScreen() {
   };
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('communityTitle')}
@@ -131,26 +140,30 @@ export function CommunityScreen() {
           backHref="/"
           actions={
             <>
-              <Link className="button button--primary button--md" data-testid="join-community" href="/community/join">
+              <Button as="a" variant="primary" size="md" data-testid="join-community" href="/community/join">
                 {t('joinCommunityCta')}
-              </Link>
-              <Link
-                className="button button--secondary button--md"
+              </Button>
+              <Button
+                as="a"
+                variant="secondary"
+                size="md"
                 data-testid="request-help"
                 href="/posts/new?post_type=request"
               >
                 {t('requestHelpCta')}
-              </Link>
-              <Link
-                className="button button--secondary button--md"
+              </Button>
+              <Button
+                as="a"
+                variant="secondary"
+                size="md"
                 data-testid="offer-help"
                 href="/posts/new?post_type=offer"
               >
                 {t('offerHelpCta')}
-              </Link>
-              <Link className="button button--ghost button--md" href="/posts/mine">
+              </Button>
+              <Button as="a" variant="ghost" size="md" href="/posts/mine">
                 {t('myPostsTitle')}
-              </Link>
+              </Button>
               <ContactInboxLink />
             </>
           }
@@ -164,11 +177,11 @@ export function CommunityScreen() {
                 variant="primary"
                 size="md"
                 data-testid="create-session"
-                disabled={creatingSession}
-                loading={creatingSession}
+                disabled={isCreatingSession}
+                loading={isCreatingSession}
                 onClick={() => void handleCreateSession()}
               >
-                {creatingSession ? t('creatingSession') : t('createSession')}
+                {isCreatingSession ? t('creatingSession') : t('createSession')}
               </Button>
             </div>
           </Card>
@@ -326,9 +339,9 @@ export function CommunityScreen() {
           {tab === 'community' && !currentCommunity ? (
             <div className="result-empty">
               <p>{t('communityNoMembership')}</p>
-              <Link className="button button--primary button--md" href="/community/join">
+              <Button as="a" variant="primary" size="md" href="/community/join">
                 {t('joinCommunityCta')}
-              </Link>
+              </Button>
             </div>
           ) : null}
 

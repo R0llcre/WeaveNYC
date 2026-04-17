@@ -15,28 +15,94 @@ import {
   useSpeechTranscribe,
 } from '@/lib/hooks';
 import { getCategoryLabel, getPostPrivacyLabel } from '@/lib/i18n';
+import {
+  selectCommunity,
+  selectPostDraft,
+  selectPreferences,
+  selectSession,
+} from '@/lib/selectors';
 import { listenOnceWithBrowserSpeech, supportsBrowserSpeechRecognition } from '@/lib/speech';
 import { setSession } from '@/lib/slices/auth-slice';
 import { mergePostDraft, resetPostDraft, setDraftStep } from '@/lib/slices/post-draft-slice';
+import type { PostCategory, PostDraftState } from '@/lib/types';
 
-const categories = ['food', 'goods', 'childcare', 'companionship', 'translation', 'transportation', 'other'] as const;
+const categories: readonly PostCategory[] = [
+  'food',
+  'goods',
+  'childcare',
+  'companionship',
+  'translation',
+  'transportation',
+  'other',
+] as const;
 const privacyOptions = ['community_only', 'public', 'anchor_mediated'] as const;
+
+type ValidationMessages = {
+  composerValidationEmptyTitle: string;
+  composerValidationLongTitle: string;
+  composerValidationEmptyBody: string;
+  composerValidationLongBody: string;
+  composerValidationNoCategory: string;
+  composerValidationNoZip: string;
+  composerValidationExpired: string;
+};
+
+function validateDraft(
+  draft: PostDraftState,
+  messages: ValidationMessages,
+): string[] {
+  const issues: string[] = [];
+
+  const title = draft.title?.trim() ?? '';
+  if (!title) {
+    issues.push(messages.composerValidationEmptyTitle);
+  } else if (title.length > 140) {
+    issues.push(messages.composerValidationLongTitle);
+  }
+
+  const body = draft.body?.trim() ?? '';
+  if (!body) {
+    issues.push(messages.composerValidationEmptyBody);
+  } else if (body.length > 1000) {
+    issues.push(messages.composerValidationLongBody);
+  }
+
+  if (!draft.category || !categories.includes(draft.category)) {
+    issues.push(messages.composerValidationNoCategory);
+  }
+
+  if (!/^\d{5}$/.test(draft.locationZip ?? '')) {
+    issues.push(messages.composerValidationNoZip);
+  }
+
+  const expiresAt = draft.expiresAt ? Date.parse(draft.expiresAt) : NaN;
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    issues.push(messages.composerValidationExpired);
+  }
+
+  return issues;
+}
 
 export function PostComposerScreen() {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
-  const session = useAppSelector((state) => state.auth.session);
-  const preferences = useAppSelector((state) => state.preferences);
-  const communityState = useAppSelector((state) => state.community);
-  const draft = useAppSelector((state) => state.postDraft);
-  const [creatingSession, setCreatingSession] = useState(false);
+  const session = useAppSelector(selectSession);
+  const preferences = useAppSelector(selectPreferences);
+  const communityState = useAppSelector(selectCommunity);
+  const draft = useAppSelector(selectPostDraft);
+  const [isCreatingSession, setCreatingSession] = useState(false);
   const [browserSpeechError, setBrowserSpeechError] = useState<string | null>(null);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
   const audioInputRef = useRef<HTMLInputElement | null>(null);
-  const draftBodyRef = useRef(draft.body);
   const createPostMutation = useCreatePost(session?.access_token);
   const speechMutation = useSpeechTranscribe(session?.access_token);
+
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitlePostNew')} \u2014 WeaveNYC`;
+  }, [t]);
 
   const currentCommunity = useMemo(
     () =>
@@ -68,9 +134,10 @@ export function PostComposerScreen() {
     );
   }, [dispatch, draft.language, draft.locationZip, preferences.language, preferences.zipCode]);
 
+  // Clear stale validation issues whenever the draft or step changes.
   useEffect(() => {
-    draftBodyRef.current = draft.body;
-  }, [draft.body]);
+    setValidationIssues([]);
+  }, [draft.step, draft.title, draft.body, draft.category, draft.locationZip, draft.expiresAt]);
 
   const handleCreateSession = async () => {
     setCreatingSession(true);
@@ -84,8 +151,15 @@ export function PostComposerScreen() {
   const handleBrowserSpeech = async () => {
     try {
       setBrowserSpeechError(null);
+      // Bug #3 fix: use Redux state directly (no stale ref) so the transcript
+      // always appends to the latest body.
+      const current = draft.body;
       const transcript = await listenOnceWithBrowserSpeech(preferences.language);
-      dispatch(mergePostDraft({ body: [draftBodyRef.current, transcript].filter(Boolean).join('\n').trim() }));
+      dispatch(
+        mergePostDraft({
+          body: [current, transcript].filter(Boolean).join('\n').trim(),
+        }),
+      );
     } catch (error) {
       setBrowserSpeechError(error instanceof Error ? error.message : t('speechBrowserError'));
     }
@@ -102,13 +176,49 @@ export function PostComposerScreen() {
       transcriptHint: '',
       fileName: file.name,
     });
-    dispatch(mergePostDraft({ body: [draftBodyRef.current, result.transcript].filter(Boolean).join('\n').trim() }));
+    const current = draft.body;
+    dispatch(
+      mergePostDraft({
+        body: [current, result.transcript].filter(Boolean).join('\n').trim(),
+      }),
+    );
   };
+
+  const validationMessages: ValidationMessages = useMemo(
+    () => ({
+      composerValidationEmptyTitle: t('composerValidationEmptyTitle'),
+      composerValidationLongTitle: t('composerValidationLongTitle'),
+      composerValidationEmptyBody: t('composerValidationEmptyBody'),
+      composerValidationLongBody: t('composerValidationLongBody'),
+      composerValidationNoCategory: t('composerValidationNoCategory'),
+      composerValidationNoZip: t('composerValidationNoZip'),
+      composerValidationExpired: t('composerValidationExpired'),
+    }),
+    [t],
+  );
+
+  const currentIssues = useMemo(
+    () => validateDraft(draft, validationMessages),
+    [draft, validationMessages],
+  );
+  const isDraftValid = currentIssues.length === 0;
 
   const handlePublish = async () => {
     if (!session?.access_token || !currentCommunity || !draft.postType) {
       return;
     }
+
+    // Bug #1 fix: run client-side validation before the mutation. If any
+    // required field is missing/invalid, surface the issues and bounce the
+    // user back to the compose step without clearing the draft.
+    const issues = validateDraft(draft, validationMessages);
+    if (issues.length > 0) {
+      setValidationIssues(issues);
+      dispatch(setDraftStep('compose'));
+      return;
+    }
+
+    setValidationIssues([]);
 
     const created = await createPostMutation.mutateAsync({
       communityId: currentCommunity.community_id,
@@ -132,8 +242,12 @@ export function PostComposerScreen() {
     router.push(`/posts/${created.post_id}`);
   };
 
+  // Bug #2: map current step to the linear progress breadcrumb.
+  const stepOrder: Array<'type' | 'compose' | 'preview'> = ['type', 'compose', 'preview'];
+  const currentStepIndex = stepOrder.indexOf(draft.step);
+
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('composeTitle')}
@@ -152,11 +266,11 @@ export function PostComposerScreen() {
               <p>{t('joinNeedsSession')}</p>
               <Button
                 data-testid="create-session"
-                disabled={creatingSession}
+                disabled={isCreatingSession}
                 onClick={() => void handleCreateSession()}
                 variant="primary"
               >
-                {creatingSession ? t('creatingSession') : t('createSession')}
+                {isCreatingSession ? t('creatingSession') : t('createSession')}
               </Button>
             </div>
           </Card>
@@ -166,9 +280,9 @@ export function PostComposerScreen() {
           <Card variant="raised">
             <div className="result-empty">
               <p>{t('composeNeedsCommunity')}</p>
-              <Link className="button button--primary" data-testid="join-community" href="/community/join">
+              <Button as="a" variant="primary" data-testid="join-community" href="/community/join">
                 {t('joinCommunityCta')}
-              </Link>
+              </Button>
             </div>
           </Card>
         ) : null}
@@ -176,34 +290,68 @@ export function PostComposerScreen() {
         {requiresVerified && session?.user.level === 'anonymous' ? (
           <Banner tone="warning" title={t('composeNeedsVerified')}>
             <div className="actions">
-              <Link className="button button--primary" href="/verify">
+              <Button as="a" variant="primary" href="/verify">
                 {t('goVerify')}
-              </Link>
+              </Button>
             </div>
           </Banner>
         ) : null}
 
         <Card variant="raised">
-          <nav aria-label={t('composeTitle')} className="tab-row">
-            <Pill
-              active={draft.step === 'type'}
-              onClick={() => dispatch(setDraftStep('type'))}
-            >
-              {t('composeStepType')}
-            </Pill>
-            <Pill
-              active={draft.step === 'compose'}
-              onClick={() => dispatch(setDraftStep('compose'))}
-            >
-              {t('composeStepCompose')}
-            </Pill>
-            <Pill
-              active={draft.step === 'preview'}
-              onClick={() => dispatch(setDraftStep('preview'))}
-            >
-              {t('composeStepPreview')}
-            </Pill>
+          {/* Bug #2 fix: linear breadcrumb progress. Steps prior to the
+              current one are marked completed; the current step is active;
+              future steps remain muted. */}
+          <nav
+            aria-label={t('composeTitle')}
+            className="tab-row tab-row--steps"
+            data-testid="composer-steps"
+          >
+            {stepOrder.map((step, index) => {
+              const label =
+                step === 'type'
+                  ? t('composerStep1Label')
+                  : step === 'compose'
+                    ? t('composerStep2Label')
+                    : t('composerStep3Label');
+              const isActive = index === currentStepIndex;
+              const isCompleted = index < currentStepIndex;
+              const stepClass = [
+                'pill--step',
+                isCompleted ? 'pill--step-completed' : '',
+                isActive ? 'pill--step-active' : '',
+                !isActive && !isCompleted ? 'pill--step-pending' : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
+              return (
+                <Pill
+                  key={step}
+                  active={isActive || isCompleted}
+                  aria-current={isActive ? 'step' : undefined}
+                  className={stepClass}
+                  data-step={step}
+                  data-step-state={isActive ? 'active' : isCompleted ? 'completed' : 'pending'}
+                  onClick={() => dispatch(setDraftStep(step))}
+                >
+                  {label}
+                </Pill>
+              );
+            })}
           </nav>
+
+          {validationIssues.length > 0 ? (
+            <Banner
+              data-testid="composer-validation-banner"
+              tone="warning"
+              title={t('composerValidationTitle')}
+            >
+              <ul>
+                {validationIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </Banner>
+          ) : null}
 
           {draft.step === 'type' ? (
             <div className="actions">
@@ -226,8 +374,18 @@ export function PostComposerScreen() {
 
           {draft.step !== 'type' ? (
             <div className="verify-grid">
-              <Field label={t('composeCurrentCommunity')}>
-                <input disabled value={currentCommunity?.name ?? ''} />
+              {/* F10 Fix 10: disabled input explains why it is read-only via
+                  the Field hint. The community is bound to the active session
+                  and cannot be changed from the composer. */}
+              <Field
+                label={t('composeCurrentCommunity')}
+                hint={t('composeNeedsCommunity')}
+              >
+                <input
+                  disabled
+                  aria-disabled="true"
+                  value={currentCommunity?.name ?? ''}
+                />
               </Field>
 
               <Field label={t('filtersType')} className="field--select">
@@ -381,14 +539,34 @@ export function PostComposerScreen() {
                   </Button>
                 ) : null}
                 {draft.step === 'preview' ? (
-                  <Button
-                    data-testid="publish-post"
-                    disabled={createPostMutation.isPending || !draft.postType || !currentCommunity}
-                    onClick={() => void handlePublish()}
-                    variant="primary"
-                  >
-                    {createPostMutation.isPending ? t('creatingSession') : t('composePublishAction')}
-                  </Button>
+                  <>
+                    {/* Bug #4 fix: always expose a "Back to edit" affordance
+                        while previewing so users can recover from server
+                        errors (e.g. risk-too-high 422) without losing their
+                        draft. */}
+                    <Button
+                      data-testid="back-to-edit"
+                      onClick={() => dispatch(setDraftStep('compose'))}
+                      variant="secondary"
+                    >
+                      {t('composerBackToEdit')}
+                    </Button>
+                    <Button
+                      data-testid="publish-post"
+                      disabled={
+                        createPostMutation.isPending ||
+                        !draft.postType ||
+                        !currentCommunity ||
+                        !isDraftValid
+                      }
+                      onClick={() => void handlePublish()}
+                      variant="primary"
+                    >
+                      {createPostMutation.isPending
+                        ? t('creatingSession')
+                        : t('composePublishAction')}
+                    </Button>
+                  </>
                 ) : null}
               </div>
 

@@ -9,6 +9,7 @@ import { Button, Card, Field, PageHeader } from '@/components/ui';
 import { useAppSelector, useClosePost, useDeletePost, usePost, useUpdatePost } from '@/lib/hooks';
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/datetime';
 import { getCategoryLabel, getPostPrivacyLabel, getPostStatusLabel, getPostTypeLabel } from '@/lib/i18n';
+import { selectPreferences, selectSession } from '@/lib/selectors';
 
 type PostDetailScreenProps = {
   postId: string;
@@ -16,8 +17,8 @@ type PostDetailScreenProps = {
 
 export function PostDetailScreen({ postId }: PostDetailScreenProps) {
   const t = useTranslations();
-  const preferences = useAppSelector((state) => state.preferences);
-  const session = useAppSelector((state) => state.auth.session);
+  const preferences = useAppSelector(selectPreferences);
+  const session = useAppSelector(selectSession);
   const postQuery = usePost(session?.access_token, postId, Boolean(session));
   const updateMutation = useUpdatePost(session?.access_token);
   const closeMutation = useClosePost(session?.access_token);
@@ -44,16 +45,21 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
     setFormState(editState);
   }, [editState]);
 
+  // F10: per-route document.title
+  useEffect(() => {
+    document.title = `${t('pageTitlePostDetail')} \u2014 WeaveNYC`;
+  }, [t]);
+
   if (!session) {
     return (
-      <main className="shell">
+      <main className="shell" id="main-content" tabIndex={-1}>
         <div className="shell__inner">
           <Card variant="raised">
             <div className="result-empty">
               <p>{t('joinNeedsSession')}</p>
-              <Link className="button button--primary" href="/">
+              <Button as="a" variant="primary" href="/">
                 {t('backHome')}
-              </Link>
+              </Button>
             </div>
           </Card>
         </div>
@@ -62,7 +68,7 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
   }
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('postDetailTitle')}
@@ -155,9 +161,9 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
                   </p>
                   <div className="actions">
                     {post.is_owner && post.post_type === 'request' && post.status === 'active' ? (
-                      <Link className="button button--primary" href={`/posts/${post.post_id}/matches`}>
+                      <Button as="a" variant="primary" href={`/posts/${post.post_id}/matches`}>
                         {t('seeActionPlans')}
-                      </Link>
+                      </Button>
                     ) : null}
                     {post.actions.can_edit ? (
                       <Button onClick={() => setEditing(true)} variant="secondary">

@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { Card, PageHeader } from '@/components/ui';
+import { Button, Card, PageHeader } from '@/components/ui';
 import { useAppSelector, useConversationPlaceholder } from '@/lib/hooks';
+import { selectSession } from '@/lib/selectors';
 
 type ConversationPlaceholderScreenProps = {
   conversationId: string;
@@ -14,13 +15,13 @@ type ConversationPlaceholderScreenProps = {
 export function ConversationPlaceholderScreen({ conversationId }: ConversationPlaceholderScreenProps) {
   const t = useTranslations();
   const searchParams = useSearchParams();
-  const session = useAppSelector((state) => state.auth.session);
+  const session = useAppSelector(selectSession);
   const placeholderQuery = useConversationPlaceholder(session?.access_token, conversationId, Boolean(session?.access_token));
   const contactRequestId = searchParams.get('contact_request_id');
   const placeholder = placeholderQuery.data;
 
   return (
-    <main className="shell">
+    <main className="shell" id="main-content" tabIndex={-1}>
       <div className="shell__inner">
         <PageHeader
           eyebrow={t('conversationPlaceholderTitle')}
@@ -61,12 +62,12 @@ export function ConversationPlaceholderScreen({ conversationId }: ConversationPl
                 ))}
               </div>
               <div className="actions">
-                <Link className="button button--primary" href="/inbox">
+                <Button as="a" variant="primary" href="/inbox">
                   {t('inboxTitle')}
-                </Link>
-                <Link className="button button--secondary" href="/community">
+                </Button>
+                <Button as="a" variant="secondary" href="/community">
                   {t('backHome')}
-                </Link>
+                </Button>
               </div>
             </div>
           ) : null}
