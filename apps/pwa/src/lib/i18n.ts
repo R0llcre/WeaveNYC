@@ -139,8 +139,10 @@ type ChromeMessages = {
   joinNeedsSession: string;
   joinInviteMode: string;
   joinInviteModeDescription: string;
+  joinInviteHeading: string;
   joinQrMode: string;
   joinQrModeDescription: string;
+  joinQrHeading: string;
   inviteCodeLabel: string;
   qrTokenLabel: string;
   resolveCommunityAction: string;
@@ -733,8 +735,10 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     joinNeedsSession: 'Getting a session ready so you can join. One moment…',
     joinInviteMode: 'Invite code',
     joinInviteModeDescription: 'Paste a code sent by a community admin.',
+    joinInviteHeading: 'Enter your code',
     joinQrMode: 'QR code',
     joinQrModeDescription: 'Scan a printed QR or upload a photo.',
+    joinQrHeading: 'Scan to join',
     inviteCodeLabel: 'Invite code',
     qrTokenLabel: 'QR code or scanned text',
     resolveCommunityAction: 'Check code',
@@ -1315,8 +1319,10 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     joinNeedsSession: 'Preparando una sesión para que puedas unirte. Un momento…',
     joinInviteMode: 'Código de invitación',
     joinInviteModeDescription: 'Pega un código enviado por un admin de la comunidad.',
+    joinInviteHeading: 'Escribe tu código',
     joinQrMode: 'Código QR',
     joinQrModeDescription: 'Escanea un QR impreso o sube una foto.',
+    joinQrHeading: 'Escanea para unirte',
     inviteCodeLabel: 'Código de invitación',
     qrTokenLabel: 'QR o texto escaneado',
     resolveCommunityAction: 'Revisar código',
@@ -1900,8 +1906,10 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     joinNeedsSession: '正在为你准备一个会话，好让你加入社区。请稍等……',
     joinInviteMode: '邀请码',
     joinInviteModeDescription: '粘贴社区管理员发给你的邀请码。',
+    joinInviteHeading: '输入你的码',
     joinQrMode: '二维码',
     joinQrModeDescription: '扫印刷二维码或上传图片。',
+    joinQrHeading: '扫码加入',
     inviteCodeLabel: '邀请码',
     qrTokenLabel: '二维码里的内容',
     resolveCommunityAction: '检查邀请码',

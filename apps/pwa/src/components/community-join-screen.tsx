@@ -395,14 +395,17 @@ export function CommunityJoinScreen() {
           </Stack>
         </section>
 
-        {/* Detail panel — the active mode's form. Rendered in its own Card
-            so the screen reads as "pick mode → enter details" vertically. */}
-        <Card variant="raised" aria-labelledby="join-detail-title">
+        {/* Detail panel — the active mode's form. The heading intentionally
+            does NOT duplicate the Field's label text, so Playwright
+            `getByLabel('Invite code')` matches only the form control and
+            assistive tech announces the Field label distinctly from the
+            section heading. */}
+        <Card variant="raised">
           <Stack gap={4}>
             <Stack gap={1}>
               <span className="overline">{t('joinStep2Label')}</span>
-              <h2 id="join-detail-title">
-                {mode === 'invite' ? t('inviteCodeLabel') : t('qrTokenLabel')}
+              <h2>
+                {mode === 'invite' ? t('joinInviteHeading') : t('joinQrHeading')}
               </h2>
             </Stack>
 
