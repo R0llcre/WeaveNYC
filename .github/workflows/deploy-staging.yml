@@ -30,7 +30,9 @@ jobs:
 
     env:
       WEAVENYC_DEPLOY_PROFILE: staging
-      WEAVENYC_STAGING_DEPLOY_MODE: ${{ github.event_name == 'push' && 'apply' || github.event.inputs.mode || 'plan' }}
+      # Plan-only until the apply-webhook (DEPLOY_HOOK_URL) is provisioned.
+      # Re-enable `apply` by changing this expression once the webhook endpoint exists.
+      WEAVENYC_STAGING_DEPLOY_MODE: ${{ github.event.inputs.mode || 'plan' }}
       NODE_ENV: production
       LOG_LEVEL: info
       DATABASE_URL: ${{ secrets.WEAVENYC_STAGING_DATABASE_URL }}

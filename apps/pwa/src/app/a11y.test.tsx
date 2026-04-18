@@ -204,7 +204,6 @@ describe('Wave 6D · axe-core smoke', () => {
       const summary = results.violations
         .map((v) => `${v.id}: ${v.description} (${v.nodes.length} node${v.nodes.length > 1 ? 's' : ''})`)
         .join('\n');
-      // eslint-disable-next-line no-console
       console.error('axe violations on Home:\n' + summary);
     }
     expect(results.violations).toEqual([]);
@@ -217,7 +216,6 @@ describe('Wave 6D · axe-core smoke', () => {
       const summary = results.violations
         .map((v) => `${v.id}: ${v.description} (${v.nodes.length} node${v.nodes.length > 1 ? 's' : ''})`)
         .join('\n');
-      // eslint-disable-next-line no-console
       console.error('axe violations on Me:\n' + summary);
     }
     expect(results.violations).toEqual([]);
