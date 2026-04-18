@@ -377,7 +377,7 @@ export function CommunityJoinScreen() {
                 active={mode === 'invite'}
                 iconName="chat"
                 title={t('joinInviteMode')}
-                description={t('inviteCodeLabel')}
+                description={t('joinInviteModeDescription')}
                 onSelect={() => handleModeChange('invite')}
                 testId="join-mode-invite"
                 chooseLabel={t('resolveCommunityAction')}
@@ -386,7 +386,7 @@ export function CommunityJoinScreen() {
                 active={mode === 'qr'}
                 iconName="general"
                 title={t('joinQrMode')}
-                description={t('qrTokenLabel')}
+                description={t('joinQrModeDescription')}
                 onSelect={() => handleModeChange('qr')}
                 testId="join-mode-qr"
                 chooseLabel={t('qrScanCamera')}

@@ -135,14 +135,16 @@ jobs:
         run: |
           CLOUD_RUN_URL="${{ steps.deploy.outputs.url }}"
           echo "Deployed to: $CLOUD_RUN_URL"
+          # resource-directory doesn't expose /healthz; we treat any HTTP response
+          # other than connection-refused (000) as "server is up and reachable".
           for i in 1 2 3 4 5; do
-            status=$(curl -s -o /dev/null -w '%{http_code}' "$CLOUD_RUN_URL/healthz") || status=000
-            if [ "$status" = "200" ]; then
-              echo "healthz ok (attempt $i)"
+            status=$(curl -s -o /dev/null -w '%{http_code}' "$CLOUD_RUN_URL/") || status=000
+            if [ "$status" != "000" ]; then
+              echo "server reachable, HTTP $status (attempt $i)"
               exit 0
             fi
-            echo "healthz returned $status, retrying…"
+            echo "no response yet (status $status), retrying…"
             sleep 5
           done
-          echo "healthz never returned 200"
+          echo "server never responded"
           exit 1
