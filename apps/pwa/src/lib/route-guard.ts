@@ -88,6 +88,14 @@ export function useOnboardingGuard(): void {
       return;
     }
 
+    // Legacy `/verify` redirect shim forwards to `/me/verify` (app/verify/page.tsx).
+    // Skip the onboarding guard so the shim's useEffect fires and query params
+    // (`challenge_id`, `token`, sanitized `return_to`) propagate instead of the
+    // user landing on onboarding with an orphaned magic link.
+    if (pathname === '/verify') {
+      return;
+    }
+
     if (onboardingComplete) {
       return;
     }

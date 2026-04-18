@@ -92,7 +92,7 @@ export interface ResourceCardLabels {
 }
 
 export interface ResourceCardProps
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'resource'> {
+  extends Omit<React.HTMLAttributes<HTMLElement>, 'onClick' | 'resource'> {
   resource: ResourceCardResource;
   labels: ResourceCardLabels;
   onOpen?: (id: string) => void;
@@ -130,7 +130,7 @@ export interface ResourceCardProps
  * siblings (not nested) so we stay WCAG-compliant with no interactive
  * descendants inside another button.
  */
-export const ResourceCard = forwardRef<HTMLDivElement, ResourceCardProps>(function ResourceCard(
+export const ResourceCard = forwardRef<HTMLElement, ResourceCardProps>(function ResourceCard(
   {
     resource,
     labels,
@@ -166,7 +166,7 @@ export const ResourceCard = forwardRef<HTMLDivElement, ResourceCardProps>(functi
   const resolvedTestId = providedTestId ?? `resource-card-${id}`;
 
   return (
-    <div
+    <article
       {...rest}
       ref={ref}
       className={classes}
@@ -278,6 +278,6 @@ export const ResourceCard = forwardRef<HTMLDivElement, ResourceCardProps>(functi
           ) : null}
         </span>
       ) : null}
-    </div>
+    </article>
   );
 });
