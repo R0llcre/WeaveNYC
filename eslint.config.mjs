@@ -6,6 +6,7 @@ export default [
   {
     ignores: [
       "**/.next/**",
+      "**/out/**",
       "**/dist/**",
       "**/coverage/**",
       "**/node_modules/**",

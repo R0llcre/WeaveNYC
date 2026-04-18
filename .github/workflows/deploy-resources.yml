@@ -1,0 +1,147 @@
+name: Deploy Resource Directory
+
+# W4B-GCP — M8 pilot readiness.
+# Builds the services/resource-directory Docker image, pushes it to Google
+# Artifact Registry (us-east1), and deploys a new Cloud Run revision that
+# serves https://resources.weavenyc.org.
+#
+# Authentication uses Workload Identity Federation (WIF) — no long-lived
+# service-account keys stored in GitHub. See infra/gcp/README.md for the
+# one-time WIF bootstrap commands.
+#
+# Required GitHub Variables (repo-scoped or environment-scoped to `pilot`):
+#   GCP_PROJECT_ID                 e.g. weavenyc-pilot
+#   GCP_REGION                     us-east1
+#   GCP_AR_REPOSITORY              weavenyc
+#   GCP_RESOURCE_DIRECTORY_SERVICE resource-directory
+#   GCP_WORKLOAD_IDENTITY_PROVIDER projects/<num>/locations/global/workloadIdentityPools/github/providers/github
+#   GCP_DEPLOY_SERVICE_ACCOUNT     github-deploy@<project>.iam.gserviceaccount.com
+#
+# Required Secrets (kept in Secret Manager, referenced by --set-secrets):
+#   weavenyc-database-url                  (managed out-of-band by W4B-AWS)
+#   weavenyc-internal-service-jwt-secret   (shared with api-gateway)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/resource-directory/**'
+      - 'packages/shared/**'
+      - 'packages/db/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy-resources.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag (defaults to commit SHA)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write  # required for Workload Identity Federation
+
+concurrency:
+  group: deploy-resources
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: pilot
+
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_AR_REPOSITORY: ${{ vars.GCP_AR_REPOSITORY }}
+      GCP_SERVICE_NAME: ${{ vars.GCP_RESOURCE_DIRECTORY_SERVICE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Resolve image tag
+        id: meta
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Google Auth (WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/resource-directory/Dockerfile
+          push: true
+          tags: |
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_AR_REPOSITORY }}/resource-directory:${{ steps.meta.outputs.tag }}
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_AR_REPOSITORY }}/resource-directory:latest
+          cache-from: type=gha,scope=resource-directory
+          cache-to: type=gha,scope=resource-directory,mode=max
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.GCP_SERVICE_NAME }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_AR_REPOSITORY }}/resource-directory:${{ steps.meta.outputs.tag }}
+          flags: >-
+            --allow-unauthenticated
+            --port=8080
+            --memory=512Mi
+            --cpu=1
+            --min-instances=0
+            --max-instances=3
+            --timeout=60s
+            --concurrency=80
+          env_vars: |
+            NODE_ENV=production
+            WEAVENYC_DEPLOY_PROFILE=production
+            SERVICE_PORT=8080
+            HOST=0.0.0.0
+            PORT=8080
+            LOG_LEVEL=info
+            INTERNAL_SERVICE_JWT_ISSUER=weavenyc-api-gateway:internal
+          secrets: |
+            DATABASE_URL=weavenyc-database-url:latest
+            INTERNAL_SERVICE_JWT_SECRET=weavenyc-internal-service-jwt-secret:latest
+
+      - name: Smoke test
+        run: |
+          CLOUD_RUN_URL="${{ steps.deploy.outputs.url }}"
+          echo "Deployed to: $CLOUD_RUN_URL"
+          for i in 1 2 3 4 5; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' "$CLOUD_RUN_URL/healthz") || status=000
+            if [ "$status" = "200" ]; then
+              echo "healthz ok (attempt $i)"
+              exit 0
+            fi
+            echo "healthz returned $status, retrying…"
+            sleep 5
+          done
+          echo "healthz never returned 200"
+          exit 1

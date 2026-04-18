@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
-import { anchorSessionIdleTtlSeconds } from '@weavenyc/shared';
+import {
+  accountDeleteBurstLimit,
+  accountDeleteWindowSeconds,
+  anchorSessionIdleTtlSeconds,
+  recoveryCodeBurstLimit,
+  recoveryCodeWindowSeconds,
+} from '@weavenyc/shared';
 import { DefaultChatService, InMemoryChatRepository, type ChatService } from '@weavenyc/chat';
 import { createMatchService, type MatchRepository, type MatchService } from '@weavenyc/match';
 import { InMemoryPostsService } from '@weavenyc/posts';
@@ -10,13 +16,20 @@ import type { ResourceListItem, ResourceSearchInput, ResourceSearchResult } from
 
 import type { AppConfig } from '../src/config.js';
 import { buildApp } from '../src/app.js';
+import { InMemoryAnalyticsRecorder, type AnalyticsRecorder } from '../src/lib/analytics.js';
+export { InMemoryAnalyticsRecorder } from '../src/lib/analytics.js';
 import { InMemoryChatRealtimeHub, type ChatRealtimeHub } from '../src/lib/chat-realtime.js';
 import type { AuthAbuseStore } from '../src/lib/identity.js';
+import type { PurgeJob } from '../src/lib/purge-job.js';
 import type { RefreshTokenStore } from '../src/lib/refresh-token-store.js';
 import type { ResourceDirectoryService } from '../src/lib/resource-directory.js';
 import type { SpeechProvider } from '../src/lib/speech-providers.js';
 import { InMemoryP2PSyncRuntime, type P2PSyncRuntime } from '../src/lib/sync-runtime.js';
-import type { UserStore } from '../src/lib/user-store.js';
+import type {
+  ConfirmAccountDeletionResult,
+  UserDeletionIdentity,
+  UserStore
+} from '../src/lib/user-store.js';
 import type {
   AuthenticatedUserRecord,
   UserLevel,
@@ -449,6 +462,11 @@ export class InMemoryUserStore implements UserStore {
   readonly users = new Map<string, AuthenticatedUserRecord>();
   readonly phoneIdentities = new Map<string, { hash: string; salt: string }>();
   readonly emailIdentities = new Map<string, { hash: string; salt: string }>();
+  readonly deletionRecords = new Map<string, {
+    deletedAt: string | null;
+    purgeAt: string | null;
+    deletionReason: string | null;
+  }>();
   readonly anchorInvites = new Map<string, {
     inviteId: string;
     communityId: string;
@@ -623,6 +641,144 @@ export class InMemoryUserStore implements UserStore {
     }
   }
 
+  async consumeAnchorRecoveryCode(input: {
+    userId: string;
+    communityId: string;
+    codeHash: string;
+  }): Promise<{ remaining: number } | null> {
+    const anchor = Array.from(this.anchors.values()).find(
+      (entry) => entry.userId === input.userId && entry.communityId === input.communityId && entry.status === 'active'
+    );
+    if (!anchor) {
+      return null;
+    }
+
+    const index = anchor.recoveryCodesHashes.indexOf(input.codeHash);
+    if (index === -1) {
+      return null;
+    }
+
+    anchor.recoveryCodesHashes = [
+      ...anchor.recoveryCodesHashes.slice(0, index),
+      ...anchor.recoveryCodesHashes.slice(index + 1)
+    ];
+    return { remaining: anchor.recoveryCodesHashes.length };
+  }
+
+  async scheduleAccountDeletion(input: {
+    userId: string;
+    reason?: string;
+    purgeAt: string;
+  }): Promise<{ userId: string; purgeAt: string } | null> {
+    const result = await this.confirmAccountDeletion(input);
+    if (!result) {
+      return null;
+    }
+    return { userId: result.userId, purgeAt: result.purgeAt };
+  }
+
+  async getDeletionIdentity(userId: string): Promise<UserDeletionIdentity | null> {
+    const user = this.users.get(userId);
+    if (!user) {
+      return null;
+    }
+    const phone = this.phoneIdentities.get(userId);
+    const email = this.emailIdentities.get(userId);
+    const deletion = this.deletionRecords.get(userId);
+
+    return {
+      userId: user.userId,
+      status: user.status,
+      hasPhoneHash: Boolean(phone?.hash),
+      hasEmailHash: Boolean(email?.hash),
+      deletedAt: deletion?.deletedAt ?? null,
+      purgeAt: deletion?.purgeAt ?? null,
+      deletionReason: deletion?.deletionReason ?? null
+    };
+  }
+
+  async countActiveAnchorsInCommunity(
+    communityId: string,
+    excludeUserId?: string
+  ): Promise<number> {
+    return Array.from(this.anchors.values()).filter(
+      (anchor) =>
+        anchor.communityId === communityId &&
+        anchor.status === 'active' &&
+        (!excludeUserId || anchor.userId !== excludeUserId)
+    ).length;
+  }
+
+  async listActiveAnchorCommunitiesForUser(userId: string): Promise<string[]> {
+    return Array.from(this.anchors.values())
+      .filter((anchor) => anchor.userId === userId && anchor.status === 'active')
+      .map((anchor) => anchor.communityId)
+      .sort();
+  }
+
+  async confirmAccountDeletion(input: {
+    userId: string;
+    reason?: string;
+    purgeAt: string;
+  }): Promise<ConfirmAccountDeletionResult | null> {
+    const user = this.users.get(input.userId);
+    if (!user || user.status === 'deleted') {
+      return null;
+    }
+
+    let hadAnchorRole = false;
+    for (const [key, anchor] of this.anchors.entries()) {
+      if (anchor.userId === input.userId && anchor.status === 'active') {
+        anchor.status = 'revoked';
+        this.anchors.set(key, anchor);
+        hadAnchorRole = true;
+      }
+    }
+
+    user.status = 'deleted';
+    user.communityIds = [];
+    user.anchorCommunityId = null;
+    this.users.set(user.userId, user);
+    this.phoneIdentities.delete(user.userId);
+    this.emailIdentities.delete(user.userId);
+
+    this.deletionRecords.set(user.userId, {
+      deletedAt: new Date().toISOString(),
+      purgeAt: input.purgeAt,
+      deletionReason: input.reason ?? null
+    });
+
+    return {
+      userId: user.userId,
+      purgeAt: input.purgeAt,
+      hadAnchorRole
+    };
+  }
+
+  async undeleteAccount(input: {
+    userId: string;
+  }): Promise<AuthenticatedUserRecord | null> {
+    const user = this.users.get(input.userId);
+    if (!user || user.status !== 'deleted') {
+      return null;
+    }
+
+    const deletion = this.deletionRecords.get(input.userId);
+    if (deletion?.purgeAt && new Date(deletion.purgeAt).getTime() <= Date.now()) {
+      return null;
+    }
+
+    user.status = 'active';
+    user.level = 'anonymous';
+    user.role = 'user';
+    user.communityIds = [];
+    user.anchorCommunityId = null;
+    this.users.set(user.userId, user);
+    this.deletionRecords.delete(user.userId);
+
+    return user;
+  }
+
   async close(): Promise<void> {}
 }
 
@@ -630,10 +786,16 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
   readonly anonymousDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly refreshDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly otpDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
+  readonly accountDeleteDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
+  readonly recoveryCodeDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly cooldowns = new Set<string>();
   readonly seenAnonymousKeys: string[] = [];
   readonly seenRefreshKeys: string[] = [];
   readonly seenOtpKeys: string[] = [];
+  readonly seenAccountDeleteKeys: string[] = [];
+  readonly seenRecoveryKeys: string[] = [];
+  private readonly accountDeleteCounts = new Map<string, number>();
+  private readonly recoveryCodeCounts = new Map<string, number>();
 
   async checkAnonymousAuth(ipAddress: string) {
     this.seenAnonymousKeys.push(ipAddress);
@@ -671,6 +833,54 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
     };
   }
 
+  async checkAccountDeleteRequest(userId: string) {
+    this.seenAccountDeleteKeys.push(userId);
+    const override = this.accountDeleteDecisions.get(userId);
+    if (override) {
+      return override;
+    }
+
+    const next = (this.accountDeleteCounts.get(userId) ?? 0) + 1;
+    this.accountDeleteCounts.set(userId, next);
+    if (next > accountDeleteBurstLimit) {
+      return {
+        allowed: false,
+        retryAfterSeconds: accountDeleteWindowSeconds,
+        remaining: 0
+      };
+    }
+
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(accountDeleteBurstLimit - next, 0)
+    };
+  }
+
+  async checkAnchorRecoveryAttempt(userId: string) {
+    this.seenRecoveryKeys.push(userId);
+    const override = this.recoveryCodeDecisions.get(userId);
+    if (override) {
+      return override;
+    }
+
+    const next = (this.recoveryCodeCounts.get(userId) ?? 0) + 1;
+    this.recoveryCodeCounts.set(userId, next);
+    if (next > recoveryCodeBurstLimit) {
+      return {
+        allowed: false,
+        retryAfterSeconds: recoveryCodeWindowSeconds,
+        remaining: 0
+      };
+    }
+
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(recoveryCodeBurstLimit - next, 0)
+    };
+  }
+
   async activateOtpCooldown(phoneHash: string) {
     this.cooldowns.add(phoneHash);
   }
@@ -684,12 +894,13 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
   readonly usedTokens = new Map<string, { familyId: string; userId: string }>();
   readonly challenges = new Map<string, {
     challengeId: string;
-    kind: 'otp' | 'magic_link';
+    kind: 'otp' | 'magic_link' | 'account_delete' | 'account_undelete';
     userId: string;
     identityHash: string;
     identitySalt: string;
     abuseHash: string | null;
     maskedDestination: string;
+    deliveryChannel?: 'sms' | 'email';
     codeOrToken: string;
     attemptsRemaining: number;
     expiresAt: number;
@@ -822,6 +1033,7 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
     identitySalt: string;
     abuseHash: string | null;
     maskedDestination: string;
+    deliveryChannel?: 'sms' | 'email';
     codeOrToken: string;
     attemptsRemaining: number;
     expiresAt: number;
@@ -837,11 +1049,28 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
     identitySalt: string;
     abuseHash: string | null;
     maskedDestination: string;
+    deliveryChannel?: 'sms' | 'email';
     codeOrToken: string;
     attemptsRemaining: number;
     expiresAt: number;
   }): Promise<void> {
     this.challenges.set(`magic_link:${challenge.challengeId}`, challenge);
+  }
+
+  async createAccountLifecycleChallenge(challenge: {
+    challengeId: string;
+    kind: 'account_delete' | 'account_undelete';
+    userId: string;
+    identityHash: string;
+    identitySalt: string;
+    abuseHash: string | null;
+    maskedDestination: string;
+    deliveryChannel?: 'sms' | 'email';
+    codeOrToken: string;
+    attemptsRemaining: number;
+    expiresAt: number;
+  }): Promise<void> {
+    this.challenges.set(`${challenge.kind}:${challenge.challengeId}`, challenge);
   }
 
   async createAnchorActivationChallenge(challenge: {
@@ -872,7 +1101,7 @@ export class InMemoryRefreshTokenStore implements RefreshTokenStore {
 
   async verifyChallenge(input: {
     challengeId: string;
-    kind: 'otp' | 'magic_link';
+    kind: 'otp' | 'magic_link' | 'account_delete' | 'account_undelete';
     codeOrToken: string;
   }) {
     const key = `${input.kind}:${input.challengeId}`;
@@ -1107,6 +1336,7 @@ export function createTestConfig(): AppConfig {
     },
     refreshTokenTtlSeconds: 60 * 60 * 24 * 7,
     p2pMdnsDemoEnabled: false,
+    corsAllowedOrigins: ['http://localhost:*', 'http://127.0.0.1:*'],
     identityHashPepper: 'test-identity-pepper',
     anchorTotpEncryptionKey: 'test-anchor-totp-encryption-key',
     internalServiceJwtSecret: 'test-internal-service-jwt-secret',
@@ -1117,6 +1347,14 @@ export function createTestConfig(): AppConfig {
       resourceDirectoryServiceUrl: null,
       notificationsServiceUrl: null,
     },
+    purgeJob: {
+      enabled: false,
+      schedule: '0 0 * * *',
+    },
+    sentry: {
+      dsn: null,
+      tracesSampleRate: 0.1,
+    },
     runtime: {
       serviceName: 'api-gateway',
       version: '0.1.0-test',
@@ -1124,7 +1362,18 @@ export function createTestConfig(): AppConfig {
   };
 }
 
+export function createNoopPurgeJob(): PurgeJob {
+  return {
+    start() {},
+    async stop() {},
+    async runOnce() {
+      return { deletedUsers: 0 };
+    },
+  };
+}
+
 export async function createTestApp(options: {
+  analyticsRecorder?: AnalyticsRecorder;
   authAbuseStore?: AuthAbuseStore;
   chatRealtimeHub?: ChatRealtimeHub;
   chatRepository?: InMemoryChatRepository;
@@ -1132,12 +1381,14 @@ export async function createTestApp(options: {
   config?: AppConfig;
   matchService?: MatchService;
   postsService?: InMemoryPostsService;
+  purgeJob?: PurgeJob;
   userStore?: UserStore;
   refreshTokenStore?: RefreshTokenStore;
   resourceDirectory?: ResourceDirectoryService;
   speechProvider?: SpeechProvider;
   syncRuntime?: P2PSyncRuntime;
 } = {}) {
+  const analyticsRecorder = options.analyticsRecorder ?? new InMemoryAnalyticsRecorder();
   const authAbuseStore = options.authAbuseStore ?? new InMemoryAuthAbuseStore();
   const postsService = options.postsService ?? new InMemoryPostsService();
   const userStore = options.userStore ?? new InMemoryUserStore();
@@ -1170,13 +1421,16 @@ export async function createTestApp(options: {
       linkedMatchRepository!,
     );
 
+  const purgeJob = options.purgeJob ?? createNoopPurgeJob();
   const app = await buildApp({
+    analyticsRecorder,
     authAbuseStore,
     chatRealtimeHub,
     chatService,
     config: options.config ?? createTestConfig(),
     matchService,
     postsService,
+    purgeJob,
     userStore,
     refreshTokenStore,
     resourceDirectory,
@@ -1200,6 +1454,7 @@ export async function createTestApp(options: {
 
   return {
     app,
+    analyticsRecorder,
     authAbuseStore,
     chatRealtimeHub,
     chatService,
@@ -1207,6 +1462,7 @@ export async function createTestApp(options: {
     linkedMatchRepository,
     matchService,
     postsService,
+    purgeJob,
     userStore,
     refreshTokenStore,
     resourceDirectory,

@@ -1,6 +1,11 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import type { PreferencesState, SupportedLanguage } from '@/lib/types';
+import type {
+  DefaultPostVisibility,
+  LocationPrecision,
+  PreferencesState,
+  SupportedLanguage,
+} from '@/lib/types';
 
 export const initialPreferencesState: PreferencesState = {
   language: 'en',
@@ -8,6 +13,10 @@ export const initialPreferencesState: PreferencesState = {
   onboardingComplete: false,
   lowBandwidth: false,
   bookmarks: [],
+  defaultPostVisibility: 'community_only',
+  locationPrecision: 'zip_only',
+  hasUserChosenLanguage: false,
+  hydrationComplete: false,
 };
 
 function uniqueBookmarks(bookmarks: string[]) {
@@ -19,14 +28,22 @@ const preferencesSlice = createSlice({
   initialState: initialPreferencesState,
   reducers: {
     hydratePreferences(_state, action: PayloadAction<Partial<PreferencesState> | null | undefined>) {
+      // `hydrationComplete` is derived here (always `true` after hydration
+      // runs) regardless of what the persisted payload contains, so the
+      // onboarding guard in ResourceHome can rely on this flag instead of
+      // a setTimeout race.
       return {
         ...initialPreferencesState,
         ...action.payload,
         bookmarks: uniqueBookmarks(action.payload?.bookmarks ?? []),
+        hydrationComplete: true,
       };
     },
     setLanguage(state, action: PayloadAction<SupportedLanguage>) {
       state.language = action.payload;
+      // Any explicit setLanguage dispatch (language picker or settings)
+      // counts as a user choice and locks out the browser-locale fallback.
+      state.hasUserChosenLanguage = true;
     },
     setZipCode(state, action: PayloadAction<string>) {
       state.zipCode = action.payload;
@@ -37,6 +54,12 @@ const preferencesSlice = createSlice({
     toggleLowBandwidth(state) {
       state.lowBandwidth = !state.lowBandwidth;
     },
+    setDefaultPostVisibility(state, action: PayloadAction<DefaultPostVisibility>) {
+      state.defaultPostVisibility = action.payload;
+    },
+    setLocationPrecision(state, action: PayloadAction<LocationPrecision>) {
+      state.locationPrecision = action.payload;
+    },
     toggleBookmark(state, action: PayloadAction<string>) {
       if (state.bookmarks.includes(action.payload)) {
         state.bookmarks = state.bookmarks.filter((bookmark) => bookmark !== action.payload);
@@ -45,13 +68,25 @@ const preferencesSlice = createSlice({
 
       state.bookmarks = uniqueBookmarks([...state.bookmarks, action.payload]);
     },
+    /**
+     * Apply a browser-detected language fallback. Unlike `setLanguage`,
+     * this does NOT flip `hasUserChosenLanguage`, so the user can still
+     * make an explicit choice on the language picker that overrides the
+     * detected locale.
+     */
+    applyDetectedLanguage(state, action: PayloadAction<SupportedLanguage>) {
+      state.language = action.payload;
+    },
   },
 });
 
 export const {
+  applyDetectedLanguage,
   completeOnboarding,
   hydratePreferences,
+  setDefaultPostVisibility,
   setLanguage,
+  setLocationPrecision,
   setZipCode,
   toggleBookmark,
   toggleLowBandwidth,

@@ -1,0 +1,149 @@
+name: Deploy API Gateway (AWS App Runner)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/api-gateway/**'
+      - 'services/posts/**'
+      - 'services/match/**'
+      - 'services/chat/**'
+      - 'services/resource-directory/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Container image tag to push + deploy (defaults to github.sha)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC assume-role against AWS
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "590517422743"
+  ECR_REPOSITORY: weavenyc-api-gateway
+  APPRUNNER_SERVICE_NAME: weavenyc-api-gateway
+
+jobs:
+  deploy-api-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: pilot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck api-gateway + its workspace deps
+        run: |
+          pnpm --filter @weavenyc/shared typecheck
+          pnpm --filter @weavenyc/p2p typecheck
+          pnpm --filter @weavenyc/db typecheck
+          pnpm --filter @weavenyc/resource-directory typecheck
+          pnpm --filter @weavenyc/posts typecheck
+          pnpm --filter @weavenyc/match typecheck
+          pnpm --filter @weavenyc/chat typecheck
+          pnpm --filter @weavenyc/api-gateway typecheck
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/weavenyc-github-actions-deployer
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$IMAGE_TAG" ]; then
+            IMAGE_TAG="${GITHUB_SHA::12}"
+          fi
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build + push container image to ECR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/api-gateway/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.image_tag }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trigger App Runner deployment
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --region "$AWS_REGION" \
+            --query "ServiceSummaryList[?ServiceName=='$APPRUNNER_SERVICE_NAME'].ServiceArn" \
+            --output text)
+          if [ -z "$SERVICE_ARN" ] || [ "$SERVICE_ARN" = "None" ]; then
+            echo "::error::App Runner service $APPRUNNER_SERVICE_NAME not found — create it manually first (see infra/aws/README.md)."
+            exit 1
+          fi
+          echo "Starting deployment on $SERVICE_ARN"
+          aws apprunner start-deployment \
+            --service-arn "$SERVICE_ARN" \
+            --region "$AWS_REGION"
+
+      - name: Wait for App Runner deployment
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --region "$AWS_REGION" \
+            --query "ServiceSummaryList[?ServiceName=='$APPRUNNER_SERVICE_NAME'].ServiceArn" \
+            --output text)
+          for i in $(seq 1 30); do
+            STATUS=$(aws apprunner describe-service \
+              --service-arn "$SERVICE_ARN" \
+              --region "$AWS_REGION" \
+              --query 'Service.Status' --output text)
+            echo "[$i/30] App Runner status: $STATUS"
+            case "$STATUS" in
+              RUNNING) exit 0 ;;
+              OPERATION_IN_PROGRESS) sleep 20 ;;
+              CREATE_FAILED|DELETE_FAILED|PAUSED) echo "::error::deploy failed: $STATUS"; exit 1 ;;
+              *) sleep 20 ;;
+            esac
+          done
+          echo "::error::Timed out waiting for deployment to reach RUNNING"
+          exit 1
+
+      - name: Post-deploy smoke probe
+        run: |
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 8 https://api.weavenyc.org/healthz; then
+              echo ""; echo "healthz ok"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::/healthz did not respond — check App Runner logs"

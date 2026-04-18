@@ -98,7 +98,7 @@ flowchart LR
 
 ### 2.2 Logical (To-Be)
 > 不绑定具体云厂商，只描述服务与数据流。
-> 当前 `feature/m6-p2p-sync` 已经把这部分收口为 **HTTP-first + P2P sync overlay**；下面保留的 libp2p / full-node 拓扑属于更激进的未来蓝图，不是当前 branch 的 runtime 真值。
+> 当前 `main` 已经把这部分收口为 **HTTP-first + P2P sync overlay**；下面保留的 libp2p / full-node 拓扑属于更激进的未来蓝图，不是当前 canonical runtime 真值。
 
 **服务分层**
 - Client Layer
@@ -118,7 +118,7 @@ flowchart LR
   - Posts Service：帖子 CRUD + P2P 索引同步
   - Match Engine：候选生成 + 排序
   - Chat Service：WebSocket 中继 + 消息存储
-  - Notification Service：Push/SMS/Email
+  - Notification Service：Push/SMS/Email — **Phase 2 only**：MVP (M3–M7) 采用 in-app inbox + polling 替代，完整推送通道见 `docs/13_Implementation_Plan.md` M3 门槛与 `docs/14_Backlog.md` E10-S1（P1）
 
 - Data Layer
   - PostgreSQL + PostGIS：中心索引（资源/帖子/用户/社区/审核）

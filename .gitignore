@@ -14,3 +14,6 @@ docker-data
 playwright-report
 test-results
 .staging
+
+# Static export build artifacts
+apps/*/out/

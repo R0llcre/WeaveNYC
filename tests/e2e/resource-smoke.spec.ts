@@ -222,12 +222,19 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
 
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'ES', exact: true }).click();
+  // First-visit guard redirects to /onboarding/language. Pick Spanish via the
+  // stable testid, then fill the ZIP on the location gate and land back home.
+  await page.waitForURL((url) => url.pathname.startsWith('/onboarding/language'));
+  await page.getByTestId('onboarding-language-es').click();
+  await page.waitForURL((url) => url.pathname.startsWith('/onboarding/location'));
+  await page.getByTestId('onboarding-location-zip-input').fill('11735');
+  await page.getByTestId('onboarding-location-submit').click();
+  await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
+
   await expect(page.getByTestId('create-session')).toBeVisible();
   await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
-  await page.getByPlaceholder('11735').fill('11735');
   await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');
 
@@ -236,22 +243,37 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
 
   await page.locator('[data-testid^="resource-detail-"]').first().click();
-  await page.waitForURL('**/resources/77777777-7777-4777-8777-777777777777');
+  await page.waitForURL((url) =>
+    url.pathname.startsWith('/resources/77777777-7777-4777-8777-777777777777'),
+  );
   await expect(page.getByText('Horario semanal')).toBeVisible();
   await expect(page.getByText('Notas')).toBeVisible();
 
-  await page.goto('/verify');
+  await page.goto('/me/verify');
   await expect(page.getByTestId('verify-title')).toBeVisible();
   await page.getByTestId('send-code').click();
   await expect(page.getByText('246810')).toBeVisible();
-  await page.getByLabel('Código de verificación').fill('246810');
+  await page.getByLabel('Código de 6 dígitos').fill('246810');
   await page.getByTestId('verify-code').click();
-  await page.waitForURL('**/inbox');
-  await expect(page.locator('h1', { hasText: 'Inbox' })).toBeVisible();
+  await page.waitForURL('**/inbox/**');
+  await expect(page.locator('h1', { hasText: 'Mis mensajes' })).toBeVisible();
 
   await page.goto('/');
-  await expect(page.getByText('Sesión verificada')).toBeVisible();
+  await expect(page.getByText('Vecino con cuenta')).toBeVisible();
 
   await page.goto('/dev/m0');
   await expect(page.getByText('Check the API, mint an anonymous session, and stop there.')).toBeVisible();
+});
+
+// Regression: the legacy `/verify` route is kept as a client-side redirect
+// shim (see apps/pwa/src/app/verify/page.tsx). The canonical path is now
+// `/me/verify` under the 5-tab IA, but in-flight magic-link URLs and
+// already-shipped email links still point at `/verify?...`. Pin the
+// redirect behaviour + query-param preservation so the shim can't silently
+// regress and strand those flows.
+test('legacy /verify redirects to /me/verify with query params', async ({ page }) => {
+  await page.goto('/verify?challenge_id=abc&return_to=/post/mine');
+  await page.waitForURL('**/me/verify?**');
+  expect(page.url()).toContain('challenge_id=abc');
+  expect(page.url()).toContain('return_to=%2Fpost%2Fmine');
 });

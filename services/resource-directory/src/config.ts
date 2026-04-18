@@ -11,6 +11,10 @@ export type ResourceDirectoryConfig = {
     issuer: string;
     secret: string;
   };
+  sentry: {
+    dsn: string | null;
+    tracesSampleRate: number;
+  };
   runtime: {
     serviceName: "resource-directory-service";
     version: string;
@@ -42,6 +46,13 @@ export function loadResourceDirectoryConfig(source: NodeJS.ProcessEnv = process.
     );
   }
 
+  const sentryDsnRaw = source.SENTRY_DSN?.trim();
+  const sentryDsn = sentryDsnRaw && sentryDsnRaw.length > 0 ? sentryDsnRaw : null;
+  const sentrySampleRate = Number.parseFloat(source.SENTRY_TRACES_SAMPLE_RATE ?? "");
+  const tracesSampleRate = Number.isFinite(sentrySampleRate) && sentrySampleRate >= 0 && sentrySampleRate <= 1
+    ? sentrySampleRate
+    : 0.1;
+
   return {
     env,
     server: {
@@ -53,6 +64,10 @@ export function loadResourceDirectoryConfig(source: NodeJS.ProcessEnv = process.
     internalJwt: {
       issuer: source.INTERNAL_SERVICE_JWT_ISSUER?.trim() ?? "weavenyc-api-gateway:internal",
       secret: internalJwtSecret,
+    },
+    sentry: {
+      dsn: sentryDsn,
+      tracesSampleRate,
     },
     runtime: {
       serviceName: "resource-directory-service",

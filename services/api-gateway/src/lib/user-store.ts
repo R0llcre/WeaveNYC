@@ -8,6 +8,22 @@ import type {
   AuthenticatedUserRecord
 } from '../types.js';
 
+export interface UserDeletionIdentity {
+  userId: string;
+  status: AuthenticatedUserRecord['status'];
+  hasPhoneHash: boolean;
+  hasEmailHash: boolean;
+  deletedAt: string | null;
+  purgeAt: string | null;
+  deletionReason: string | null;
+}
+
+export interface ConfirmAccountDeletionResult {
+  userId: string;
+  purgeAt: string;
+  hadAnchorRole: boolean;
+}
+
 function toIso(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
@@ -32,6 +48,30 @@ export interface UserStore {
     communityId: string;
     occurredAt: string;
   }): Promise<void>;
+  scheduleAccountDeletion(input: {
+    userId: string;
+    reason?: string;
+    purgeAt: string;
+  }): Promise<{ userId: string; purgeAt: string } | null>;
+  getDeletionIdentity(userId: string): Promise<UserDeletionIdentity | null>;
+  countActiveAnchorsInCommunity(
+    communityId: string,
+    excludeUserId?: string
+  ): Promise<number>;
+  listActiveAnchorCommunitiesForUser(userId: string): Promise<string[]>;
+  confirmAccountDeletion(input: {
+    userId: string;
+    reason?: string;
+    purgeAt: string;
+  }): Promise<ConfirmAccountDeletionResult | null>;
+  undeleteAccount(input: {
+    userId: string;
+  }): Promise<AuthenticatedUserRecord | null>;
+  consumeAnchorRecoveryCode(input: {
+    userId: string;
+    communityId: string;
+    codeHash: string;
+  }): Promise<{ remaining: number } | null>;
   close(): Promise<void>;
 }
 
@@ -395,6 +435,276 @@ export class PgUserStore implements UserStore {
       `,
       [input.userId, input.communityId, input.occurredAt]
     );
+  }
+
+  async consumeAnchorRecoveryCode(input: {
+    userId: string;
+    communityId: string;
+    codeHash: string;
+  }): Promise<{ remaining: number } | null> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("begin");
+
+      const anchorResult = await client.query<{
+        anchor_id: string;
+        recovery_codes_hashes: string[] | null;
+      }>(
+        `
+          select anchor_id, recovery_codes_hashes
+          from anchors
+          where user_id = $1
+            and community_id = $2
+            and status = 'active'
+          for update
+        `,
+        [input.userId, input.communityId]
+      );
+
+      const row = anchorResult.rows[0];
+      if (!row) {
+        await client.query("rollback");
+        return null;
+      }
+
+      const hashes = row.recovery_codes_hashes ?? [];
+      const index = hashes.indexOf(input.codeHash);
+      if (index === -1) {
+        await client.query("rollback");
+        return null;
+      }
+
+      const remaining = hashes.slice(0, index).concat(hashes.slice(index + 1));
+      await client.query(
+        `
+          update anchors
+          set recovery_codes_hashes = $2
+          where anchor_id = $1
+        `,
+        [row.anchor_id, remaining]
+      );
+
+      await client.query("commit");
+      return { remaining: remaining.length };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async scheduleAccountDeletion(input: {
+    userId: string;
+    reason?: string;
+    purgeAt: string;
+  }): Promise<{ userId: string; purgeAt: string } | null> {
+    const result = await this.confirmAccountDeletion(input);
+    if (!result) {
+      return null;
+    }
+
+    return { userId: result.userId, purgeAt: result.purgeAt };
+  }
+
+  async getDeletionIdentity(userId: string): Promise<UserDeletionIdentity | null> {
+    const result = await this.pool.query<{
+      user_id: string;
+      status: AuthenticatedUserRecord['status'];
+      phone_hash: string | null;
+      email_hash: string | null;
+      deleted_at: Date | string | null;
+      purge_at: Date | string | null;
+      deletion_reason: string | null;
+    }>(
+      `
+        select user_id, status, phone_hash, email_hash, deleted_at, purge_at, deletion_reason
+        from users
+        where user_id = $1
+        limit 1
+      `,
+      [userId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      userId: row.user_id,
+      status: row.status,
+      hasPhoneHash: Boolean(row.phone_hash && row.phone_hash.length > 0),
+      hasEmailHash: Boolean(row.email_hash && row.email_hash.length > 0),
+      deletedAt: row.deleted_at ? toIso(row.deleted_at) : null,
+      purgeAt: row.purge_at ? toIso(row.purge_at) : null,
+      deletionReason: row.deletion_reason ?? null
+    };
+  }
+
+  async countActiveAnchorsInCommunity(
+    communityId: string,
+    excludeUserId?: string
+  ): Promise<number> {
+    const params: unknown[] = [communityId];
+    let where = "community_id = $1 and status = 'active'";
+    if (excludeUserId) {
+      params.push(excludeUserId);
+      where += ` and user_id <> $${params.length}`;
+    }
+
+    const result = await this.pool.query<{ count: string }>(
+      `
+        select count(*)::text as count
+        from anchors
+        where ${where}
+      `,
+      params
+    );
+    return Number(result.rows[0]?.count ?? '0');
+  }
+
+  async listActiveAnchorCommunitiesForUser(userId: string): Promise<string[]> {
+    try {
+      const result = await this.pool.query<{ community_id: string }>(
+        `
+          select community_id
+          from anchors
+          where user_id = $1
+            and status = 'active'
+          order by community_id asc
+        `,
+        [userId]
+      );
+      return result.rows.map((row) => row.community_id);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === '42P01') {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async confirmAccountDeletion(input: {
+    userId: string;
+    reason?: string;
+    purgeAt: string;
+  }): Promise<ConfirmAccountDeletionResult | null> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("begin");
+
+      const updateResult = await client.query<{ user_id: string; status: string }>(
+        `
+          update users
+          set
+            status = 'deleted',
+            display_name = null,
+            preferred_languages = null,
+            home_zip = null,
+            phone_hash = null,
+            phone_hash_salt = null,
+            email_hash = null,
+            email_hash_salt = null,
+            deleted_at = now(),
+            purge_at = $2,
+            deletion_reason = $3,
+            updated_at = now()
+          where user_id = $1
+            and status <> 'deleted'
+          returning user_id, status
+        `,
+        [input.userId, input.purgeAt, input.reason ?? null]
+      );
+
+      const row = updateResult.rows[0];
+      if (!row) {
+        await client.query("rollback");
+        return null;
+      }
+
+      const anchorUpdate = await client.query<{ anchor_id: string }>(
+        `
+          update anchors
+          set status = 'revoked'
+          where user_id = $1
+            and status = 'active'
+          returning anchor_id
+        `,
+        [input.userId]
+      );
+
+      await client.query("commit");
+      return {
+        userId: row.user_id,
+        purgeAt: input.purgeAt,
+        hadAnchorRole: anchorUpdate.rows.length > 0
+      };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async undeleteAccount(input: {
+    userId: string;
+  }): Promise<AuthenticatedUserRecord | null> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("begin");
+
+      const updateResult = await client.query<{
+        user_id: string;
+        level: AuthenticatedUserRecord['level'];
+        status: AuthenticatedUserRecord['status'];
+      }>(
+        `
+          update users
+          set
+            status = 'active',
+            deleted_at = null,
+            purge_at = null,
+            deletion_reason = null,
+            level = 'anonymous',
+            updated_at = now()
+          where user_id = $1
+            and status = 'deleted'
+            and (purge_at is null or purge_at > now())
+          returning user_id, level, status
+        `,
+        [input.userId]
+      );
+
+      const row = updateResult.rows[0];
+      if (!row) {
+        await client.query("rollback");
+        return null;
+      }
+
+      const communityIds = await this.loadCommunityIds(client, row.user_id);
+      const anchorCommunityId = await this.loadAnchorCommunityId(client, row.user_id);
+      await client.query("commit");
+
+      return {
+        userId: row.user_id,
+        level: row.level,
+        role: row.level === 'anchor' ? 'anchor' : 'user',
+        status: row.status,
+        communityIds,
+        anchorCommunityId
+      };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async close(): Promise<void> {

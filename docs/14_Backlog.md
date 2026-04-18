@@ -6,22 +6,23 @@
 >
 > **优先级**：P0（上线必须）、P1（强烈推荐）、P2（后续迭代）
 >
-> **里程碑对照**：M0-M7 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
+> **里程碑对照**：M0-M8 对应 [13_Implementation_Plan](./13_Implementation_Plan.md)
 >
-> **当前 canonical baseline**：`main = M6 completed`
+> **当前 canonical baseline**：`main = M7 completed`
 >
-> **Closed phase closeouts**：`M3 completed` · `M4 completed` · `M5 completed` · `M6 completed`
+> **Closed phase closeouts**：`M3 completed` · `M4 completed` · `M5 completed` · `M6 completed` · `M7 completed`
 >
-> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 completed` · `M7 in progress on branch`
+> **当前阶段状态**：`P0 completed` · `M0 completed` · `M1 completed` · `M2 completed` · `M3 completed` · `M4 completed` · `M5 completed` · `M6 completed` · `M7 completed` · `M8 pending`
 >
 > **状态标记**：
 > - `Completed (M0)`：已经落地，不再作为当前待办
 > - `Completed (M1)`：代码已落地；如 phase closeout 被重新打开，仍需以 `22_M1_Closeout.md` 为准
 > - `Completed (M2)`：代码与 closeout 已落地，并已成为当前 workspace 的已关闭基线；不再表示“当前 feature branch 待合并状态”
 > - `Completed (M6)`：P2P overlay 已合入主线；如 phase closeout 被重新打开，仍需以 `27_M6_Closeout.md` 为准
+> - `Completed (M7)`：split-runtime staging rehearsal 已合入主线；如 phase closeout 被重新打开，仍需以 `28_M7_Closeout.md` 为准
 > - `Pending (M1+)`：保留在后续阶段继续实现
 >
-> 说明：story 级 `Completed (M6)` 表示实现与 closeout 已进入当前主线；phase 级真值以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md) 和 [`27_M6_Closeout.md`](./27_M6_Closeout.md) 为准。
+> 说明：story 级 `Completed (M6)` / `Completed (M7)` 表示实现与 closeout 已进入当前主线；phase 级真值以 [`00_Execution_Baseline.md`](./00_Execution_Baseline.md)、[`27_M6_Closeout.md`](./27_M6_Closeout.md) 和 [`28_M7_Closeout.md`](./28_M7_Closeout.md) 为准。
 
 ---
 
@@ -667,7 +668,7 @@
 
 - As a developer, I can run the overlay smoke and read one consistent M6 truth set after the full implementation lands.
 - Acceptance:
-  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、P2P Node Design、Data Model、Testing Strategy 对 `M6 completed / M7 in progress` 口径一致
+  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、P2P Node Design、Data Model、Testing Strategy 与当前 canonical closeout truth 保持一致，不再保留 M6/M7 的 branch-local phase 表述
   - 根 `package.json` 暴露 `pnpm test:smoke:p2p`
   - `pnpm test:smoke:p2p` 作为独立 overlay smoke 命令存在，不并入当前 `main` 默认 CI gate
 
@@ -727,17 +728,18 @@
 
 ---
 
-## Epic E13: Staging Truth 收口（M7）— Status: `In Progress (M7 branch)`
+## Epic E13: Staging Truth 收口（M7）— Status: `Completed (M7)`
 
-> 里程碑：M7（当前 branch-local 执行阶段）
+> 里程碑：M7（Completed）
 > 来源：[00_Execution_Baseline](./00_Execution_Baseline.md) + [11_Ops_Runbook](./11_Ops_Runbook.md) + [19_Deployment_Guide](./19_Deployment_Guide.md)
 
 ### E13-S0: Main / branch truth alignment — P0 · 2 SP
 
-- As a reader, I can tell `main = M6 completed` and `feature/m7-staging-rehearsal = M7 in progress` from the entry docs.
+- As a reader, I can tell `main = M7 completed` and `M8 = pending` from the entry docs without relying on branch-local truth.
 - Acceptance:
-  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、Testing Strategy 对 `M6 completed / M7 in progress` 口径一致
-  - `docs/27_M6_Closeout.md` 作为 M6 closeout 的单一入口
+  - `README`、Execution Baseline、Implementation Plan、Backlog、API Spec、Testing Strategy、Deployment、Ops 对 `M7 completed / M8 pending` 口径一致
+  - `main` 成为唯一 canonical truth；入口文档不再把 `feature/m7-staging-rehearsal` 作为当前执行真值
+  - `docs/28_M7_Closeout.md` 作为 M7 closeout 的正式入口
 
 ### E13-S1: Ops / deployment future-note split — P0 · 2 SP
 
@@ -746,6 +748,67 @@
   - `11_Ops_Runbook.md` 与 `19_Deployment_Guide.md` 的 future production / canary / full observability 内容已下沉到 appendix / future notes
   - 当前可执行路径只保留 bootstrap、smoke 和 rehearsal 口径
   - 文档不再宣称未实现的 deployment automation
+
+### E13-S2: M7 closeout artifact — P0 · 1 SP · `Completed (M7)`
+
+- As a reader, I can open one document and see M7's completed scope, accepted evidence, residual risks, and next phase.
+- Acceptance:
+  - `docs/28_M7_Closeout.md` 存在
+  - 文档只记录已完成的 M7 目标、验证链、剩余风险和下一阶段 `M8 Pilot Readiness`
+  - 不再把 branch-local `feature/m7-staging-rehearsal` 当成入口事实
+
+---
+
+## Epic E14: Pilot Readiness & Operational Hardening（M8）— Status: `Pending (M8)`
+
+> 里程碑：M8（Pilot Readiness）
+> 来源：[13_Implementation_Plan](./13_Implementation_Plan.md) + [11_Ops_Runbook](./11_Ops_Runbook.md) + [19_Deployment_Guide](./19_Deployment_Guide.md)
+
+### E14-S1: Main-first release truth — P0 · 2 SP
+
+- As a reader, I can use `main` as the only release truth for pilot readiness without relying on branch-local runtime state.
+- Acceptance:
+  - entry docs、closeout、runbook、deployment guide 对 `main = M7 completed / M8 pending` 保持一致
+  - 不再要求通过 branch README 或 feature-branch note 才能判断 pilot readiness 进度
+
+### E14-S2: Pilot environment contract — P0 · 3 SP
+
+- As an operator, I can see one documented contract for staging and pilot env matrices, runtime URLs, callback URLs, and secret ownership.
+- Acceptance:
+  - 明确 staging / pilot 两套 env matrix
+  - 每个 runtime、前端、callback URL 和 internal URL 都有 owner
+  - secret ownership 和 rotation responsibility 被写清楚
+
+### E14-S3: Rehearsal workflows and gates — P0 · 3 SP
+
+- As an operator, I can repeatedly execute the pilot rehearsal path with one documented workflow set.
+- Acceptance:
+  - `deploy-staging`、`smoke-staging`、`backup-restore-rehearsal` 的使用顺序与触发方式写清楚
+  - anonymous -> verified、community join -> request -> match -> contact -> chat、anchor activate/login -> review -> announcement -> rules、P2P rehearsal 的执行链有统一 checklist
+  - 不新增用户端功能或新的公开 API
+
+### E14-S4: Recovery and rollback readiness — P0 · 3 SP
+
+- As an operator, I can follow a documented restore-to-shadow and rollback decision tree before pilot go-live.
+- Acceptance:
+  - restore-to-shadow rehearsal 路径文档化
+  - rollback decision tree、incident template、pilot incident report 模板齐全
+  - backup/recovery 仍明确标注为 pilot readiness，不冒充 production DR
+
+### E14-S5: Minimum observability for pilot — P1 · 2 SP
+
+- As an operator, I can meet the minimum observability bar required for a pilot.
+- Acceptance:
+  - Sentry、uptime checks、structured JSON logs、request_id tracing 的接入门槛和 owner 写清楚
+  - 继续使用最小组合，不承诺 full ops stack
+
+### E14-S6: Pilot go/no-go checklist — P0 · 2 SP
+
+- As a project lead, I can decide whether the system is ready for a real pilot with a bounded checklist.
+- Acceptance:
+  - 明确 go/no-go 必备条件
+  - 明确哪些条件满足前仍不能进入真实 pilot
+  - 不包含 production cutover 承诺
 
 ---
 
@@ -762,13 +825,15 @@
 | Sprint 4 (Week 4-5) | M4 | E5, E6-S0/S1/S2/S3 | ~26 SP | 聊天 + 最小审核闭环 |
 | Sprint 5 (Week 5-6) | M5 | E7 core, E1-S5, (+ E10 / E6-S4 / E8-S2/S3/S4 only with 3-person capacity) | ~33 SP | Anchor 后台核心闭环；扩展项视容量追加 |
 | Sprint 6 (Week 6+) | M6 | E11, E12-S3/S4 | ~28 SP | P2P 同步 overlay 已完成并进入主线 |
-| Sprint 7 (Week 7+) | M7 | E13 | ~4 SP | staging truth 收口、ops/deployment docs 和 closeout 对齐 |
+| Sprint 7 (Week 7+) | M7 | E13 | ~5 SP | staging truth 收口、ops/deployment docs 和 closeout 对齐 |
+| Sprint 8 (Week 8+) | M8 | E14 | ~15 SP | pilot readiness contract、ops minimum readiness、rollback/recovery、go/no-go checklist |
 
-**总计**：~182 SP
+**总计**：~197 SP
 
 **MVP critical path（3-person target, M0-M6）**：~178 SP
 **2-person conservative MVP（延后 E10 / E6-S4 / E8-S2/S3/S4）**：~160 SP
-**Branch-local truth 收口（M7）**：~4 SP
+**M7 closeout（已完成）**：~5 SP
+**M8 pilot readiness（pending）**：~15 SP
 
 ---
 

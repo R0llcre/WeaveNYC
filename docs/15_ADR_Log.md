@@ -117,7 +117,7 @@
 | 职责 | 选型 | 理由 |
 |------|------|------|
 | 中心索引 | **PostgreSQL + PostGIS** | 地理查询、关系型、跨云可迁移（RDS/Cloud SQL/Azure DB） |
-| 同步事件存储 | **PostgreSQL `community_sync_events` + CID** | 先保证 durable replay、cursor catch-up 和 branch-local stretch demo；CID 仅作为内容指纹，不依赖完整 IPFS runtime |
+| 同步事件存储 | **PostgreSQL `community_sync_events` + CID** | 先保证 durable replay、cursor catch-up 和当前 stretch demo；CID 仅作为内容指纹，不依赖完整 IPFS runtime |
 | 对象存储 | **S3 / GCS / Azure Blob** | 官方目录快照、备份、大文件 |
 | 客户端本地 | **IndexedDB (Dexie.js)** | 草稿、最近浏览、离线缓存、用户偏好 |
 

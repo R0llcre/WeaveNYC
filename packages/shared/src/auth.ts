@@ -46,6 +46,10 @@ export const refreshAuthWindowSeconds = 60 * 60;
 export const refreshAuthBurstLimit = 30;
 export const otpStartWindowSeconds = 60 * 60;
 export const otpStartBurstLimit = 3;
+export const accountDeleteWindowSeconds = 60 * 60;
+export const accountDeleteBurstLimit = 3;
+export const recoveryCodeWindowSeconds = 60 * 60;
+export const recoveryCodeBurstLimit = 5;
 export const authIdentityHashPepperEnvVar = "IDENTITY_HASH_PEPPER";
 export const anchorTotpEncryptionKeyEnvVar = "ANCHOR_TOTP_ENCRYPTION_KEY";
 

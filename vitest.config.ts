@@ -14,6 +14,19 @@ export default defineConfig({
         __dirname,
         "packages/test-utils/src/index.ts",
       ),
+      "@": path.resolve(__dirname, "apps/pwa/src"),
+      "@testing-library/jest-dom/vitest": path.resolve(
+        __dirname,
+        "apps/pwa/node_modules/@testing-library/jest-dom/vitest.js",
+      ),
+      "@testing-library/jest-dom": path.resolve(
+        __dirname,
+        "apps/pwa/node_modules/@testing-library/jest-dom",
+      ),
+      "@testing-library/react": path.resolve(
+        __dirname,
+        "apps/pwa/node_modules/@testing-library/react",
+      ),
     },
   },
   test: {
@@ -22,8 +35,13 @@ export default defineConfig({
       "packages/**/*.test.ts",
       "services/**/*.test.ts",
       "apps/**/*.test.ts",
+      "apps/**/*.test.tsx",
       "tests/docs/**/*.test.ts",
     ],
+    environmentMatchGlobs: [
+      ["apps/pwa/**/*.test.tsx", "jsdom"],
+    ],
+    setupFiles: ["./vitest.setup.ts"],
     coverage: {
       enabled: false,
     },

@@ -1,6 +1,6 @@
 # WeaveNYC — Testing Strategy
 
-目标：把当前 `main = M6 completed` 的默认验证链和 `feature/m7-staging-rehearsal` 的 branch-local staging truth 收口分清楚，避免把未来的 staging / production 叙述混进默认 CI。
+目标：把当前 `main = M7 completed` 的默认验证链、staging rehearsal gate 和下一阶段 `M8 Pilot Readiness` 的 planning 边界分清楚，避免把 future pilot / production 叙述混进默认 CI。
 
 ---
 
@@ -24,9 +24,9 @@
 
 ---
 
-## 2) 当前默认 gate（main / M6）
+## 2) 当前默认 gate（main / M7）
 
-默认 CI 和本地基线仍以 `main = M6 completed` 为准：
+默认 CI 和本地基线当前以 `main = M7 completed` 为准：
 
 ```bash
 pnpm install --frozen-lockfile
@@ -46,9 +46,9 @@ pnpm test:e2e
 - `pnpm test:smoke:real` 会在 `/readyz` 不可用时先自启动 `api-gateway`
 - `pnpm test:e2e` 仍是 browser smoke，不替代真实 API smoke
 - `pnpm test:live-sources` 和 `pnpm dev:mint-anchor-token` 继续保留为 manual / opt-in
-- `pnpm test:smoke:p2p` 当前不进默认 CI，因为仍是手动触发的 overlay smoke
+- `pnpm test:smoke:p2p` 当前不进默认 CI，因为仍是独立 overlay smoke
 
-当前 `feature/m7-staging-rehearsal` 额外收口的 branch-local staging gate：
+当前主线已承接的 M7 staging gate：
 
 - `deploy-staging`：`push main` 默认走 `apply`；`workflow_dispatch` 可显式选择 `plan/apply`
 - `smoke-staging`：要求完整 split-runtime URL 集合，remote smoke 不再接受半接线 topology；自动触发只跟随 `push main` 的 deploy，手动 `plan/apply` 后如需验证需显式再跑一次 smoke workflow
@@ -203,5 +203,5 @@ pnpm test:smoke:p2p
 
 当前状态：
 
-- `main` 仍以 M6 gate 为准
-- `feature/m7-staging-rehearsal` 只接入 staging truth 收口，不再把 M6 当 branch-local 未完成项
+- `main` 已以 M7 gate 为准
+- 下一阶段 `M8` 不改变当前用户端 API 或默认 CI gate，只在 pilot readiness 文档、workflow、runbook 和 checklist 上继续推进

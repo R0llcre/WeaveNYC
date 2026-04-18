@@ -1,131 +1,161 @@
 # WeaveNYC — Partner Playbook (Anchor SOP)
 
-目标：把“社区自治”落地成可执行流程：怎么找 Anchor、怎么签、怎么上线、怎么运营。
+Operational playbook for bringing a real NYC community onto WeaveNYC. Written so a new team member can execute without asking questions. Target: one day, one community, from cold email to live TOTP anchor.
+
+Companion files:
+- Per-community checklists: [`pilot-checklists/farmingdale.md`](./pilot-checklists/farmingdale.md), [`pilot-checklists/queens.md`](./pilot-checklists/queens.md), [`pilot-checklists/bronx.md`](./pilot-checklists/bronx.md)
+- MOU templates: [`pilot-checklists/mou-template-en.md`](./pilot-checklists/mou-template-en.md), [`pilot-checklists/mou-template-zh.md`](./pilot-checklists/mou-template-zh.md)
+- KPI queries: [`pilot-checklists/kpi-queries.sql`](./pilot-checklists/kpi-queries.sql)
+- Go / No-Go + rollback: [`29_M8_Pilot_Readiness.md`](./29_M8_Pilot_Readiness.md)
 
 ---
 
-## 1) Anchor 是什么？（一句话）
-Anchor = 社区里的可信组织（教会/NGO/社区中心/food pantry）运行一个“社区节点/管理台”，负责：
-- 发布公告
-- 审核高风险贴子
-- 处理举报
-- 配置社区规则（哪些类别需要审核、默认可见范围等）
+## 1) Who we onboard
+
+We recognize three partner tiers. Same product, different commitments.
+
+### Tier A — Anchor (signs MOU, activates TOTP)
+A local, trusted organization that runs one community node on WeaveNYC. One active anchor per community at a time (enforced by `uq_anchors_active_community`).
+
+Selection bar:
+- Has a physical location that residents already visit (pantry, church, community center, food bank)
+- At least one paid staffer or long-standing volunteer who can commit ~1 hour/week for six months
+- Serves the target ZIP as a primary service area (not a catchment that happens to include it)
+- Is comfortable with a public-facing digital account and 2FA
+- No conflict of interest with the project team
+
+Anchor responsibilities — contractually binding via MOU:
+- Publish announcements (pantry hours, drives, closures, PSAs)
+- Review posts that land in `pending_review` within 24 hours
+- Triage reports; use block / hide / takedown as appropriate
+- Attend a weekly 30-minute check-in during the first month
+
+### Tier B — Outreach Partner (no MOU, no admin access)
+Organizations that help us reach residents but do not run the community node. Flyer distribution, tabling, co-posting on social, translating materials. They get an outreach kit and a named point of contact on the project team. They do not get admin credentials.
+
+### Tier C — Advisory (no MOU, no operational role)
+Researchers, civic tech folks, attorneys, clinicians who can answer a specific question quickly. Kept in a private Slack channel. We ask; they advise; they do not own anything.
+
+Rule: if anyone other than the Anchor asks for admin access, the answer is no. The product enforces this via [migration `0006_m5_anchor_admin.sql`](../packages/db/migrations/0006_m5_anchor_admin.sql).
 
 ---
 
-## 2) 招募 Anchor 的优先级
+## 2) Anchor recruiting SOP (5 steps, approx 2-week window)
 
-> NYC 有 700+ 社区花园、数十个 Community Fridge 站点，以及 COVID 期间涌现的大量互助组织（如 Bed-Stuy Strong 曾服务 28,000 人）。这些组织是天然的 Anchor 候选人，但目前缺少统一的数字化治理工具。详见 [01_Vision §7 竞品分析](./01_Vision_And_Principles.md)。
+Fixed sequence. Do not skip a step to compress the timeline.
 
-### Tier 1（最优）
-- 直接提供资源的点：pantry、soup kitchen、mutual aid 组织
-- 有固定场地与固定开放时间的组织（易触达用户）
-- 已有社区信任基础的组织（如 Community Fridge 运营者、教会 food bank）
+### Step 1 — Shortlist + warm intro (Day 0 to Day 2)
+Output of this step: a list of 3 to 5 candidate organizations for the target ZIP, ranked, with a named human to contact.
 
-### Tier 2
-- 学校/图书馆/社区服务点（可做数字鸿沟支持——Bronx 36.7% 家庭无宽带）
+Actions:
+1. Pull the Food Bank For NYC directory (https://www.foodbanknyc.org/get-help/), the `NYC Food Resource Guide` for the neighborhood, and the per-community checklist in this repo for seed candidates.
+2. Cross-check with 311 open data / findhelp.org for active status (hours in last 30 days).
+3. Rank by the Tier A selection bar above.
+4. Prefer a warm intro. If none is available, send a cold email from the Step 2 template.
 
-### Tier 3
-- 仅线上社区群（风险更高，需要谨慎）
+### Step 2 — First contact (Day 2 to Day 4)
+Output: a scheduled 30-minute call and a named point of contact.
 
----
+Use the cold-email template in the per-community checklist. Do not cold-call pantries during distribution hours. One email, one polite follow-up three business days later, then stop.
 
-## 3) 外联节奏（模板化）
+### Step 3 — Alignment call (Day 4 to Day 7)
+Thirty minutes. Fixed agenda — do not improvise:
+1. Five-minute who-we-are, including that this is a student project and what that means for longevity.
+2. Ten-minute live demo on a staging URL. Show: resident home, post composer, an anchor review decision.
+3. Five-minute walkthrough of anchor responsibilities from section 1.
+4. Five-minute data and privacy summary, grounded in the MOU template.
+5. Five-minute questions and scheduling.
 
-### Step 0：准备 1 页介绍
-你需要随身携带（打印/手机 PDF）：
-- 我们是谁（NYU 学生团队）
-- 我们做什么（隐私优先互助匹配）
-- 你得到什么（免费工具 + 数据洞察 + 减少排队/更快匹配）
-- 你需要做什么（每周 1 小时审核 + 可选公告发布）
-- 安全与隐私承诺（默认匿名 + 不卖数据）
+At the end of the call, send the MOU PDF (EN or ZH) plus a one-page FAQ.
 
-### Step 1：第一次联系（电话/邮件）
-- 目标：约 20-30 分钟 call
-- 产出：确定“试点时间窗口（4-6 周）” + “一个联系人”
+### Step 4 — MOU signature + training (Day 7 to Day 11)
+Output: a signed MOU (PDF with wet or e-signature), an agreed go-live date, and a scheduled 60-minute training.
 
-邮件模板见 [outreach_email_templates](../templates/outreach_email_templates.md)。
+Training covers (screen-share, recorded with their consent so they can replay):
+- Redeeming the anchor invite code
+- Activating TOTP (authenticator app) and storing recovery codes
+- First announcement (dry-run, not published)
+- First review-queue decision (dry-run)
+- First report resolution (dry-run)
 
-### Step 2：30 分钟对齐会议（议程）
-1) 组织的痛点：用户怎么来、排队问题、沟通方式
-2) MVP 演示（录屏 + 现场输入 ZIP）
-3) Anchor 权限说明（可控制规则、可删除/拒绝贴子）
-4) 安全机制说明（高风险默认审核、举报、黑名单）
-5) 确定试点 KPI（建议：每周 10 次真实匹配）
-6) 同意书 / MOU（模板见 [anchor_mou_template](../templates/anchor_mou_template.md)）
+### Step 5 — TOTP activation on production (Day 11 to Day 14)
+Output: an anchor account in `status = 'active'`, one `anchor_activated` analytics event, a smoke-tested live admin session.
 
-### Step 3：上线与培训（60 分钟）
-- 安装：Anchor Admin Web（账号 + 2FA）
-- 规则配置：
-  - 默认可见范围（同社区）
-  - 哪些类别需审核（建议：Childcare/Transportation 全审核）
-  - 举报阈值策略
-- 演练：
-  - 审核一个贴子
-  - 发布一条公告
-  - 处理一个举报
+Exact commands — see the per-community checklist for invite generation. After the anchor completes activation in the production environment, the team on-call verifies:
+- `anchor_activated` event in `analytics_events` for the community
+- Anchor admin dashboard loads at `admin.weavenyc.org`
+- Anchor can publish a test announcement and immediately delete it
+
+If any of these fail, do not invite residents. Loop back to Step 4.
 
 ---
 
-## 4) 线下推广 SOP（pantry 门口 tabling）
+## 3) Day-1 / Day-7 / Day-30 rhythm
 
-### 4.1 物料清单
-- A5 传单（含 QR 码直达 PWA）
-- 贴纸（可选）
-- 1 个 Roll-up（可选）
-- “隐私承诺”小卡片（让移民/老人更敢用）
+Same cadence for every community. Project lead is accountable for all items.
 
-### 4.2 现场话术（30 秒）
-- “Hi，我们做了个免费的邻里互助 App。你输入 11735 就能看到今天开放的 pantry，也能发布‘我缺晚餐’或‘我有多余食物’。我们不要求实名，默认不上传个人信息。扫码就能用。”
+### Day 0 — Soft launch (the day we flip residents on)
+- 10:00 — anchor posts pinned welcome announcement (template in per-community checklist)
+- 10:15 — project team posts to partner's Instagram / WeChat group / Nextdoor
+- 10:30 — tabling at partner location if logistically possible
+- Staffing: one on-call engineer + one community lead for four hours, both on Slack
+- Success signal: at least three verified users, at least one post, zero P0 incidents
 
-### 4.3 现场转化流程
-1) 扫码打开 → 选语言
-2) 输入 ZIP → 看到资源列表（立刻得到价值）
-3) 引导发一条“Offer/Request”（可模板）
-4) 赠送一个“欢迎消息”（由 Anchor 发）
+### Day 1 — First 24 hours
+- Morning: on-call engineer checks `analytics_events`, Sentry, service health
+- Noon: 15-minute sync call with anchor (by phone) — any confusion? any scary posts?
+- End of day: quick Slack thread summarizing signups, posts, any reports
 
----
+### Day 7 — First retro (30 minutes with anchor)
+Run the Day-7 questions from the per-community checklist. Rule: if the anchor is overwhelmed, reduce the review load by tightening `review_categories` in the ruleset. Do not add features.
 
-## 5) 试点 KPI（建议）
-
-> **注意**：以下为**单个 Anchor 社区**的目标。全平台目标见 [02_PRD §2.2](./02_PRD.md)（Verified Matches/Week ≥ 20 是多个社区的合计值）。
-
-- 注册用户（本社区）：30-100
-- 每周发帖（本社区）：>= 10
-- 每周 Verified Matches（本社区）：>= 5
-- 举报处置闭环：<= 24 小时
-- Anchor 每周活跃：>= 1 次（审核/公告/规则配置）
+### Day 30 — Decision checkpoint
+Run the KPI dashboard queries in [`kpi-queries.sql`](./pilot-checklists/kpi-queries.sql) for the community. Apply the Day-30 decision matrix in the per-community checklist: continue, pivot, or shut down.
 
 ---
 
-## 6) Anchor 激励机制（为什么他们会持续参与）
+## 4) Go / No-Go gate (before inviting real users)
 
-> Anchor 每周投入约 1 小时做审核/公告/管理。要让他们持续参与，需要清晰的价值回报。
+Hard gate. All twelve items must be green. If any are red or yellow, do not invite real users. Use the anchor account to continue rehearsing.
 
-### 6.1 对 Anchor 组织的直接价值
-- **社区数据洞察**：每月提供本社区报告（匹配数、需求类别分布、活跃度趋势），帮助 Anchor 了解社区真实需求
-- **减少排队/重复沟通**：互助匹配分流部分需求，减轻 Anchor 日常线下工作量
-- **扩大影响力**：Anchor 发布的公告触达更多居民（比传单/群消息覆盖面更广）
+See the canonical checklist in [`29_M8_Pilot_Readiness.md §1`](./29_M8_Pilot_Readiness.md#1-gono-go-checklist). Summary:
 
-### 6.2 品牌与认可
-- **"Verified Anchor" 标识**：在平台上展示 Anchor 组织名称和 logo，增加社区信任度
-- **年度 Impact Report**：为 Anchor 生成可对外展示的影响力报告（例如"本年度促成 X 次互助匹配"），可用于 Anchor 自己的资助申请/年报
-- **联合推广**：在 WeaveNYC 的社交媒体/网站上宣传 Anchor 的活动和服务
-
-### 6.3 社区建设支持
-- **免费工具**：Anchor Admin 后台永久免费
-- **培训支持**：提供初始培训 + 持续答疑（Slack 群 / 月度 office hour）
-- **最佳实践分享**：跨社区 Anchor 的经验分享会（季度）
-
-### 6.4 长期路线（Phase 2+）
-- **Grant 推荐**：帮助 Anchor 申请相关社区服务基金
-- **志愿者小时认证**：为 Anchor 审核员出具志愿者服务时长证明
-- **优先功能请求**：活跃 Anchor 可优先提交功能需求
+- [ ] M8 code freeze passed (`main` build green, no uncommitted infra)
+- [ ] 8-person review: zero open findings
+- [ ] Cloudflare Pages: `weavenyc.org` and `admin.weavenyc.org` reachable and serve the current commit hash
+- [ ] AWS API gateway: `api.weavenyc.org/healthz` returns 200
+- [ ] GCP resource-directory: `resources.weavenyc.org` returns 200
+- [ ] Azure notifications: `notify.weavenyc.org` internal health returns 200
+- [ ] All three community anchors have signed MOUs on file
+- [ ] All three anchors have activated TOTP in production
+- [ ] Sentry receiving events from all five services in the last 24 hours
+- [ ] Prometheus scraping `/metrics` endpoints successfully
+- [ ] First ten internal test users have completed the happy path end-to-end
+- [ ] Pilot rollback SOP has been exercised once in staging
 
 ---
 
-## 7) 风险与应对（给 Anchor 的承诺）
-- 骚扰/诈骗：举报 + 拉黑 + 风险规则自动拦截
-- 敏感身份：不要求实名；可使用匿名昵称
-- 交通/儿童：默认更严格的审核与提示
+## 5) Escalation paths
 
+Single on-call rotation. Every community has one accountable anchor and one accountable team member.
+
+| Severity | Examples | First call | Second call | Response target |
+|---|---|---|---|---|
+| P0 | Service outage; data leak suspected; harassment in-flight; minor-involved report | On-call engineer (`oncall@weavenyc.org`) | Project lead | Ack within 15 min, 24/7 |
+| P1 | Single-user error rate spike; moderation queue > 10 items > 24h; anchor locked out | On-call engineer | Community lead | Ack within 2 hours, business hours |
+| P2 | UI bug; typo; non-urgent feature request | Issue tracker | N/A | Weekly triage |
+
+### When the anchor goes dark
+If an anchor misses two consecutive weekly check-ins or leaves the moderation queue unattended for > 48 hours:
+1. Project lead calls the anchor's personal phone.
+2. If no response in 24 hours, temporarily raise the `auto_hide_report_threshold` to 1 so reports auto-hide on first flag.
+3. If no response in 72 hours, run `UPDATE anchors SET status = 'revoked' WHERE community_id = ...` after project lead sign-off, then pause the community (see rollback SOP).
+
+### Security incident
+Immediately route to the Ops Runbook [§7 Incident Response](./11_Ops_Runbook.md#7-incident-response-standard-operating-procedure). Do not post to Slack channels before the on-call engineer confirms scope.
+
+### User-reported safety concern
+If a resident reports imminent harm (violence, trafficking, exploitation), project lead contacts NYC 311 / 911 as appropriate. Product-side: invoke the takedown API, preserve the audit log, notify the anchor, and do not delete any records until the incident is closed.
+
+### Media or press
+All press routes through project lead. Anchors are not authorized spokespeople for WeaveNYC (this is explicit in the MOU).

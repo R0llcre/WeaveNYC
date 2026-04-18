@@ -89,6 +89,20 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
           });
         }
 
+        if (created.status === 'active') {
+          await app.analyticsRecorder.recordEvent({
+            event_type: 'post_published',
+            community_id: body.community_id,
+            actor_user_id: actor.userId,
+            payload: {
+              post_id: created.postId,
+              post_type: body.post_type,
+              category: body.category,
+              risk_level: created.riskLevel,
+            },
+          });
+        }
+
         return {
           post_id: created.postId,
           status: created.status,

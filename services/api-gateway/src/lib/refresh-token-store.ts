@@ -5,7 +5,15 @@ import { anchorSessionIdleTtlSeconds } from "@weavenyc/shared";
 
 import type { StoredRefreshSession } from "../types.js";
 
-type ChallengeKind = "otp" | "magic_link" | "anchor_activate" | "anchor_session";
+export type ChallengeKind =
+  | "otp"
+  | "magic_link"
+  | "anchor_activate"
+  | "anchor_session"
+  | "account_delete"
+  | "account_undelete";
+
+export type IdentityChallengeDeliveryChannel = "sms" | "email";
 
 export interface StoredIdentityChallenge {
   challengeId: string;
@@ -15,6 +23,7 @@ export interface StoredIdentityChallenge {
   identitySalt: string;
   abuseHash: string | null;
   maskedDestination: string;
+  deliveryChannel?: IdentityChallengeDeliveryChannel;
   codeOrToken: string;
   attemptsRemaining: number;
   expiresAt: number;
@@ -67,6 +76,7 @@ export interface RefreshTokenStore {
   revokeUserSessions(userId: string): Promise<void>;
   createOtpChallenge(challenge: StoredIdentityChallenge): Promise<void>;
   createMagicLinkChallenge(challenge: StoredIdentityChallenge): Promise<void>;
+  createAccountLifecycleChallenge(challenge: StoredIdentityChallenge): Promise<void>;
   createAnchorActivationChallenge(challenge: StoredAnchorChallenge): Promise<void>;
   createAnchorSessionChallenge(challenge: StoredAnchorChallenge): Promise<void>;
   verifyChallenge(input: {
@@ -211,6 +221,10 @@ export class RedisRefreshTokenStore implements RefreshTokenStore {
   }
 
   async createMagicLinkChallenge(challenge: StoredIdentityChallenge): Promise<void> {
+    await this.persistChallenge(challenge);
+  }
+
+  async createAccountLifecycleChallenge(challenge: StoredIdentityChallenge): Promise<void> {
     await this.persistChallenge(challenge);
   }
 

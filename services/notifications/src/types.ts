@@ -30,6 +30,14 @@ export type NotificationsConfig = {
     apiKey: string;
     fromEmail: string;
   };
+  sentry: {
+    dsn: string | null;
+    tracesSampleRate: number;
+  };
+  runtime: {
+    serviceName: 'notifications-service';
+    version: string;
+  };
 };
 
 export type InternalServiceClaims = {

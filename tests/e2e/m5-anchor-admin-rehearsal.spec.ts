@@ -559,12 +559,12 @@ test('anchor login -> activate -> review -> announcements -> rules -> pwa banner
   const pwaPage = await context.newPage();
   await pwaPage.goto('/community');
   await pwaPage.getByTestId('create-session').click();
-  await pwaPage.getByTestId('join-community').click();
+  await pwaPage.goto('/community/join');
   await pwaPage.getByTestId('join-mode-invite').click();
   await pwaPage.getByLabel(/invite code/i).fill('FARMINGDALE-HELP');
   await pwaPage.getByTestId('resolve-community').click();
   await pwaPage.getByTestId('confirm-join').click();
-  await expect(pwaPage).toHaveURL(/\/community$/);
+  await expect(pwaPage).toHaveURL(/\/community\/$/);
   const banner = pwaPage.locator('.announcement-banner');
   const announcementList = pwaPage.locator('.announcement-list');
   await expect(banner).toContainText('Pantry schedule update');

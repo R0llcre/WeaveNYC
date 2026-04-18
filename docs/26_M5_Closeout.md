@@ -4,7 +4,7 @@
 
 日期：`2026-04-12`
 
-说明：本文档记录 `M5` closeout 过程、验证链和 6-lane review gate。当前 `main` 的 canonical baseline 已收口到 `M5 completed`。
+说明：本文档记录 `M5` closeout 过程、验证链和 6-lane review gate。它保留 M5 关单事实；当前 `main` 的 canonical baseline 已继续推进到 `M7 completed`，以 [`28_M7_Closeout.md`](./28_M7_Closeout.md) 为最新阶段 closeout 入口。
 
 ---
 
@@ -34,7 +34,7 @@
 - [x] docs truth assertions for owned M5 docs
 - [x] `pnpm test:smoke:real`
 - [x] 6-lane review gate
-  - [x] final phase-status flip to `M5 completed / M6 in progress on branch`
+  - [x] final phase-status flip completed for the M5 closeout round
 
 验证约束：
 
@@ -58,7 +58,7 @@
 当前状态：
 
 - 6 条 lane 已全部返回 `No material findings`
-- 当前主线阶段状态已经切到 `M5 completed / M6 in progress on branch`
+- 当前主线阶段状态已经从 `M5 completed` 继续推进到 `M7 completed`
 - 当前验证证据以上面的命令通过结果为准；`main` 已承接 M5 canonical baseline
 
 ---
@@ -80,4 +80,4 @@
 ## 6) Next Phase
 
 - `M5` 已完成 closeout
-- 下一阶段入口是 `M6 in progress on branch`
+- 后续阶段已经继续推进；当前下一阶段入口以最新 closeout 文档为准

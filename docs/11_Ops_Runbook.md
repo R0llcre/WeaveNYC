@@ -2,13 +2,13 @@
 
 目标：即使只有 2-3 人，也要把"可观测性 + 故障处理 + 数据恢复"最小化做起来。
 
-> `main` 当前已是 `M6 completed`；`feature/m7-staging-rehearsal` 只做 staging truth 收口。M7 不新增用户端产品 surface，但会把 split runtimes、deploy scripts 和 rehearsal probe 收口成可执行 staging truth。
+> `main` 当前已是 `M7 completed`。当前文档只描述已经进入主线的 staging rehearsal truth；下一阶段 `M8` 固定为 Pilot Readiness，不新增用户端产品 surface。
 
 ---
 
-## 1) 服务清单（当前 M6 运行面 / rehearsal）
+## 1) 服务清单（当前 M7 运行面 / rehearsal）
 
-**`main` 的稳定用户面仍经由 API Gateway 暴露；M7 branch-local staging rehearsal 额外拆出这些后端 runtimes**：
+**`main` 的稳定用户面仍经由 API Gateway 暴露；M7 已经把这些后端 runtimes 收口成当前 staging rehearsal truth**：
 
 | 服务 | 职责 | 关键依赖 |
 |------|------|----------|
@@ -19,7 +19,7 @@
 | Resource Directory Service | resources read API + import host | PostgreSQL/PostGIS |
 | Notifications Service | Twilio / Resend delivery adapter | Twilio, Resend |
 
-**当前 branch-local staging truth**：
+**当前 staging truth**：
 
 | 包 | 当前形态 | 说明 |
 |----|----------|------|
@@ -331,9 +331,9 @@ groups:
    ```
 4. 通知 Anchor 使用备用渠道（Slack/电话）报告紧急情况
 
-### 7.6 M6/M7 rehearsal path
+### 7.6 M7 rehearsal path
 
-当 `main` 需要复现 M6 closeout / M7 staging rehearsal 时，按下面的顺序跑一遍：
+当 `main` 需要复现 M7 closeout / staging rehearsal 时，按下面的顺序跑一遍：
 
 1. `pnpm install`
 2. `docker compose up -d`
