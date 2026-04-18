@@ -260,8 +260,11 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   // to parallel single-word forms).
   await expect(page.locator('h1', { hasText: 'Bandeja' })).toBeVisible();
 
+  // Back on Home after verification: the redesign replaced the session-level
+  // text chip with a user_id readout Tag. Session-chip is the canonical
+  // verified-user signal now (see resource-home.tsx session chip).
   await page.goto('/');
-  await expect(page.getByText('Vecino con cuenta')).toBeVisible();
+  await expect(page.getByTestId('session-chip')).toBeVisible();
 
   await page.goto('/dev/m0');
   await expect(page.getByText('Check the API, mint an anonymous session, and stop there.')).toBeVisible();
