@@ -123,9 +123,10 @@ jobs:
             WEAVENYC_DEPLOY_PROFILE=production
             SERVICE_PORT=8080
             HOST=0.0.0.0
-            PORT=8080
             LOG_LEVEL=info
             INTERNAL_SERVICE_JWT_ISSUER=weavenyc-api-gateway:internal
+          # Note: PORT is auto-injected by Cloud Run from the --port flag;
+          # setting it explicitly here is rejected as a reserved env name.
           secrets: |
             DATABASE_URL=weavenyc-database-url:latest
             INTERNAL_SERVICE_JWT_SECRET=weavenyc-internal-service-jwt-secret:latest
