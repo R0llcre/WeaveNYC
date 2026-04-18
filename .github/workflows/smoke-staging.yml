@@ -76,6 +76,22 @@ jobs:
       - name: Build workspace dependencies
         run: pnpm --filter @weavenyc/shared --filter @weavenyc/db --filter @weavenyc/test-utils build
 
+      - name: Warm up App Runner
+        # Poke /healthz for up to 90s so the smoke step isn't bitten by App
+        # Runner cold-start (Fargate can take 40-60s to wake a scaled-to-zero
+        # service; curl's default timeout is plenty within 90s budget).
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${{ vars.WEAVENYC_STAGING_API_GATEWAY_URL }}/healthz") || status=000
+            echo "warmup attempt $i → $status"
+            if [ "$status" = "200" ]; then
+              echo "warm"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "warmup never saw 200; proceeding anyway"
+
       - name: Run staging smoke
         run: pnpm exec tsx scripts/staging/smoke-staging.ts
 
