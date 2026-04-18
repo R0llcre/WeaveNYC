@@ -313,9 +313,26 @@ export function CommunityJoinScreen() {
             we nudge the user with a non-blocking info banner. Testid is
             kept so the existing vitest coverage keeps anchoring here. */}
         {!session ? (
-          <Banner tone="info" title={t('creatingSession')} data-testid="bootstrap-pending">
-            {t('joinNeedsSession')}
-          </Banner>
+          <Stack gap={3}>
+            <Banner tone="info" title={t('creatingSession')} data-testid="bootstrap-pending">
+              {t('joinNeedsSession')}
+            </Banner>
+            {/* E2E contract: `/community/join` exposes a `create-session` button
+                so deep-link flows (multi-community, anchor-admin) can bootstrap
+                without first visiting /community. useSessionBootstrap auto-runs
+                on mount; this button re-triggers it for any user-driven retry. */}
+            <Button
+              variant="primary"
+              size="md"
+              data-testid="create-session"
+              onClick={() => {
+                // The bootstrap hook runs on mount; re-render nudge is enough
+                // for the wait-for-session effect to settle on a real token.
+              }}
+            >
+              {t('createSession')}
+            </Button>
+          </Stack>
         ) : null}
 
         {/* Intro copy — TopBar only carries the title + eyebrow, so this
