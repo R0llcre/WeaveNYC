@@ -202,7 +202,7 @@ test('settings: renders all five sections, flips language pill, toggles low band
   await stubHealthRoutes(context);
   await seedOnboardedPreferencesInDexie(page);
 
-  await page.goto(`${pwaBaseUrl}/settings`);
+  await page.goto(`${pwaBaseUrl}/me/settings`);
 
   // Language / Privacy / Safety / Account / Help — all five heading ids exist
   await expect(page.locator('#settings-language-heading')).toBeVisible();
@@ -305,7 +305,7 @@ test('settings: delete request -> confirm -> undo shows the scheduled + restored
     });
   });
 
-  await page.goto(`${pwaBaseUrl}/settings`);
+  await page.goto(`${pwaBaseUrl}/me/settings`);
 
   // Wait for the session-hydrated Account section so Start deletion is enabled
   await expect(page.locator('#settings-account-heading')).toBeVisible();
@@ -327,8 +327,8 @@ test('settings: delete request -> confirm -> undo shows the scheduled + restored
   await expect(undo).toBeVisible();
   await undo.click();
 
-  // After undelete the screen stays on /settings and surfaces the re-verify CTA.
-  await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:3000\/settings\/?$/, {
+  // After undelete the screen stays on /me/settings and surfaces the re-verify CTA.
+  await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:3000\/me\/settings\/?$/, {
     timeout: 5_000,
   });
   await expect(page.getByTestId('settings-delete-undone-reverify')).toBeVisible();
