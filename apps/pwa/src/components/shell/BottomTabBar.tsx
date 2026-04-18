@@ -94,7 +94,7 @@ const MeIcon = () => (
 const TABS: readonly TabConfig[] = [
   { key: 'home', href: '/', labelKey: 'shellTabHome', icon: <HomeIcon /> },
   { key: 'community', href: '/community', labelKey: 'shellTabCommunity', icon: <CommunityIcon /> },
-  { key: 'post', href: '/post', labelKey: 'shellTabPost', icon: <PostIcon /> },
+  { key: 'post', href: '/posts/new', labelKey: 'shellTabPost', icon: <PostIcon /> },
   { key: 'inbox', href: '/inbox', labelKey: 'shellTabInbox', icon: <InboxIcon /> },
   { key: 'me', href: '/me', labelKey: 'shellTabMe', icon: <MeIcon /> },
 ];
@@ -109,7 +109,7 @@ export function deriveActiveTab(pathname: string | null): TabKey | undefined {
   if (!pathname) return undefined;
   if (pathname === '/') return 'home';
   if (pathname.startsWith('/community')) return 'community';
-  if (pathname.startsWith('/post')) return 'post';
+  if (pathname.startsWith('/posts')) return 'post';
   if (pathname.startsWith('/inbox')) return 'inbox';
   if (pathname.startsWith('/me')) return 'me';
   return undefined;
