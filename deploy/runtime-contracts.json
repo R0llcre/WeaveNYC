@@ -12,7 +12,12 @@
       "buildCommand": "pnpm --filter @weavenyc/api-gateway build",
       "serveCommand": "pnpm --filter @weavenyc/api-gateway start",
       "smokeUrlEnv": "WEAVENYC_STAGING_API_GATEWAY_URL",
-      "healthPaths": ["/healthz", "/readyz", "/versionz", "/docs"],
+      "healthPaths": [
+        "/healthz",
+        "/readyz",
+        "/versionz",
+        "/docs"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -25,7 +30,11 @@
       "buildCommand": "pnpm --filter @weavenyc/posts build",
       "serveCommand": "node dist/src/server.js",
       "smokeUrlEnv": "WEAVENYC_STAGING_POSTS_SERVICE_URL",
-      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "healthPaths": [
+        "/healthz",
+        "/readyz",
+        "/versionz"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -38,7 +47,11 @@
       "buildCommand": "pnpm --filter @weavenyc/match build",
       "serveCommand": "node dist/src/server.js",
       "smokeUrlEnv": "WEAVENYC_STAGING_MATCH_SERVICE_URL",
-      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "healthPaths": [
+        "/healthz",
+        "/readyz",
+        "/versionz"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -51,7 +64,11 @@
       "buildCommand": "pnpm --filter @weavenyc/chat build",
       "serveCommand": "node dist/src/server.js",
       "smokeUrlEnv": "WEAVENYC_STAGING_CHAT_SERVICE_URL",
-      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "healthPaths": [
+        "/healthz",
+        "/readyz",
+        "/versionz"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -64,7 +81,10 @@
       "buildCommand": "pnpm --filter @weavenyc/resource-directory build",
       "serveCommand": "node dist/src/server.js",
       "smokeUrlEnv": "WEAVENYC_STAGING_RESOURCE_DIRECTORY_URL",
-      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "healthPaths": [
+        "/readyz",
+        "/versionz"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -77,7 +97,11 @@
       "buildCommand": "pnpm --filter @weavenyc/notifications build",
       "serveCommand": "node dist/src/server.js",
       "smokeUrlEnv": "WEAVENYC_STAGING_NOTIFICATIONS_SERVICE_URL",
-      "healthPaths": ["/healthz", "/readyz", "/versionz", "/metrics"],
+      "healthPaths": [
+        "/healthz",
+        "/readyz",
+        "/versionz"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -90,7 +114,9 @@
       "buildCommand": "pnpm --filter @weavenyc/pwa build",
       "serveCommand": "pnpm --filter @weavenyc/pwa start",
       "smokeUrlEnv": "WEAVENYC_STAGING_PWA_URL",
-      "healthPaths": ["/"],
+      "healthPaths": [
+        "/"
+      ],
       "repoPresenceRequired": true
     },
     {
@@ -103,7 +129,9 @@
       "buildCommand": "pnpm --filter @weavenyc/anchor-admin build",
       "serveCommand": "pnpm --filter @weavenyc/anchor-admin start",
       "smokeUrlEnv": "WEAVENYC_STAGING_ANCHOR_ADMIN_URL",
-      "healthPaths": ["/"],
+      "healthPaths": [
+        "/"
+      ],
       "repoPresenceRequired": true
     }
   ]
