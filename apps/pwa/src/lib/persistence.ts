@@ -341,9 +341,17 @@ export async function savePreferences(preferences: PreferencesState) {
       return;
     }
 
+    // `hydrationComplete` is a transient UI-only flag — it only makes sense
+    // during the current session and would lock out the hydration guard on
+    // the next page load. Strip it out before persisting so that reloading
+    // the PWA never starts with a stale `hydrationComplete=true`. The
+    // explicit `void` reference keeps lint happy without an ignore-comment.
+    const { hydrationComplete, ...toPersist } = preferences;
+    void hydrationComplete;
+
     await db.kv.put({
       key: PREFERENCES_STORAGE_KEY,
-      value: preferences,
+      value: toPersist,
     });
   } catch {
     return;

@@ -1,0 +1,102 @@
+name: Deploy Notifications (Azure Container Apps)
+
+# Builds services/notifications into an image in Azure Container Registry
+# (weavenycpilot.azurecr.io) and rolls the weavenyc-pilot/notifications
+# Container App onto the new tag. See infra/azure/README.md for the one-time
+# OIDC federation setup.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/notifications/**'
+      - 'packages/shared/**'
+      - '.github/workflows/deploy-notify.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-notify-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: weavenyc-pilot
+  AZURE_CONTAINER_APP: notifications
+  AZURE_CONTAINER_ENV: weavenyc-env
+  AZURE_ACR_NAME: weavenycpilot
+  AZURE_ACR_LOGIN_SERVER: weavenycpilot.azurecr.io
+  IMAGE_NAME: notifications
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC federation with Azure
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          echo "tag=v0.1.0-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "full=${AZURE_ACR_LOGIN_SERVER}/${IMAGE_NAME}:v0.1.0-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name "${AZURE_ACR_NAME}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push notifications image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/notifications/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ steps.tag.outputs.full }}
+            ${{ env.AZURE_ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Container App image
+        run: |
+          az containerapp update \
+            --name "${AZURE_CONTAINER_APP}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --image "${{ steps.tag.outputs.full }}"
+
+      - name: Wait for revision ready
+        run: |
+          az containerapp revision list \
+            --name "${AZURE_CONTAINER_APP}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "[?properties.active].{name:name,healthy:properties.healthState,image:properties.template.containers[0].image}" \
+            -o table
+
+      - name: Smoke test /healthz
+        run: |
+          FQDN=$(az containerapp show \
+            --name "${AZURE_CONTAINER_APP}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "https://${FQDN}/healthz"; then
+              echo ""
+              echo "Healthcheck succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "Attempt ${attempt} failed — sleeping 10s"
+            sleep 10
+          done
+          echo "Healthcheck never returned 200"
+          exit 1

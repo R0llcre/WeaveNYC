@@ -489,6 +489,16 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
 
   await page.goto('/');
 
+  // New-user guard sends the browser to /onboarding/language on first visit.
+  // Walk through the language + ZIP gate so home can mount for the rest of
+  // the smoke scenario.
+  await page.waitForURL((url) => url.pathname.includes('/onboarding/language'));
+  await page.getByTestId('onboarding-language-en').click();
+  await page.waitForURL((url) => url.pathname.includes('/onboarding/location'));
+  await page.getByTestId('onboarding-location-zip-input').fill('11735');
+  await page.getByTestId('onboarding-location-submit').click();
+  await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
+
   await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
@@ -540,7 +550,7 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await page.goto('/posts/mine');
   await expect(page.getByText('Need groceries tonight')).toBeVisible();
 
-  await page.goto('/verify');
+  await page.goto('/me/verify');
   await page.getByLabel('Phone number').fill('+15165550101');
   await page.getByRole('button', { name: 'Send code' }).click();
   await expect(page.getByText('Demo code:')).toContainText('246810');

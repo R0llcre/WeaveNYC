@@ -664,6 +664,9 @@ export async function seedDatabase(db: Database) {
       }
     });
 
+  await seedPilotCommunity(db, queensPilot);
+  await seedPilotCommunity(db, bronxPilot);
+
   const seededUser = await db.query.users.findFirst({
     where: eq(users.userId, seedIds.anonymousUserId)
   });
@@ -672,3 +675,602 @@ export async function seedDatabase(db: Database) {
     ok: Boolean(seededUser)
   };
 }
+
+type PilotProviderSeed = {
+  providerId: string;
+  sourceRef: string;
+  name: string;
+  type: "pantry" | "kitchen" | "market";
+  addressText: string;
+  city: string;
+  zip: string;
+  phone: string;
+  hoursJson: Record<string, string>;
+  languages: string[];
+  eligibilityNotes: string;
+  lat: number;
+  lng: number;
+  contentHash: string;
+};
+
+type PilotCommunitySeed = {
+  communityId: string;
+  communityName: string;
+  centerZip: string;
+  anchorUserId: string;
+  anchorUserDisplayName: string;
+  anchorUserLanguages: string[];
+  seedUserId: string;
+  seedUserDisplayName: string;
+  seedUserLanguages: string[];
+  anchorInviteId: string;
+  anchorInviteCodeHash: string;
+  anchorOrgName: string;
+  anchorId: string;
+  anchorContact: string;
+  inviteAccessCodeId: string;
+  inviteCode: string;
+  qrAccessCodeId: string;
+  qrToken: string;
+  rulesetId: string;
+  rulesetLanguagePreferences: string[];
+  announcementId: string;
+  announcementTitle: string;
+  announcementBody: string;
+  providers: PilotProviderSeed[];
+  requestPostId: string;
+  requestPostTitle: string;
+  requestPostBody: string;
+  requestPostLanguage: "en" | "es" | "zh";
+  offerPostId: string;
+  offerPostTitle: string;
+  offerPostBody: string;
+  offerPostLanguage: "en" | "es" | "zh";
+};
+
+async function seedPilotCommunity(db: Database, pilot: PilotCommunitySeed) {
+  await db
+    .insert(users)
+    .values([
+      {
+        userId: pilot.anchorUserId,
+        displayName: pilot.anchorUserDisplayName,
+        preferredLanguages: pilot.anchorUserLanguages,
+        homeZip: pilot.centerZip,
+        level: "anchor",
+        status: "active",
+        emailHash: "demo_email_hash",
+        emailHashSalt: "demo_email_salt"
+      },
+      {
+        userId: pilot.seedUserId,
+        displayName: pilot.seedUserDisplayName,
+        preferredLanguages: pilot.seedUserLanguages,
+        homeZip: pilot.centerZip,
+        level: "verified",
+        status: "active",
+        phoneHash: "demo_phone_hash",
+        phoneHashSalt: "demo_phone_salt"
+      }
+    ])
+    .onConflictDoUpdate({
+      target: users.userId,
+      set: {
+        displayName: sql`excluded.display_name`,
+        preferredLanguages: sql`excluded.preferred_languages`,
+        homeZip: sql`excluded.home_zip`,
+        phoneHash: sql`excluded.phone_hash`,
+        phoneHashSalt: sql`excluded.phone_hash_salt`,
+        emailHash: sql`excluded.email_hash`,
+        emailHashSalt: sql`excluded.email_hash_salt`,
+        level: sql`excluded.level`,
+        status: sql`excluded.status`,
+        updatedAt: new Date()
+      }
+    });
+
+  await db
+    .insert(communities)
+    .values({
+      communityId: pilot.communityId,
+      name: pilot.communityName,
+      centerZip: pilot.centerZip,
+      joinPolicy: "invite_only"
+    })
+    .onConflictDoUpdate({
+      target: communities.communityId,
+      set: {
+        name: sql`excluded.name`,
+        centerZip: sql`excluded.center_zip`,
+        joinPolicy: sql`excluded.join_policy`,
+        updatedAt: new Date()
+      }
+    });
+
+  await db
+    .insert(communityMembers)
+    .values([
+      { userId: pilot.anchorUserId, communityId: pilot.communityId },
+      { userId: pilot.seedUserId, communityId: pilot.communityId }
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(communityAccessCodes)
+    .values([
+      {
+        accessCodeId: pilot.inviteAccessCodeId,
+        communityId: pilot.communityId,
+        channel: "invite_code",
+        code: pilot.inviteCode,
+        status: "active"
+      },
+      {
+        accessCodeId: pilot.qrAccessCodeId,
+        communityId: pilot.communityId,
+        channel: "qr_token",
+        code: pilot.qrToken,
+        status: "active"
+      }
+    ])
+    .onConflictDoUpdate({
+      target: communityAccessCodes.accessCodeId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        channel: sql`excluded.channel`,
+        code: sql`excluded.code`,
+        status: sql`excluded.status`,
+        expiresAt: sql`excluded.expires_at`
+      }
+    });
+
+  await db
+    .insert(communityRulesets)
+    .values({
+      rulesetId: pilot.rulesetId,
+      communityId: pilot.communityId,
+      reviewCategories: ["transportation"],
+      autoHideReportThreshold: 2,
+      keywordBlocklist: ["cash only"],
+      languagePreferences: pilot.rulesetLanguagePreferences,
+      announcementPinStrategy: "manual",
+      createdBy: pilot.anchorUserId
+    })
+    .onConflictDoUpdate({
+      target: communityRulesets.rulesetId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        reviewCategories: sql`excluded.review_categories`,
+        autoHideReportThreshold: sql`excluded.auto_hide_report_threshold`,
+        keywordBlocklist: sql`excluded.keyword_blocklist`,
+        languagePreferences: sql`excluded.language_preferences`,
+        announcementPinStrategy: sql`excluded.announcement_pin_strategy`,
+        createdBy: sql`excluded.created_by`,
+        updatedAt: new Date()
+      }
+    });
+
+  await db
+    .update(communities)
+    .set({
+      rulesetId: pilot.rulesetId,
+      updatedAt: new Date()
+    })
+    .where(eq(communities.communityId, pilot.communityId));
+
+  await db
+    .insert(anchorInvites)
+    .values({
+      anchorInviteId: pilot.anchorInviteId,
+      communityId: pilot.communityId,
+      codeHash: pilot.anchorInviteCodeHash,
+      orgName: pilot.anchorOrgName,
+      status: "active",
+      expiresAt: new Date("2026-05-01T00:00:00.000Z")
+    })
+    .onConflictDoUpdate({
+      target: anchorInvites.anchorInviteId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        codeHash: sql`excluded.code_hash`,
+        orgName: sql`excluded.org_name`,
+        status: sql`excluded.status`,
+        expiresAt: sql`excluded.expires_at`,
+        consumedByUserId: null,
+        consumedAt: null
+      }
+    });
+
+  await db
+    .insert(anchors)
+    .values({
+      anchorId: pilot.anchorId,
+      userId: pilot.anchorUserId,
+      communityId: pilot.communityId,
+      orgName: pilot.anchorOrgName,
+      contact: pilot.anchorContact,
+      status: "active",
+      totpSecretCiphertext: seedValues.anchorTotpSecretCiphertext,
+      recoveryCodesHashes: [...seedValues.anchorRecoveryCodeHashes],
+      activatedAt: new Date("2026-04-04T11:30:00.000Z"),
+      lastMfaAt: new Date("2026-04-04T11:45:00.000Z"),
+      roleAssignments: {
+        admins: [pilot.anchorUserId],
+        mods: [pilot.anchorUserId]
+      }
+    })
+    .onConflictDoUpdate({
+      target: anchors.anchorId,
+      set: {
+        userId: sql`excluded.user_id`,
+        communityId: sql`excluded.community_id`,
+        orgName: sql`excluded.org_name`,
+        contact: sql`excluded.contact`,
+        status: sql`excluded.status`,
+        totpSecretCiphertext: sql`excluded.totp_secret_ciphertext`,
+        recoveryCodesHashes: sql`excluded.recovery_codes_hashes`,
+        activatedAt: sql`excluded.activated_at`,
+        lastMfaAt: sql`excluded.last_mfa_at`,
+        roleAssignments: sql`excluded.role_assignments`
+      }
+    });
+
+  for (const provider of pilot.providers) {
+    await db
+      .update(resourceProviders)
+      .set({
+        status: "inactive",
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(resourceProviders.source, "cfc_active"),
+          eq(resourceProviders.sourceRef, provider.sourceRef),
+          ne(resourceProviders.providerId, provider.providerId),
+          sql`${resourceProviders.status} = 'active'`
+        )
+      );
+
+    await db
+      .insert(resourceProviders)
+      .values({
+        providerId: provider.providerId,
+        source: "cfc_active",
+        sourceRef: provider.sourceRef,
+        name: provider.name,
+        type: provider.type,
+        addressText: provider.addressText,
+        city: provider.city,
+        state: "NY",
+        zip: provider.zip,
+        phone: provider.phone,
+        hoursJson: provider.hoursJson,
+        languages: provider.languages,
+        eligibilityNotes: provider.eligibilityNotes,
+        lat: provider.lat,
+        lng: provider.lng,
+        geoPrecision: "street",
+        contentHash: provider.contentHash,
+        datasetVersion: seedValues.datasetVersion,
+        status: "active",
+        lastSeenAt: new Date("2026-04-04T10:05:00.000Z"),
+        lastVerifiedAt: new Date("2026-04-04T11:00:00.000Z")
+      })
+      .onConflictDoUpdate({
+        target: [
+          resourceProviders.source,
+          resourceProviders.sourceRef,
+          resourceProviders.datasetVersion
+        ],
+        set: {
+          updatedAt: new Date(),
+          status: "active"
+        }
+      });
+  }
+
+  await db
+    .insert(announcements)
+    .values({
+      announcementId: pilot.announcementId,
+      communityId: pilot.communityId,
+      title: pilot.announcementTitle,
+      body: pilot.announcementBody,
+      status: "active",
+      isPinned: true,
+      createdBy: pilot.anchorUserId,
+      publishedAt: new Date("2026-04-04T14:00:00.000Z")
+    })
+    .onConflictDoUpdate({
+      target: announcements.announcementId,
+      set: {
+        communityId: sql`excluded.community_id`,
+        title: sql`excluded.title`,
+        body: sql`excluded.body`,
+        status: sql`excluded.status`,
+        isPinned: sql`excluded.is_pinned`,
+        createdBy: sql`excluded.created_by`,
+        publishedAt: sql`excluded.published_at`,
+        updatedAt: new Date(),
+        deletedAt: null
+      }
+    });
+
+  await db
+    .insert(posts)
+    .values([
+      {
+        postId: pilot.requestPostId,
+        postType: "request",
+        category: "food",
+        title: pilot.requestPostTitle,
+        body: pilot.requestPostBody,
+        language: pilot.requestPostLanguage,
+        locationZip: pilot.centerZip,
+        privacy: "community_only",
+        expiresAt: new Date("2026-04-05T03:00:00.000Z"),
+        createdBy: pilot.seedUserId,
+        communityId: pilot.communityId,
+        status: "active",
+        riskLevel: "low",
+        verificationState: "unverified",
+        contactPref: {
+          in_app_chat: true,
+          call: false
+        }
+      },
+      {
+        postId: pilot.offerPostId,
+        postType: "offer",
+        category: "food",
+        title: pilot.offerPostTitle,
+        body: pilot.offerPostBody,
+        language: pilot.offerPostLanguage,
+        locationZip: pilot.centerZip,
+        privacy: "community_only",
+        expiresAt: new Date("2026-04-05T05:00:00.000Z"),
+        createdBy: pilot.anchorUserId,
+        communityId: pilot.communityId,
+        status: "active",
+        riskLevel: "low",
+        verificationState: "verified_by_anchor",
+        contactPref: {
+          in_app_chat: true,
+          call: false
+        }
+      }
+    ])
+    .onConflictDoUpdate({
+      target: posts.postId,
+      set: {
+        title: sql`excluded.title`,
+        body: sql`excluded.body`,
+        language: sql`excluded.language`,
+        locationZip: sql`excluded.location_zip`,
+        privacy: sql`excluded.privacy`,
+        expiresAt: sql`excluded.expires_at`,
+        createdBy: sql`excluded.created_by`,
+        communityId: sql`excluded.community_id`,
+        status: sql`excluded.status`,
+        riskLevel: sql`excluded.risk_level`,
+        verificationState: sql`excluded.verification_state`,
+        contactPref: sql`excluded.contact_pref`,
+        updatedAt: new Date()
+      }
+    });
+}
+
+const queensPilot: PilotCommunitySeed = {
+  communityId: seedIds.queensCommunityId,
+  communityName: "Queens Corona Demo Community",
+  centerZip: "11368",
+  anchorUserId: seedIds.queensAnchorUserId,
+  anchorUserDisplayName: "Queens Anchor Demo",
+  anchorUserLanguages: ["en", "es", "zh"],
+  seedUserId: seedIds.queensSeedUserId,
+  seedUserDisplayName: "Queens Neighbor",
+  seedUserLanguages: ["en", "es"],
+  anchorInviteId: seedIds.queensAnchorInviteId,
+  anchorInviteCodeHash: seedValues.queensAnchorInviteCodeHash,
+  anchorOrgName: "Corona Community Mutual Aid",
+  anchorId: seedIds.queensAnchorId,
+  anchorContact: "queens-anchor@weavenyc.local",
+  inviteAccessCodeId: seedIds.queensInviteAccessCodeId,
+  inviteCode: seedValues.queensInviteCode,
+  qrAccessCodeId: seedIds.queensQrAccessCodeId,
+  qrToken: seedValues.queensQrToken,
+  rulesetId: seedIds.queensRulesetId,
+  rulesetLanguagePreferences: ["en", "es", "zh"],
+  announcementId: seedIds.queensAnnouncementId,
+  announcementTitle: seedValues.queensAnnouncementTitle,
+  announcementBody: seedValues.queensAnnouncementBody,
+  providers: [
+    {
+      providerId: seedIds.queensProviderIds[0],
+      sourceRef: "cfc_active:corona-food-pantry-queens",
+      name: "Corona Food Pantry",
+      type: "pantry",
+      addressText: "39-25 104th Street, Corona, NY",
+      city: "Corona",
+      zip: "11368",
+      phone: "(718) 555-1001",
+      hoursJson: {
+        mon: "09:00-13:00",
+        wed: "09:00-13:00",
+        fri: "09:00-13:00"
+      },
+      languages: ["en", "es"],
+      eligibilityNotes:
+        "Open to Corona residents. Bring photo ID. Spanish-speaking volunteers on site.",
+      lat: 40.7489,
+      lng: -73.8627,
+      contentHash: "demo_content_hash_q1"
+    },
+    {
+      providerId: seedIds.queensProviderIds[1],
+      sourceRef: "cfc_active:our-lady-sorrows-corona",
+      name: "Our Lady of Sorrows Community Kitchen",
+      type: "kitchen",
+      addressText: "104-11 37th Avenue, Corona, NY",
+      city: "Corona",
+      zip: "11368",
+      phone: "(718) 555-1002",
+      hoursJson: {
+        tue: "11:00-14:00",
+        thu: "11:00-14:00"
+      },
+      languages: ["en", "es"],
+      eligibilityNotes: "Hot meals served on site. No ID required.",
+      lat: 40.7501,
+      lng: -73.8611,
+      contentHash: "demo_content_hash_q2"
+    },
+    {
+      providerId: seedIds.queensProviderIds[2],
+      sourceRef: "cfc_active:elmcor-community-market",
+      name: "Elmcor Community Fresh Market",
+      type: "market",
+      addressText: "107-20 Northern Boulevard, Corona, NY",
+      city: "Corona",
+      zip: "11368",
+      phone: "(718) 555-1003",
+      hoursJson: {
+        wed: "10:00-16:00",
+        sat: "09:00-13:00"
+      },
+      languages: ["en", "es", "zh"],
+      eligibilityNotes:
+        "Fresh produce distribution. Open to all neighborhood residents.",
+      lat: 40.7526,
+      lng: -73.8682,
+      contentHash: "demo_content_hash_q3"
+    },
+    {
+      providerId: seedIds.queensProviderIds[3],
+      sourceRef: "cfc_active:flushing-chinese-pantry",
+      name: "Flushing Chinese Community Pantry",
+      type: "pantry",
+      addressText: "41-61 Kissena Boulevard, Flushing, NY",
+      city: "Flushing",
+      zip: "11355",
+      phone: "(718) 555-1004",
+      hoursJson: {
+        mon: "10:00-15:00",
+        thu: "10:00-15:00"
+      },
+      languages: ["en", "zh"],
+      eligibilityNotes:
+        "Near the 11368 border. Mandarin- and Cantonese-speaking volunteers.",
+      lat: 40.7574,
+      lng: -73.8317,
+      contentHash: "demo_content_hash_q4"
+    }
+  ],
+  requestPostId: seedIds.queensRequestPostId,
+  requestPostTitle: "Need groceries for family of 4",
+  requestPostBody:
+    "Looking for rice, beans, and fresh produce this week. Can pick up within walking distance of 103rd St.",
+  requestPostLanguage: "en",
+  offerPostId: seedIds.queensOfferPostId,
+  offerPostTitle: "Extra pantry shares available",
+  offerPostBody:
+    "I picked up more than we need at Corona Food Pantry this morning. Happy to share with a neighbor today.",
+  offerPostLanguage: "en"
+};
+
+const bronxPilot: PilotCommunitySeed = {
+  communityId: seedIds.bronxCommunityId,
+  communityName: "Bronx Hunts Point Demo Community",
+  centerZip: "10474",
+  anchorUserId: seedIds.bronxAnchorUserId,
+  anchorUserDisplayName: "Bronx Anchor Demo",
+  anchorUserLanguages: ["en", "es"],
+  seedUserId: seedIds.bronxSeedUserId,
+  seedUserDisplayName: "Bronx Neighbor",
+  seedUserLanguages: ["en", "es"],
+  anchorInviteId: seedIds.bronxAnchorInviteId,
+  anchorInviteCodeHash: seedValues.bronxAnchorInviteCodeHash,
+  anchorOrgName: "Hunts Point Alliance for Children",
+  anchorId: seedIds.bronxAnchorId,
+  anchorContact: "bronx-anchor@weavenyc.local",
+  inviteAccessCodeId: seedIds.bronxInviteAccessCodeId,
+  inviteCode: seedValues.bronxInviteCode,
+  qrAccessCodeId: seedIds.bronxQrAccessCodeId,
+  qrToken: seedValues.bronxQrToken,
+  rulesetId: seedIds.bronxRulesetId,
+  rulesetLanguagePreferences: ["en", "es"],
+  announcementId: seedIds.bronxAnnouncementId,
+  announcementTitle: seedValues.bronxAnnouncementTitle,
+  announcementBody: seedValues.bronxAnnouncementBody,
+  providers: [
+    {
+      providerId: seedIds.bronxProviderIds[0],
+      sourceRef: "cfc_active:st-barnabas-pantry-bronx",
+      name: "St. Barnabas Pantry",
+      type: "pantry",
+      addressText: "409 East 138th Street, Bronx, NY",
+      city: "Bronx",
+      zip: "10454",
+      phone: "(718) 555-2001",
+      hoursJson: {
+        tue: "09:00-12:00",
+        thu: "09:00-12:00"
+      },
+      languages: ["en", "es"],
+      eligibilityNotes: "Bronx residents welcome. Bring ID and proof of address.",
+      lat: 40.8085,
+      lng: -73.9228,
+      contentHash: "demo_content_hash_b1"
+    },
+    {
+      providerId: seedIds.bronxProviderIds[1],
+      sourceRef: "cfc_active:hunts-point-alliance-kitchen",
+      name: "Hunts Point Alliance Community Kitchen",
+      type: "kitchen",
+      addressText: "630 Jackson Avenue, Bronx, NY",
+      city: "Bronx",
+      zip: "10474",
+      phone: "(718) 555-2002",
+      hoursJson: {
+        mon: "12:00-14:00",
+        wed: "12:00-14:00",
+        fri: "12:00-14:00"
+      },
+      languages: ["en", "es"],
+      eligibilityNotes:
+        "Hot meals on site. No ID required. Walk-ins welcome.",
+      lat: 40.8116,
+      lng: -73.8909,
+      contentHash: "demo_content_hash_b2"
+    },
+    {
+      providerId: seedIds.bronxProviderIds[2],
+      sourceRef: "cfc_active:longwood-fresh-market",
+      name: "Longwood Fresh Market",
+      type: "market",
+      addressText: "930 Hunts Point Avenue, Bronx, NY",
+      city: "Bronx",
+      zip: "10474",
+      phone: "(718) 555-2003",
+      hoursJson: {
+        wed: "10:00-15:00",
+        sat: "09:00-13:00"
+      },
+      languages: ["en", "es"],
+      eligibilityNotes: "Low-cost fresh produce for Bronx residents.",
+      lat: 40.8142,
+      lng: -73.8861,
+      contentHash: "demo_content_hash_b3"
+    }
+  ],
+  requestPostId: seedIds.bronxRequestPostId,
+  requestPostTitle: "Need baby formula this week",
+  requestPostBody:
+    "Looking for infant formula and diapers size 3 for the next few days. Can meet near Hunts Point Ave.",
+  requestPostLanguage: "en",
+  offerPostId: seedIds.bronxOfferPostId,
+  offerPostTitle: "Can share hot meals this Friday",
+  offerPostBody:
+    "Preparing extra meals at the community kitchen on Friday. Message me for a portion.",
+  offerPostLanguage: "en"
+};

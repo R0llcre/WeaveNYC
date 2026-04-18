@@ -1,12 +1,16 @@
 import { createHmac, randomBytes, randomInt } from "node:crypto";
 
 import {
+  accountDeleteBurstLimit,
+  accountDeleteWindowSeconds,
   anonymousAuthBurstLimit,
   anonymousAuthWindowSeconds,
   otpCodeLength,
   otpCooldownSeconds,
   otpStartBurstLimit,
   otpStartWindowSeconds,
+  recoveryCodeBurstLimit,
+  recoveryCodeWindowSeconds,
   refreshAuthBurstLimit,
   refreshAuthWindowSeconds
 } from "@weavenyc/shared";
@@ -28,6 +32,8 @@ export interface AuthAbuseStore {
   checkAnonymousAuth(ipAddress: string): Promise<RateLimitDecision>;
   checkRefreshAttempt(userId: string): Promise<RateLimitDecision>;
   checkOtpStart(userId: string, phoneHash: string): Promise<RateLimitDecision>;
+  checkAccountDeleteRequest(userId: string): Promise<RateLimitDecision>;
+  checkAnchorRecoveryAttempt(userId: string): Promise<RateLimitDecision>;
   activateOtpCooldown(phoneHash: string): Promise<void>;
   close(): Promise<void>;
 }
@@ -157,6 +163,22 @@ export class RedisAuthAbuseStore implements AuthAbuseStore {
       ["otp-start-phone", phoneHash],
       otpStartBurstLimit,
       otpStartWindowSeconds
+    );
+  }
+
+  async checkAccountDeleteRequest(userId: string): Promise<RateLimitDecision> {
+    return this.consumeRateLimit(
+      ["account-delete", userId],
+      accountDeleteBurstLimit,
+      accountDeleteWindowSeconds
+    );
+  }
+
+  async checkAnchorRecoveryAttempt(userId: string): Promise<RateLimitDecision> {
+    return this.consumeRateLimit(
+      ["recovery-code", userId],
+      recoveryCodeBurstLimit,
+      recoveryCodeWindowSeconds
     );
   }
 

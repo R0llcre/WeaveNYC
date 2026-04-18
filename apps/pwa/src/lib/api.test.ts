@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  confirmAccountDeletion,
   createAnonymousSession,
   getCommunitySyncWebSocketUrl,
   getCommunityBootstrap,
   getCommunitySyncDelta,
   listCommunityAnnouncements,
   probeEndpoint,
+  requestAccountDeletion,
+  undeleteAccount,
 } from "./api";
 
 describe("pwa api helpers", () => {
@@ -247,5 +250,130 @@ describe("pwa api helpers", () => {
         'comm_1',
       ),
     ).toBe('wss://relay.weavenyc.test/v1/ws/p2p?token=jwt_token&community_id=comm_1');
+  });
+
+  // ---- M8 W2A: account lifecycle helpers ----
+  it("requests an account deletion challenge with bearer auth and empty body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        challenge_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        masked_destination: "(***) ***-0202",
+        delivery_channel: "sms",
+        expires_in_seconds: 600,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(requestAccountDeletion("access-token")).resolves.toMatchObject({
+      challenge_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      masked_destination: "(***) ***-0202",
+      delivery_channel: "sms",
+    });
+
+    const call = fetchMock.mock.calls[0][1] as {
+      method: string;
+      headers: Record<string, string>;
+      body: string;
+    };
+    expect(call.method).toBe("POST");
+    expect(call.body).toBe("{}");
+    expect(call.headers.Authorization).toBe("Bearer access-token");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/account/delete/request"),
+      expect.any(Object),
+    );
+  });
+
+  it("surfaces the undelete_recovery_token returned by delete/confirm", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "deletion_scheduled",
+        purge_date: "2026-05-16T00:00:00.000Z",
+        user_id: "550e8400-e29b-41d4-a716-446655440099",
+        undelete_recovery_token: "uri_abcdef12_1234567890abcdef1234567890abcd",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      confirmAccountDeletion("access-token", {
+        challenge_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        code: "246810",
+        reason: "privacy_concerns",
+      }),
+    ).resolves.toMatchObject({
+      status: "deletion_scheduled",
+      user_id: "550e8400-e29b-41d4-a716-446655440099",
+      undelete_recovery_token: "uri_abcdef12_1234567890abcdef1234567890abcd",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/account/delete/confirm"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    const call = fetchMock.mock.calls[0][1] as { body: string };
+    const payload = JSON.parse(call.body);
+    expect(payload).toEqual({
+      challenge_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      code: "246810",
+      reason: "privacy_concerns",
+    });
+  });
+
+  it("propagates HTTP 400 errors from delete/confirm so the UI can show the i18n banner", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => '{"message":"OTP code is invalid"}',
+      }),
+    );
+
+    await expect(
+      confirmAccountDeletion("access-token", {
+        challenge_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        code: "000000",
+      }),
+    ).rejects.toThrow(/HTTP 400/);
+  });
+
+  it("posts the recovery token to /v1/account/undelete without a bearer header when access token is empty", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "restored",
+        user_id: "550e8400-e29b-41d4-a716-446655440099",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      undeleteAccount("", {
+        user_id: "550e8400-e29b-41d4-a716-446655440099",
+        recovery_token: "uri_abcdef12_1234567890abcdef1234567890abcd",
+      }),
+    ).resolves.toMatchObject({
+      status: "restored",
+      user_id: "550e8400-e29b-41d4-a716-446655440099",
+    });
+
+    const call = fetchMock.mock.calls[0][1] as {
+      headers: Record<string, string>;
+      body: string;
+    };
+    expect(call.headers.Authorization).toBeUndefined();
+    const payload = JSON.parse(call.body);
+    expect(payload).toEqual({
+      user_id: "550e8400-e29b-41d4-a716-446655440099",
+      recovery_token: "uri_abcdef12_1234567890abcdef1234567890abcd",
+    });
   });
 });

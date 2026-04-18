@@ -209,6 +209,43 @@ export const anchorSessionVerifyRequestSchema = {
   }
 } as const;
 
+export const anchorSessionRecoveryRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["community_id", "recovery_code"],
+  properties: {
+    community_id: { type: "string", format: "uuid" },
+    recovery_code: { type: "string", minLength: 6, maxLength: 64 }
+  }
+} as const;
+
+export const anchorSessionRecoveryResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["access_token", "refresh_token", "user", "remaining_attempts"],
+  properties: {
+    access_token: { type: "string" },
+    refresh_token: { type: "string" },
+    issued_via: {
+      type: "string",
+      enum: ["anonymous", "otp", "magic_link", "refresh", "anchor_activate", "anchor_session"]
+    },
+    fallback: { type: "boolean" },
+    user: authUserSchema,
+    remaining_attempts: { type: "integer", minimum: 0 }
+  }
+} as const;
+
+export const anchorSessionRecoveryErrorResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["message"],
+  properties: {
+    message: { type: "string" },
+    remaining_attempts: { type: "integer", minimum: 0 }
+  }
+} as const;
+
 export const meResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -241,6 +278,115 @@ export const errorResponseSchema = {
     message: { type: "string" }
   }
 } as const;
+
+export const accountDeleteReasonEnum = [
+  "no_longer_needed",
+  "privacy_concerns",
+  "moving_away",
+  "safety_concerns",
+  "other"
+] as const;
+
+export const accountDeleteRequestRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {}
+} as const;
+
+export const accountDeleteRequestResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "challenge_id",
+    "masked_destination",
+    "delivery_channel",
+    "expires_in_seconds"
+  ],
+  properties: {
+    challenge_id: { type: "string", format: "uuid" },
+    masked_destination: { type: "string" },
+    delivery_channel: { type: "string", enum: ["sms", "email"] },
+    expires_in_seconds: { type: "integer", minimum: 1 },
+    fallback: { type: "boolean" },
+    demo_code: { type: "string" },
+    demo_token: { type: "string" },
+    demo_url: { type: "string", format: "uri" }
+  }
+} as const;
+
+export const accountDeleteConfirmRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["challenge_id", "code"],
+  properties: {
+    challenge_id: { type: "string", format: "uuid" },
+    code: { type: "string", minLength: 1, maxLength: 128 },
+    reason: {
+      type: "string",
+      enum: [...accountDeleteReasonEnum]
+    }
+  }
+} as const;
+
+export const accountDeleteConfirmResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status", "purge_date", "user_id"],
+  properties: {
+    status: { type: "string", enum: ["deletion_scheduled"] },
+    purge_date: { type: "string", format: "date-time" },
+    user_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const accountUndeleteRequestRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {}
+} as const;
+
+export const accountUndeleteRequestResponseSchema = accountDeleteRequestResponseSchema;
+
+export const accountUndeleteConfirmRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["challenge_id", "code"],
+  properties: {
+    challenge_id: { type: "string", format: "uuid" },
+    code: { type: "string", minLength: 1, maxLength: 128 }
+  }
+} as const;
+
+export const accountUndeleteConfirmResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status", "user_id"],
+  properties: {
+    status: { type: "string", enum: ["restored"] },
+    user_id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+/**
+ * @deprecated superseded by the 3-step flow.
+ */
+export const accountDeleteRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["confirmation"],
+  properties: {
+    confirmation: { type: "string", enum: ["DELETE_MY_ACCOUNT"] },
+    reason: {
+      type: "string",
+      enum: [...accountDeleteReasonEnum]
+    }
+  }
+} as const;
+
+/**
+ * @deprecated superseded by the 3-step flow.
+ */
+export const accountDeleteResponseSchema = accountDeleteConfirmResponseSchema;
 
 export const healthResponseSchema = {
   type: "object",

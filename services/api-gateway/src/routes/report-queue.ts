@@ -163,6 +163,19 @@ export const reportQueueRoutes: FastifyPluginAsync = async (app) => {
         if (decision.resolution === "suspend_user" && decision.affected_user_id) {
           app.chatRealtimeHub.disconnectUser(decision.affected_user_id, "Suspended user");
         }
+
+        await app.analyticsRecorder.recordEvent({
+          event_type: "anchor_decision",
+          community_id: decision.communityId,
+          actor_user_id: actor.userId,
+          payload: {
+            decision: decision.resolution,
+            target_type: decision.reportTargetType,
+            report_id: decision.report_id,
+            status: decision.status,
+          },
+        });
+
         const response = {
           report_id: decision.report_id,
           status: decision.status,

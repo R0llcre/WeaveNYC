@@ -84,6 +84,9 @@ const envSchema = z.object({
   NOTIFICATIONS_HOST: z.string().default('0.0.0.0'),
   NOTIFICATIONS_PORT: z.coerce.number().int().positive().default(4105),
   NOTIFICATIONS_PROVIDER_MODE: z.preprocess(emptyStringToUndefined, z.enum(['stub', 'real']).optional()),
+  NOTIFICATIONS_PILOT_MODE: z
+    .preprocess(emptyStringToUndefined, z.enum(['0', '1', 'true', 'false']).optional())
+    .transform((value) => value === '1' || value === 'true'),
   NOTIFICATIONS_INTERNAL_JWT_SECRET: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   INTERNAL_SERVICE_JWT_SECRET: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   NOTIFICATIONS_INTERNAL_JWT_ISSUER: z.string().default('weavenyc-api-gateway:internal'),
@@ -94,6 +97,8 @@ const envSchema = z.object({
   TWILIO_FROM_NUMBER: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   RESEND_API_KEY: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
   RESEND_FROM_EMAIL: z.preprocess(emptyStringToUndefined, z.string().email().optional()),
+  SENTRY_DSN: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+  SENTRY_TRACES_SAMPLE_RATE: z.preprocess(emptyStringToUndefined, z.coerce.number().min(0).max(1).optional()),
 });
 
 export async function loadNotificationsConfig(source: NodeJS.ProcessEnv = process.env): Promise<NotificationsConfig> {
@@ -109,7 +114,13 @@ export async function loadNotificationsConfig(source: NodeJS.ProcessEnv = proces
     env.NOTIFICATIONS_PROVIDER_MODE ??
     (env.NODE_ENV === 'production' ? 'real' : 'stub');
 
-  if (env.NODE_ENV === 'production' && providerMode !== 'real') {
+  // Pilot escape hatch: the W4B-Azure Container Apps deployment runs the
+  // stub providers before Twilio/Resend accounts are provisioned so the
+  // infrastructure can be demoed end-to-end. Opt-in via env; never set on
+  // a general-availability production runtime.
+  const pilotModeAllowsStub = env.NOTIFICATIONS_PILOT_MODE && providerMode === 'stub';
+
+  if (env.NODE_ENV === 'production' && providerMode !== 'real' && !pilotModeAllowsStub) {
     throw new Error('Notifications provider mode must be real in production');
   }
 
@@ -139,7 +150,7 @@ export async function loadNotificationsConfig(source: NodeJS.ProcessEnv = proces
     }
   }
 
-  if (env.NODE_ENV === 'production' && demoBaseUrl === devDemoBaseUrl) {
+  if (env.NODE_ENV === 'production' && !pilotModeAllowsStub && demoBaseUrl === devDemoBaseUrl) {
     throw new Error('NOTIFICATIONS_DEMO_BASE_URL must not use the checked-in development/test sample in production');
   }
 
@@ -176,5 +187,13 @@ export async function loadNotificationsConfig(source: NodeJS.ProcessEnv = proces
     demoBaseUrl,
     twilio,
     resend,
+    sentry: {
+      dsn: env.SENTRY_DSN ?? null,
+      tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1,
+    },
+    runtime: {
+      serviceName: 'notifications-service',
+      version: process.env.npm_package_version ?? '0.1.0',
+    },
   };
 }

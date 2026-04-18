@@ -95,11 +95,23 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
     }),
   );
 
+  // Prometheus-format metrics endpoint. Scraped by Grafana Agent /
+  // Prometheus server (staging) and the Cloud Run sidecar (future).
+  // prom-client emits `text/plain; version=0.0.4` which is the canonical
+  // content-type for Prometheus exposition format 0.0.4.
+  app.get('/metrics', async (_request, reply) => {
+    reply.header('content-type', app.metrics.register.contentType);
+    return app.metrics.register.metrics();
+  });
+
+  // Legacy JSON metrics kept at `/metrics.json` for backward-compat with
+  // any existing smoke tests / dashboards that parse the structured shape.
+  // Prefer `/metrics` (Prometheus text format) for new integrations.
   app.get(
-    '/metrics',
+    '/metrics.json',
     {
       schema: {
-        summary: 'Minimal runtime metrics probe',
+        summary: 'Legacy JSON runtime metrics (superseded by Prometheus /metrics)',
         response: {
           200: metricsResponseSchema,
         },

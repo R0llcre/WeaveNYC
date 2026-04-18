@@ -1,0 +1,43 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrAuth",
+      "Effect": "Allow",
+      "Action": ["ecr:GetAuthorizationToken"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPush",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:590517422743:repository/weavenyc-api-gateway"
+    },
+    {
+      "Sid": "AppRunnerDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "apprunner:DescribeService",
+        "apprunner:ListServices",
+        "apprunner:StartDeployment",
+        "apprunner:UpdateService"
+      ],
+      "Resource": "arn:aws:apprunner:us-east-1:590517422743:service/weavenyc-api-gateway/*"
+    },
+    {
+      "Sid": "AppRunnerList",
+      "Effect": "Allow",
+      "Action": ["apprunner:ListServices"],
+      "Resource": "*"
+    }
+  ]
+}

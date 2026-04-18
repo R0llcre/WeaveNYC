@@ -6,6 +6,7 @@ import { Pool } from "pg";
 import type { ResourceDirectoryConfig } from "./config.js";
 import { loadResourceDirectoryConfig } from "./config.js";
 import { ResourceImportRepository, ResourceQueryRepository } from "./lib/repository.js";
+import { attachFastifySentry, initSentryNode } from "./lib/sentry.js";
 import type { ResourceListItem, ResourceSearchInput, ResourceSearchResult } from "./types.js";
 
 type InternalServiceClaims = {
@@ -103,9 +104,17 @@ export async function buildResourceDirectoryApp(
   options: { config?: ResourceDirectoryConfig; logger?: boolean } = {},
 ): Promise<ResourceDirectoryApp> {
   const config = options.config ?? loadResourceDirectoryConfig();
+  const sentry = initSentryNode({
+    dsn: config.sentry.dsn,
+    environment: config.env,
+    release: config.runtime.version,
+    serviceName: config.runtime.serviceName,
+    tracesSampleRate: config.sentry.tracesSampleRate,
+  });
   const app = Fastify({
     logger: options.logger ?? false,
   }) as unknown as ResourceDirectoryApp;
+  attachFastifySentry(app, sentry);
   const pool = new Pool({ connectionString: config.databaseUrl });
   const queryRepository = new ResourceQueryRepository(pool);
   const importRepository = new ResourceImportRepository(pool);

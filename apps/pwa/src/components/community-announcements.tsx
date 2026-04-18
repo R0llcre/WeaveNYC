@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { Banner, Card } from '@/components/ui';
 import { useCommunityAnnouncements } from '@/lib/hooks';
 import { loadCachedAnnouncements, saveCachedAnnouncements } from '@/lib/persistence';
 import type { CachedAnnouncementsValue, CommunityAnnouncement, SupportedLanguage } from '@/lib/types';
@@ -108,7 +109,7 @@ export function CommunityAnnouncements({
   }
 
   return (
-    <section className="card card--results card--community-announcements">
+    <Card className="card--results card--community-announcements">
       <div className="section-head">
         <div>
           <h2>{t('communityAnnouncementsHeading')}</h2>
@@ -120,10 +121,12 @@ export function CommunityAnnouncements({
       </div>
 
       {usingCachedAnnouncements && cachedAnnouncements ? (
-        <div className="sync-cache-note">
-          <span className="meta-chip meta-chip--accent">{t('p2pCacheBadge')}</span>
+        <Banner
+          tone="info"
+          title={t('p2pCacheBadge')}
+        >
           <span>{t('announcementsOfflineFallback', { updatedAt: formatAnnouncementTimestamp(cachedAnnouncements.updatedAt, language) ?? cachedAnnouncements.updatedAt })}</span>
-        </div>
+        </Banner>
       ) : null}
 
       {query.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
@@ -183,6 +186,6 @@ export function CommunityAnnouncements({
       ) : bannerAnnouncement ? (
         <div className="result-empty">{t('communityAnnouncementsMoreEmpty')}</div>
       ) : null}
-    </section>
+    </Card>
   );
 }

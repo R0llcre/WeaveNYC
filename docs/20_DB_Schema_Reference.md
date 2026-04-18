@@ -90,6 +90,37 @@ export const communityMembers = pgTable('community_members', {
 }));
 ```
 
+### 2.2.1 community-access-codes.ts
+
+> 社区加入入口的 invite code / QR token 状态机；`channel` 区分分发方式，`active` 记录保证同一 `(channel, code)` 全局唯一。
+
+```typescript
+import { sql } from 'drizzle-orm';
+import { pgEnum, pgTable, uuid, varchar, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+
+export const communityAccessChannelEnum = pgEnum('community_access_channel', ['invite_code', 'qr_token']);
+export const communityAccessCodeStatusEnum = pgEnum('community_access_code_status', ['active', 'revoked']);
+
+export const communityAccessCodes = pgTable('community_access_codes', {
+  accessCodeId:  uuid('access_code_id').primaryKey().defaultRandom(),
+  communityId:   uuid('community_id').notNull().references(() => communities.communityId),
+  channel:       communityAccessChannelEnum('channel').notNull(),
+  code:          varchar('code', { length: 140 }).notNull(),         // 明文 short code 或 QR token
+  status:        communityAccessCodeStatusEnum('status').notNull().default('active'),
+  expiresAt:     timestamp('expires_at', { withTimezone: true }),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  communityStatusIdx: index('idx_community_access_codes_community_status')
+    .on(table.communityId, table.status, table.channel),
+  codeLookupIdx: index('idx_community_access_codes_channel_code')
+    .on(table.channel, table.code),
+  // 只在 active 状态下强制 (channel, code) 唯一，已 revoke 的可以与新 code 共存
+  activeChannelCodeUq: uniqueIndex('uq_community_access_codes_active_channel_code')
+    .on(table.channel, table.code)
+    .where(sql`${table.status} = 'active'`),
+}));
+```
+
 ### 2.3 anchor-admin tables
 
 ```typescript
@@ -293,18 +324,29 @@ WHERE status = 'active';
 
 ### 2.7 match-suggestions.ts
 
+> `batch_number` + `position` 用于 M3 引入的刷新分页：同一 `request_post_id` 首次生成 batch 1，用户点击“换一批”生成 batch 2（MVP 限制至多一次），`position` 控制 Top-3 排序稳定性。
+
 ```typescript
-import { pgTable, uuid, varchar, doublePrecision, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, doublePrecision, text, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 export const matchSuggestions = pgTable('match_suggestions', {
   suggestionId:    uuid('suggestion_id').primaryKey().defaultRandom(),
   requestPostId:   uuid('request_post_id').notNull().references(() => posts.postId),
-  candidateType:   varchar('candidate_type', { length: 30 }).notNull(), // neighbor_post | official_resource
-  candidateId:     uuid('candidate_id').notNull(),                      // post_id 或 provider_id
-  score:           doublePrecision('score').notNull(),                   // 0-1
-  reasons:         text('reasons').array(),                              // ['距离近', '语言匹配', '今天开放']
+  batchNumber:     integer('batch_number').notNull().default(1),         // 1 = 首次，2 = 刷新后的新批次
+  position:        integer('position').notNull().default(1),             // 同一 batch 内的排序（1..N）
+  candidateType:   varchar('candidate_type', { length: 30 }).notNull(),  // neighbor_post | official_resource
+  candidateId:     uuid('candidate_id').notNull(),                       // post_id 或 provider_id
+  score:           doublePrecision('score').notNull(),                    // 0-1
+  reasons:         text('reasons').array(),                               // ['距离近', '语言匹配', '今天开放']
   createdAt:       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  requestBatchPositionUq: uniqueIndex('uq_match_suggestions_request_batch_position')
+    .on(table.requestPostId, table.batchNumber, table.position),
+  requestCandidateUq: uniqueIndex('uq_match_suggestions_request_candidate')
+    .on(table.requestPostId, table.candidateType, table.candidateId),
+  requestBatchIdx: index('idx_match_suggestions_request_batch')
+    .on(table.requestPostId, table.batchNumber, table.position),
+}));
 ```
 
 ### 2.8 contact-requests.ts, conversations.ts & messages.ts
@@ -331,16 +373,24 @@ export const contactRequests = pgTable('contact_requests', {
     .on(table.recipientUserId, table.status, table.createdAt),
 }));
 
+export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'closed', 'blocked']);
+
 export const conversations = pgTable('conversations', {
   conversationId:   uuid('conversation_id').primaryKey().defaultRandom(),
   participants:     uuid('participants').array().notNull(),               // [user_id, user_id]
   relatedPostIds:   uuid('related_post_ids').array(),
   contactRequestId: uuid('contact_request_id').notNull().references(() => contactRequests.contactRequestId),
+  status:           conversationStatusEnum('status').notNull().default('active'),  // M4 生命周期：active → closed 或 blocked
+  closedAt:         timestamp('closed_at', { withTimezone: true }),       // 任一参与方主动结束
+  blockedAt:        timestamp('blocked_at', { withTimezone: true }),      // 触发 blocks 表记录时一起写
+  blockedByUserId:  uuid('blocked_by_user_id').references(() => users.userId),  // 谁发起的封锁
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastActivityAt:   timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   contactRequestUq: uniqueIndex('uq_conversations_contact_request_id')
     .on(table.contactRequestId),
+  lastActivityIdx: index('idx_conversations_last_activity')
+    .on(table.lastActivityAt, table.conversationId),
 }));
 
 export const messages = pgTable('messages', {
@@ -352,6 +402,47 @@ export const messages = pgTable('messages', {
   sentAt:           timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   conversationIdx: index('idx_messages_conversation').on(table.conversationId, table.sentAt),
+}));
+```
+
+### 2.8.1 conversation-reads.ts
+
+> 每个用户在每个会话里的已读游标（联合主键 `(conversation_id, user_id)`）；用于收件箱未读计数与 "last read" 标识。
+
+```typescript
+import { pgTable, uuid, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+
+export const conversationReads = pgTable('conversation_reads', {
+  conversationId:     uuid('conversation_id').notNull().references(() => conversations.conversationId),
+  userId:             uuid('user_id').notNull().references(() => users.userId),
+  lastReadMessageId:  uuid('last_read_message_id').references(() => messages.messageId),
+  lastReadAt:         timestamp('last_read_at', { withTimezone: true }),
+  createdAt:          timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({
+    columns: [table.conversationId, table.userId],
+    name: 'pk_conversation_reads',
+  }),
+}));
+```
+
+### 2.8.2 blocks.ts
+
+> 用户互相屏蔽的最小表；`conversation_id` 可选（对单个会话的临时封锁），`(blocker_user_id, blocked_user_id)` 全局唯一。触发 block 时同时更新 `conversations.status = 'blocked'`。
+
+```typescript
+import { pgTable, uuid, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+
+export const blocks = pgTable('blocks', {
+  blockId:          uuid('block_id').primaryKey().defaultRandom(),
+  blockerUserId:    uuid('blocker_user_id').notNull().references(() => users.userId),
+  blockedUserId:    uuid('blocked_user_id').notNull().references(() => users.userId),
+  conversationId:   uuid('conversation_id').references(() => conversations.conversationId),
+  createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  blockerIdx: index('idx_blocks_blocker').on(table.blockerUserId, table.createdAt),
+  blockedIdx: index('idx_blocks_blocked').on(table.blockedUserId, table.createdAt),
+  pairUq:     uniqueIndex('uq_blocks_pair').on(table.blockerUserId, table.blockedUserId),
 }));
 ```
 

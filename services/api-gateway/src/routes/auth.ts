@@ -14,6 +14,9 @@ import {
   anchorActivateConfirmRequestSchema,
   anchorActivateRequestSchema,
   anchorActivateResponseSchema,
+  anchorSessionRecoveryErrorResponseSchema,
+  anchorSessionRecoveryRequestSchema,
+  anchorSessionRecoveryResponseSchema,
   anchorSessionStartRequestSchema,
   anchorSessionStartResponseSchema,
   anchorSessionVerifyRequestSchema,
@@ -33,6 +36,7 @@ import {
   type StoredAnchorChallenge,
   type StoredIdentityChallenge
 } from "../lib/refresh-token-store.js";
+import { recordAuthChallenge } from "../lib/metrics.js";
 import { decryptSecret, encryptSecret } from "../lib/secret-cipher.js";
 import { createOpaqueRefreshToken, signAccessToken } from "../lib/tokens.js";
 import {
@@ -122,6 +126,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const anonymousDecision = await authAbuseStore.checkAnonymousAuth(request.ip);
       if (!anonymousDecision.allowed) {
+        recordAuthChallenge(app, "anonymous", "rate_limited");
         reply.code(429);
         return {
           message: `Too many anonymous session attempts. Retry in ${anonymousDecision.retryAfterSeconds}s.`
@@ -129,6 +134,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const user = await app.userStore.createAnonymousUser(request.body.device_id);
+      recordAuthChallenge(app, "anonymous", "issued");
       return issueSessionResponse(app, user, "anonymous");
     }
   );
@@ -208,6 +214,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       );
 
       if (rotation.status !== "rotated") {
+        recordAuthChallenge(
+          app,
+          "refresh",
+          rotation.status === "replayed" ? "exhausted" : "rejected",
+        );
         reply.code(401);
         return {
           message:
@@ -217,6 +228,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         };
       }
 
+      recordAuthChallenge(app, "refresh", "verified");
       return {
         access_token: signAccessToken(app, {
           userId: rotation.session.userId,
@@ -268,6 +280,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         );
         const otpDecision = await authAbuseStore.checkOtpStart(request.user.sub, abuseHash);
         if (!otpDecision.allowed) {
+          recordAuthChallenge(app, "otp_start", "rate_limited");
           reply.code(429);
           return {
             message: `OTP temporarily unavailable. Retry in ${otpDecision.retryAfterSeconds}s.`
@@ -295,6 +308,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           code,
           challengeId
         });
+        recordAuthChallenge(app, "otp_start", "issued");
 
         return {
           challenge_id: challengeId,
@@ -305,6 +319,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           demo_code: delivery.demoCode
         };
       } catch (error) {
+        recordAuthChallenge(app, "otp_start", "error");
         reply.code(400);
         return {
           message: error instanceof Error ? error.message : "Unable to start OTP verification"
@@ -340,6 +355,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         await authAbuseStore.activateOtpCooldown(
           challengeResult.challenge.abuseHash ?? challengeResult.challenge.identityHash
         );
+        recordAuthChallenge(app, "otp_verify", "exhausted");
         reply.code(400);
         return {
           message: "OTP challenge is not valid"
@@ -347,6 +363,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       if (challengeResult.status !== "verified" || challengeResult.challenge.userId !== request.user.sub) {
+        recordAuthChallenge(app, "otp_verify", "rejected");
         reply.code(400);
         return {
           message: "OTP challenge is not valid"
@@ -360,6 +377,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       );
 
       if (!user) {
+        recordAuthChallenge(app, "otp_verify", "not_found");
         reply.code(404);
         return {
           message: "User not found"
@@ -367,6 +385,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       await app.refreshTokenStore.revokeUserSessions(request.user.sub);
+      recordAuthChallenge(app, "otp_verify", "verified");
       return issueSessionResponse(app, user, "otp", true);
     }
   );
@@ -416,6 +435,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           challengeId,
           token
         });
+        recordAuthChallenge(app, "magic_link_start", "issued");
 
         return {
           challenge_id: challengeId,
@@ -427,6 +447,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           demo_url: delivery.demoUrl
         };
       } catch (error) {
+        recordAuthChallenge(app, "magic_link_start", "error");
         reply.code(400);
         return {
           message: error instanceof Error ? error.message : "Unable to start magic-link verification"
@@ -457,6 +478,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (challengeResult.status !== "verified") {
+        recordAuthChallenge(app, "magic_link_verify", "rejected");
         reply.code(400);
         return {
           message: "Magic-link challenge is not valid"
@@ -470,6 +492,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       );
 
       if (!user) {
+        recordAuthChallenge(app, "magic_link_verify", "not_found");
         reply.code(404);
         return {
           message: "User not found"
@@ -477,6 +500,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       await app.refreshTokenStore.revokeUserSessions(challengeResult.challenge.userId);
+      recordAuthChallenge(app, "magic_link_verify", "verified");
       return issueSessionResponse(app, user, "magic_link", true);
     }
   );
@@ -501,18 +525,21 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const currentUser = request.currentUser;
       if (!currentUser || currentUser.level === "anonymous") {
+        recordAuthChallenge(app, "anchor_activate", "forbidden");
         reply.code(403);
         return { message: "Verification is required before anchor activation" };
       }
 
       const invite = await app.userStore.findAnchorInviteByCodeHash(hashAnchorInviteCode(request.body.invite_code));
       if (!invite) {
+        recordAuthChallenge(app, "anchor_activate", "not_found");
         reply.code(404);
         return { message: "Anchor invite code is not valid" };
       }
 
       const existingAnchor = await app.userStore.getActiveAnchorByUser(currentUser.userId, invite.community.communityId);
       if (existingAnchor) {
+        recordAuthChallenge(app, "anchor_activate", "rejected");
         reply.code(400);
         return { message: "Anchor is already activated for this community" };
       }
@@ -533,6 +560,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       };
 
       await app.refreshTokenStore.createAnchorActivationChallenge(challenge);
+      recordAuthChallenge(app, "anchor_activate", "issued");
       return {
         activation_id: challengeId,
         community: {
@@ -585,11 +613,17 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (challengeResult.status === "forbidden") {
+        recordAuthChallenge(app, "anchor_activate_confirm", "forbidden");
         reply.code(403);
         return { message: "Anchor activation challenge does not belong to this user" };
       }
 
       if (challengeResult.status !== "verified") {
+        recordAuthChallenge(
+          app,
+          "anchor_activate_confirm",
+          challengeResult.status === "exhausted" ? "exhausted" : "rejected",
+        );
         reply.code(400);
         return { message: "Anchor activation challenge is not valid" };
       }
@@ -607,6 +641,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!user) {
+        recordAuthChallenge(app, "anchor_activate_confirm", "not_found");
         reply.code(404);
         return { message: "Anchor invite is not valid" };
       }
@@ -617,6 +652,15 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         communityId: challengeResult.challenge.communityId,
         occurredAt: activatedAt
       });
+      recordAuthChallenge(app, "anchor_activate_confirm", "verified");
+
+      await app.analyticsRecorder.recordEvent({
+        event_type: "anchor_activated",
+        community_id: challengeResult.challenge.communityId,
+        actor_user_id: currentUser.userId,
+        payload: {}
+      });
+
       return issueSessionResponse(app, {
         ...user,
         anchorCommunityId: challengeResult.challenge.communityId,
@@ -645,12 +689,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const currentUser = request.currentUser;
       if (!currentUser || currentUser.level === "anonymous") {
+        recordAuthChallenge(app, "anchor_session_start", "forbidden");
         reply.code(403);
         return { message: "Verification is required before opening an anchor session" };
       }
 
       const anchor = await app.userStore.getActiveAnchorByUser(currentUser.userId, request.body.community_id);
       if (!anchor?.totpSecretCiphertext) {
+        recordAuthChallenge(app, "anchor_session_start", "not_found");
         reply.code(404);
         return { message: "Anchor account not found for this community" };
       }
@@ -665,6 +711,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         expiresAt: Date.now() + anchorSessionChallengeTtlSeconds * 1000,
         attemptsRemaining: totpMaxAttempts
       });
+      recordAuthChallenge(app, "anchor_session_start", "issued");
 
       return {
         challenge_id: challengeId,
@@ -693,6 +740,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const currentUser = request.currentUser;
       if (!currentUser || currentUser.level === "anonymous") {
+        recordAuthChallenge(app, "anchor_session_verify", "forbidden");
         reply.code(403);
         return { message: "Verification is required before opening an anchor session" };
       }
@@ -706,17 +754,24 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (challengeResult.status === "forbidden") {
+        recordAuthChallenge(app, "anchor_session_verify", "forbidden");
         reply.code(403);
         return { message: "Anchor session challenge does not belong to this user" };
       }
 
       if (challengeResult.status !== "verified") {
+        recordAuthChallenge(
+          app,
+          "anchor_session_verify",
+          challengeResult.status === "exhausted" ? "exhausted" : "rejected",
+        );
         reply.code(400);
         return { message: "Anchor session challenge is not valid" };
       }
 
       const user = await app.userStore.getAuthUserById(currentUser.userId);
       if (!user) {
+        recordAuthChallenge(app, "anchor_session_verify", "not_found");
         reply.code(404);
         return { message: "User not found" };
       }
@@ -728,6 +783,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         communityId: challengeResult.challenge.communityId,
         occurredAt
       });
+      recordAuthChallenge(app, "anchor_session_verify", "verified");
 
       return issueSessionResponse(app, {
         ...user,
@@ -736,6 +792,105 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         anchorCommunityId: challengeResult.challenge.communityId,
         mfaVerifiedAt: occurredAt
       }, "anchor_session");
+    }
+  );
+
+  app.post<{
+    Body: { community_id: string; recovery_code: string };
+  }>(
+    "/v1/auth/anchor/session/recovery",
+    {
+      schema: {
+        summary: "Open an anchor session using a one-time recovery code (TOTP fallback)",
+        tags: ["auth"],
+        security: [{ bearerAuth: [] }],
+        body: anchorSessionRecoveryRequestSchema,
+        response: {
+          200: anchorSessionRecoveryResponseSchema,
+          400: anchorSessionRecoveryErrorResponseSchema,
+          403: errorResponseSchema,
+          404: anchorSessionRecoveryErrorResponseSchema,
+          429: anchorSessionRecoveryErrorResponseSchema
+        }
+      },
+      preHandler: [app.authenticate]
+    },
+    async (request, reply) => {
+      const currentUser = request.currentUser;
+      if (!currentUser || currentUser.level === "anonymous") {
+        recordAuthChallenge(app, "anchor_session_recovery", "forbidden");
+        reply.code(403);
+        return { message: "Verification is required before opening an anchor session" };
+      }
+
+      const rateDecision = await authAbuseStore.checkAnchorRecoveryAttempt(currentUser.userId);
+      if (!rateDecision.allowed) {
+        recordAuthChallenge(app, "anchor_session_recovery", "rate_limited");
+        reply.code(429);
+        reply.header("retry-after", String(Math.max(rateDecision.retryAfterSeconds, 1)));
+        return {
+          message: `Too many anchor recovery attempts. Retry in ${rateDecision.retryAfterSeconds}s.`,
+          remaining_attempts: 0
+        };
+      }
+
+      const anchor = await app.userStore.getActiveAnchorByUser(currentUser.userId, request.body.community_id);
+      if (!anchor) {
+        recordAuthChallenge(app, "anchor_session_recovery", "not_found");
+        reply.code(404);
+        return {
+          message: "Anchor account not found for this community",
+          remaining_attempts: rateDecision.remaining
+        };
+      }
+
+      const codeHash = hashRecoveryCode(request.body.recovery_code);
+      const consumed = await app.userStore.consumeAnchorRecoveryCode({
+        userId: currentUser.userId,
+        communityId: request.body.community_id,
+        codeHash
+      });
+
+      if (!consumed) {
+        recordAuthChallenge(app, "anchor_session_recovery", "rejected");
+        reply.code(400);
+        return {
+          message: "Recovery code is invalid or already used",
+          remaining_attempts: rateDecision.remaining
+        };
+      }
+
+      const user = await app.userStore.getAuthUserById(currentUser.userId);
+      if (!user) {
+        recordAuthChallenge(app, "anchor_session_recovery", "not_found");
+        reply.code(404);
+        return {
+          message: "User not found",
+          remaining_attempts: rateDecision.remaining
+        };
+      }
+
+      const occurredAt = new Date().toISOString();
+      await app.refreshTokenStore.revokeUserSessions(currentUser.userId);
+      await app.userStore.recordAnchorMfa({
+        userId: currentUser.userId,
+        communityId: request.body.community_id,
+        occurredAt
+      });
+      recordAuthChallenge(app, "anchor_session_recovery", "verified");
+
+      const sessionResponse = await issueSessionResponse(app, {
+        ...user,
+        role: "anchor",
+        level: "anchor",
+        anchorCommunityId: request.body.community_id,
+        mfaVerifiedAt: occurredAt
+      }, "anchor_session");
+
+      return {
+        ...sessionResponse,
+        remaining_attempts: rateDecision.remaining
+      };
     }
   );
 };

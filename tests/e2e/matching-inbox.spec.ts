@@ -653,7 +653,7 @@ test('anonymous contact -> verify -> auto contact creation and one refresh only'
   await expect(page.getByRole('button', { name: 'Contact' }).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Contact' }).first().click();
-  await page.waitForURL('**/verify?**');
+  await page.waitForURL('**/me/verify?**');
   await expect(page.getByTestId('verify-title')).toBeVisible();
 
   await page.getByLabel('Phone').fill('+15165550101');

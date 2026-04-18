@@ -24,6 +24,7 @@ function createConfig(): AppConfig {
     },
     refreshTokenTtlSeconds: 60 * 60 * 24 * 7,
     p2pMdnsDemoEnabled: false,
+    corsAllowedOrigins: ['http://localhost:*', 'http://127.0.0.1:*'],
     identityHashPepper: 'weavenyc-dev-identity-pepper',
     anchorTotpEncryptionKey: 'weavenyc-dev-anchor-totp-encryption-key',
     internalServiceJwtSecret: 'weavenyc-dev-internal-service-jwt-secret',
@@ -33,6 +34,14 @@ function createConfig(): AppConfig {
       chatServiceUrl: null,
       resourceDirectoryServiceUrl: null,
       notificationsServiceUrl: null
+    },
+    purgeJob: {
+      enabled: false,
+      schedule: '0 0 * * *'
+    },
+    sentry: {
+      dsn: null,
+      tracesSampleRate: 0.1
     },
     runtime: {
       serviceName: 'api-gateway',

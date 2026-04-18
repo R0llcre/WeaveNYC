@@ -1,76 +1,118 @@
 'use client';
 
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
+import { TopBar } from '@/components/shell';
+import { Banner, EmptyState, Inline, Skeleton, Stack, Tag } from '@/components/ui';
 import { useAppSelector, useConversationPlaceholder } from '@/lib/hooks';
+import { selectSession } from '@/lib/selectors';
 
 type ConversationPlaceholderScreenProps = {
   conversationId: string;
 };
 
-export function ConversationPlaceholderScreen({ conversationId }: ConversationPlaceholderScreenProps) {
+/**
+ * ConversationPlaceholderScreen — Wave 4B empty-state for a conversation that
+ * has no loaded thread yet (e.g. desktop/tablet split view before a row is
+ * picked, or a deep link landing on a conversation the placeholder endpoint
+ * hasn't resolved).
+ *
+ * Structure (top → bottom):
+ *   1. TopBar (eyebrow + title) with a back link to `/inbox`.
+ *   2. Status chip row (meta chips only when placeholder data loaded so
+ *      participant/post hints never crowd the empty-state in loading).
+ *   3. Body:
+ *        - Skeleton tiles while `useConversationPlaceholder` resolves.
+ *        - Banner on error (with a retry CTA to re-open the inbox).
+ *        - EmptyState with illustration + CTA "Open inbox" once settled.
+ *
+ * Atoms-first; no bespoke CSS is needed beyond what `empty-state` ships.
+ * The screen renders under `AppShell.<main>`, so it only emits a
+ * `.page-content` outer wrapper — never its own `<main>`.
+ */
+export function ConversationPlaceholderScreen({
+  conversationId,
+}: ConversationPlaceholderScreenProps) {
   const t = useTranslations();
-  const searchParams = useSearchParams();
-  const session = useAppSelector((state) => state.auth.session);
-  const placeholderQuery = useConversationPlaceholder(session?.access_token, conversationId, Boolean(session?.access_token));
-  const contactRequestId = searchParams.get('contact_request_id');
+  const session = useAppSelector(selectSession);
+  const placeholderQuery = useConversationPlaceholder(
+    session?.access_token,
+    conversationId,
+    Boolean(session?.access_token),
+  );
   const placeholder = placeholderQuery.data;
 
-  return (
-    <main className="shell">
-      <div className="shell__inner">
-        <section className="hero hero--detail">
-          <div className="hero__topbar">
-            <span className="hero__eyebrow">{t('conversationPlaceholderTitle')}</span>
-            <Link className="hero__link" href="/inbox">
-              {t('inboxTitle')}
-            </Link>
-          </div>
-          <h1>{t('conversationPlaceholderTitle')}</h1>
-          <p>{t('conversationPlaceholderCopy')}</p>
-          <div className="hero__meta">
-            <span className="meta-chip">conversation_id: {conversationId}</span>
-            {contactRequestId ? <span className="meta-chip">contact_request_id: {contactRequestId}</span> : null}
-            <span className="meta-chip meta-chip--accent">{t('conversationPlaceholderStatus')}</span>
-          </div>
-        </section>
+  // Per-route document.title so the browser tab and assistive tech announce
+  // "Chat — WeaveNYC" instead of the inherited shell title.
+  useEffect(() => {
+    document.title = `${t('chatThreadTitle')} \u2014 WeaveNYC`;
+  }, [t]);
 
-        <section className="card card--verify">
-          {placeholderQuery.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
-          {placeholderQuery.isError ? (
-            <p className="status-copy status-copy--error">
-              {placeholderQuery.error instanceof Error ? placeholderQuery.error.message : t('resourceLoadError')}
-            </p>
-          ) : null}
-          {placeholder ? (
-            <div className="result-empty">
-              <p>{t('conversationPlaceholderCopy')}</p>
-              <div className="match-reasons">
+  return (
+    <div className="page-content" data-screen="conversation-placeholder" data-testid="inbox-placeholder">
+      <TopBar
+        variant="page"
+        eyebrow={t('chatInboxTitle')}
+        title={t('chatThreadTitle')}
+        backHref="/inbox"
+      />
+
+      <Stack gap={5} as="section" aria-labelledby="conversation-placeholder-heading">
+        {placeholderQuery.isLoading ? (
+          <Stack gap={3} aria-busy="true" aria-label={t('chatThreadLoading')}>
+            <Skeleton variant="rect" height={180} label={t('chatThreadLoading')} />
+            <Skeleton variant="text" width="60%" />
+            <Skeleton variant="text" width="40%" />
+          </Stack>
+        ) : null}
+
+        {placeholderQuery.isError ? (
+          <Banner
+            tone="danger"
+            title={t('resourceLoadError')}
+            actionLabel={t('sendFailedRetry')}
+            onAction={() => void placeholderQuery.refetch()}
+          >
+            {placeholderQuery.error instanceof Error
+              ? placeholderQuery.error.message
+              : t('resourceLoadError')}
+          </Banner>
+        ) : null}
+
+        {!placeholderQuery.isLoading && !placeholderQuery.isError ? (
+          <>
+            {placeholder && (placeholder.participant_preview.length > 0 || placeholder.related_post_ids.length > 0) ? (
+              // Atoms-first: Inline+Tag replaces the raw `.hero__meta` div
+              // + `.meta-chip` spans so chip spacing, wrap, and tone tokens
+              // stay consistent with the rest of the Wave-4B screens.
+              <Inline gap={2} wrap aria-label={t('chatThreadRelatedTitle')}>
                 {placeholder.participant_preview.map((participant) => (
-                  <span className="meta-chip" key={participant.user_id}>
+                  <Tag key={participant.user_id} tone="neutral">
                     {participant.alias}
-                  </span>
+                  </Tag>
                 ))}
                 {placeholder.related_post_ids.map((postId) => (
-                  <span className="meta-chip" key={postId}>
-                    post: {postId}
-                  </span>
+                  <Tag key={postId} tone="neutral">
+                    {t('chatThreadRelatedPostLabel')} {postId}
+                  </Tag>
                 ))}
-              </div>
-              <div className="actions">
-                <Link className="button button--primary" href="/inbox">
-                  {t('inboxTitle')}
-                </Link>
-                <Link className="button button--secondary" href="/community">
-                  {t('backHome')}
-                </Link>
-              </div>
-            </div>
-          ) : null}
-        </section>
-      </div>
-    </main>
+              </Inline>
+            ) : null}
+
+            <EmptyState
+              illustrationName="inbox-empty"
+              title={t('emptyStateInboxTitle')}
+              subtitle={t('emptyStateInboxSubtitle')}
+              cta={{
+                label: t('inboxOpenThread'),
+                href: '/inbox',
+                variant: 'primary',
+              }}
+            />
+          </>
+        ) : null}
+      </Stack>
+    </div>
   );
 }

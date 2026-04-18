@@ -79,7 +79,7 @@ Edge (IndexedDB)  ──opt-in──>  Sync Overlay (WebSocket + /sync)  ──r
 ## 2) 领域实体（Domain Entities）
 
 ### 2.1 User
-> MVP 可只实现“匿名用户 + 轻量登录”，不要求实名。
+> MVP 可只实现"匿名用户 + 轻量登录"，不要求实名。
 
 字段：
 - `user_id` (uuid)
@@ -90,6 +90,11 @@ Edge (IndexedDB)  ──opt-in──>  Sync Overlay (WebSocket + /sync)  ──r
 - `community_members` 以 `(user_id, community_id)` 联合主键去重
 - `created_at`, `updated_at`
 - `status` (active, suspended, deleted)
+- `level` (anonymous, verified, anchor) — 身份等级，决定可见 API surface 与可执行动作
+  - `anonymous`：首次匿名会话，可浏览官方资源 + 本地草稿，不能发帖/建联
+  - `verified`：已通过 OTP / Magic Link 升级，可发帖、建联、收件箱
+  - `anchor`：已通过 invite code + TOTP 激活的社区锚点管理员，可访问 `/v1/admin/**`
+  - 详见 `docs/18_Auth_Design.md §5.1` 能力矩阵；`packages/shared/src/auth.ts authLevelRank` 定义排序
 
 ### 2.2 Community
 字段：

@@ -195,6 +195,21 @@ export {
   reportCreatedEventPayloadSchema,
 } from "./validators/p2p";
 export {
+  accountDeleteReasons,
+  accountDeleteRequestSchema,
+  accountDeleteResponseSchema,
+  accountDeleteRequestRequestSchema,
+  accountDeleteRequestResponseSchema,
+  accountDeleteConfirmRequestSchema,
+  accountDeleteConfirmResponseSchema,
+  accountUndeleteRequestRequestSchema,
+  accountUndeleteRequestResponseSchema,
+  accountUndeleteConfirmRequestSchema,
+  accountUndeleteConfirmResponseSchema,
+  accountLifecycleDeliveryChannels,
+  anchorSessionRecoveryRequestSchema,
+  anchorSessionRecoveryResponseSchema,
+  anchorSessionRecoveryErrorResponseSchema,
   authErrorResponseSchema,
   jwtClaimsSchema,
   magicLinkStartRequestSchema,
@@ -208,6 +223,34 @@ export {
   refreshSessionRequestSchema,
   refreshSessionResponseSchema,
 } from "./validators/auth";
+export type {
+  AccountDeleteReason,
+  AccountDeleteRequestRequest,
+  AccountDeleteRequestResponse,
+  AccountDeleteConfirmRequest,
+  AccountDeleteConfirmResponse,
+  AccountUndeleteRequestRequest,
+  AccountUndeleteRequestResponse,
+  AccountUndeleteConfirmRequest,
+  AccountUndeleteConfirmResponse,
+  AccountLifecycleDeliveryChannel,
+  AnchorSessionRecoveryRequest,
+  AnchorSessionRecoveryResponse,
+  AnchorSessionRecoveryErrorResponse,
+} from "./validators/auth";
+export {
+  analyticsEventTypes,
+  analyticsEventTypeSchema,
+  analyticsEventInputSchema,
+  ttfvSampleRequestSchema,
+  ttfvSampleResponseSchema,
+} from "./validators/analytics";
+export type {
+  AnalyticsEventInput,
+  AnalyticsEventType,
+  TtfvSampleRequest,
+  TtfvSampleResponse,
+} from "./validators/analytics";
 export {
   notificationEmailSendRequestSchema,
   notificationEmailSendResponseSchema,

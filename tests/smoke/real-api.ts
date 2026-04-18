@@ -311,6 +311,34 @@ type ResourceDetailResponse = {
   weekly_hours: unknown[];
 };
 
+type AccountDeleteRequestResponse = {
+  challenge_id: string;
+  masked_destination: string;
+  delivery_channel: 'sms' | 'email';
+  expires_in_seconds: number;
+  fallback?: boolean;
+  demo_code?: string;
+  demo_token?: string;
+  demo_url?: string;
+};
+
+type AccountDeleteConfirmResponse = {
+  status: 'deletion_scheduled';
+  purge_date: string;
+  user_id: string;
+  undelete_recovery_token: string;
+};
+
+type AccountUndeleteResponse = {
+  status: 'restored';
+  user_id: string;
+};
+
+type AnchorSessionRecoveryErrorResponse = {
+  message: string;
+  remaining_attempts?: number;
+};
+
 const apiBaseUrl = (process.env.WEAVENYC_API_BASE_URL ?? 'http://127.0.0.1:4000').replace(/\/$/, '');
 const smokeZip = process.env.WEAVENYC_SMOKE_ZIP ?? '11735';
 const minResources = Number(process.env.WEAVENYC_SMOKE_MIN_RESOURCES ?? '3');
@@ -1235,6 +1263,313 @@ async function main() {
   assert(detail.response.status === 200, `Expected GET /v1/resources/:provider_id to return 200, got ${detail.response.status}`);
   assert(Array.isArray(detail.body?.weekly_hours), 'Resource detail did not include weekly_hours');
 
+  // ---------------------------------------------------------------------
+  // M8 account lifecycle coverage: /v1/account/delete/{request,confirm},
+  // /v1/account/undelete/{request,}, /v1/auth/anchor/session/recovery.
+  // Uses dedicated users so that mid-run side effects (session revocation,
+  // soft-delete, anchor role downgrade) do not leak into earlier assertions.
+  // ---------------------------------------------------------------------
+
+  // Step 1 — fresh user for the delete+undelete happy path.
+  const deleteTargetAnonymous = await createAnonymousSession();
+  const deleteTargetPhone = `+1520${runId.slice(-7)}`;
+  const deleteTargetOtpStart = await fetchJson<OtpStartResponse>('/v1/auth/otp/start', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${deleteTargetAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      phone: deleteTargetPhone,
+    }),
+  });
+  assert(
+    deleteTargetOtpStart.response.status === 200,
+    `Expected delete-target OTP start to return 200, got ${deleteTargetOtpStart.response.status}`,
+  );
+  assert(
+    Boolean(deleteTargetOtpStart.body?.demo_code),
+    'Expected delete-target OTP start to include demo_code',
+  );
+
+  const deleteTargetVerified = await fetchJson<AuthSessionResponse>('/v1/auth/otp/verify', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${deleteTargetAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      challenge_id: deleteTargetOtpStart.body.challenge_id,
+      code: deleteTargetOtpStart.body.demo_code,
+    }),
+  });
+  assert(
+    deleteTargetVerified.response.status === 200,
+    `Expected delete-target OTP verify to return 200, got ${deleteTargetVerified.response.status}`,
+  );
+  assert(
+    deleteTargetVerified.body?.user.level === 'verified',
+    `Expected delete-target OTP verify to return verified, got ${deleteTargetVerified.body?.user.level ?? '<missing>'}`,
+  );
+  const deleteTargetAccessToken = deleteTargetVerified.body.access_token;
+  const deleteTargetUserId = deleteTargetVerified.body.user.user_id;
+
+  // Step 2 — happy path: issue the deletion challenge.
+  const deleteRequest = await fetchJson<AccountDeleteRequestResponse>(
+    '/v1/account/delete/request',
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${deleteTargetAccessToken}`,
+      },
+      body: JSON.stringify({}),
+    },
+  );
+  assert(
+    deleteRequest.response.status === 200,
+    `Expected POST /v1/account/delete/request to return 200, got ${deleteRequest.response.status}`,
+  );
+  assert(
+    Boolean(deleteRequest.body?.challenge_id),
+    'Expected /v1/account/delete/request to return a challenge_id',
+  );
+  assert(
+    deleteRequest.body?.delivery_channel === 'sms' || deleteRequest.body?.delivery_channel === 'email',
+    `Expected delete/request delivery_channel sms|email, got ${deleteRequest.body?.delivery_channel ?? '<missing>'}`,
+  );
+  assert(
+    Boolean(deleteRequest.body?.demo_code) || Boolean(deleteRequest.body?.demo_token),
+    'Expected delete/request to expose a demo_code or demo_token for smoke',
+  );
+
+  // Step 3 — confirm with the wrong code returns 400 with a descriptive error.
+  const deleteConfirmBad = await fetchJson<{ message?: string }>(
+    '/v1/account/delete/confirm',
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${deleteTargetAccessToken}`,
+      },
+      body: JSON.stringify({
+        challenge_id: deleteRequest.body.challenge_id,
+        code: '000000',
+        reason: 'no_longer_needed',
+      }),
+    },
+  );
+  assert(
+    deleteConfirmBad.response.status === 400,
+    `Expected delete/confirm with wrong code to return 400, got ${deleteConfirmBad.response.status}`,
+  );
+
+  // Step 4 — confirm with the correct demo code schedules the soft-delete.
+  const deleteConfirm = await fetchJson<AccountDeleteConfirmResponse>(
+    '/v1/account/delete/confirm',
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${deleteTargetAccessToken}`,
+      },
+      body: JSON.stringify({
+        challenge_id: deleteRequest.body.challenge_id,
+        code: deleteRequest.body.demo_code ?? deleteRequest.body.demo_token,
+        reason: 'no_longer_needed',
+      }),
+    },
+  );
+  assert(
+    deleteConfirm.response.status === 202,
+    `Expected delete/confirm to return 202, got ${deleteConfirm.response.status}`,
+  );
+  assert(
+    deleteConfirm.body?.status === 'deletion_scheduled',
+    `Expected delete/confirm status deletion_scheduled, got ${deleteConfirm.body?.status ?? '<missing>'}`,
+  );
+  assert(
+    deleteConfirm.body?.user_id === deleteTargetUserId,
+    'Expected delete/confirm to echo the deleted user_id',
+  );
+  assert(
+    Boolean(deleteConfirm.body?.undelete_recovery_token),
+    'Expected delete/confirm to return undelete_recovery_token',
+  );
+
+  // Step 5 — undelete with a bad token returns 400.
+  const undeleteBad = await fetchJson<{ message?: string }>('/v1/account/undelete', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: deleteTargetUserId,
+      recovery_token: `uri_${deleteTargetUserId.slice(0, 8)}_invalid_token_${runId}`,
+    }),
+  });
+  assert(
+    undeleteBad.response.status === 400,
+    `Expected undelete with bad token to return 400, got ${undeleteBad.response.status}`,
+  );
+
+  // Step 6 — undelete with the real recovery token restores the account.
+  const undelete = await fetchJson<AccountUndeleteResponse>('/v1/account/undelete', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: deleteTargetUserId,
+      recovery_token: deleteConfirm.body.undelete_recovery_token,
+    }),
+  });
+  assert(
+    undelete.response.status === 200,
+    `Expected undelete to return 200, got ${undelete.response.status}`,
+  );
+  assert(
+    undelete.body?.status === 'restored',
+    `Expected undelete status restored, got ${undelete.body?.status ?? '<missing>'}`,
+  );
+  assert(
+    undelete.body?.user_id === deleteTargetUserId,
+    'Expected undelete to echo the restored user_id',
+  );
+
+  // Step 7 — rate limit coverage for delete/request. Uses a second dedicated
+  // user so the 3/h bucket for the previous user is untouched. We fire enough
+  // requests to cross accountDeleteBurstLimit (3) and expect the fourth to 429.
+  const rateTargetAnonymous = await createAnonymousSession();
+  const rateTargetPhone = `+1521${runId.slice(-7)}`;
+  const rateTargetOtpStart = await fetchJson<OtpStartResponse>('/v1/auth/otp/start', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${rateTargetAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({ phone: rateTargetPhone }),
+  });
+  assert(
+    rateTargetOtpStart.response.status === 200,
+    `Expected rate-target OTP start to return 200, got ${rateTargetOtpStart.response.status}`,
+  );
+  const rateTargetVerified = await fetchJson<AuthSessionResponse>('/v1/auth/otp/verify', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${rateTargetAnonymous.body.access_token}`,
+    },
+    body: JSON.stringify({
+      challenge_id: rateTargetOtpStart.body.challenge_id,
+      code: rateTargetOtpStart.body.demo_code,
+    }),
+  });
+  assert(
+    rateTargetVerified.response.status === 200,
+    `Expected rate-target OTP verify to return 200, got ${rateTargetVerified.response.status}`,
+  );
+  const rateTargetAccessToken = rateTargetVerified.body.access_token;
+
+  let deleteRateLimitHit = false;
+  let deleteRateLimitStatus = 0;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const probe = await fetchJson<{ message?: string }>(
+      '/v1/account/delete/request',
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${rateTargetAccessToken}`,
+        },
+        body: JSON.stringify({}),
+      },
+    );
+    if (probe.response.status === 429) {
+      deleteRateLimitHit = true;
+      deleteRateLimitStatus = 429;
+      break;
+    }
+    assert(
+      probe.response.status === 200,
+      `Expected delete/request attempt ${attempt} to return 200 before the rate limit fires, got ${probe.response.status}`,
+    );
+  }
+  assert(
+    deleteRateLimitHit,
+    `Expected /v1/account/delete/request to eventually return 429; last status ${deleteRateLimitStatus}`,
+  );
+
+  // Step 8 — anchor session recovery coverage. The m5 anchor already holds
+  // two recovery codes from anchorActivation; reuse them here.
+  const anchorRecoveryCodes = anchorActivation.body.recovery_codes;
+  assert(
+    Array.isArray(anchorRecoveryCodes) && anchorRecoveryCodes.length >= 2,
+    'Expected anchor activation to return at least two recovery codes for smoke',
+  );
+
+  // Invalid code path (400).
+  const anchorRecoveryBad = await fetchJson<AnchorSessionRecoveryErrorResponse>(
+    '/v1/auth/anchor/session/recovery',
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${m5AnchorVerified.body.access_token}`,
+      },
+      body: JSON.stringify({
+        community_id: seedIds.communityId,
+        recovery_code: 'ZZZZ-ZZZZ',
+      }),
+    },
+  );
+  assert(
+    anchorRecoveryBad.response.status === 400,
+    `Expected anchor/session/recovery with bad code to return 400, got ${anchorRecoveryBad.response.status}`,
+  );
+
+  // Happy path (200) — consume a real recovery code.
+  const anchorRecoveryOk = await fetchJson<AuthSessionResponse>(
+    '/v1/auth/anchor/session/recovery',
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${m5AnchorVerified.body.access_token}`,
+      },
+      body: JSON.stringify({
+        community_id: seedIds.communityId,
+        recovery_code: anchorRecoveryCodes[0],
+      }),
+    },
+  );
+  assert(
+    anchorRecoveryOk.response.status === 200,
+    `Expected anchor/session/recovery happy path to return 200, got ${anchorRecoveryOk.response.status}`,
+  );
+  assert(
+    anchorRecoveryOk.body?.user.level === 'anchor',
+    `Expected anchor/session/recovery to return anchor level, got ${anchorRecoveryOk.body?.user.level ?? '<missing>'}`,
+  );
+
+  // Rate limit path (429) — after happy path plus the earlier invalid attempt,
+  // fire up to recoveryCodeBurstLimit+2 more to saturate the 5/h bucket.
+  const anchorRecoveryToken = anchorRecoveryOk.body.access_token;
+  let anchorRecoveryRateLimitHit = false;
+  let anchorRecoveryLastStatus = 0;
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
+    const probe = await fetchJson<AnchorSessionRecoveryErrorResponse>(
+      '/v1/auth/anchor/session/recovery',
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${anchorRecoveryToken}`,
+        },
+        body: JSON.stringify({
+          community_id: seedIds.communityId,
+          recovery_code: 'ZZZZ-ZZZZ',
+        }),
+      },
+    );
+    anchorRecoveryLastStatus = probe.response.status;
+    if (probe.response.status === 429) {
+      anchorRecoveryRateLimitHit = true;
+      break;
+    }
+    assert(
+      probe.response.status === 400,
+      `Expected anchor/session/recovery saturation attempt ${attempt} to return 400 before 429, got ${probe.response.status}`,
+    );
+  }
+  assert(
+    anchorRecoveryRateLimitHit,
+    `Expected anchor/session/recovery to eventually return 429; last status ${anchorRecoveryLastStatus}`,
+  );
+
   const docs = await fetchRaw('/docs');
   assert(docs.status === 200, `Expected GET /docs to return 200, got ${docs.status}`);
 
@@ -1298,6 +1633,15 @@ async function main() {
           'POST /v1/conversations/:conversation_id/close (blocked -> 409)',
           'GET /v1/resources',
           'GET /v1/resources/:provider_id',
+          'POST /v1/account/delete/request (200 happy)',
+          'POST /v1/account/delete/confirm (400 bad code)',
+          'POST /v1/account/delete/confirm (202 scheduled)',
+          'POST /v1/account/undelete (400 bad token)',
+          'POST /v1/account/undelete (200 restored)',
+          'POST /v1/account/delete/request (429 rate limit)',
+          'POST /v1/auth/anchor/session/recovery (400 invalid code)',
+          'POST /v1/auth/anchor/session/recovery (200 happy)',
+          'POST /v1/auth/anchor/session/recovery (429 rate limit)',
           'GET /docs',
         ],
         requestPostId,

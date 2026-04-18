@@ -1,0 +1,56 @@
+{
+  "ServiceName": "weavenyc-api-gateway",
+  "SourceConfiguration": {
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::590517422743:role/weavenyc-apprunner-access-role"
+    },
+    "AutoDeploymentsEnabled": false,
+    "ImageRepository": {
+      "ImageIdentifier": "590517422743.dkr.ecr.us-east-1.amazonaws.com/weavenyc-api-gateway:v0.1.0",
+      "ImageRepositoryType": "ECR",
+      "ImageConfiguration": {
+        "Port": "4000",
+        "RuntimeEnvironmentVariables": {
+          "NODE_ENV": "production",
+          "WEAVENYC_DEPLOY_PROFILE": "production",
+          "LOG_LEVEL": "info",
+          "API_HOST": "0.0.0.0",
+          "API_PORT": "4000",
+          "ALLOWED_CORS_ORIGINS": "https://weavenyc.org,https://admin.weavenyc.org,https://pilot.weavenyc.org",
+          "POSTS_SERVICE_URL": "http://localhost:4000",
+          "MATCH_SERVICE_URL": "http://localhost:4000",
+          "CHAT_SERVICE_URL": "http://localhost:4000",
+          "RESOURCE_DIRECTORY_SERVICE_URL": "http://localhost:4000",
+          "NOTIFICATIONS_SERVICE_URL": "http://localhost:4000",
+          "DATABASE_URL": "REPLACE_ME_WITH_postgres://weavenyc:<rds-pw>@<rds-endpoint>:5432/weavenyc_pilot"
+        },
+        "RuntimeEnvironmentSecrets": {
+          "REDIS_URL": "arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/redis-url",
+          "JWT_SIGNING_PRIVATE_KEY": "arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/jwt-private-key",
+          "JWT_SIGNING_PUBLIC_KEY": "arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/jwt-public-key",
+          "IDENTITY_HASH_PEPPER": "arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/identity-hash-pepper",
+          "ANCHOR_TOTP_ENCRYPTION_KEY": "arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/anchor-totp-encryption-key",
+          "INTERNAL_SERVICE_JWT_SECRET": "arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/internal-service-jwt-secret"
+        }
+      }
+    }
+  },
+  "InstanceConfiguration": {
+    "Cpu": "1024",
+    "Memory": "2048",
+    "InstanceRoleArn": "arn:aws:iam::590517422743:role/weavenyc-apprunner-instance-role"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/healthz",
+    "Interval": 10,
+    "Timeout": 5,
+    "HealthyThreshold": 1,
+    "UnhealthyThreshold": 5
+  },
+  "Tags": [
+    { "Key": "Project", "Value": "weavenyc" },
+    { "Key": "Environment", "Value": "pilot" },
+    { "Key": "ManagedBy", "Value": "cli" }
+  ]
+}
