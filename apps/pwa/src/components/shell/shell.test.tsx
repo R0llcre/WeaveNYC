@@ -213,7 +213,7 @@ describe('shell/BottomTabBar', () => {
     renderShell(<BottomTabBar />);
     expect(screen.getByTestId('tab-home')).toHaveAttribute('href', '/');
     expect(screen.getByTestId('tab-community')).toHaveAttribute('href', '/community');
-    expect(screen.getByTestId('tab-post')).toHaveAttribute('href', '/post');
+    expect(screen.getByTestId('tab-post')).toHaveAttribute('href', '/posts/new');
     expect(screen.getByTestId('tab-inbox')).toHaveAttribute('href', '/inbox');
     expect(screen.getByTestId('tab-me')).toHaveAttribute('href', '/me');
 
