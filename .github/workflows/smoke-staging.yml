@@ -55,6 +55,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # smoke-staging.ts spawns `pnpm test:smoke:real` which imports
+      # `@weavenyc/shared` from api-gateway's resolved workspace. The shared
+      # dist needs to exist before the spawn — same pattern as deploy-pwa/admin.
+      - name: Build workspace dependencies
+        run: pnpm --filter @weavenyc/shared --filter @weavenyc/db --filter @weavenyc/test-utils build
+
       - name: Run staging smoke
         run: pnpm exec tsx scripts/staging/smoke-staging.ts
 
