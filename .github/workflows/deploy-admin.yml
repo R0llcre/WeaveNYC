@@ -35,16 +35,8 @@ jobs:
         run: pnpm --filter @weavenyc/anchor-admin build
       - name: Deploy to Cloudflare Pages
         env:
-          CF_OAUTH_TOKEN: ${{ secrets.CF_OAUTH_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # See deploy-pwa.yml for the OAuth-config-file rationale.
         run: |
-          mkdir -p "$RUNNER_TEMP/wr/.wrangler/config"
-          cat > "$RUNNER_TEMP/wr/.wrangler/config/default.toml" <<EOF
-          oauth_token = "$CF_OAUTH_TOKEN"
-          expiration_time = "2099-01-01T00:00:00.000Z"
-          refresh_token = "noop"
-          scopes = ["pages:write", "account:read", "user:read"]
-          EOF
-          WRANGLER_HOME="$RUNNER_TEMP/wr" pnpm exec wrangler pages deploy apps/anchor-admin/out \
+          pnpm exec wrangler pages deploy apps/anchor-admin/out \
             --project-name=weavenyc-anchor-admin --branch=main --commit-dirty=true
