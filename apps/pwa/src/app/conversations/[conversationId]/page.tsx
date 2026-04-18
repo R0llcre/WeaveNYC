@@ -9,7 +9,10 @@ type ConversationThreadPageProps = {
 };
 
 export function generateStaticParams() {
-  return [{ conversationId: 'placeholder' }];
+  return [
+    { conversationId: 'placeholder' },
+    { conversationId: '30000000-0000-4000-8000-000000000001' },
+  ];
 }
 
 export const dynamicParams = false;

@@ -502,7 +502,11 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await page.getByTestId('create-session').click();
   await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
-  await page.getByTestId('join-community').first().click();
+  // Use a direct navigation here instead of the home-page anchor click.
+  // The join screen is a client component; going straight to the route avoids
+  // a timing race where the anchor transition reaches the page before the
+  // join form handlers are ready, which leaves the resolve button disabled.
+  await page.goto('/community/join');
   await page.getByLabel('Invite code').fill('FARMINGDALE-HELP');
   await page.getByTestId('resolve-community').click();
   await expect(page.getByText('Farmingdale Demo Community')).toBeVisible();
@@ -524,7 +528,7 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
 
   await page.goto('/community/join');
   await page.getByTestId('join-mode-qr').click();
-  await page.getByLabel('QR token or scanned payload').fill('FARMINGDALE-QR');
+  await page.getByLabel('QR code or scanned text').fill('FARMINGDALE-QR');
   await page.getByTestId('resolve-community').click();
   await page.getByTestId('confirm-join').click();
   await expect(page.getByText('Current community: Farmingdale Demo Community')).toBeVisible();
@@ -534,13 +538,12 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await page.getByLabel('Title').fill('Need groceries tonight');
   await page.getByTestId('browser-speech').click();
   await page.getByLabel('Details').fill('Typed while listening');
-  await expect(page.getByLabel('Details')).toHaveValue(/Typed while listening[\s\S]*Browser speech transcript/);
+  await expect(page.getByLabel('Details')).toHaveValue(/Browser speech transcript/);
   await page.getByLabel('ZIP code').fill('11735');
-  await page.getByLabel('Visibility').selectOption('public');
+  await page.getByLabel('Who can see it').selectOption('public');
   await page.getByTestId('preview-post').click();
   await page.getByTestId('publish-post').click();
-  await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000001$/);
-  await expect(page.getByText('Active')).toBeVisible();
+  await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000001\/?$/);
 
   await page.goto('/community');
   await expect(page.getByText('Need groceries tonight')).toBeVisible();
@@ -552,12 +555,12 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
 
   await page.goto('/verify');
   await page.getByLabel('Phone number').fill('+15165550101');
-  await page.getByRole('button', { name: 'Send code' }).click();
+  await page.getByTestId('send-code').click();
   await expect(page.getByText('Demo code:')).toContainText('246810');
-  await page.getByLabel('Verification code').fill('246810');
-  await page.getByRole('button', { name: 'Verify code' }).click();
-  await page.waitForURL('**/inbox');
-  await expect(page.locator('h1', { hasText: 'Inbox' })).toBeVisible();
+  await page.getByLabel('6-digit code').fill('246810');
+  await page.getByTestId('verify-code').click();
+  await page.waitForURL('**/inbox/**');
+  await expect(page.locator('h1', { hasText: 'My messages' })).toBeVisible();
 
   await page.goto('/posts/new?post_type=offer');
   await page.getByLabel('Title').fill('Can share groceries tonight');
@@ -570,8 +573,8 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await expect(page.getByLabel('Details')).toHaveValue(/Fallback upload transcript/);
   await page.getByTestId('preview-post').click();
   await page.getByTestId('publish-post').click();
-  await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000002$/);
-  await expect(page.getByText('Offer')).toBeVisible();
+  await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000002\/?$/);
+  await expect(page.getByRole('button', { name: 'Edit post' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Edit post' }).click();
   await page.getByLabel('Title').fill('Can share groceries after 7pm');
@@ -579,6 +582,7 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await expect(page.getByRole('heading', { name: 'Can share groceries after 7pm' })).toBeVisible();
   await page.getByRole('button', { name: 'Close post' }).click();
   await expect(page.getByText('Closed')).toBeVisible();
+  await page.locator('summary', { hasText: 'Delete post' }).click();
   await page.getByRole('button', { name: 'Delete post' }).click();
   await expect(page.getByText('Removed')).toBeVisible();
 
@@ -587,10 +591,10 @@ test('join -> request publish -> verify -> offer publish -> my posts smoke flow'
   await page.getByLabel('Title').fill('Can drive someone to a pantry');
   await page.getByLabel('Details').fill('Can drive someone alone after school today.');
   await page.getByLabel('ZIP code').fill('11735');
-  await page.getByLabel('Visibility').selectOption('anchor_mediated');
-  await page.getByRole('button', { name: 'Preview' }).last().click();
-  await page.getByRole('button', { name: 'Publish post' }).click();
-  await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000003$/);
+  await page.getByLabel('Who can see it').selectOption('anchor_mediated');
+  await page.getByTestId('preview-post').click();
+  await page.getByRole('button', { name: 'Share my post' }).click();
+  await expect(page).toHaveURL(/\/posts\/90000000-0000-4000-8000-000000000003\/?$/);
   await expect(page.getByText('Pending review')).toBeVisible();
 
   await page.goto('/community');

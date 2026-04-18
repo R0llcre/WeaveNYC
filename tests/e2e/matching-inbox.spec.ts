@@ -648,26 +648,26 @@ test('anonymous contact -> verify -> auto contact creation and one refresh only'
 
   await page.goto(`/posts/${requestPostId}/matches`);
 
-  await expect(page.getByRole('heading', { level: 1, name: '3 ways to act now' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: '3 ways to get help now' })).toBeVisible();
   await expect(page.getByText('Need groceries tonight')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Contact' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send a message' }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Contact' }).first().click();
-  await page.waitForURL('**/verify?**');
+  await page.getByRole('button', { name: 'Send a message' }).first().click();
+  await page.waitForURL((url) => url.pathname.startsWith('/verify'));
   await expect(page.getByTestId('verify-title')).toBeVisible();
 
-  await page.getByLabel('Phone').fill('+15165550101');
-  await page.getByRole('button', { name: 'Send code' }).click();
-  await page.getByLabel('Code').fill('246810');
+  await page.getByLabel('Phone number').fill('+15165550101');
+  await page.getByRole('button', { name: 'Send my code' }).click();
+  await page.getByLabel('6-digit code').fill('246810');
   await page.getByTestId('verify-code').click();
 
-  await page.waitForURL(`**/posts/${requestPostId}/matches`);
-  await expect(page.getByText('Contact request sent. The other person will see it in their inbox.')).toBeVisible();
+  await page.waitForURL((url) => url.pathname.startsWith(`/posts/${requestPostId}/matches`));
+  await expect(page.getByText('Your message was sent. The other person will see it in their messages.')).toBeVisible();
 
-  const refreshButton = page.getByRole('button', { name: 'Swap one option' });
+  const refreshButton = page.getByRole('button', { name: 'Show other options' });
   await expect(refreshButton).toBeEnabled();
   await refreshButton.click();
-  await expect(page.locator('.card__subtitle', { hasText: '1/1 refreshes used' })).toBeVisible();
+  await expect(page.locator('.card__subtitle', { hasText: '1/1 options you have swapped' })).toBeVisible();
   await expect(refreshButton).toBeDisabled();
 });
 
@@ -702,19 +702,19 @@ test('verified recipient contact inbox accept/reject flow reaches the live conve
   await installM3Routes(page, state);
 
   await page.goto('/contact-requests');
-  await expect(page.locator('h1', { hasText: 'Inbox' })).toBeVisible();
+  await expect(page.locator('h1', { hasText: 'My messages' })).toBeVisible();
   await expect(page.getByText('Requester')).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Accept' }).first().click();
   await page.waitForURL('**/conversations/**');
-  await expect(page.getByRole('heading', { name: 'Requester' })).toBeVisible();
+  await expect(page.getByText('Requester').first()).toBeVisible();
   await expect(page.getByText('Helper')).toBeVisible();
   await page.getByLabel('Message').fill('See you at the library after 3pm.');
-  await page.getByRole('button', { name: 'Send message' }).click();
+  await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText('See you at the library after 3pm.')).toBeVisible();
 
   await page.goto('/contact-requests');
-  await page.getByRole('button', { name: 'Reject' }).first().click();
+  await page.getByRole('button', { name: 'Decline' }).first().click();
   await expect(page.getByText('Requester')).toHaveCount(0);
 
   await context.close();

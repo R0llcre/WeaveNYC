@@ -253,13 +253,13 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await expect(page.getByTestId('verify-title')).toBeVisible();
   await page.getByTestId('send-code').click();
   await expect(page.getByText('246810')).toBeVisible();
-  await page.getByLabel('Código de verificación').fill('246810');
+  await page.getByLabel('Código de 6 dígitos').fill('246810');
   await page.getByTestId('verify-code').click();
-  await page.waitForURL('**/inbox');
-  await expect(page.locator('h1', { hasText: 'Inbox' })).toBeVisible();
+  await page.waitForURL('**/inbox/**');
+  await expect(page.locator('h1', { hasText: 'Mis mensajes' })).toBeVisible();
 
   await page.goto('/');
-  await expect(page.getByText('Sesión verificada')).toBeVisible();
+  await expect(page.getByText('Vecino con cuenta')).toBeVisible();
 
   await page.goto('/dev/m0');
   await expect(page.getByText('Check the API, mint an anonymous session, and stop there.')).toBeVisible();

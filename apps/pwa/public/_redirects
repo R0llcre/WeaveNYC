@@ -1,3 +1,4 @@
+/posts/*/matches /posts/88888888-8888-4888-8888-888888888888/matches/index.html 200
 /posts/* /posts/placeholder/index.html 200
 /resources/* /resources/placeholder/index.html 200
 /conversations/* /conversations/placeholder/index.html 200
