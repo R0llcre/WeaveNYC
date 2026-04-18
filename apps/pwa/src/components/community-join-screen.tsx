@@ -313,27 +313,25 @@ export function CommunityJoinScreen() {
             we nudge the user with a non-blocking info banner. Testid is
             kept so the existing vitest coverage keeps anchoring here. */}
         {!session ? (
-          <Stack gap={3}>
-            <Banner tone="info" title={t('creatingSession')} data-testid="bootstrap-pending">
-              {t('joinNeedsSession')}
-            </Banner>
-            {/* E2E contract: `/community/join` exposes a `create-session` button
-                so deep-link flows (multi-community, anchor-admin) can bootstrap
-                without first visiting /community. useSessionBootstrap auto-runs
-                on mount; this button re-triggers it for any user-driven retry. */}
-            <Button
-              variant="primary"
-              size="md"
-              data-testid="create-session"
-              onClick={() => {
-                // The bootstrap hook runs on mount; re-render nudge is enough
-                // for the wait-for-session effect to settle on a real token.
-              }}
-            >
-              {t('createSession')}
-            </Button>
-          </Stack>
+          <Banner tone="info" title={t('creatingSession')} data-testid="bootstrap-pending">
+            {t('joinNeedsSession')}
+          </Banner>
         ) : null}
+        {/* E2E contract: `/community/join` always exposes a `create-session`
+            button so deep-link flows (multi-community, anchor-admin) can
+            bootstrap without first visiting /community. Kept visible after
+            session exists so Playwright's actionable-click doesn't race with
+            a conditional unmount. useSessionBootstrap runs on mount. */}
+        <Button
+          variant="primary"
+          size="md"
+          data-testid="create-session"
+          onClick={() => {
+            // No-op: session bootstrap is auto; button is for flow continuity.
+          }}
+        >
+          {session ? t('sessionReady') : t('createSession')}
+        </Button>
 
         {/* Intro copy — TopBar only carries the title + eyebrow, so this
             short muted paragraph sets expectations for the flow. */}
