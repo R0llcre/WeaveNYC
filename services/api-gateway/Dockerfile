@@ -67,11 +67,7 @@ RUN pnpm --filter @weavenyc/shared build \
  && pnpm --filter @weavenyc/posts build \
  && pnpm --filter @weavenyc/match build \
  && pnpm --filter @weavenyc/chat build \
-<<<<<<< Updated upstream
  && cd services/api-gateway && pnpm exec tsc -p tsconfig.build.json
-=======
- && cd services/api-gateway && (pnpm exec tsc -p tsconfig.build.json || echo "M8 pilot: tsc had errors but emitting JS anyway")
->>>>>>> Stashed changes
 
 # Note: we intentionally keep the full (dev + prod) node_modules tree in the
 # runner image. Pruning via `pnpm deploy --prod` or `pnpm install --prod`
