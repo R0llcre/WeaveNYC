@@ -138,7 +138,9 @@ type ChromeMessages = {
   joinCopy: string;
   joinNeedsSession: string;
   joinInviteMode: string;
+  joinInviteModeDescription: string;
   joinQrMode: string;
+  joinQrModeDescription: string;
   inviteCodeLabel: string;
   qrTokenLabel: string;
   resolveCommunityAction: string;
@@ -730,7 +732,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     joinCopy: 'First, type an invite code or scan a QR code. Then check the community and join.',
     joinNeedsSession: 'Getting a session ready so you can join. One moment…',
     joinInviteMode: 'Invite code',
+    joinInviteModeDescription: 'Paste a code sent by a community admin.',
     joinQrMode: 'QR code',
+    joinQrModeDescription: 'Scan a printed QR or upload a photo.',
     inviteCodeLabel: 'Invite code',
     qrTokenLabel: 'QR code or scanned text',
     resolveCommunityAction: 'Check code',
@@ -1310,7 +1314,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     joinCopy: 'Primero escribe el código o escanea el QR. Después revisa la comunidad y únete.',
     joinNeedsSession: 'Preparando una sesión para que puedas unirte. Un momento…',
     joinInviteMode: 'Código de invitación',
+    joinInviteModeDescription: 'Pega un código enviado por un admin de la comunidad.',
     joinQrMode: 'Código QR',
+    joinQrModeDescription: 'Escanea un QR impreso o sube una foto.',
     inviteCodeLabel: 'Código de invitación',
     qrTokenLabel: 'QR o texto escaneado',
     resolveCommunityAction: 'Revisar código',
@@ -1893,7 +1899,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     joinCopy: '先输入邀请码，或者扫一下二维码。看一看是哪个社区，再确认加入。',
     joinNeedsSession: '正在为你准备一个会话，好让你加入社区。请稍等……',
     joinInviteMode: '邀请码',
+    joinInviteModeDescription: '粘贴社区管理员发给你的邀请码。',
     joinQrMode: '二维码',
+    joinQrModeDescription: '扫印刷二维码或上传图片。',
     inviteCodeLabel: '邀请码',
     qrTokenLabel: '二维码里的内容',
     resolveCommunityAction: '检查邀请码',
