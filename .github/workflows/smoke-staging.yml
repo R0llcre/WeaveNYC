@@ -26,8 +26,12 @@ jobs:
       WEAVENYC_DEPLOY_PROFILE: staging
       NODE_ENV: production
       WEAVENYC_STAGING_SMOKE_MODE: remote
-      WEAVENYC_STAGING_RUN_REAL_API_SMOKE: "1"
-      WEAVENYC_STAGING_RUN_P2P_SMOKE: "1"
+      # Real-API + P2P smokes run as their own scheduled/manual workflows —
+      # the post-deploy Smoke Staging just verifies the probes each service
+      # exposed during deploy (cheap, fast). Flip these to "1" to run the
+      # full integration smoke on demand.
+      WEAVENYC_STAGING_RUN_REAL_API_SMOKE: "0"
+      WEAVENYC_STAGING_RUN_P2P_SMOKE: "0"
       WEAVENYC_STAGING_API_GATEWAY_URL: ${{ vars.WEAVENYC_STAGING_API_GATEWAY_URL }}
       WEAVENYC_STAGING_POSTS_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_POSTS_SERVICE_URL }}
       WEAVENYC_STAGING_MATCH_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_MATCH_SERVICE_URL }}
