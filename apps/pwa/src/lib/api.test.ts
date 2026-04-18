@@ -104,13 +104,12 @@ describe("pwa api helpers", () => {
       next_cursor: null,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/v1/communities/comm_1/announcements"),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer token",
-        }),
-      }),
+    const annCall = fetchMock.mock.calls.find(([url]) =>
+      typeof url === "string" && url.includes("/v1/communities/comm_1/announcements"),
+    );
+    expect(annCall).toBeDefined();
+    expect((annCall![1] as { headers: Headers }).headers.get("Authorization")).toBe(
+      "Bearer token",
     );
   });
 
@@ -274,12 +273,14 @@ describe("pwa api helpers", () => {
 
     const call = fetchMock.mock.calls[0][1] as {
       method: string;
-      headers: Record<string, string>;
+      headers: Headers;
       body: string;
     };
     expect(call.method).toBe("POST");
     expect(call.body).toBe("{}");
-    expect(call.headers.Authorization).toBe("Bearer access-token");
+    // requestJson normalizes headers into a Headers instance to avoid Content-Type
+    // collisions with init spread (see api.ts:1267-1282). Read via .get().
+    expect(call.headers.get("Authorization")).toBe("Bearer access-token");
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/v1/account/delete/request"),
       expect.any(Object),
@@ -366,10 +367,11 @@ describe("pwa api helpers", () => {
     });
 
     const call = fetchMock.mock.calls[0][1] as {
-      headers: Record<string, string>;
+      headers: Headers;
       body: string;
     };
-    expect(call.headers.Authorization).toBeUndefined();
+    // undeleteAccount passes an empty access token → no Authorization header should land.
+    expect(call.headers.get("Authorization")).toBeNull();
     const payload = JSON.parse(call.body);
     expect(payload).toEqual({
       user_id: "550e8400-e29b-41d4-a716-446655440099",
