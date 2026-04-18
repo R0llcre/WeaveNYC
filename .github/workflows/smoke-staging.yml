@@ -50,6 +50,7 @@ jobs:
       CHAT_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_CHAT_SERVICE_URL }}
       RESOURCE_DIRECTORY_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_RESOURCE_DIRECTORY_URL }}
       NOTIFICATIONS_SERVICE_URL: ${{ vars.WEAVENYC_STAGING_NOTIFICATIONS_SERVICE_URL }}
+      ALLOWED_CORS_ORIGINS: "https://weavenyc.org,https://*.weavenyc.org,https://admin.weavenyc.org,https://*.weavenyc-pwa.pages.dev,https://*.weavenyc-anchor-admin.pages.dev"
 
     steps:
       - name: Checkout
