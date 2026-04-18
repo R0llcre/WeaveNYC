@@ -255,7 +255,10 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await page.getByLabel('Código de 6 dígitos').fill('246810');
   await page.getByTestId('verify-code').click();
   await page.waitForURL('**/inbox/**');
-  await expect(page.locator('h1', { hasText: 'Mis mensajes' })).toBeVisible();
+  // inboxTitle (es) was renamed to "Bandeja" per the W4 i18n E2E contract
+  // (matching-inbox.spec.ts expects 'Inbox' for en — the es/zh values shifted
+  // to parallel single-word forms).
+  await expect(page.locator('h1', { hasText: 'Bandeja' })).toBeVisible();
 
   await page.goto('/');
   await expect(page.getByText('Vecino con cuenta')).toBeVisible();
