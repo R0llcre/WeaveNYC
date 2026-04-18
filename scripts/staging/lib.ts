@@ -180,7 +180,7 @@ export async function captureChecked(command: string, args: string[], options: {
   });
 }
 
-export async function fetchJson(url: string, init?: RequestInit, timeoutMs = 8_000) {
+export async function fetchJson(url: string, init?: RequestInit, timeoutMs = 30_000) {
   const response = await fetch(url, {
     ...init,
     signal: AbortSignal.timeout(timeoutMs)

@@ -103,8 +103,8 @@ async function main() {
     paths: gatewayChecks
   });
 
-  const { response: pwaResponse } = await fetchJson(pwaUrl, undefined, 10_000);
-  const { response: adminResponse } = await fetchJson(anchorAdminUrl, undefined, 10_000);
+  const { response: pwaResponse } = await fetchJson(pwaUrl, undefined, 30_000);
+  const { response: adminResponse } = await fetchJson(anchorAdminUrl, undefined, 30_000);
   checks.push(
     { runtime: "pwa", url: pwaUrl, status: pwaResponse.status, paths: [{ path: "/", status: pwaResponse.status }] },
     { runtime: "anchor-admin", url: anchorAdminUrl, status: adminResponse.status, paths: [{ path: "/", status: adminResponse.status }] }
