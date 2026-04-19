@@ -202,7 +202,7 @@ export function CommunityJoinScreen() {
           joinedAt: joined.joined_at,
         }),
       );
-      router.push('/community');
+      router.push('/community/');
     } catch (error) {
       dispatch(clearJoinPreview());
       const staleMessage = isExpiredJoinError(error)

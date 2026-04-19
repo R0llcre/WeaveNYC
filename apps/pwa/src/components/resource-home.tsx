@@ -255,7 +255,7 @@ export function ResourceHome() {
                 as="a"
                 variant="ghost"
                 size="sm"
-                href="/me/settings"
+                href="/me/settings/"
                 data-testid="home-change-zip"
               >
                 {t('homeZipChange')}

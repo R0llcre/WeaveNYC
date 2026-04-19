@@ -246,7 +246,7 @@ describe('SettingsScreen (/settings)', () => {
     const reverifyCta = await screen.findByTestId(
       'settings-delete-undone-reverify',
     );
-    expect(reverifyCta.getAttribute('href')).toBe('/verify');
+    expect(reverifyCta.getAttribute('href')).toBe('/verify/');
   });
 
   it('persists the recovery token to sessionStorage after confirm and clears it after undelete', async () => {

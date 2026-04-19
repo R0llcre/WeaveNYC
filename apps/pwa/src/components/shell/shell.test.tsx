@@ -212,10 +212,10 @@ describe('shell/BottomTabBar', () => {
   it('renders all 5 tabs with localized labels and href targets', () => {
     renderShell(<BottomTabBar />);
     expect(screen.getByTestId('tab-home')).toHaveAttribute('href', '/');
-    expect(screen.getByTestId('tab-community')).toHaveAttribute('href', '/community');
-    expect(screen.getByTestId('tab-post')).toHaveAttribute('href', '/posts/new');
-    expect(screen.getByTestId('tab-inbox')).toHaveAttribute('href', '/inbox');
-    expect(screen.getByTestId('tab-me')).toHaveAttribute('href', '/me');
+    expect(screen.getByTestId('tab-community')).toHaveAttribute('href', '/community/');
+    expect(screen.getByTestId('tab-post')).toHaveAttribute('href', '/posts/new/');
+    expect(screen.getByTestId('tab-inbox')).toHaveAttribute('href', '/inbox/');
+    expect(screen.getByTestId('tab-me')).toHaveAttribute('href', '/me/');
 
     // Labels are the `en` bundle strings.
     expect(screen.getByTestId('tab-home')).toHaveTextContent('Home');

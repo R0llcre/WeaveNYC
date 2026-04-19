@@ -116,7 +116,7 @@ describe('useOnboardingGuard', () => {
 
     expect(replaceMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/language?return_to=${encodeURIComponent('/')}`,
+      `/onboarding/language/?return_to=${encodeURIComponent('/')}`,
     );
   });
 
@@ -131,7 +131,7 @@ describe('useOnboardingGuard', () => {
 
     expect(replaceMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/location?return_to=${encodeURIComponent('/community')}`,
+      `/onboarding/location/?return_to=${encodeURIComponent('/community')}`,
     );
   });
 
@@ -195,7 +195,7 @@ describe('useOnboardingGuard', () => {
     renderWithStore(<OnboardingGuardHarness />, store);
 
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/language?return_to=${encodeURIComponent('/posts/abc?q=open')}`,
+      `/onboarding/language/?return_to=${encodeURIComponent('/posts/abc?q=open')}`,
     );
   });
 
@@ -208,7 +208,7 @@ describe('useOnboardingGuard', () => {
     const { rerender } = renderWithStore(<OnboardingGuardHarness />, store);
 
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/language?return_to=${encodeURIComponent('/inbox')}`,
+      `/onboarding/language/?return_to=${encodeURIComponent('/inbox')}`,
     );
 
     replaceMock.mockClear();
@@ -220,7 +220,7 @@ describe('useOnboardingGuard', () => {
     );
 
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/location?return_to=${encodeURIComponent('/inbox')}`,
+      `/onboarding/location/?return_to=${encodeURIComponent('/inbox')}`,
     );
   });
 });

@@ -92,11 +92,15 @@ const MeIcon = () => (
 );
 
 const TABS: readonly TabConfig[] = [
+  // Trailing slash on every href: next.config.ts has `trailingSlash: true`,
+  // and under `output: 'export'` the client router matches the exact static
+  // path — clicking a slash-less Link renders the 404 page instead of the
+  // real page. See https://nextjs.org/docs/app/api-reference/config/next-config-js/trailingSlash
   { key: 'home', href: '/', labelKey: 'shellTabHome', icon: <HomeIcon /> },
-  { key: 'community', href: '/community', labelKey: 'shellTabCommunity', icon: <CommunityIcon /> },
-  { key: 'post', href: '/posts/new', labelKey: 'shellTabPost', icon: <PostIcon /> },
-  { key: 'inbox', href: '/inbox', labelKey: 'shellTabInbox', icon: <InboxIcon /> },
-  { key: 'me', href: '/me', labelKey: 'shellTabMe', icon: <MeIcon /> },
+  { key: 'community', href: '/community/', labelKey: 'shellTabCommunity', icon: <CommunityIcon /> },
+  { key: 'post', href: '/posts/new/', labelKey: 'shellTabPost', icon: <PostIcon /> },
+  { key: 'inbox', href: '/inbox/', labelKey: 'shellTabInbox', icon: <InboxIcon /> },
+  { key: 'me', href: '/me/', labelKey: 'shellTabMe', icon: <MeIcon /> },
 ];
 
 /**

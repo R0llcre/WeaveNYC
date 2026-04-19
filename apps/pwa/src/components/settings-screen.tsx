@@ -670,7 +670,7 @@ export function SettingsScreen() {
           <h2 id="settings-safety-heading">{t('settingsSafetyTitle')}</h2>
           <p className="muted">{t('settingsSafetyCopy')}</p>
           <div className="action-row">
-            <Button as="a" variant="secondary" href="/inbox">
+            <Button as="a" variant="secondary" href="/inbox/">
               {t('settingsOpenInbox')}
             </Button>
           </div>
@@ -880,7 +880,7 @@ export function SettingsScreen() {
                     as="a"
                     variant="primary"
                     data-testid="settings-delete-undone-reverify"
-                    href="/verify"
+                    href="/verify/"
                   >
                     {t('undeleteReverifyCta')}
                   </Button>
@@ -903,7 +903,7 @@ export function SettingsScreen() {
           <h2 id="settings-help-heading">{t('settingsHelpTitle')}</h2>
           <ul className="link-list">
             <li>
-              <Link href="/inbox">{t('settingsHelpReport')}</Link>
+              <Link href="/inbox/">{t('settingsHelpReport')}</Link>
             </li>
             <li>{t('settingsVersion', { version: 'M8 pilot' })}</li>
           </ul>
