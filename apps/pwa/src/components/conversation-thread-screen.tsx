@@ -295,7 +295,7 @@ export function ConversationThreadScreen({
       conversationId,
     });
     void conversationQuery.refetch();
-    router.push('/inbox');
+    router.push('/inbox/');
   }
 
   async function handleReport() {

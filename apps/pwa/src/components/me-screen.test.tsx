@@ -133,7 +133,7 @@ describe('MeScreen (/me)', () => {
   it('shows the verify CTA with href=/me/verify when unverified', () => {
     renderMe({ level: 'anonymous' });
     const cta = screen.getByTestId('me-verify-cta');
-    expect(cta.getAttribute('href')).toBe('/me/verify');
+    expect(cta.getAttribute('href')).toBe('/me/verify/');
     // CTA copy comes from `meActionVerifyIdentity` → "Verify identity".
     expect(cta.textContent).toContain('Verify identity');
   });
@@ -157,7 +157,7 @@ describe('MeScreen (/me)', () => {
   it('renders the danger CTA with href=/me/danger', () => {
     renderMe({ level: 'verified' });
     const dangerCta = screen.getByTestId('me-danger-cta');
-    expect(dangerCta.getAttribute('href')).toBe('/me/danger');
+    expect(dangerCta.getAttribute('href')).toBe('/me/danger/');
     // CTA copy comes from `meDangerCta` → "Delete account".
     expect(dangerCta.textContent).toContain('Delete account');
   });

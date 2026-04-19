@@ -21,7 +21,7 @@
  *     so attacker-controlled `?return_to=https://evil` is rejected.
  *   - `useVerifiedGuard` — stub for future verified-only routes
  *     (`/me/danger`). Reads `selectIsVerified`; redirects unverified
- *     sessions to `/me/verify?return_to=<current>`. Kept intentionally
+ *     sessions to `/me/verify/?return_to=<current>`. Kept intentionally
  *     minimal for W2 so the verify screen owns its own UX in W4.
  */
 
@@ -106,8 +106,8 @@ export function useOnboardingGuard(): void {
     // picked" signal — `hasUserChosenLanguage` is the authoritative flag
     // flipped by `setLanguage` on the picker screen.
     const nextStep = !hasUserChosenLanguage
-      ? '/onboarding/language'
-      : '/onboarding/location';
+      ? '/onboarding/language/'
+      : '/onboarding/location/';
 
     const returnTo = buildReturnToParam(pathname, search);
     router.replace(`${nextStep}?return_to=${returnTo}`);
@@ -148,7 +148,7 @@ export function useOnboardingDestination(fallback: string = '/'): string {
  * Behaviour:
  *   - verified session       → no-op
  *   - unverified / anonymous → replace with
- *     `/me/verify?return_to=<current path + search>`
+ *     `/me/verify/?return_to=<current path + search>`
  */
 export function useVerifiedGuard(): void {
   const router = useRouter();
@@ -174,6 +174,6 @@ export function useVerifiedGuard(): void {
     }
 
     const returnTo = buildReturnToParam(pathname, search);
-    router.replace(`/me/verify?return_to=${returnTo}`);
+    router.replace(`/me/verify/?return_to=${returnTo}`);
   }, [hydrationComplete, isVerified, pathname, search, router]);
 }

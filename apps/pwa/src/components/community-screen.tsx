@@ -241,7 +241,7 @@ export function CommunityScreen() {
                   variant="primary"
                   size="md"
                   data-testid="join-community"
-                  href="/community/join"
+                  href="/community/join/"
                 >
                   {t('joinCommunityCta')}
                 </Button>
@@ -250,7 +250,7 @@ export function CommunityScreen() {
                   variant="secondary"
                   size="md"
                   data-testid="request-help"
-                  href="/posts/new?post_type=request"
+                  href="/posts/new/?post_type=request"
                 >
                   {t('requestHelpCta')}
                 </Button>
@@ -259,11 +259,11 @@ export function CommunityScreen() {
                   variant="secondary"
                   size="md"
                   data-testid="offer-help"
-                  href="/posts/new?post_type=offer"
+                  href="/posts/new/?post_type=offer"
                 >
                   {t('offerHelpCta')}
                 </Button>
-                <Button as="a" variant="ghost" size="md" href="/posts/mine">
+                <Button as="a" variant="ghost" size="md" href="/posts/mine/">
                   {t('myPostsTitle')}
                 </Button>
                 <ContactInboxLink />
@@ -289,7 +289,7 @@ export function CommunityScreen() {
                 variant="secondary"
                 size="md"
                 data-testid="request-help"
-                href="/posts/new?post_type=request"
+                href="/posts/new/?post_type=request"
               >
                 {t('requestHelpCta')}
               </Button>
@@ -298,7 +298,7 @@ export function CommunityScreen() {
                 variant="secondary"
                 size="md"
                 data-testid="offer-help"
-                href="/posts/new?post_type=offer"
+                href="/posts/new/?post_type=offer"
               >
                 {t('offerHelpCta')}
               </Button>

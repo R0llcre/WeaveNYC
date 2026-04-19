@@ -315,7 +315,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
         >
           <Pill
             as="a"
-            href="/inbox"
+            href="/inbox/"
             role="tab"
             active={activeView === 'all'}
             aria-selected={activeView === 'all'}
@@ -324,7 +324,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
           </Pill>
           <Pill
             as="a"
-            href="/inbox?view=requests"
+            href="/inbox/?view=requests"
             role="tab"
             active={activeView === 'requests'}
             aria-selected={activeView === 'requests'}
@@ -333,7 +333,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
           </Pill>
           <Pill
             as="a"
-            href="/inbox?view=chats"
+            href="/inbox/?view=chats"
             role="tab"
             active={activeView === 'chats'}
             aria-selected={activeView === 'chats'}

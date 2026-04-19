@@ -152,7 +152,7 @@ export function LocationGateScreen() {
    */
   const handleSkip = () => {
     dispatch(completeOnboarding());
-    router.push('/me');
+    router.push('/me/');
   };
 
   // Pending banner gets a stable DOM id so the "use my device" button can

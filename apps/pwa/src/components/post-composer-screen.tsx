@@ -327,7 +327,7 @@ export function PostComposerScreen() {
                   <Button
                     as="a"
                     data-testid="join-community"
-                    href="/community/join"
+                    href="/community/join/"
                     variant="primary"
                   >
                     {t('joinCommunityCta')}
@@ -340,7 +340,7 @@ export function PostComposerScreen() {
           {requiresVerified && session?.user.level === 'anonymous' ? (
             <Banner tone="warning" title={t('composeNeedsVerified')}>
               <Inline gap={3} wrap>
-                <Button as="a" variant="primary" href="/me/verify">
+                <Button as="a" variant="primary" href="/me/verify/">
                   {t('goVerify')}
                 </Button>
               </Inline>

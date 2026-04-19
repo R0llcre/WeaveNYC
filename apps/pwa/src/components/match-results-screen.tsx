@@ -367,7 +367,7 @@ export function MatchResultsScreen({ postId }: MatchResultsScreenProps) {
               title={t('matchContactPending')}
               actionLabel={t('matchGoInbox')}
               actionVariant="primary"
-              onAction={() => router.push('/inbox')}
+              onAction={() => router.push('/inbox/')}
             />
           ) : null}
 

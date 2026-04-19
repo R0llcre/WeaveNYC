@@ -107,7 +107,7 @@ export function MeScreen() {
             {t('meSectionLanguage')}
           </h2>
           <Card>
-            <a href="/me/settings#language" className="me-screen__row">
+            <a href="/me/settings/#language" className="me-screen__row">
               <Inline gap={3} justify="between" align="center">
                 <span className="text-body">{t('meActionChangeLanguage')}</span>
                 <Inline gap={2} align="center">
@@ -141,7 +141,7 @@ export function MeScreen() {
                   </p>
                   <Button
                     as="a"
-                    href="/me/verify"
+                    href="/me/verify/"
                     variant="primary"
                     size="md"
                     data-testid="me-verify-cta"
@@ -162,7 +162,7 @@ export function MeScreen() {
             {t('meSectionPrivacy')}
           </h2>
           <Card>
-            <a href="/me/settings#privacy" className="me-screen__row">
+            <a href="/me/settings/#privacy" className="me-screen__row">
               <Inline gap={3} justify="between" align="center">
                 <span className="text-body">{t('meSectionPrivacy')}</span>
                 <Icon name="chevron-right" size="sm" tone="muted" />
@@ -208,7 +208,7 @@ export function MeScreen() {
               </Stack>
               <Button
                 as="a"
-                href="/me/danger"
+                href="/me/danger/"
                 variant="ghost"
                 tone="danger"
                 size="md"

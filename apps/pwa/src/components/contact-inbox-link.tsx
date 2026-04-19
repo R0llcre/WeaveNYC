@@ -32,7 +32,7 @@ export function ContactInboxLink({ className }: ContactInboxLinkProps) {
     <Button
       as="a"
       variant="secondary"
-      href="/inbox?view=requests"
+      href="/inbox/?view=requests"
       className={className ?? 'button--with-badge'}
       trailingIcon={
         pendingCount > 0 ? <span className="inbox-badge">{pendingCount}</span> : undefined
