@@ -2,12 +2,13 @@ import { Suspense } from 'react';
 
 import { LocationGateScreen } from '@/components/location-gate-screen';
 
+
 export default function LocationOnboardingPage() {
   return (
     <Suspense
       fallback={
-        <main className="shell" id="main-content" tabIndex={-1}>
-          <div className="page-content">
+        <main className="shell">
+          <div className="shell__inner">
             <section className="card">
               <p>Loading…</p>
             </section>
