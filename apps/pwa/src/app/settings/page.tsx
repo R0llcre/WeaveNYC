@@ -1,15 +1,10 @@
 'use client';
 
 /**
- * Legacy `/settings` route — now a pure client-side redirect shim to
- * `/me/settings` (the canonical settings entry under the 5-tab IA).
- *
- * Query params are preserved on the redirect so deep links coming in
- * from older notifications or bookmarks keep working; `return_to` is
- * passed through `safeReturnTo` to block open-redirect attacks.
- *
- * Kept under its own Suspense boundary because `useSearchParams()`
- * must be wrapped in Suspense for static export (CSR bailout).
+ * Legacy `/settings` route — redirect shim to `/me/settings/` (the canonical
+ * settings entry under the 5-tab IA). Preserves query params so existing
+ * deep links keep working. `return_to` is sanitized via `safeReturnTo` to
+ * prevent open-redirect sinks.
  */
 
 import { Suspense, useEffect } from 'react';
@@ -32,7 +27,7 @@ function SettingsRedirectInner() {
       }
     }
     const qs = params.toString();
-    router.replace(qs ? `/me/settings?${qs}` : '/me/settings');
+    router.replace(qs ? `/me/settings/?${qs}` : '/me/settings/');
   }, [router, search]);
   return null;
 }
