@@ -1,6 +1,7 @@
 import fastifyMultipart from '@fastify/multipart';
 import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyWebsocket from '@fastify/websocket';
@@ -158,6 +159,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
   await app.register(fastifyWebsocket);
 
+  // Rate-limiting is registered globally with a `global: false` default so
+  // individual routes explicitly opt in via `config.rateLimit`. This keeps
+  // the limiter surgical (only /bootstrap and /sync today) and avoids
+  // accidentally throttling chat routes or anchor-admin flows.
+  await app.register(fastifyRateLimit, {
+    global: false,
+  });
+
   await app.register(fastifySwagger, {
     openapi: {
       info: {
@@ -289,6 +298,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate('resourceDirectory', resourceDirectory);
   app.decorate('speechProvider', speechProvider);
   app.decorate('syncRuntime', syncRuntime);
+
+  // Now that the logger + metrics decorators are in place, give the
+  // P2P runtime structured logging + Prometheus counters. Done here (not
+  // in the constructor) so the same runtime instance is also usable
+  // standalone from tests that don't build a full Fastify app.
+  syncRuntime.bindObservability({
+    logger: app.log,
+    metrics,
+  });
 
   attachFastifySentry(app, sentry);
 
