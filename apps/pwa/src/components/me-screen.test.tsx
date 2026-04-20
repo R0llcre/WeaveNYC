@@ -144,7 +144,10 @@ describe('MeScreen (/me)', () => {
     expect(store.getState().auth.session).not.toBeNull();
 
     const signOut = screen.getByTestId('me-sign-out');
-    expect(signOut.textContent).toContain('Sign out');
+    // W8 i18n pass: `meActionSignOut` renamed to "Clear this device" to
+    // reflect what the action actually does (session token cleared, local
+    // data kept). See the W8 i18n agent notes.
+    expect(signOut.textContent).toContain('Clear this device');
     fireEvent.click(signOut);
 
     // `useSignOut` dispatches `clearSession` synchronously before awaiting

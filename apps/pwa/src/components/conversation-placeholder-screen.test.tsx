@@ -143,6 +143,10 @@ describe('ConversationPlaceholderScreen (/conversations/:id placeholder)', () =>
       expect(screen.getByText(messages.en.emptyStateInboxTitle)).toBeTruthy();
     });
     const cta = screen.getByRole('link', { name: messages.en.inboxOpenThread });
-    expect(cta.getAttribute('href')).toBe('/inbox');
+    // Trailing slash required by `output:'export' + trailingSlash:true` —
+    // the client router only matches slashed paths, so clicking an
+    // unslashed `/inbox` href lands on the 404 page. See the W8 UX audit
+    // (P0: trailing-slash 404 regressions) for the rationale.
+    expect(cta.getAttribute('href')).toBe('/inbox/');
   });
 });

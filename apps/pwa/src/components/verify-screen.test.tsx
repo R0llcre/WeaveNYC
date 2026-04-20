@@ -210,7 +210,8 @@ describe('VerifyScreen (/me/verify)', () => {
     // about. If this ever needs to be h1 again, the TopBar title must be
     // suppressed on the verify route to avoid a double-h1 violation.
     expect(heading.tagName.toLowerCase()).toBe('h2');
-    expect(heading.textContent).toContain('Sign in to prove who you are');
+    // W8 i18n pass: `verifyTitle` copy tightened to "Verify your identity".
+    expect(heading.textContent).toContain('Verify your identity');
   });
 
   it('calls otpStart.mutate with the typed phone when send-code is clicked', async () => {
@@ -248,6 +249,8 @@ describe('VerifyScreen (/me/verify)', () => {
     // The success CTA links back to /me and its label comes from
     // `verifySuccessCta` → "Back to Me".
     const cta = screen.getByRole('link', { name: 'Back to Me' });
-    expect(cta.getAttribute('href')).toBe('/me');
+    // Trailing slash required by the PWA's static-export config (see
+    // W8 UX audit, P0 trailing-slash 404 regressions).
+    expect(cta.getAttribute('href')).toBe('/me/');
   });
 });

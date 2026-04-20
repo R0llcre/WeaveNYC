@@ -17,6 +17,7 @@ import {
   Pill,
   Stack,
   Tag,
+  Toast,
 } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/datetime';
@@ -131,6 +132,10 @@ export function PostComposerScreen() {
   const [isCreatingSession, setCreatingSession] = useState(false);
   const [browserSpeechError, setBrowserSpeechError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  // Success toast for post publish — shown briefly before router.push lands.
+  // Using `toastSent` ("Sent") as the closest existing generic success key
+  // (audit note: do not invent a new key; all toast* keys are in i18n.ts).
+  const [publishSuccessToast, setPublishSuccessToast] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement | null>(null);
   const createPostMutation = useCreatePost(session?.access_token);
   const speechMutation = useSpeechTranscribe(session?.access_token);
@@ -269,7 +274,19 @@ export function PostComposerScreen() {
     });
 
     dispatch(resetPostDraft());
-    router.push(`/posts/${created.post_id}`);
+    // Fire a success toast so the user sees the confirmation even if the
+    // route transition is instant. `toastSent` ("Sent" / "Enviado" / "已发送")
+    // is the closest existing generic success key — no new key is invented.
+    setPublishSuccessToast(t('toastSent'));
+    // For request posts, the user's next logical action is to browse the
+    // offers the matcher service returns. Push them to the matches screen
+    // instead of the raw post detail so they see proposed neighbors
+    // immediately. Offers still land on the post detail as before.
+    if (draft.postType === 'request') {
+      router.push('/posts/matches/');
+    } else {
+      router.push(`/posts/${created.post_id}/`);
+    }
   };
 
   const stepOrder: Array<'type' | 'compose' | 'preview'> = ['type', 'compose', 'preview'];
@@ -286,7 +303,7 @@ export function PostComposerScreen() {
         variant="page"
         eyebrow={t('pageTitlePostNew')}
         title={t('composeTitle')}
-        backHref="/community"
+        backHref="/community/"
       />
       <div className="page-content" data-screen="post-composer">
         <Stack gap={5} as="section">
@@ -439,7 +456,11 @@ export function PostComposerScreen() {
 
                 <Field
                   label={t('composeCurrentCommunity')}
-                  hint={t('composeNeedsCommunity')}
+                  // Only show the "join a community first" nudge when the
+                  // user actually has no current community. When a community
+                  // is selected, the read-only input speaks for itself and
+                  // the hint becomes redundant chrome.
+                  hint={currentCommunity ? undefined : t('composeNeedsCommunity')}
                 >
                   <input disabled aria-disabled="true" value={currentCommunity?.name ?? ''} />
                 </Field>
@@ -484,8 +505,38 @@ export function PostComposerScreen() {
                     onChange={(event) =>
                       dispatch(mergePostDraft({ body: event.target.value }))
                     }
+                    // Enter-to-advance: plain Enter moves to the preview
+                    // step when the draft validates; Shift+Enter keeps the
+                    // standard newline behavior. We also respect IME
+                    // composition (keyCode 229 / isComposing) so CJK input
+                    // isn't interrupted mid-typing.
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing &&
+                        isDraftValid
+                      ) {
+                        event.preventDefault();
+                        dispatch(setDraftStep('preview'));
+                        // On mobile the keyboard should stay dismissed —
+                        // blur the textarea so the soft keyboard closes.
+                        (event.target as HTMLTextAreaElement).blur();
+                      }
+                    }}
                     rows={6}
                     value={draft.body}
+                    onFocus={(event) => {
+                      // Safe-area fix: keep the publish/preview button above
+                      // the soft keyboard on mobile by scrolling the focused
+                      // element into view at the end of the viewport. We do
+                      // this on focus rather than via CSS only because iOS
+                      // Safari ignores env(safe-area-inset-bottom) on focus.
+                      (event.target as HTMLTextAreaElement).scrollIntoView({
+                        block: 'end',
+                        behavior: 'smooth',
+                      });
+                    }}
                   />
                 </Field>
 
@@ -719,11 +770,21 @@ export function PostComposerScreen() {
                   haptic
                 >
                   {createPostMutation.isPending
-                    ? t('creatingSession')
+                    ? t('composePublishing')
                     : t('composePublishAction')}
                 </Button>
               </Inline>
             </Stack>
+          ) : null}
+
+          {/* Success toast after publish — role=status polite announcement
+              that persists until the router.push unmounts this screen. */}
+          {publishSuccessToast ? (
+            <Toast
+              tone="success"
+              title={publishSuccessToast}
+              data-testid="post-publish-toast"
+            />
           ) : null}
         </Stack>
       </div>

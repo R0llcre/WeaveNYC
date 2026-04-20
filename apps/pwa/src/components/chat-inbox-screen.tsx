@@ -452,11 +452,26 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                               variant="secondary"
                               size="sm"
                               disabled={busy}
-                              onClick={() =>
-                                void rejectMutation.mutateAsync(item.contact_request_id)
-                              }
+                              onClick={() => {
+                                // Confirm before firing so accidental taps
+                                // don't silently decline a neighbour's
+                                // contact request. No ConfirmDialog atom
+                                // exists yet (grep: no `confirm-dialog`
+                                // testid in repo); native window.confirm is
+                                // the simplest UX-safe gate that ships
+                                // today and is easy to swap later.
+                                if (
+                                  typeof window !== 'undefined' &&
+                                  !window.confirm(t('contactInboxReject'))
+                                ) {
+                                  return;
+                                }
+                                void rejectMutation.mutateAsync(
+                                  item.contact_request_id,
+                                );
+                              }}
                             >
-                              {t('inboxReject')}
+                              {t('contactInboxReject')}
                             </Button>
                             <Button
                               as="a"

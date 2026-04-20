@@ -1634,20 +1634,38 @@ main[id="main-content"]:focus {
 details.danger-zone {
   margin-top: var(--space-5);
   padding: var(--space-5);
-  border: 1px solid rgba(139, 42, 42, 0.22);
+  /* Dashed 1px accent reads as "caution" at a glance without a garish red
+     fill. Using `color-mix` on `--color-danger` keeps the border visible
+     against both light and dark surfaces while threading through the token
+     system (no hardcoded RGBs). */
+  border: 1px dashed color-mix(in srgb, var(--color-danger) 55%, transparent);
   border-radius: var(--radius-lg);
-  background: rgba(139, 42, 42, 0.04);
+  /* Subtle warm-red tint — low enough opacity that the editorial palette
+     still dominates, high enough that the section is distinct from the
+     neutral Cards above it. */
+  background: color-mix(in srgb, var(--color-danger) 4%, transparent);
 }
 
 details.danger-zone > summary {
   cursor: pointer;
-  font-weight: 600;
-  color: var(--color-danger-strong);
+  /* De-emphasize the summary: weight drops one step and color shifts to
+     the secondary ink so the danger-zone card signals "read me carefully"
+     rather than shouting on first paint. The red-strong tint returns on
+     hover + focus so the affordance stays discoverable. */
+  font-weight: 500;
+  color: var(--color-ink-secondary);
   padding: var(--space-2) 0;
   list-style: none;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+details.danger-zone > summary:focus-visible {
+  color: var(--color-danger-strong);
+  outline: 2px solid var(--color-danger);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 details.danger-zone > summary::-webkit-details-marker {
@@ -3887,4 +3905,18 @@ section.danger-zone {
   /* No motion needed — the pattern is static — but we reserve this block for
      future wave-3B breathing animations without having to resize the rule. */
 }
+
+/* ============================================================================
+   Post composer — keyboard safe-area reservation so the Preview/Publish CTA is
+   never hidden behind the iOS soft keyboard when the textarea is focused. The
+   screen content already lives inside `.page-content` inside AppShell's main,
+   but `<main>` itself does not carry safe-area padding on mobile. Pairing
+   `env(safe-area-inset-bottom)` with a small floor keeps the CTA on-screen
+   regardless of keyboard height. Pair with `scrollIntoView({ block: 'end' })`
+   on the textarea onFocus handler for the instant-focus case.
+   ============================================================================ */
+[data-screen='post-composer'] {
+  padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
+}
+
 

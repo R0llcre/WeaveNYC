@@ -181,7 +181,9 @@ describe('ResourceHome (Wave 3A redesign)', () => {
     // W3 review fix — no-ZIP case now uses homeNoZip* copy distinct from no-results.
     expect(screen.getByText(messages.en.homeNoZipTitle)).toBeInTheDocument();
     const cta = screen.getByTestId('home-empty-set-zip') as HTMLAnchorElement;
-    expect(cta.getAttribute('href')).toBe('/me/settings');
+    // Trailing slash required by the PWA's static-export config (see
+    // W8 UX audit, P0 trailing-slash 404 regressions).
+    expect(cta.getAttribute('href')).toBe('/me/settings/');
     // With no ZIP we must not fire the resources query.
     expect(searchResourcesMock).not.toHaveBeenCalled();
   });
