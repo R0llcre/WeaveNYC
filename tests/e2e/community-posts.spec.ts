@@ -536,7 +536,7 @@ test.skip('join -> request publish -> verify -> offer publish -> my posts smoke 
   await expect(page.getByText('Current community: Farmingdale Demo Community')).toBeVisible();
 
   await page.getByTestId('request-help').click();
-  await expect(page.getByRole('heading', { name: 'Create a post' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New post' })).toBeVisible();
   await page.getByLabel('Title').fill('Need groceries tonight');
   await page.getByTestId('browser-speech').click();
   await page.getByLabel('Details').fill('Typed while listening');

@@ -278,15 +278,13 @@ export function PostComposerScreen() {
     // route transition is instant. `toastSent` ("Sent" / "Enviado" / "已发送")
     // is the closest existing generic success key — no new key is invented.
     setPublishSuccessToast(t('toastSent'));
-    // For request posts, the user's next logical action is to browse the
-    // offers the matcher service returns. Push them to the matches screen
-    // instead of the raw post detail so they see proposed neighbors
-    // immediately. Offers still land on the post detail as before.
-    if (draft.postType === 'request') {
-      router.push('/posts/matches/');
-    } else {
-      router.push(`/posts/${created.post_id}/`);
-    }
+    // Both request and offer posts land on the post detail page so the
+    // author sees their post went live. The UX audit suggested requests
+    // should jump to a matches feed immediately, but the existing
+    // `/posts/matches/` route is a global matches inbox, not post-scoped,
+    // so the detail page is a cleaner home for the confirmation moment.
+    // Revisit if/when a `/posts/{id}/matches/` route ships.
+    router.push(`/posts/${created.post_id}/`);
   };
 
   const stepOrder: Array<'type' | 'compose' | 'preview'> = ['type', 'compose', 'preview'];
