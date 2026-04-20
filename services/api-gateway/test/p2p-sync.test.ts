@@ -574,6 +574,323 @@ describe("p2p sync routes", () => {
     expect(result.livePublished).toBe(true);
   });
 
+  it("does not leak events from community B into community A sync response", async () => {
+    const communityA = communityId;
+    const communityB = "55555555-5555-4555-8555-555555555555";
+
+    const userStore = new InMemoryUserStore();
+    const memberA = createUserRecord({ communityIds: [communityA], level: "verified" });
+    const memberB = createUserRecord({
+      userId: "66666666-6666-4666-8666-666666666666",
+      communityIds: [communityB],
+      level: "verified",
+    });
+    userStore.users.set(memberA.userId, memberA);
+    userStore.users.set(memberB.userId, memberB);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+    const memberAToken = signUser(app, memberA);
+    const memberBToken = signUser(app, memberB);
+
+    // Publish 2 distinct events to each community.
+    await app.syncRuntime.publish({
+      communityId: communityA,
+      topicKey: "posts",
+      eventType: "post.published",
+      aggregateType: "post",
+      aggregateId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      actorUserId: memberA.userId,
+      payload: { post: { post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } },
+      occurredAt: "2026-04-13T12:00:00.000Z",
+    });
+    await app.syncRuntime.publish({
+      communityId: communityB,
+      topicKey: "posts",
+      eventType: "post.published",
+      aggregateType: "post",
+      aggregateId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      actorUserId: memberB.userId,
+      payload: { post: { post_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" } },
+      occurredAt: "2026-04-13T12:00:01.000Z",
+    });
+
+    // A's /sync must contain only A's event.
+    const aSync = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityA}/sync`,
+      headers: { authorization: `Bearer ${memberAToken}` },
+    });
+    expect(aSync.statusCode).toBe(200);
+    const aEvents = aSync.json().events as Array<{ community_id: string; aggregate_id: string }>;
+    expect(aEvents).toHaveLength(1);
+    expect(aEvents[0].community_id).toBe(communityA);
+    expect(aEvents[0].aggregate_id).toBe("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    // Belt-and-suspenders: nothing whatsoever from B bleeds in.
+    expect(aEvents.some((evt) => evt.community_id === communityB)).toBe(false);
+    expect(
+      aEvents.some((evt) => evt.aggregate_id === "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+    ).toBe(false);
+
+    // B's /sync must contain only B's event.
+    const bSync = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityB}/sync`,
+      headers: { authorization: `Bearer ${memberBToken}` },
+    });
+    expect(bSync.statusCode).toBe(200);
+    const bEvents = bSync.json().events as Array<{ community_id: string; aggregate_id: string }>;
+    expect(bEvents).toHaveLength(1);
+    expect(bEvents[0].community_id).toBe(communityB);
+    expect(bEvents[0].aggregate_id).toBe("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+  });
+
+  it("WebSocket fanout does not leak events from community B into community A subscribers", async () => {
+    const communityA = communityId;
+    const communityB = "55555555-5555-4555-8555-555555555555";
+
+    const userStore = new InMemoryUserStore();
+    const memberA = createUserRecord({ communityIds: [communityA], level: "verified" });
+    const memberB = createUserRecord({
+      userId: "66666666-6666-4666-8666-666666666666",
+      communityIds: [communityB],
+      level: "verified",
+    });
+    userStore.users.set(memberA.userId, memberA);
+    userStore.users.set(memberB.userId, memberB);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+    const memberAToken = signUser(app, memberA);
+
+    const bootstrapResponseA = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityA}/bootstrap`,
+      headers: { authorization: `Bearer ${memberAToken}` },
+    });
+    expect(bootstrapResponseA.statusCode).toBe(200);
+    const wsUrlA = bootstrapResponseA.json().anchor_node.websocket_url as string;
+
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("expected bound server address");
+    }
+
+    const resolvedUrlA = new URL(wsUrlA);
+    resolvedUrlA.protocol = "ws:";
+    resolvedUrlA.host = `127.0.0.1:${address.port}`;
+
+    const aFrames: Array<Record<string, unknown>> = [];
+    let readyResolveA!: () => void;
+    const readyA = new Promise<void>((resolve) => {
+      readyResolveA = resolve;
+    });
+
+    const socketA = new WebSocket(resolvedUrlA);
+    socketA.on("message", (payload) => {
+      const frame = JSON.parse(payload.toString()) as Record<string, unknown>;
+      aFrames.push(frame);
+      if (frame.frame_type === "ready") {
+        readyResolveA();
+      }
+    });
+    await readyA;
+
+    // Publish an event only to community B. A's socket must NOT receive it.
+    await app.syncRuntime.publish({
+      communityId: communityB,
+      topicKey: "posts",
+      eventType: "post.published",
+      aggregateType: "post",
+      aggregateId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      actorUserId: memberB.userId,
+      payload: { post: { post_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" } },
+    });
+
+    // Give the event loop a tick; no B event should arrive on A.
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const eventFramesOnA = aFrames.filter((frame) => frame.frame_type === "event");
+    expect(eventFramesOnA).toHaveLength(0);
+
+    // Now publish to A — it SHOULD arrive.
+    await app.syncRuntime.publish({
+      communityId: communityA,
+      topicKey: "posts",
+      eventType: "post.published",
+      aggregateType: "post",
+      aggregateId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      actorUserId: memberA.userId,
+      payload: { post: { post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } },
+    });
+
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        const event = aFrames.find(
+          (frame) =>
+            frame.frame_type === "event" &&
+            ((frame.event as { aggregate_id?: string }).aggregate_id ===
+              "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        );
+        if (event) {
+          socketA.close();
+          resolve();
+        } else {
+          setImmediate(check);
+        }
+      };
+      check();
+    });
+
+    const finalEventFrames = aFrames.filter((frame) => frame.frame_type === "event");
+    expect(finalEventFrames).toHaveLength(1);
+    expect((finalEventFrames[0].event as { community_id: string }).community_id).toBe(communityA);
+  });
+
+  it("rejects bootstrap when caller is not a community member (403)", async () => {
+    const otherCommunityId = "77777777-7777-4777-8777-777777777777";
+    const userStore = new InMemoryUserStore();
+    const nonMember = createUserRecord({ communityIds: [otherCommunityId], level: "verified" });
+    userStore.users.set(nonMember.userId, nonMember);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+    const token = signUser(app, nonMember);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityId}/bootstrap`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json().message).toBe("Community membership is required");
+  });
+
+  it("rejects websocket when the token scope is not p2p_ws (1008)", async () => {
+    const userStore = new InMemoryUserStore();
+    const member = createUserRecord({ communityIds: [communityId], level: "verified" });
+    userStore.users.set(member.userId, member);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    // signUser() mints a primary access token — no `scope: 'p2p_ws'` claim.
+    // This is EXACTLY the token that must be rejected at the WS handshake.
+    const primaryToken = signUser(app, member);
+
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("expected bound server address");
+    }
+
+    const result = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
+      const socket = new WebSocket(
+        `ws://127.0.0.1:${address.port}/v1/ws/p2p?token=${encodeURIComponent(primaryToken)}&community_id=${communityId}`,
+      );
+      socket.on("close", (code, reason) => {
+        resolve({ code, reason: reason.toString() });
+      });
+      socket.on("error", () => {
+        // Closing with 1008 normally shows up as a close event, but some
+        // clients fire `error` first on an early server close — either
+        // signal is acceptable for this test; just fall through so we
+        // resolve via the `close` listener.
+      });
+      setTimeout(() => reject(new Error("timeout waiting for ws close")), 3_000);
+    });
+
+    expect(result.code).toBe(1008);
+    // The wire reason is deliberately generic — no "invalid scope" leaks.
+    expect(result.reason).toBe("unauthorized");
+  });
+
+  it("rejects websocket when token community_id mismatches query (1008)", async () => {
+    const otherCommunityId = "55555555-5555-4555-8555-555555555555";
+    const userStore = new InMemoryUserStore();
+    const member = createUserRecord({ communityIds: [communityId], level: "verified" });
+    userStore.users.set(member.userId, member);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const bootstrapResponse = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityId}/bootstrap`,
+      headers: { authorization: `Bearer ${signUser(app, member)}` },
+    });
+    expect(bootstrapResponse.statusCode).toBe(200);
+    const wsToken = new URL(bootstrapResponse.json().anchor_node.websocket_url as string).searchParams.get(
+      "token",
+    )!;
+
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("expected bound server address");
+    }
+
+    const result = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
+      const socket = new WebSocket(
+        `ws://127.0.0.1:${address.port}/v1/ws/p2p?token=${encodeURIComponent(wsToken)}&community_id=${otherCommunityId}`,
+      );
+      socket.on("close", (code, reason) => {
+        resolve({ code, reason: reason.toString() });
+      });
+      socket.on("error", () => {});
+      setTimeout(() => reject(new Error("timeout waiting for ws close")), 3_000);
+    });
+
+    expect(result.code).toBe(1008);
+    expect(result.reason).toBe("unauthorized");
+  });
+
+  it("rejects websocket for an inactive user (1008)", async () => {
+    const userStore = new InMemoryUserStore();
+    const member = createUserRecord({ communityIds: [communityId], level: "verified" });
+    userStore.users.set(member.userId, member);
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const bootstrapResponse = await app.inject({
+      method: "GET",
+      url: `/v1/communities/${communityId}/bootstrap`,
+      headers: { authorization: `Bearer ${signUser(app, member)}` },
+    });
+    expect(bootstrapResponse.statusCode).toBe(200);
+    const wsToken = new URL(bootstrapResponse.json().anchor_node.websocket_url as string).searchParams.get(
+      "token",
+    )!;
+
+    // Flip status to suspended AFTER bootstrap has minted the p2p_ws token.
+    // The subsequent WS handshake must detect the stale claim and reject.
+    const current = userStore.users.get(member.userId)!;
+    userStore.users.set(member.userId, { ...current, status: "suspended" });
+
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("expected bound server address");
+    }
+
+    const result = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
+      const socket = new WebSocket(
+        `ws://127.0.0.1:${address.port}/v1/ws/p2p?token=${encodeURIComponent(wsToken)}`,
+      );
+      socket.on("close", (code, reason) => {
+        resolve({ code, reason: reason.toString() });
+      });
+      socket.on("error", () => {});
+      setTimeout(() => reject(new Error("timeout waiting for ws close")), 3_000);
+    });
+
+    expect(result.code).toBe(1008);
+    expect(result.reason).toBe("unauthorized");
+  });
+
   it("keeps user-target reports out of the community sync stream", async () => {
     const userStore = new InMemoryUserStore();
     const reporter = createUserRecord({ communityIds: [communityId], level: "verified" });

@@ -348,7 +348,31 @@ async function executePurge(
         [userId],
       );
 
-      // 10e. community_sync_events.actor_user_id (nullable)
+      // 10e. community_sync_events.actor_user_id (nullable) +
+      //      payload_json tombstone + actor_p2p_id scrub for identifiable
+      //      aggregate types (post/announcement/report). The prior implementation
+      //      nulled out actor_user_id only, leaving payload_json as a verbatim
+      //      snapshot of the user's post body / title / etc. – so a 30-day
+      //      soft-deleted user's original content was still replayable via the
+      //      community /sync feed after their account was fully purged. That
+      //      also applies to actor_p2p_id, which is a stable per-user+community
+      //      pseudonym: leaving it in place would allow observers to re-link
+      //      events to the deleted account. Rewriting payload_json to a minimal
+      //      tombstone and nulling actor_p2p_id closes both leaks while keeping
+      //      the causal row present so downstream cursors still advance.
+      await client.query(
+        `
+          update community_sync_events
+          set
+            payload_json = jsonb_build_object('tombstoned', true, 'reason', 'user_deleted'),
+            actor_user_id = null,
+            actor_p2p_id = null
+          where actor_user_id = $1
+            and aggregate_type in ('post', 'announcement', 'report')
+        `,
+        [userId],
+      );
+
       await client.query(
         `
           update community_sync_events

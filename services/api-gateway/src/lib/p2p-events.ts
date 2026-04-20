@@ -52,9 +52,22 @@ export async function fanoutSyncEvents(
   events: CommunitySyncEvent[] | undefined,
   context: Record<string, unknown>,
 ) {
+  // Per-event try/catch: a single bad event (e.g. socket hung up, subscriber
+  // throws during local broadcast) must NOT short-circuit the loop and
+  // starve the remaining events. We log + increment the error counter and
+  // keep going — the durable row has already been committed, so the client
+  // will still pick it up on the next /sync catch-up.
   for (const event of events ?? []) {
-    const livePublished = await app.syncRuntime.fanout(event);
-    logP2PFanoutResult(app, event, livePublished, context);
+    try {
+      const livePublished = await app.syncRuntime.fanout(event);
+      logP2PFanoutResult(app, event, livePublished, context);
+    } catch (err) {
+      app.log.error(
+        { ...context, err, eventType: event.event_type, syncEventId: event.sync_event_id },
+        "Failed to fanout sync event; continuing with remaining events",
+      );
+      app.metrics?.p2pSyncErrorsTotal?.inc({ op: "fanout", kind: "runtime" });
+    }
   }
 }
 
@@ -67,6 +80,10 @@ export async function publishPostEvent(
     reason?: string;
   },
 ) {
+  // post.tombstoned must atomically redact any prior post.published /
+  // post.updated rows for the same aggregate so readers cannot replay the
+  // tombstoned content via /sync.
+  const redactPriorPayloads = input.eventType === "post.tombstoned";
   const result = await app.syncRuntime.publish({
     communityId: input.post.community_id,
     topicKey: "posts",
@@ -79,6 +96,7 @@ export async function publishPostEvent(
       reason: input.reason ?? null,
     } satisfies PostSyncEventPayload,
     occurredAt: input.post.updated_at ?? input.post.created_at,
+    redactPriorPayloads,
   });
   logP2PPublishResult(app, result, { postId: input.post.post_id });
   return result;
@@ -92,6 +110,8 @@ export async function publishAnnouncementEvent(
     actorUserId?: string | null;
   },
 ) {
+  // announcement.deleted follows the same post.tombstoned redaction pattern.
+  const redactPriorPayloads = input.eventType === "announcement.deleted";
   const result = await app.syncRuntime.publish({
     communityId: input.announcement.community_id,
     topicKey: "announcements",
@@ -103,6 +123,7 @@ export async function publishAnnouncementEvent(
       announcement: input.announcement,
     } satisfies AnnouncementSyncEventPayload,
     occurredAt: input.announcement.updated_at ?? input.announcement.published_at,
+    redactPriorPayloads,
   });
   logP2PPublishResult(app, result, { announcementId: input.announcement.announcement_id });
   return result;

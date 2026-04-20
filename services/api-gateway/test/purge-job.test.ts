@@ -278,6 +278,66 @@ describe('createPurgeJob', () => {
     await expect(job.stop()).resolves.toBeUndefined();
   });
 
+  it(
+    'runOnce scrubs community_sync_events payload_json + actor_p2p_id for ' +
+      'post/announcement/report aggregates',
+    async () => {
+      const userId = '00000000-0000-4000-8000-000000000099';
+      const deletedAt = new Date(Date.now() - 31 * 86_400_000);
+      const purgeAt = new Date(Date.now() - 1 * 86_400_000);
+
+      let candidateCalls = 0;
+      const { pool, captured } = createPoolFake({
+        onSelect: (sql) => {
+          if (sql.startsWith('select user_id, deleted_at, purge_at')) {
+            candidateCalls += 1;
+            if (candidateCalls === 1) {
+              return [{ user_id: userId, deleted_at: deletedAt, purge_at: purgeAt }];
+            }
+            return [];
+          }
+          return [];
+        },
+      });
+
+      const job = createPurgeJob({ pool, enabled: false, actorHashPepper: 'test-pepper' });
+      const result = await job.runOnce();
+      expect(result).toEqual({ deletedUsers: 1 });
+
+      // Find the payload tombstone + actor_p2p_id scrub statement.
+      const tombstoneUpdate = captured.find(
+        (entry) =>
+          entry.sql.includes('update community_sync_events') &&
+          entry.sql.includes("jsonb_build_object('tombstoned', true, 'reason', 'user_deleted')") &&
+          entry.sql.includes('actor_p2p_id = null') &&
+          entry.sql.includes("aggregate_type in ('post', 'announcement', 'report')"),
+      );
+      expect(tombstoneUpdate).toBeDefined();
+      expect(tombstoneUpdate?.params[0]).toBe(userId);
+
+      // The tombstone scrub must precede the separate fallback nulling of
+      // actor_user_id so that the WHERE clause can still match actor_user_id = $1.
+      const tombstoneIndex = captured.findIndex((entry) => entry === tombstoneUpdate);
+      const actorNullIndex = captured.findIndex(
+        (entry) =>
+          entry.sql.includes('update community_sync_events') &&
+          entry.sql.includes('set actor_user_id = null') &&
+          !entry.sql.includes('tombstoned'),
+      );
+      expect(tombstoneIndex).toBeGreaterThan(-1);
+      expect(actorNullIndex).toBeGreaterThan(-1);
+      expect(tombstoneIndex).toBeLessThan(actorNullIndex);
+
+      // Both writes sit inside the single per-user transaction.
+      const beginIndex = captured.findIndex((entry) => entry.sql === 'begin');
+      const commitIndex = captured.findIndex((entry) => entry.sql === 'commit');
+      expect(beginIndex).toBeGreaterThan(-1);
+      expect(commitIndex).toBeGreaterThan(-1);
+      expect(beginIndex).toBeLessThan(tombstoneIndex);
+      expect(tombstoneIndex).toBeLessThan(commitIndex);
+    },
+  );
+
   it('stop() waits for an in-flight runOnce to finish', async () => {
     let resolveInsideQuery: (() => void) | null = null;
     let sawCommit = false;
