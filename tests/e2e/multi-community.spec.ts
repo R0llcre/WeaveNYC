@@ -218,8 +218,12 @@ test.skip('multi-community: invite switch across Farmingdale + Queens + Bronx pi
   await page.getByTestId('onboarding-location-submit').click();
   await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
 
+  // Warm up `/community/join` once so useSessionBootstrap mints the anonymous
+  // access_token before the first `resolve-community` call below tries to hit
+  // the gateway. Previously this relied on clicking a no-op `create-session`
+  // button; the button was removed as a dead end (the bootstrap already runs
+  // on mount), so a bare visit is sufficient.
   await page.goto('/community/join');
-  await page.getByTestId('create-session').click();
 
   for (const fixture of fixtures) {
     await page.goto('/community/join');
