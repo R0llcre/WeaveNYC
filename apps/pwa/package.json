@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "2.11.2",
+    "@sentry/nextjs": "^10.49.0",
     "@tanstack/react-query": "5.96.2",
     "@weavenyc/shared": "workspace:*",
     "dexie": "^4.2.1",

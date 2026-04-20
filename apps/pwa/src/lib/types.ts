@@ -207,7 +207,15 @@ export type CommunityAnnouncementsResponse = {
 };
 
 export type P2PTransportLabel = 'bootstrap' | 'mdns-demo';
-export type P2PSyncPhase = 'disabled' | 'connecting' | 'ready' | 'degraded' | 'offline';
+export type P2PSyncPhase =
+  | 'disabled'
+  | 'connecting'
+  | 'ready'
+  | 'degraded'
+  | 'offline'
+  | 'auth_required'
+  | 'forbidden';
+export type P2PSyncErrorCategory = 'auth' | 'network' | 'server' | 'unknown';
 export type P2PSyncSource = 'network' | 'cache';
 export type CommunitySyncEventType =
   | 'post.published'
@@ -306,6 +314,12 @@ export type P2PSyncStatus = {
   lastSyncAt: string | null;
   latestSnapshot: CommunitySnapshot | null;
   lastError: string | null;
+  /**
+   * Coarse categorization of the most recent sync failure. Drives UI
+   * responses (e.g. prompt re-auth on `'auth'`, show offline banner on
+   * `'network'`). Null when there is no active error.
+   */
+  errorCategory?: P2PSyncErrorCategory | null;
 };
 
 export type ContactPreference = {

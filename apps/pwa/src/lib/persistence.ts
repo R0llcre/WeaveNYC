@@ -16,6 +16,16 @@ import type {
 
 import { getPwaDb } from "@/lib/db";
 
+/**
+ * Tombstone retention window — tombstoned aggregates remain in the offline
+ * cache so `p2p_version` comparisons keep them "remembered" and any
+ * older-arriving update is rejected (see `mergeVersionedRecord`). After this
+ * window we prune the markers so cache growth is bounded. 7 days is deliberate
+ * — long enough to absorb stragglers from a poorly-clocked peer, short enough
+ * to keep IndexedDB storage predictable on constrained devices.
+ */
+const TOMBSTONE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
 const PREFERENCES_STORAGE_KEY = "preferences";
 const AUTH_SESSION_STORAGE_KEY = "auth-session";
 const CURRENT_COMMUNITY_STORAGE_KEY = "community-current";
@@ -226,27 +236,87 @@ function toAnnouncement(value: unknown): CommunityAnnouncement | null {
   };
 }
 
-function removePost(items: PostSummary[], postId: string) {
-  return items.filter((item) => item.post_id !== postId);
+function replacePost(items: PostSummary[], next: PostSummary) {
+  const filtered = items.filter((item) => item.post_id !== next.post_id);
+  filtered.push(next);
+  return filtered;
 }
 
-function removeAnnouncement(items: CommunityAnnouncement[], announcementId: string) {
-  return items.filter((item) => item.announcement_id !== announcementId);
+function replaceAnnouncement(items: CommunityAnnouncement[], next: CommunityAnnouncement) {
+  const filtered = items.filter((item) => item.announcement_id !== next.announcement_id);
+  filtered.push(next);
+  return filtered;
 }
 
+function isPostTombstoned(post: PostSummary) {
+  return post.status === 'removed';
+}
+
+function isAnnouncementTombstoned(announcement: CommunityAnnouncement) {
+  return (
+    announcement.status === 'deleted' || announcement.status === 'removed' || announcement.status === 'tombstoned'
+  );
+}
+
+/**
+ * Feed visibility — excludes tombstones (they stay in cache for version
+ * comparison but never render) and respects the existing scope rules.
+ */
 function isVisibleInCommunityScope(post: PostSummary) {
-  return post.status === 'active' && post.privacy !== 'anchor_mediated';
+  return (
+    post.status === 'active' && post.privacy !== 'anchor_mediated' && !isPostTombstoned(post)
+  );
 }
 
 function isVisibleInPublicScope(post: PostSummary) {
-  return post.status === 'active' && post.privacy === 'public';
+  return post.status === 'active' && post.privacy === 'public' && !isPostTombstoned(post);
 }
 
 function isActiveAnnouncement(announcement: CommunityAnnouncement) {
-  return announcement.status !== 'deleted' && announcement.status !== 'removed';
+  return !isAnnouncementTombstoned(announcement);
 }
 
-function sortSyncEvents(events: CommunitySyncEvent[]) {
+/**
+ * Filters a cached post list down to the feed-visible entries for a given
+ * scope. Consumers (community-screen, community-announcements) should call
+ * this before rendering so tombstones — which live in cache for version
+ * comparison — never leak into the UI.
+ */
+export function filterVisiblePostsForScope(
+  items: PostSummary[] | undefined,
+  scope: CachedPostsValue['scope'],
+): PostSummary[] {
+  if (!items) {
+    return [];
+  }
+
+  return items.filter((item) =>
+    scope === 'community' ? isVisibleInCommunityScope(item) : isVisibleInPublicScope(item),
+  );
+}
+
+/**
+ * Filters a cached announcement list down to feed-visible entries (drops
+ * tombstones).
+ */
+export function filterVisibleAnnouncements(
+  items: CommunityAnnouncement[] | undefined,
+): CommunityAnnouncement[] {
+  if (!items) {
+    return [];
+  }
+
+  return items.filter((item) => isActiveAnnouncement(item));
+}
+
+/**
+ * Orders a batch of sync events for deterministic replay — (occurred_at,
+ * sync_event_id) ascending. Mirrors `sortSyncEventsForReplay` in
+ * `packages/p2p/src/merge.ts`; we re-declare it here so the PWA bundle
+ * doesn't pull in `multiformats` / `@ipld/dag-json` from the `@weavenyc/p2p`
+ * workspace package. If the two ever diverge, update both sides together.
+ */
+function sortSyncEventsForReplay(events: CommunitySyncEvent[]) {
   return [...events].sort((left, right) => {
     const occurredAtCompare = left.occurred_at.localeCompare(right.occurred_at);
     if (occurredAtCompare !== 0) {
@@ -263,7 +333,7 @@ function mergeCommunityEventLog(
   limit = 50,
 ) {
   const deduped = new Map<string, CommunitySyncEvent>();
-  for (const event of sortSyncEvents([...current, ...incoming])) {
+  for (const event of sortSyncEventsForReplay([...current, ...incoming])) {
     deduped.set(event.sync_event_id, event);
   }
 
@@ -271,28 +341,169 @@ function mergeCommunityEventLog(
   return merged.slice(Math.max(merged.length - limit, 0));
 }
 
-function applyPostEvent(cache: CachedPostsValue, event: CommunitySyncEvent, updatedAt: string) {
+/**
+ * Synthesize a tombstone `PostSummary` from a tombstone event. Stripped of
+ * all human-visible fields (title/body emptied) but keeps the authoritative
+ * `p2p_version` so a subsequent older `post.updated` loses
+ * `mergeVersionedRecord` and is dropped instead of resurrecting the
+ * aggregate.
+ */
+function buildPostTombstoneFromEvent(
+  event: CommunitySyncEvent,
+  existing: PostSummary | null,
+): PostSummary {
   const payload = isRecord(event.payload) ? event.payload : null;
-  const post = toPostSummary(payload?.post ?? payload);
-  const nextItems = removePost(cache.items, event.aggregate_id);
+  const payloadPost = isRecord(payload?.post) ? payload.post : payload;
+  const payloadVersion =
+    readNumber(payloadPost, 'p2p_version', 'p2pVersion') ??
+    readNumber(event.payload, 'p2p_version', 'p2pVersion');
+  const existingVersion = typeof existing?.p2p_version === 'number' ? existing.p2p_version : null;
+  const nextVersion =
+    payloadVersion !== null
+      ? Math.max(payloadVersion, existingVersion ?? -Infinity)
+      : existingVersion !== null
+        ? existingVersion + 1
+        : 1;
 
-  if (!post) {
+  return {
+    post_id: event.aggregate_id,
+    community_id: event.community_id,
+    post_type: existing?.post_type ?? 'request',
+    category: existing?.category ?? 'other',
+    title: '',
+    body: '',
+    language: existing?.language ?? 'en',
+    location_zip: existing?.location_zip ?? '',
+    privacy: existing?.privacy ?? 'community_only',
+    status: 'removed',
+    risk_level: existing?.risk_level ?? 'low',
+    created_at: existing?.created_at ?? event.occurred_at,
+    updated_at: event.occurred_at,
+    expires_at: existing?.expires_at ?? event.occurred_at,
+    is_owner: existing?.is_owner ?? false,
+    p2p_version: nextVersion,
+  };
+}
+
+function buildAnnouncementTombstoneFromEvent(
+  event: CommunitySyncEvent,
+  existing: CommunityAnnouncement | null,
+): CommunityAnnouncement {
+  const payload = isRecord(event.payload) ? event.payload : null;
+  const payloadAnnouncement = isRecord(payload?.announcement) ? payload.announcement : payload;
+  const payloadVersion =
+    readNumber(payloadAnnouncement, 'p2p_version', 'p2pVersion') ??
+    readNumber(event.payload, 'p2p_version', 'p2pVersion');
+  const existingVersion = typeof existing?.p2p_version === 'number' ? existing.p2p_version : null;
+  const nextVersion =
+    payloadVersion !== null
+      ? Math.max(payloadVersion, existingVersion ?? -Infinity)
+      : existingVersion !== null
+        ? existingVersion + 1
+        : 1;
+
+  return {
+    announcement_id: event.aggregate_id,
+    community_id: event.community_id,
+    title: '',
+    body: '',
+    p2p_version: nextVersion,
+    is_pinned: false,
+    status: 'removed',
+    published_at: existing?.published_at ?? null,
+    updated_at: event.occurred_at,
+    created_at: existing?.created_at ?? null,
+  };
+}
+
+/**
+ * Drops tombstoned aggregates older than `TOMBSTONE_RETENTION_MS` by
+ * `updated_at`. Non-tombstones pass through untouched.
+ */
+function prunePostTombstones(items: PostSummary[], now: number) {
+  return items.filter((item) => {
+    if (!isPostTombstoned(item)) {
+      return true;
+    }
+
+    const updatedAtMs = Date.parse(item.updated_at);
+    if (Number.isNaN(updatedAtMs)) {
+      return true;
+    }
+
+    return now - updatedAtMs <= TOMBSTONE_RETENTION_MS;
+  });
+}
+
+function pruneAnnouncementTombstones(items: CommunityAnnouncement[], now: number) {
+  return items.filter((item) => {
+    if (!isAnnouncementTombstoned(item)) {
+      return true;
+    }
+
+    const updatedAtRaw = item.updated_at ?? item.published_at ?? item.created_at;
+    if (!updatedAtRaw) {
+      return true;
+    }
+
+    const updatedAtMs = Date.parse(updatedAtRaw);
+    if (Number.isNaN(updatedAtMs)) {
+      return true;
+    }
+
+    return now - updatedAtMs <= TOMBSTONE_RETENTION_MS;
+  });
+}
+
+function applyPostEvent(cache: CachedPostsValue, event: CommunitySyncEvent, updatedAt: string) {
+  const existingPost = cache.items.find((item) => item.post_id === event.aggregate_id) ?? null;
+
+  // Tombstone events don't carry a full post payload; we synthesize a marker
+  // record that keeps the aggregate in cache (with its latest `p2p_version`)
+  // so a subsequent older `post.updated` arriving out of order cannot
+  // resurrect it. `isVisibleInCommunityScope` / `isVisibleInPublicScope`
+  // exclude tombstones from the user-visible feed (see
+  // `filterVisiblePostsForScope`).
+  if (event.event_type === 'post.tombstoned') {
+    const tombstone = buildPostTombstoneFromEvent(event, existingPost);
+    // `mergeVersionedRecord` prefers the higher p2p_version — a tombstone
+    // with the latest version wins over any stale update.
+    const mergedTombstone = mergeVersionedRecord(existingPost, tombstone);
+    const nextItems = replacePost(cache.items, mergedTombstone);
+
     return {
       ...cache,
-      items: nextItems,
+      items: sortPosts(nextItems),
       updatedAt,
       source: 'cache' as const,
     };
   }
 
-  const shouldInclude =
-    cache.scope === 'community' ? isVisibleInCommunityScope(post) : isVisibleInPublicScope(post);
-  const existingPost = cache.items.find((item) => item.post_id === event.aggregate_id) ?? null;
+  const payload = isRecord(event.payload) ? event.payload : null;
+  const post = toPostSummary(payload?.post ?? payload);
+
+  if (!post) {
+    // No payload and not a tombstone — nothing useful to apply. Keep the
+    // existing cache intact (previously this branch dropped the aggregate,
+    // but that was a silent delete without a tombstone version).
+    return {
+      ...cache,
+      items: cache.items,
+      updatedAt,
+      source: 'cache' as const,
+    };
+  }
+
+  // If the cache already holds a tombstone with a newer p2p_version,
+  // `mergeVersionedRecord` returns the existing tombstone — the update is
+  // dropped and the tombstone stays in place. That is the data-resurrection
+  // guard.
   const mergedPost = mergeVersionedRecord(existingPost, post);
+  const nextItems = replacePost(cache.items, mergedPost);
 
   return {
     ...cache,
-    items: shouldInclude && mergedPost ? sortPosts([...nextItems, mergedPost]) : nextItems,
+    items: sortPosts(nextItems),
     updatedAt,
     source: 'cache' as const,
   };
@@ -303,18 +514,40 @@ function applyAnnouncementEvent(
   event: CommunitySyncEvent,
   updatedAt: string,
 ) {
+  const existingAnnouncement =
+    cache.items.find((item) => item.announcement_id === event.aggregate_id) ?? null;
+
+  if (event.event_type === 'announcement.deleted') {
+    const tombstone = buildAnnouncementTombstoneFromEvent(event, existingAnnouncement);
+    const mergedTombstone = mergeVersionedRecord(existingAnnouncement, tombstone);
+    const nextItems = replaceAnnouncement(cache.items, mergedTombstone);
+
+    return {
+      ...cache,
+      items: sortAnnouncements(nextItems),
+      updatedAt,
+      source: 'cache' as const,
+    };
+  }
+
   const payload = isRecord(event.payload) ? event.payload : null;
   const announcement = toAnnouncement(payload?.announcement ?? payload);
-  const nextItems = removeAnnouncement(cache.items, event.aggregate_id);
-  const existingAnnouncement = cache.items.find((item) => item.announcement_id === event.aggregate_id) ?? null;
-  const mergedAnnouncement = announcement ? mergeVersionedRecord(existingAnnouncement, announcement) : null;
+
+  if (!announcement) {
+    return {
+      ...cache,
+      items: cache.items,
+      updatedAt,
+      source: 'cache' as const,
+    };
+  }
+
+  const mergedAnnouncement = mergeVersionedRecord(existingAnnouncement, announcement);
+  const nextItems = replaceAnnouncement(cache.items, mergedAnnouncement);
 
   return {
     ...cache,
-    items:
-      mergedAnnouncement && isActiveAnnouncement(mergedAnnouncement)
-        ? sortAnnouncements([...nextItems, mergedAnnouncement])
-        : nextItems,
+    items: sortAnnouncements(nextItems),
     updatedAt,
     source: 'cache' as const,
   };
@@ -649,10 +882,17 @@ export async function applyCommunitySyncDeltaToCache(delta: CommunitySyncDeltaRe
     }
 
     const updatedAt = delta.server_time;
-    const communityIds = Array.from(new Set(delta.events.map((event) => event.community_id)));
+    // Apply events in (occurred_at, sync_event_id) order rather than
+    // socket-arrival order. Out-of-order WS frames that race with HTTP
+    // catch-up previously caused stale updates to overwrite fresher ones
+    // (audit P2.3). Ordering here + the p2p_version guard in
+    // `mergeVersionedRecord` + tombstone markers together close the
+    // resurrection window.
+    const sortedEvents = sortSyncEventsForReplay(delta.events);
+    const communityIds = Array.from(new Set(sortedEvents.map((event) => event.community_id)));
 
     for (const communityId of communityIds) {
-      const communityEvents = delta.events.filter((event) => event.community_id === communityId);
+      const communityEvents = sortedEvents.filter((event) => event.community_id === communityId);
       let communityPosts =
         (await db.postCache.get(getPostCacheKey(communityId, 'community')))?.value ?? {
           communityId,
@@ -704,6 +944,22 @@ export async function applyCommunitySyncDeltaToCache(delta: CommunitySyncDeltaRe
           announcements = applyAnnouncementEvent(announcements, event, updatedAt);
         }
       }
+
+      // Drop tombstone markers older than the retention window so IndexedDB
+      // doesn't grow unbounded on long-running sessions.
+      const nowMs = Date.now();
+      communityPosts = {
+        ...communityPosts,
+        items: prunePostTombstones(communityPosts.items, nowMs),
+      };
+      publicPosts = {
+        ...publicPosts,
+        items: prunePostTombstones(publicPosts.items, nowMs),
+      };
+      announcements = {
+        ...announcements,
+        items: pruneAnnouncementTombstones(announcements.items, nowMs),
+      };
 
       await db.postCache.put({
         cacheKey: getPostCacheKey(communityId, 'community'),

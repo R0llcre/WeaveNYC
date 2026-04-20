@@ -1,33 +1,83 @@
 /// <reference lib="webworker" />
 
+/*
+ * WeaveNYC community P2P sync worker.
+ *
+ * The worker runs off the main thread so catch-up polling and live WebSocket
+ * frames don't block UI rendering. The testable surface (see
+ * `createP2PSyncRuntime` below) is exported so we can unit-test lifecycle
+ * behaviour with mock `fetch` / `WebSocket` / timer implementations — the IIFE
+ * at the bottom of the file is what actually runs inside the bundled worker.
+ *
+ * Key invariants (most emerged from the M7 audit — P0/P1 findings):
+ *   - Errors are typed (`SyncHttpError`) so consumers can distinguish 401 /
+ *     403 / 410 / 429 / 5xx from network failures and react accordingly.
+ *   - A Web Lock guards cursor writes so multiple tabs don't clobber each
+ *     other's `since` cursor.
+ *   - Reconnect uses exponential backoff + jitter capped at 60s so a misbehaving
+ *     server can't drive the client into a tight retry loop.
+ *   - Polling pauses while the WebSocket is open; resumes on close.
+ *   - A single in-flight sync is enforced so timer ticks don't stack.
+ *   - `online` / `offline` events drive the phase transitions even without
+ *     explicit `sync()` calls from the main thread.
+ */
+
 import { getCommunitySyncWebSocketUrl } from '@/lib/api';
 import type {
   CommunityBootstrapResponse,
   CommunitySyncEvent,
   CommunitySyncDeltaResponse,
+  P2PSyncErrorCategory,
   P2PSyncPhase,
   P2PSyncStatus,
   P2PTransportLabel,
 } from '@/lib/types';
 
-declare const self: DedicatedWorkerGlobalScope;
+// --- Error types -----------------------------------------------------------
 
-type WorkerState = {
-  apiBaseUrl: string;
-  accessToken: string;
-  communityId: string;
-  peerId: string;
-  mdnsDemoEnabled: boolean;
-  since: string | null;
-  limit: number;
-  timer: number | null;
-  reconnectTimer: number | null;
-  socket: WebSocket | null;
-  shuttingDown: boolean;
-  peerCount: number;
-  websocketUrl: string | null;
-  latestSnapshot: CommunitySyncDeltaResponse['latest_snapshot'];
-};
+/**
+ * Typed HTTP error raised by `fetchJson`. Exposes the status code + optional
+ * `code` field (from JSON error bodies like `{"code":"cursor_expired"}`) so
+ * callers can branch without string-sniffing.
+ */
+export class SyncHttpError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly retryAfterSeconds?: number;
+
+  constructor(
+    status: number,
+    message: string,
+    options: { code?: string; retryAfterSeconds?: number; cause?: unknown } = {},
+  ) {
+    super(message);
+    this.name = 'SyncHttpError';
+    this.status = status;
+    this.code = options.code;
+    this.retryAfterSeconds = options.retryAfterSeconds;
+    if (options.cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
+
+function categorizeError(error: unknown): P2PSyncErrorCategory {
+  if (error instanceof SyncHttpError) {
+    if (error.status === 401) return 'auth';
+    if (error.status === 403) return 'auth';
+    if (error.status >= 500) return 'server';
+    if (error.status === 0) return 'network';
+    return 'server';
+  }
+
+  if (typeof error === 'object' && error && 'name' in error && (error as { name?: string }).name === 'AbortError') {
+    return 'network';
+  }
+
+  return 'unknown';
+}
+
+// --- Types shared with the main-thread client ------------------------------
 
 type ReadyFrame = {
   frame_type: 'ready';
@@ -61,96 +111,66 @@ type StartCommand = {
 
 type Command =
   | StartCommand
-  | {
-      type: 'sync';
-    }
-  | {
-      type: 'update-config';
-      mdnsDemoEnabled: boolean;
-    }
-  | {
-      type: 'stop';
-    };
+  | { type: 'sync' }
+  | { type: 'update-config'; mdnsDemoEnabled: boolean }
+  | { type: 'stop' };
 
-const defaultState: WorkerState = {
-  apiBaseUrl: '',
-  accessToken: '',
-  communityId: '',
-  peerId: '',
-  mdnsDemoEnabled: false,
-  since: null,
-  limit: 100,
-  timer: null,
-  reconnectTimer: null,
-  socket: null,
-  shuttingDown: false,
-  peerCount: 0,
-  websocketUrl: null,
-  latestSnapshot: null,
+type WebSocketLike = {
+  readyState: number;
+  close: (code?: number, reason?: string) => void;
+  addEventListener: (type: string, listener: (event: unknown) => void) => void;
+  removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
 };
 
-let currentState: WorkerState = { ...defaultState };
+type WebSocketConstructor = new (url: string, protocols?: string | string[]) => WebSocketLike;
 
-function clearLoop() {
-  if (currentState.timer !== null) {
-    self.clearInterval(currentState.timer);
-    currentState.timer = null;
-  }
-}
+// --- Runtime configuration (for testing injection) -------------------------
 
-function clearReconnectLoop() {
-  if (currentState.reconnectTimer !== null) {
-    self.clearTimeout(currentState.reconnectTimer);
-    currentState.reconnectTimer = null;
-  }
-}
+export type P2PSyncRuntimeDeps = {
+  post: (message: unknown) => void;
+  fetch: typeof fetch;
+  webSocketCtor: WebSocketConstructor;
+  webSocketOpenConst: number;
+  setTimeout: (handler: () => void, ms: number) => unknown;
+  clearTimeout: (handle: unknown) => void;
+  setInterval: (handler: () => void, ms: number) => unknown;
+  clearInterval: (handle: unknown) => void;
+  now: () => number;
+  randomUuid: () => string;
+  isOnline: () => boolean;
+  withCursorLock: (key: string, fn: () => Promise<void>) => Promise<void>;
+};
 
-function closeSocket() {
-  if (currentState.socket) {
-    try {
-      currentState.socket.close();
-    } catch {
-      // ignore socket close failures
-    }
-    currentState.socket = null;
-  }
-}
+type WorkerState = {
+  apiBaseUrl: string;
+  accessToken: string;
+  communityId: string;
+  peerId: string;
+  mdnsDemoEnabled: boolean;
+  since: string | null;
+  limit: number;
+  timer: unknown;
+  reconnectTimer: unknown;
+  socket: WebSocketLike | null;
+  shuttingDown: boolean;
+  peerCount: number;
+  websocketUrl: string | null;
+  latestSnapshot: CommunitySyncDeltaResponse['latest_snapshot'];
+  // Backoff state for the WS reconnect loop — see `scheduleReconnect`.
+  reconnectAttempts: number;
+  // In-flight guard for `runSyncOnly` so timer ticks don't stack.
+  inFlight: boolean;
+  // Fresh UUID per bootstrap/run so Sentry + server logs share a trace id.
+  requestId: string | null;
+};
 
-function transportLabel(): P2PTransportLabel {
-  return currentState.mdnsDemoEnabled ? 'mdns-demo' : 'bootstrap';
-}
-
-function buildStatus(overrides: Partial<P2PSyncStatus> = {}): P2PSyncStatus {
-  return {
-    communityId: currentState.communityId,
-    enabled: Boolean(currentState.communityId),
-    mdnsDemoEnabled: currentState.mdnsDemoEnabled,
-    phase: 'disabled',
-    peerId: currentState.peerId || null,
-    peerCount: currentState.peerCount,
-    transportLabel: transportLabel(),
-    lastSyncAt: null,
-    latestSnapshot: currentState.latestSnapshot,
-    lastError: null,
-    ...overrides,
-  };
-}
-
-function postStatus(phase: P2PSyncPhase, overrides: Partial<P2PSyncStatus> = {}) {
-  self.postMessage({
-    type: 'status',
-    status: buildStatus({
-      phase,
-      ...overrides,
-    }),
-  });
-}
-
-function normalizeHeaders() {
-  return {
-    Authorization: `Bearer ${currentState.accessToken}`,
-  };
-}
+const HTTP_TIMEOUT_MS = 15_000;
+const RECONNECT_MAX_DELAY_MS = 60_000;
+const RECONNECT_BASE_DELAY_MS = 1_000;
+const RECONNECT_JITTER_MS = 500;
+const POLL_INTERVAL_MS = 30_000;
+const CATCHUP_MAX_PAGES = 50;
+const CURSOR_EXPIRED_CODE = 'cursor_expired';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -160,178 +180,511 @@ function isWorkerFrame(value: unknown): value is WorkerFrame {
   return isRecord(value) && typeof value.frame_type === 'string';
 }
 
-function bumpSnapshot(event: CommunitySyncEvent) {
-  const currentCount = currentState.latestSnapshot?.event_count ?? 0;
-  const lastEventAt = currentState.latestSnapshot?.last_event_at;
-
-  currentState.latestSnapshot = {
-    last_event_at:
-      !lastEventAt || event.occurred_at.localeCompare(lastEventAt) >= 0 ? event.occurred_at : lastEventAt,
-    event_count: currentCount + 1,
+function createDefaultState(): WorkerState {
+  return {
+    apiBaseUrl: '',
+    accessToken: '',
+    communityId: '',
+    peerId: '',
+    mdnsDemoEnabled: false,
+    since: null,
+    limit: 100,
+    timer: null,
+    reconnectTimer: null,
+    socket: null,
+    shuttingDown: false,
+    peerCount: 0,
+    websocketUrl: null,
+    latestSnapshot: null,
+    reconnectAttempts: 0,
+    inFlight: false,
+    requestId: null,
   };
 }
 
-function updateSince(nextSince: string | null) {
-  if (!nextSince) {
-    return;
+/**
+ * Factory for the P2P sync runtime. The worker entry point wires in real
+ * globals; the unit tests wire in mocks. Keeping this side-effect-free lets us
+ * exercise the lifecycle without spinning up a real DedicatedWorkerGlobalScope.
+ */
+export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
+  let state: WorkerState = createDefaultState();
+
+  function clearPollTimer() {
+    if (state.timer !== null) {
+      deps.clearInterval(state.timer);
+      state.timer = null;
+    }
   }
 
-  currentState.since = nextSince;
-}
+  function clearReconnectTimer() {
+    if (state.reconnectTimer !== null) {
+      deps.clearTimeout(state.reconnectTimer);
+      state.reconnectTimer = null;
+    }
+  }
 
-function postSync(delta: CommunitySyncDeltaResponse) {
-  self.postMessage({
-    type: 'sync',
-    status: buildStatus({
-      phase: 'ready',
-      peerCount: currentState.peerCount,
-      lastSyncAt: delta.server_time,
-      latestSnapshot: delta.latest_snapshot,
+  function closeSocket() {
+    if (state.socket) {
+      try {
+        state.socket.close();
+      } catch {
+        // ignore socket close failures
+      }
+      state.socket = null;
+    }
+  }
+
+  function transportLabel(): P2PTransportLabel {
+    return state.mdnsDemoEnabled ? 'mdns-demo' : 'bootstrap';
+  }
+
+  function buildStatus(overrides: Partial<P2PSyncStatus> = {}): P2PSyncStatus {
+    return {
+      communityId: state.communityId,
+      enabled: Boolean(state.communityId),
+      mdnsDemoEnabled: state.mdnsDemoEnabled,
+      phase: 'disabled',
+      peerId: state.peerId || null,
+      peerCount: state.peerCount,
+      transportLabel: transportLabel(),
+      lastSyncAt: null,
+      latestSnapshot: state.latestSnapshot,
       lastError: null,
-    }),
-    delta,
-  });
-}
-
-async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${currentState.apiBaseUrl}${path}`, {
-    cache: 'no-store',
-    headers: normalizeHeaders(),
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(`HTTP ${response.status} ${message}`.trim());
+      errorCategory: null,
+      ...overrides,
+    };
   }
 
-  return (await response.json()) as T;
-}
+  function postStatus(phase: P2PSyncPhase, overrides: Partial<P2PSyncStatus> = {}) {
+    deps.post({
+      type: 'status',
+      status: buildStatus({ phase, ...overrides }),
+    });
+  }
 
-function getPeerCount() {
-  return 0;
-}
+  function offlinePhase(): P2PSyncPhase {
+    return deps.isOnline() ? 'degraded' : 'offline';
+  }
 
-async function bootstrapAndSync(options: { retryOnFailure?: boolean } = {}) {
-  postStatus('connecting');
+  /**
+   * Emit an error status to the main thread. `error` gets stringified for the
+   * existing `lastError` slot, and we include an `errorCategory` so the main
+   * thread can choose how to surface it (toast, reauth prompt, etc).
+   */
+  function postError(
+    error: unknown,
+    phaseHint?: P2PSyncPhase,
+    extra: Partial<P2PSyncStatus> = {},
+  ) {
+    const message =
+      error instanceof Error ? error.message : typeof error === 'string' ? error : 'P2P sync failed';
+    const category = categorizeError(error);
+    const requestId = state.requestId;
+    const phase = phaseHint ?? offlinePhase();
 
-  try {
-    const bootstrap = await fetchJson<CommunityBootstrapResponse>(
-      `/v1/communities/${currentState.communityId}/bootstrap`,
+    deps.post({
+      type: 'error',
+      status: buildStatus({
+        phase,
+        lastError: message,
+        errorCategory: category,
+        ...extra,
+      }),
+      error: message,
+      requestId: requestId ?? undefined,
+      errorCategory: category,
+      status_code: error instanceof SyncHttpError ? error.status : undefined,
+    });
+  }
+
+  function bumpSnapshot(event: CommunitySyncEvent) {
+    const currentCount = state.latestSnapshot?.event_count ?? 0;
+    const lastEventAt = state.latestSnapshot?.last_event_at;
+
+    state.latestSnapshot = {
+      last_event_at:
+        !lastEventAt || event.occurred_at.localeCompare(lastEventAt) >= 0
+          ? event.occurred_at
+          : lastEventAt,
+      event_count: currentCount + 1,
+    };
+  }
+
+  async function persistCursor(nextSince: string | null) {
+    if (!state.communityId) {
+      return;
+    }
+
+    const commit = async () => {
+      deps.post({
+        type: 'cursor-update',
+        communityId: state.communityId,
+        since: nextSince,
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    // Web Lock prevents two tabs from clobbering each other's cursor writes.
+    // See `createDefaultDeps` for the fallback path when the API is missing.
+    await deps.withCursorLock(`p2p-sync-cursor-${state.communityId}`, commit);
+  }
+
+  function updateSince(nextSince: string | null) {
+    if (!nextSince) {
+      return;
+    }
+
+    state.since = nextSince;
+    void persistCursor(nextSince);
+  }
+
+  function postSync(delta: CommunitySyncDeltaResponse) {
+    deps.post({
+      type: 'sync',
+      status: buildStatus({
+        phase: 'ready',
+        peerCount: state.peerCount,
+        lastSyncAt: delta.server_time,
+        latestSnapshot: delta.latest_snapshot,
+        lastError: null,
+        errorCategory: null,
+      }),
+      delta,
+    });
+  }
+
+  async function fetchJson<T>(path: string): Promise<T> {
+    // AbortSignal.timeout returns a signal that fires after `ms`. If the
+    // runtime is older and doesn't support it, fall through to a naked fetch
+    // — the existing WS reconnect loop will still catch the hang eventually.
+    let signal: AbortSignal | undefined;
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      signal = AbortSignal.timeout(HTTP_TIMEOUT_MS);
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${state.accessToken}`,
+    };
+    if (state.requestId) {
+      headers['x-request-id'] = state.requestId;
+    }
+
+    let response: Response;
+    try {
+      response = await deps.fetch(`${state.apiBaseUrl}${path}`, {
+        cache: 'no-store',
+        headers,
+        signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new SyncHttpError(0, 'HTTP request timed out', { cause: error });
+      }
+      throw new SyncHttpError(0, error instanceof Error ? error.message : 'Network error', {
+        cause: error,
+      });
+    }
+
+    if (!response.ok) {
+      // Pull structured error details when available so we can branch on
+      // `code` (e.g. cursor_expired) without parsing free-form strings.
+      let code: string | undefined;
+      let message = '';
+      try {
+        const cloned = response.clone();
+        const body = await cloned.json();
+        if (isRecord(body) && typeof body.code === 'string') {
+          code = body.code;
+        }
+        if (isRecord(body) && typeof body.message === 'string') {
+          message = body.message;
+        }
+      } catch {
+        // Body wasn't JSON — fall through and use text().
+      }
+
+      if (!message) {
+        try {
+          message = await response.text();
+        } catch {
+          message = '';
+        }
+      }
+
+      const retryAfter = response.headers.get('retry-after');
+      const retryAfterSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : undefined;
+
+      throw new SyncHttpError(
+        response.status,
+        `HTTP ${response.status} ${message}`.trim(),
+        {
+          code,
+          retryAfterSeconds: Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : undefined,
+        },
+      );
+    }
+
+    return (await response.json()) as T;
+  }
+
+  async function fetchSyncDeltaPage(): Promise<CommunitySyncDeltaResponse> {
+    const params = new URLSearchParams();
+    if (state.since) {
+      params.set('since', state.since);
+    }
+    params.set('limit', String(state.limit));
+
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    const delta = await fetchJson<CommunitySyncDeltaResponse>(
+      `/v1/communities/${state.communityId}/sync${suffix}`,
     );
 
-    currentState.latestSnapshot = bootstrap.latest_snapshot;
-    currentState.peerCount = getPeerCount();
-    currentState.websocketUrl = bootstrap.anchor_node?.websocket_url ?? bootstrap.relay_nodes[0]?.websocket_url ?? null;
+    updateSince(delta.next_since);
+    state.latestSnapshot = delta.latest_snapshot;
+    return delta;
+  }
 
-    const delta = await fetchSyncDelta();
-    if (delta) {
+  /**
+   * Pages through `/sync` until the server signals exhaustion. Previously we
+   * fetched exactly one page then opened the WebSocket — clients that had been
+   * offline for more than `limit` events would miss the tail until the next
+   * 30s poll tick (audit P5.6 / P2.2). We cap at `CATCHUP_MAX_PAGES` to defend
+   * against a pathological server that never advances `next_since`.
+   */
+  async function fetchAllCatchupPages(): Promise<CommunitySyncDeltaResponse | null> {
+    let lastDelta: CommunitySyncDeltaResponse | null = null;
+    let previousSince: string | null = state.since;
+    for (let page = 0; page < CATCHUP_MAX_PAGES; page += 1) {
+      const delta = await fetchSyncDeltaPage();
+      if (delta.events.length > 0) {
+        postSync(delta);
+      }
+      lastDelta = delta;
+
+      // Stop when:
+      //   1. Server returned fewer events than the requested limit (drained).
+      //   2. Cursor didn't advance — belt-and-suspenders against a broken server.
+      if (delta.events.length < state.limit) {
+        break;
+      }
+      if (state.since === previousSince) {
+        break;
+      }
+      previousSince = state.since;
+    }
+    return lastDelta;
+  }
+
+  /**
+   * Reset cursor and re-bootstrap after the server tells us the cursor is
+   * stale (410 Gone / 409 Conflict / `cursor_expired`). The main thread owns
+   * the persisted cursor, so we push `since = null` through the Web-Lock
+   * bridge, then re-run the full bootstrap.
+   */
+  async function recoverFromStaleCursor() {
+    state.since = null;
+    await persistCursor(null);
+    await bootstrapAndSync({ retryOnFailure: true });
+  }
+
+  async function bootstrapAndSync(options: { retryOnFailure?: boolean } = {}) {
+    state.requestId = deps.randomUuid();
+    postStatus('connecting');
+
+    try {
+      const bootstrap = await fetchJson<CommunityBootstrapResponse>(
+        `/v1/communities/${state.communityId}/bootstrap`,
+      );
+
+      state.latestSnapshot = bootstrap.latest_snapshot;
+      state.peerCount = 0;
+      state.websocketUrl =
+        bootstrap.anchor_node?.websocket_url ?? bootstrap.relay_nodes[0]?.websocket_url ?? null;
+
+      await fetchAllCatchupPages();
+      connectSocket();
+    } catch (error) {
+      if (error instanceof SyncHttpError) {
+        if (error.status === 401) {
+          // User must reauth via Verify flow before the worker can resume.
+          // Stop retrying — an explicit `sync()` will re-drive once the main
+          // thread swaps in a fresh access token.
+          postError(error, 'auth_required');
+          clearReconnectTimer();
+          clearPollTimer();
+          return;
+        }
+        if (error.status === 403) {
+          postError(error, 'forbidden');
+          clearReconnectTimer();
+          clearPollTimer();
+          return;
+        }
+        if (error.status === 410 || error.status === 409 || error.code === CURSOR_EXPIRED_CODE) {
+          await recoverFromStaleCursor();
+          return;
+        }
+        if (error.status === 429) {
+          const delayMs = (error.retryAfterSeconds ?? 1) * 1000;
+          postError(error, offlinePhase());
+          if (options.retryOnFailure && !state.shuttingDown) {
+            scheduleReconnect(delayMs);
+          }
+          return;
+        }
+      }
+
+      postError(error, offlinePhase());
+      if (options.retryOnFailure && !state.shuttingDown) {
+        scheduleReconnect();
+      }
+    }
+  }
+
+  async function runSyncOnly() {
+    // In-flight guard: if the previous tick is still running (e.g. because the
+    // server is slow), skip this tick rather than stacking requests. The
+    // interval will try again on the next fire.
+    if (state.inFlight) {
+      return;
+    }
+    state.inFlight = true;
+
+    // Fresh request id per tick — lets Sentry correlate this poll with any
+    // server-side log lines.
+    state.requestId = deps.randomUuid();
+    try {
+      const delta = await fetchSyncDeltaPage();
       postSync(delta);
+    } catch (error) {
+      if (error instanceof SyncHttpError) {
+        if (error.status === 401) {
+          postError(error, 'auth_required');
+          clearPollTimer();
+          return;
+        }
+        if (error.status === 403) {
+          postError(error, 'forbidden');
+          clearPollTimer();
+          return;
+        }
+        if (error.status === 410 || error.status === 409 || error.code === CURSOR_EXPIRED_CODE) {
+          await recoverFromStaleCursor();
+          return;
+        }
+        if (error.status === 429) {
+          postError(error, offlinePhase());
+          const delayMs = (error.retryAfterSeconds ?? 1) * 1000;
+          if (!state.shuttingDown) {
+            scheduleReconnect(delayMs);
+          }
+          return;
+        }
+      }
+
+      postError(error, offlinePhase());
+      // Trigger a reconnect on timeout / 5xx so the WS can pick up again when
+      // the backend recovers.
+      if (!state.shuttingDown) {
+        scheduleReconnect();
+      }
+    } finally {
+      state.inFlight = false;
     }
-    connectSocket();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'P2P bootstrap failed';
-    self.postMessage({
-      type: 'error',
-      status: buildStatus({
-        phase: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'degraded',
-        lastError: message,
-      }),
-      error: message,
-    });
-    if (options.retryOnFailure && !currentState.shuttingDown) {
+  }
+
+  function startPollLoop() {
+    clearPollTimer();
+    state.timer = deps.setInterval(() => {
+      // Pause polling while the WS is open — the socket already streams every
+      // event. This eliminates the thundering-herd problem where both paths
+      // race to write the same cursor (audit P4.1 / P5.10).
+      if (state.socket && state.socket.readyState === deps.webSocketOpenConst) {
+        return;
+      }
+      void runSyncOnly();
+    }, POLL_INTERVAL_MS);
+  }
+
+  function computeReconnectDelay(): number {
+    const base = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** state.reconnectAttempts, RECONNECT_MAX_DELAY_MS);
+    return base + Math.random() * RECONNECT_JITTER_MS;
+  }
+
+  function scheduleReconnect(overrideDelay?: number) {
+    if (state.shuttingDown || state.reconnectTimer !== null || !state.communityId) {
+      return;
+    }
+
+    const delay = overrideDelay ?? computeReconnectDelay();
+    state.reconnectAttempts += 1;
+
+    state.reconnectTimer = deps.setTimeout(() => {
+      state.reconnectTimer = null;
+      // Bootstrap refreshes short-lived WS credentials, so reconnects must
+      // always re-bootstrap before opening a new socket.
+      void bootstrapAndSync({ retryOnFailure: true });
+    }, delay);
+  }
+
+  function connectSocket() {
+    if (!state.websocketUrl || state.socket || state.shuttingDown) {
+      return;
+    }
+
+    let websocketUrl: string;
+    try {
+      websocketUrl = getCommunitySyncWebSocketUrl(
+        state.websocketUrl,
+        state.accessToken,
+        state.communityId,
+      );
+    } catch {
+      return;
+    }
+
+    // Surface the request_id so the server can join log lines. Not every
+    // Fastify build honours header pass-through on the WS upgrade, so we
+    // include it as a query param too.
+    if (state.requestId) {
+      try {
+        const url = new URL(websocketUrl);
+        url.searchParams.set('request_id', state.requestId);
+        websocketUrl = url.toString();
+      } catch {
+        // ignore URL construction errors — the server will assign its own id
+      }
+    }
+
+    let socket: WebSocketLike;
+    try {
+      socket = new deps.webSocketCtor(websocketUrl);
+    } catch {
       scheduleReconnect();
+      return;
     }
-  }
-}
 
-async function fetchSyncDelta() {
-  const params = new URLSearchParams();
-  if (currentState.since) {
-    params.set('since', currentState.since);
-  }
-  params.set('limit', String(currentState.limit));
-
-  const suffix = params.toString() ? `?${params.toString()}` : '';
-  const delta = await fetchJson<CommunitySyncDeltaResponse>(
-    `/v1/communities/${currentState.communityId}/sync${suffix}`,
-  );
-
-  updateSince(delta.next_since);
-  currentState.latestSnapshot = delta.latest_snapshot;
-  return delta;
-}
-
-async function runSyncOnly() {
-  try {
-    const delta = await fetchSyncDelta();
-    postSync(delta);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'P2P sync failed';
-    self.postMessage({
-      type: 'error',
-      status: buildStatus({
-        phase: typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'degraded',
-        lastError: message,
-      }),
-      error: message,
-    });
-  }
-}
-
-function startLoop() {
-  clearLoop();
-  currentState.timer = self.setInterval(() => {
-    void runSyncOnly();
-  }, 30_000);
-}
-
-function scheduleReconnect() {
-  if (currentState.shuttingDown || currentState.reconnectTimer !== null || !currentState.communityId) {
-    return;
-  }
-
-  currentState.reconnectTimer = self.setTimeout(() => {
-    currentState.reconnectTimer = null;
-    // Bootstrap mints short-lived websocket credentials, so reconnects must
-    // refresh bootstrap state before opening a new socket.
-    void bootstrapAndSync({ retryOnFailure: true });
-  }, 5_000);
-}
-
-function connectSocket() {
-  if (!currentState.websocketUrl || currentState.socket || currentState.shuttingDown) {
-    return;
-  }
-
-  let websocketUrl: string;
-  try {
-    websocketUrl = getCommunitySyncWebSocketUrl(
-      currentState.websocketUrl,
-      currentState.accessToken,
-      currentState.communityId,
-    );
-  } catch {
-    return;
-  }
-
-  try {
-    const socket = new WebSocket(websocketUrl);
-    currentState.socket = socket;
+    state.socket = socket;
 
     socket.addEventListener('open', () => {
-      postStatus('connecting', {
-        lastError: null,
-      });
+      // We made it through the handshake — reset the reconnect backoff so the
+      // NEXT disconnection starts from base delay rather than whatever
+      // exponential tier we were at.
+      state.reconnectAttempts = 0;
+      postStatus('connecting', { lastError: null, errorCategory: null });
     });
 
     socket.addEventListener('message', (event) => {
-      if (currentState.socket !== socket) {
+      if (state.socket !== socket) {
         return;
       }
 
+      const data = (event as MessageEvent).data;
+
       let frame: unknown;
       try {
-        frame = JSON.parse(String(event.data));
+        frame = JSON.parse(String(data));
       } catch {
         return;
       }
@@ -341,24 +694,25 @@ function connectSocket() {
       }
 
       if (frame.frame_type === 'ready') {
-        currentState.peerCount =
-          typeof frame.peer_count === 'number' ? frame.peer_count : currentState.peerCount;
-        currentState.latestSnapshot = frame.latest_snapshot ?? currentState.latestSnapshot;
+        state.peerCount = typeof frame.peer_count === 'number' ? frame.peer_count : state.peerCount;
+        state.latestSnapshot = frame.latest_snapshot ?? state.latestSnapshot;
         postStatus('ready', {
-          peerCount: currentState.peerCount,
-          lastSyncAt: new Date().toISOString(),
-          latestSnapshot: currentState.latestSnapshot,
+          peerCount: state.peerCount,
+          lastSyncAt: new Date(deps.now()).toISOString(),
+          latestSnapshot: state.latestSnapshot,
           transportLabel: transportLabel(),
           lastError: null,
+          errorCategory: null,
         });
         return;
       }
 
       if (frame.frame_type === 'heartbeat') {
         postStatus('ready', {
-          lastSyncAt: frame.occurred_at ?? new Date().toISOString(),
-          latestSnapshot: currentState.latestSnapshot,
+          lastSyncAt: frame.occurred_at ?? new Date(deps.now()).toISOString(),
+          latestSnapshot: state.latestSnapshot,
           lastError: null,
+          errorCategory: null,
         });
         return;
       }
@@ -370,37 +724,35 @@ function connectSocket() {
       bumpSnapshot(frame.event);
       postSync({
         events: [frame.event],
-        next_since: currentState.since,
+        next_since: state.since,
         server_time: frame.event.occurred_at,
-        latest_snapshot: currentState.latestSnapshot,
+        latest_snapshot: state.latestSnapshot,
       });
     });
 
     socket.addEventListener('close', () => {
-      const isCurrentSocket = currentState.socket === socket;
+      const isCurrentSocket = state.socket === socket;
       if (isCurrentSocket) {
-        currentState.socket = null;
+        state.socket = null;
       }
-      if (!isCurrentSocket) {
-        return;
-      }
-      if (currentState.shuttingDown) {
+      if (!isCurrentSocket || state.shuttingDown) {
         return;
       }
 
-      currentState.peerCount = 0;
+      state.peerCount = 0;
 
-      postStatus(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'degraded', {
+      postStatus(offlinePhase(), {
         peerCount: 0,
-        latestSnapshot: currentState.latestSnapshot,
+        latestSnapshot: state.latestSnapshot,
         lastError: 'Live sync disconnected. Falling back to catch-up polling.',
+        errorCategory: 'network',
         transportLabel: transportLabel(),
       });
       scheduleReconnect();
     });
 
     socket.addEventListener('error', () => {
-      if (currentState.socket !== socket) {
+      if (state.socket !== socket) {
         return;
       }
 
@@ -410,63 +762,162 @@ function connectSocket() {
         // ignore close errors from broken sockets
       }
     });
-  } catch {
-    scheduleReconnect();
-  }
-}
-
-self.addEventListener('message', (event: MessageEvent<Command>) => {
-  const command = event.data;
-
-  if (command.type === 'stop') {
-    currentState.shuttingDown = true;
-    clearLoop();
-    clearReconnectLoop();
-    closeSocket();
-    currentState = { ...defaultState };
-    postStatus('disabled', {
-      enabled: false,
-      communityId: '',
-      peerId: null,
-    });
-    return;
   }
 
-  if (command.type === 'update-config') {
-    currentState.mdnsDemoEnabled = command.mdnsDemoEnabled;
-    postStatus(currentState.socket ? 'ready' : 'connecting', {
-      transportLabel: transportLabel(),
-    });
-    return;
-  }
-
-  if (command.type === 'sync') {
-    if (!currentState.communityId) {
+  function handleCommand(command: Command) {
+    if (command.type === 'stop') {
+      state.shuttingDown = true;
+      clearPollTimer();
+      clearReconnectTimer();
+      closeSocket();
+      state = createDefaultState();
       postStatus('disabled', {
         enabled: false,
+        communityId: '',
+        peerId: null,
       });
       return;
     }
 
-    void runSyncOnly();
-    return;
+    if (command.type === 'update-config') {
+      state.mdnsDemoEnabled = command.mdnsDemoEnabled;
+      postStatus(state.socket ? 'ready' : 'connecting', {
+        transportLabel: transportLabel(),
+      });
+      return;
+    }
+
+    if (command.type === 'sync') {
+      if (!state.communityId) {
+        postStatus('disabled', { enabled: false });
+        return;
+      }
+
+      void runSyncOnly();
+      return;
+    }
+
+    // type === 'start'
+    state.shuttingDown = true;
+    clearReconnectTimer();
+    closeSocket();
+    state = {
+      ...createDefaultState(),
+      apiBaseUrl: command.apiBaseUrl,
+      accessToken: command.accessToken,
+      communityId: command.communityId,
+      peerId: command.peerId,
+      mdnsDemoEnabled: command.mdnsDemoEnabled,
+      since: command.since,
+      limit: command.limit,
+      shuttingDown: false,
+    };
+
+    startPollLoop();
+    void bootstrapAndSync({ retryOnFailure: true });
   }
 
-  currentState.shuttingDown = true;
-  clearReconnectLoop();
-  closeSocket();
-  currentState = {
-    ...defaultState,
-    apiBaseUrl: command.apiBaseUrl,
-    accessToken: command.accessToken,
-    communityId: command.communityId,
-    peerId: command.peerId,
-    mdnsDemoEnabled: command.mdnsDemoEnabled,
-    since: command.since,
-    limit: command.limit,
-    shuttingDown: false,
-  };
+  function onOnline() {
+    if (!state.communityId || state.shuttingDown) {
+      return;
+    }
+    // Drop backoff so the reconnect fires promptly now that we have a network
+    // again.
+    state.reconnectAttempts = 0;
+    void bootstrapAndSync({ retryOnFailure: true });
+  }
 
-  startLoop();
-  void bootstrapAndSync();
-});
+  function onOffline() {
+    if (!state.communityId) {
+      return;
+    }
+    postStatus('offline', {
+      lastError: 'Device is offline',
+      errorCategory: 'network',
+    });
+    closeSocket();
+    clearReconnectTimer();
+  }
+
+  return {
+    handleCommand,
+    onOnline,
+    onOffline,
+    // Exposed for tests — not called by the production entry point.
+    _state: () => state,
+  };
+}
+
+// --- Real-worker entry point ------------------------------------------------
+
+declare const self: DedicatedWorkerGlobalScope;
+
+/**
+ * Wire up real browser globals. Uses `navigator.locks` when available so cursor
+ * writes from multiple tabs serialize; falls back to an unlocked write when
+ * the API is missing (Safari < 15.4 etc).
+ */
+function createDefaultDeps(): P2PSyncRuntimeDeps {
+  return {
+    post: (msg) => self.postMessage(msg),
+    fetch: (...args) => fetch(...args),
+    webSocketCtor: WebSocket as unknown as WebSocketConstructor,
+    webSocketOpenConst: WebSocket.OPEN,
+    setTimeout: (handler, ms) => self.setTimeout(handler, ms),
+    clearTimeout: (handle) => self.clearTimeout(handle as number),
+    setInterval: (handler, ms) => self.setInterval(handler, ms),
+    clearInterval: (handle) => self.clearInterval(handle as number),
+    now: () => Date.now(),
+    randomUuid: () => crypto.randomUUID(),
+    isOnline: () => (typeof navigator !== 'undefined' ? navigator.onLine !== false : true),
+    withCursorLock: async (key, fn) => {
+      type LockManager = {
+        request: (
+          name: string,
+          opts: { mode: 'exclusive' },
+          fn: () => Promise<void>,
+        ) => Promise<void>;
+      };
+      const locks =
+        typeof navigator !== 'undefined'
+          ? (navigator as unknown as { locks?: LockManager }).locks
+          : undefined;
+      if (locks && typeof locks.request === 'function') {
+        await locks.request(key, { mode: 'exclusive' }, fn);
+      } else {
+        await fn();
+      }
+    },
+  };
+}
+
+/**
+ * Only execute the IIFE when running inside a real DedicatedWorker. Node-based
+ * unit tests import the module via `createP2PSyncRuntime` and never touch the
+ * IIFE (the guard also keeps vitest's module-load happy on the `node` env).
+ */
+function detectWorkerScope(): boolean {
+  const anySelf = (globalThis as unknown as { self?: unknown }).self;
+  if (typeof anySelf !== 'object' || anySelf === null) {
+    return false;
+  }
+  // `importScripts` is defined in DedicatedWorkerGlobalScope but not in
+  // Window / Node's globalThis. It's the cheapest way to discriminate.
+  return typeof (anySelf as { importScripts?: unknown }).importScripts === 'function';
+}
+
+if (detectWorkerScope()) {
+  const runtime = createP2PSyncRuntime(createDefaultDeps());
+
+  self.addEventListener('message', (event: MessageEvent<Command>) => {
+    runtime.handleCommand(event.data);
+  });
+
+  self.addEventListener('online', () => {
+    runtime.onOnline();
+  });
+
+  self.addEventListener('offline', () => {
+    runtime.onOffline();
+  });
+}

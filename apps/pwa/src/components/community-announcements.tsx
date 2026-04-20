@@ -5,7 +5,11 @@ import { useTranslations } from 'next-intl';
 
 import { Banner, Card } from '@/components/ui';
 import { useCommunityAnnouncements } from '@/lib/hooks';
-import { loadCachedAnnouncements, saveCachedAnnouncements } from '@/lib/persistence';
+import {
+  filterVisibleAnnouncements,
+  loadCachedAnnouncements,
+  saveCachedAnnouncements,
+} from '@/lib/persistence';
 import type { CachedAnnouncementsValue, CommunityAnnouncement, SupportedLanguage } from '@/lib/types';
 
 type CommunityAnnouncementsProps = {
@@ -88,15 +92,19 @@ export function CommunityAnnouncements({
     void saveCachedAnnouncements(nextCache);
   }, [communityId, p2pEnabled, query.data]);
 
+  // Tombstones remain in cache for p2p_version comparison but must be
+  // excluded from the visible feed (see persistence.ts
+  // `filterVisibleAnnouncements`).
+  const cachedVisibleAnnouncements = filterVisibleAnnouncements(cachedAnnouncements?.items);
   const usingCachedAnnouncements = Boolean(
     p2pEnabled &&
     communityId &&
       cachedAnnouncements &&
       (query.isError || !isOnline) &&
-      cachedAnnouncements.items.length > 0,
+      cachedVisibleAnnouncements.length > 0,
   );
   const orderedAnnouncements = usingCachedAnnouncements
-    ? cachedAnnouncements?.items ?? []
+    ? cachedVisibleAnnouncements
     : query.data?.items ?? [];
   const bannerAnnouncement = orderedAnnouncements[0] ?? null;
   const remainingAnnouncements = orderedAnnouncements.slice(1);

@@ -658,11 +658,6 @@ export function useCommunityP2PSync(accessToken: string | null | undefined, comm
         }
 
         cursorSinceRef.current = delta.next_since;
-        void saveP2PEventCursor({
-          communityId,
-          since: delta.next_since,
-          updatedAt: delta.server_time,
-        });
 
         void applyCommunitySyncDeltaToCache(delta);
 
@@ -683,6 +678,21 @@ export function useCommunityP2PSync(accessToken: string | null | undefined, comm
           enabled: true,
           lastError: error,
         }));
+      },
+      onCursorUpdate(update) {
+        // The worker emits this whenever it wants to persist a new `since`
+        // cursor. Persistence is main-thread-owned so Dexie / IndexedDB stays
+        // single-writer; the worker itself serializes multi-tab races via a
+        // Web Lock around the message emission.
+        if (update.communityId !== communityId) {
+          return;
+        }
+        cursorSinceRef.current = update.since;
+        void saveP2PEventCursor({
+          communityId: update.communityId,
+          since: update.since,
+          updatedAt: update.updatedAt,
+        });
       },
     });
 
@@ -716,6 +726,36 @@ export function useCommunityP2PSync(accessToken: string | null | undefined, comm
       }
     };
   }, [accessToken, communityId, keyMaterial, queryClient, status.enabled, status.mdnsDemoEnabled]);
+
+  // Bridge browser lifecycle events into the worker: a tab coming back from
+  // bfcache / network coming back online should force an immediate sync
+  // rather than waiting up to 30s for the next poll tick. We listen on the
+  // main thread because DedicatedWorker `self` doesn't always forward
+  // `online` / `offline` on every browser; the worker also handles its own
+  // `online` event for resilience.
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleOnline = () => {
+      workerRef.current?.sync();
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        workerRef.current?.sync();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!communityId) {
