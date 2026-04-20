@@ -233,7 +233,7 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
 
   await expect(page.getByTestId('create-session')).toBeVisible();
   await page.getByTestId('create-session').click();
-  await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
+  await expect(page.getByText('User ID: 11111111-1111-4111-8111-111111111111')).toBeVisible();
 
   await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');
