@@ -233,7 +233,14 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
 
   await expect(page.getByTestId('create-session')).toBeVisible();
   await page.getByTestId('create-session').click();
-  await expect(page.getByText('User ID: 11111111-1111-4111-8111-111111111111')).toBeVisible();
+  // Use the `session-chip` testid rather than a raw text match: the Tag
+  // component wraps the i18n value in a `<span class="tag__label">`, and
+  // the visible label is localized. Assert on the stable testid + that it
+  // contains the full user_id so we still verify the session bootstrapped
+  // with the expected deterministic fixture id.
+  await expect(page.getByTestId('session-chip')).toContainText(
+    '11111111-1111-4111-8111-111111111111',
+  );
 
   await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');

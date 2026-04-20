@@ -502,7 +502,9 @@ test.skip('join -> request publish -> verify -> offer publish -> my posts smoke 
   await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
 
   await page.getByTestId('create-session').click();
-  await expect(page.getByText('User ID: 11111111-1111-4111-8111-111111111111')).toBeVisible();
+  await expect(page.getByTestId('session-chip')).toContainText(
+    '11111111-1111-4111-8111-111111111111',
+  );
 
   // Use a direct navigation here instead of the home-page anchor click.
   // The join screen is a client component; going straight to the route avoids
