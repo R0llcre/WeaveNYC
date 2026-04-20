@@ -44,7 +44,6 @@ import {
 } from '@/components/ui';
 import { ResourceCard } from '@/components/ui/ResourceCard';
 import { TopBar } from '@/components/shell';
-import { illustrations } from '@/assets/illustrations/registry';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
 import { selectPreferences, selectSession } from '@/lib/selectors';
 import { toggleBookmark } from '@/lib/slices/preferences-slice';
@@ -214,54 +213,43 @@ export function ResourceHome() {
           <span className="ptr-indicator__label">{ptrLabel}</span>
         </div>
         <Stack gap={5}>
-          <Stack gap={2} as="section" className="home__hero">
-            {/*
-             * weave-hero decorative backdrop — the same `weave-hero` motif
-             * rendered on /onboarding/language so the home screen carries
-             * the brand signature consistently (review item D8). The <span>
-             * is `aria-hidden` because the pattern carries no information;
-             * the `.home__hero` wrapper clips overflow and z-indexes the
-             * content above it via the CSS rule added in globals.css.
-             */}
-            <span
-              aria-hidden="true"
-              className="home__hero-pattern"
-              dangerouslySetInnerHTML={{ __html: illustrations['weave-hero'] }}
-            />
-            <span className="overline">{t('homeHeroEyebrow')}</span>
-            <h1>{t('homeHeroTitle')}</h1>
-            <p className="muted">{t('homeHeroSubtitle')}</p>
-            {session ? (
-              <Tag tone="neutral" data-testid="session-chip">
-                {t('sessionIdChip', { userId: session.user.user_id })}
-              </Tag>
-            ) : null}
-            <Button
-              variant="primary"
-              size="md"
-              data-testid="create-session"
-              onClick={() => void resourceQuery.refetch()}
-            >
-              {session ? t('sessionReady') : t('createSession')}
-            </Button>
-          </Stack>
-
-          {hasValidZip ? (
-            <Inline gap={2} align="center" justify="between" wrap>
-              <Tag tone="neutral">
-                {t('homeZipStatus', { zip: preferences.zipCode })}
-              </Tag>
+          <section className="home__masthead">
+            <span className="overline home__kicker">{t('homeHeroEyebrow')}</span>
+            <h1 className="home__headline">{t('homeHeroTitle')}</h1>
+            <p className="home__deck">{t('homeHeroSubtitle')}</p>
+            <span aria-hidden="true" className="home__rule" />
+            <div className="home__meta">
+              {session ? (
+                <Tag tone="neutral" data-testid="session-chip">
+                  {t('sessionIdChip', { userId: session.user.user_id })}
+                </Tag>
+              ) : null}
+              {hasValidZip ? (
+                <Tag tone="neutral">
+                  {t('homeZipStatus', { zip: preferences.zipCode })}
+                </Tag>
+              ) : null}
+              {hasValidZip ? (
+                <Button
+                  as="a"
+                  variant="ghost"
+                  size="sm"
+                  href="/me/settings/"
+                  data-testid="home-change-zip"
+                >
+                  {t('homeZipChange')}
+                </Button>
+              ) : null}
               <Button
-                as="a"
-                variant="ghost"
+                variant="primary"
                 size="sm"
-                href="/me/settings/"
-                data-testid="home-change-zip"
+                data-testid="create-session"
+                onClick={() => void resourceQuery.refetch()}
               >
-                {t('homeZipChange')}
+                {session ? t('sessionReady') : t('createSession')}
               </Button>
-            </Inline>
-          ) : null}
+            </div>
+          </section>
 
           <Inline
             as="nav"

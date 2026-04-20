@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weavenyc-shell-v2';
+const CACHE_NAME = 'weavenyc-shell-v3';
 const CORE_ASSETS = ['/', '/manifest.webmanifest', '/icons/app-icon.svg', '/icons/maskable-icon.svg'];
 const STATIC_DESTINATIONS = new Set(['style', 'script', 'worker', 'image', 'font']);
 

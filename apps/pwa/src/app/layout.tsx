@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { DM_Sans, Inter } from 'next/font/google';
+import { Fraunces, Inter, Noto_Sans_SC, Noto_Serif_SC } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
 
@@ -11,21 +11,38 @@ import { messages } from '@/lib/i18n';
 import './globals.css';
 
 /**
- * Wire next/font so the design-token CSS custom properties
- * (`--font-dm-sans`, `--font-inter`) referenced by `globals.css` resolve to
- * self-hosted, subsetted web fonts rather than falling back to `system-ui`.
- * `display: 'swap'` ensures text remains visible during font load (LCP-safe).
- * Both families are also declared as variables so they cascade onto the
- * `<html>` element via className below.
+ * Wire next/font so the design-token CSS custom properties referenced by
+ * `globals.css` resolve to self-hosted, subsetted web fonts rather than
+ * falling back to `system-ui`. `display: 'swap'` ensures text remains
+ * visible during font load (LCP-safe).
+ *
+ * Editorial 朱砂 stack:
+ *   - Fraunces (variable serif)  → display / headlines / brand mark
+ *   - Inter (sans)               → body, labels, nav chrome
+ *   - Noto Serif SC              → Chinese display fallback
+ *   - Noto Sans SC               → Chinese body fallback
  */
-const dmSans = DM_Sans({
+const fraunces = Fraunces({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  variable: '--font-fraunces',
   display: 'swap',
+  axes: ['SOFT', 'opsz'],
 });
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+const notoSerifSC = Noto_Serif_SC({
+  weight: ['500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-noto-serif-sc',
+  display: 'swap',
+});
+const notoSansSC = Noto_Sans_SC({
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-noto-sans-sc',
   display: 'swap',
 });
 
@@ -57,7 +74,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: '#fbf9f5',
+  themeColor: '#f4ece0',
   viewportFit: 'cover',
 };
 
@@ -78,7 +95,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html
       lang={INITIAL_LANGUAGE}
       suppressHydrationWarning
-      className={`${dmSans.variable} ${inter.variable}`}
+      className={`${fraunces.variable} ${inter.variable} ${notoSerifSC.variable} ${notoSansSC.variable}`}
     >
       <body>
         <a className="skip-link" href="#main-content">
