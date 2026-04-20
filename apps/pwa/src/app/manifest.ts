@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'WeaveNYC community mutual-aid PWA with official resources, community join, posts, and lightweight verification.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f8f4ed',
-    theme_color: '#f6efe3',
+    background_color: '#f4ece0',
+    theme_color: '#f4ece0',
     icons: [
       {
         src: '/icons/app-icon.svg',
