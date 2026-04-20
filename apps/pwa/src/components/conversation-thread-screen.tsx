@@ -334,7 +334,7 @@ export function ConversationThreadScreen({
     );
     return (
       <div className="page-content" data-screen="conversation">
-        <TopBar variant="page" title={t('chatThreadTitle')} backHref="/inbox" />
+        <TopBar variant="page" title={t('chatThreadTitle')} backHref="/inbox/" />
         <EmptyState
           illustrationName="error"
           title={t('composeNeedsVerified')}
@@ -359,7 +359,7 @@ export function ConversationThreadScreen({
           variant="page"
           eyebrow={t('chatThreadTitle')}
           title={t('conversationAccessDeniedTitle')}
-          backHref="/inbox"
+          backHref="/inbox/"
         />
         <Banner tone="warning" title={t('conversationAccessDeniedTitle')}>
           {t('conversationAccessDeniedBody')}
@@ -393,7 +393,7 @@ export function ConversationThreadScreen({
       <TopBar
         variant="page"
         title={title}
-        backHref="/inbox"
+        backHref="/inbox/"
         rightSlot={
           <Inline gap={1} align="center">
             <IconButton

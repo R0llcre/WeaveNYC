@@ -142,17 +142,13 @@ export function LocationGateScreen() {
   /**
    * Skip path — user declines to set a ZIP now. We still need to flip
    * `onboardingComplete` so the guard stops redirecting back here on every
-   * navigation; `/me` is the landing target because settings lives there
-   * under the Wave 2B routing refactor, giving the user one tap to add a
-   * ZIP later.
-   *
-   * We deliberately do NOT use `useOnboardingDestination` here — the user
-   * chose to skip the primary flow, so bouncing them back into a deep
-   * link they never requested would be confusing.
+   * navigation, and we honour the incoming `return_to` (whitelisted via
+   * `safeReturnTo` inside `useOnboardingDestination`) so deep-link entry
+   * points are preserved. Falls back to `/` when no safe destination exists.
    */
   const handleSkip = () => {
     dispatch(completeOnboarding());
-    router.push('/me/');
+    router.push(destination);
   };
 
   // Pending banner gets a stable DOM id so the "use my device" button can
@@ -302,6 +298,15 @@ export function LocationGateScreen() {
                 haptic
               >
                 {t('obLocSkip')}
+              </Button>
+              <Button
+                as="a"
+                href="/onboarding/language/"
+                variant="ghost"
+                size="lg"
+                data-testid="onboarding-location-back"
+              >
+                {t('obLocBack')}
               </Button>
             </div>
           </Stack>

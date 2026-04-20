@@ -502,7 +502,9 @@ test.skip('join -> request publish -> verify -> offer publish -> my posts smoke 
   await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
 
   await page.getByTestId('create-session').click();
-  await expect(page.getByText('user_id: 11111111-1111-4111-8111-111111111111')).toBeVisible();
+  await expect(page.getByTestId('session-chip')).toContainText(
+    '11111111-1111-4111-8111-111111111111',
+  );
 
   // Use a direct navigation here instead of the home-page anchor click.
   // The join screen is a client component; going straight to the route avoids
@@ -536,7 +538,7 @@ test.skip('join -> request publish -> verify -> offer publish -> my posts smoke 
   await expect(page.getByText('Current community: Farmingdale Demo Community')).toBeVisible();
 
   await page.getByTestId('request-help').click();
-  await expect(page.getByRole('heading', { name: 'Create a post' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'New post' })).toBeVisible();
   await page.getByLabel('Title').fill('Need groceries tonight');
   await page.getByTestId('browser-speech').click();
   await page.getByLabel('Details').fill('Typed while listening');

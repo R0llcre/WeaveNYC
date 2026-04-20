@@ -119,7 +119,7 @@ export function ResourceHome() {
           subtitle={t('homeNoZipSubtitle')}
           cta={{
             label: t('homeNoZipCta'),
-            href: '/me/settings',
+            href: '/me/settings/',
             testId: 'home-empty-set-zip',
           }}
         />
@@ -145,7 +145,7 @@ export function ResourceHome() {
           subtitle={t('homeNoResultsSubtitle')}
           cta={{
             label: t('homeNoResultsCta'),
-            href: '/me/settings',
+            href: '/me/settings/',
             testId: 'home-empty-change-zip',
           }}
         />

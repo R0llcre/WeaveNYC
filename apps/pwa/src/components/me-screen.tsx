@@ -179,15 +179,20 @@ export function MeScreen() {
             {t('meSectionAccount')}
           </h2>
           <Card>
-            <Button
-              variant="ghost"
-              size="md"
-              onClick={handleSignOut}
-              data-testid="me-sign-out"
-              disabled={!session}
-            >
-              {t('meActionSignOut')}
-            </Button>
+            <Stack gap={2}>
+              <Button
+                variant="ghost"
+                size="md"
+                onClick={handleSignOut}
+                data-testid="me-sign-out"
+                disabled={!session}
+              >
+                {t('meActionSignOut')}
+              </Button>
+              <span className="text-body-sm ink-muted">
+                {t('meSignOutHint')}
+              </span>
+            </Stack>
           </Card>
         </section>
 

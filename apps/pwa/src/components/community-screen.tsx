@@ -223,13 +223,13 @@ export function CommunityScreen() {
                   </Tag>
                 </Inline>
                 <Stack gap={1}>
-                  <span className="overline">{t('currentCommunityLabel')}</span>
                   <h2 id="community-hero-title">
-                    {/* The literal `Current community: {name}` string is an
-                        E2E assertion target in multi-community.spec.ts and
-                        community-posts.spec.ts. Do not change the
-                        separator / spacing. */}
-                    {`${t('currentCommunityLabel')}: ${currentCommunity.name}`}
+                    {/* Hero greeting surfaces the community name without
+                        duplicating the "Current community:" overline — that
+                        literal still appears in the feed subtitle below
+                        (line ~444) so the `multi-community.spec.ts` /
+                        `community-posts.spec.ts` regex still matches. */}
+                    {t('communityHeroGreeting', { name: currentCommunity.name })}
                   </h2>
                 </Stack>
                 <p className="muted">{t('zipChip', { zip: currentCommunity.center_zip })}</p>

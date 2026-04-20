@@ -606,6 +606,7 @@ export function SettingsScreen() {
         backHref="/"
       />
 
+        <div id="language" aria-hidden="true" />
         <Card aria-labelledby="settings-language-heading">
           <h2 id="settings-language-heading">{t('settingsLanguageTitle')}</h2>
           <div className="language-row">
@@ -625,6 +626,7 @@ export function SettingsScreen() {
           </p>
         </Card>
 
+        <div id="privacy" aria-hidden="true" />
         <Card aria-labelledby="settings-privacy-heading">
           <h2 id="settings-privacy-heading">{t('settingsPrivacyTitle')}</h2>
 

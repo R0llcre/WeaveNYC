@@ -15,6 +15,7 @@ import {
   Inline,
   Pill,
   Stack,
+  Toast,
 } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import {
@@ -73,6 +74,11 @@ export function VerifyScreen() {
   const [redirectedAfterVerify, setRedirectedAfterVerify] = useState(false);
   const [isBootstrappingSession, setIsBootstrappingSession] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<Error | null>(null);
+  // Success toast shown briefly after verification completes. We delay the
+  // router.replace by ~800ms so the user sees the confirmation before the
+  // tab navigates to /inbox (or the honored return_to). The toast lives on
+  // this screen so it unmounts automatically with the route transition.
+  const [verifySuccessToast, setVerifySuccessToast] = useState<string | null>(null);
 
   const otpStart = useOtpStart(session?.access_token);
   const otpVerify = useOtpVerify(session?.access_token);
@@ -120,9 +126,16 @@ export function VerifyScreen() {
       dispatch(setSession(nextSession));
 
       const intent = loadMatchContactIntent();
-      const target = returnTo ?? intent?.returnTo ?? '/inbox';
+      const target = returnTo ?? intent?.returnTo ?? '/inbox/';
       setRedirectedAfterVerify(true);
-      router.replace(target);
+      // Surface a success toast so the user sees the verification confirmation
+      // before the route transition; we delay the replace briefly so the
+      // toast is actually visible (screen readers still announce instantly
+      // via `role=status`).
+      setVerifySuccessToast(t('verifySuccessTitle'));
+      window.setTimeout(() => {
+        router.replace(target);
+      }, 800);
     },
     [
       dispatch,
@@ -133,6 +146,7 @@ export function VerifyScreen() {
       queryClient,
       returnTo,
       router,
+      t,
     ],
   );
 
@@ -252,7 +266,7 @@ export function VerifyScreen() {
 
   return (
     <>
-      <TopBar backHref="/me" title={t('verifyTitle')} eyebrow={t('verifyOverline')} />
+      <TopBar backHref="/me/" title={t('verifyTitle')} eyebrow={t('verifyOverline')} />
       <Stack as="div" gap={5} className="page-content">
         {/* -------------------------------------------------------------- */}
         {/* Intro — overline, h1 (testid-hook), body copy, benefits.       */}
@@ -314,7 +328,7 @@ export function VerifyScreen() {
               subtitle={t('verifySuccessSubtitle')}
               cta={{
                 label: t('verifySuccessCta'),
-                href: '/me',
+                href: '/me/',
                 variant: 'primary',
               }}
             />
@@ -528,6 +542,17 @@ export function VerifyScreen() {
               </Banner>
             ))}
           </Stack>
+        ) : null}
+
+        {/* Success toast — role=status polite announcement that verification
+            completed. Renders just above the fold for the ~800ms window
+            between mutation success and router.replace. */}
+        {verifySuccessToast ? (
+          <Toast
+            tone="success"
+            title={verifySuccessToast}
+            data-testid="verify-success-toast"
+          />
         ) : null}
       </Stack>
     </>

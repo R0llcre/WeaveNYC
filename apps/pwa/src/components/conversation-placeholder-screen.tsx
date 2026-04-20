@@ -55,7 +55,7 @@ export function ConversationPlaceholderScreen({
         variant="page"
         eyebrow={t('chatInboxTitle')}
         title={t('chatThreadTitle')}
-        backHref="/inbox"
+        backHref="/inbox/"
       />
 
       <Stack gap={5} as="section" aria-labelledby="conversation-placeholder-heading">
@@ -106,7 +106,7 @@ export function ConversationPlaceholderScreen({
               subtitle={t('emptyStateInboxSubtitle')}
               cta={{
                 label: t('inboxOpenThread'),
-                href: '/inbox',
+                href: '/inbox/',
                 variant: 'primary',
               }}
             />

@@ -14,6 +14,7 @@ import {
   Inline,
   Stack,
   Tag,
+  Toast,
 } from '@/components/ui';
 import {
   useAppDispatch,
@@ -104,6 +105,10 @@ export function CommunityJoinScreen() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [joinStaleError, setJoinStaleError] = useState<string | null>(null);
+  // Success toast for community join — shown briefly on successful join
+  // before the router.push to /community lands. Matches the
+  // resource-detail-screen.tsx pattern (inline state + setTimeout).
+  const [joinSuccessToast, setJoinSuccessToast] = useState<string | null>(null);
 
   // G1: fire-and-forget anonymous session bootstrap so landing directly on
   // /community/join (without visiting home first) still mints a Bearer token
@@ -202,6 +207,14 @@ export function CommunityJoinScreen() {
           joinedAt: joined.joined_at,
         }),
       );
+      // Surface a brief success toast before navigating so the user sees
+      // the confirmation even if the route transition is instant. The
+      // toast lives on the current screen so it vanishes on unmount; the
+      // community tab that we push to already shows the joined state.
+      setJoinSuccessToast(
+        t('joinSuccessToast', { name: joinPreview.community.name }),
+      );
+      window.setTimeout(() => setJoinSuccessToast(null), 2000);
       router.push('/community/');
     } catch (error) {
       dispatch(clearJoinPreview());
@@ -217,6 +230,17 @@ export function CommunityJoinScreen() {
   const startCamera = async () => {
     try {
       setCameraError(null);
+      // Browser-level unsupported check — if the MediaDevices API or the
+      // BarcodeDetector primitive is missing, the user's browser can't run
+      // the scanner at all. Fall straight through to the unsupported copy.
+      if (
+        typeof navigator === 'undefined' ||
+        !navigator.mediaDevices?.getUserMedia ||
+        !supportsBarcodeDetector()
+      ) {
+        setCameraError(t('cameraUnsupportedBrowser'));
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
       });
@@ -227,6 +251,22 @@ export function CommunityJoinScreen() {
       }
       setCameraReady(true);
     } catch (error) {
+      // Branch on DOMException.name so the copy matches what the user can
+      // actually act on: permission denied → "open Settings → Allow",
+      // any other unsupported shape → the "this browser can't scan" copy.
+      const name = error instanceof Error ? error.name : '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setCameraError(t('cameraPermissionDenied'));
+        return;
+      }
+      if (
+        name === 'NotFoundError' ||
+        name === 'NotSupportedError' ||
+        name === 'TypeError'
+      ) {
+        setCameraError(t('cameraUnsupportedBrowser'));
+        return;
+      }
       setCameraError(error instanceof Error ? error.message : t('qrUnsupported'));
     }
   };
@@ -592,6 +632,17 @@ export function CommunityJoinScreen() {
               </Inline>
             </Stack>
           </Card>
+        ) : null}
+
+        {/* Success toast — transient confirmation before the router push to
+            /community lands. Tone `success` reads `role=status` aria-polite
+            so screen readers get the confirmation without stealing focus. */}
+        {joinSuccessToast ? (
+          <Toast
+            tone="success"
+            title={joinSuccessToast}
+            data-testid="join-success-toast"
+          />
         ) : null}
       </Stack>
     </div>
