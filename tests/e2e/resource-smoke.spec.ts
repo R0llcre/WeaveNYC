@@ -257,8 +257,14 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
 
   await page.goto('/me/verify');
   await expect(page.getByTestId('verify-title')).toBeVisible();
+  // F1-α (A1 P1-6) splits session hydration into hydrate-from-IDB +
+  // bootstrap-fresh-access-token, which adds a small async cascade
+  // before the send-code button settles into an enabled state.
+  // Wait for the button to be actionable before clicking, then give
+  // the demo-code render a longer window (was 5s default).
+  await expect(page.getByTestId('send-code')).toBeEnabled({ timeout: 15_000 });
   await page.getByTestId('send-code').click();
-  await expect(page.getByText('246810')).toBeVisible();
+  await expect(page.getByText('246810')).toBeVisible({ timeout: 15_000 });
   await page.getByLabel('Código de 6 dígitos').fill('246810');
   await page.getByTestId('verify-code').click();
   await page.waitForURL('**/inbox/**');
