@@ -662,6 +662,12 @@ describe("anchor admin routes", () => {
       // path. Anchor-admin tests don't exercise it but must conform.
       evictSocket: vi.fn(() => 0),
       disconnectUser: vi.fn(),
+      // F4-D observability hardening: `/readyz` probes the realtime hub
+      // via `ping()` and `buildApp` wires a delivery observer via
+      // `bindDeliveryObserver` to drive `chat_messages_delivered_total`.
+      // Conform here without exercising either path.
+      ping: vi.fn(async () => undefined),
+      bindDeliveryObserver: vi.fn(),
       close: vi.fn(async () => undefined),
     };
 

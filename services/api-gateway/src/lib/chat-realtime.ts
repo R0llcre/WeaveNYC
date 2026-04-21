@@ -14,6 +14,13 @@ export type SocketLike = {
   readyState?: number;
 };
 
+/**
+ * Fired once per realtime frame the hub successfully hands off to a
+ * connected peer. Wired by `buildApp` to bump
+ * `chat_messages_delivered_total`; tests can inject their own spy.
+ */
+export type ChatDeliveryObserver = (event: ChatRealtimeEvent) => void;
+
 export interface ChatRealtimeHub {
   publishToUsers(userIds: string[], event: ChatRealtimeEvent): Promise<void>;
   attachConnection(userId: string, socket: SocketLike): void;
@@ -27,6 +34,24 @@ export interface ChatRealtimeHub {
    */
   evictSocket(socket: SocketLike): number;
   disconnectUser(userId: string, reason?: string): void;
+  /**
+   * Cheap round-trip that proves the underlying pub/sub transport is
+   * reachable. Used by `/readyz` to treat a broken chat realtime path
+   * as a degraded probe (returns 503) instead of quietly serving 200
+   * while live messages silently drop.
+   *
+   * Must resolve when the hub is healthy and reject / throw when the
+   * transport is unreachable — implementations MUST NOT swallow
+   * errors. A few milliseconds end-to-end is expected.
+   */
+  ping(): Promise<void>;
+  /**
+   * Attach a callback fired once per successful peer-side delivery.
+   * Called after `safeSend` returns without throwing — i.e. after the
+   * underlying `socket.send()` accepted the frame. `buildApp` passes a
+   * handler that bumps `chat_messages_delivered_total`.
+   */
+  bindDeliveryObserver(observer: ChatDeliveryObserver | null): void;
   close(): Promise<void>;
 }
 
@@ -34,9 +59,24 @@ function channelForUser(userId: string) {
   return `chat:user:${userId}`;
 }
 
-function safeSend(socket: SocketLike, event: ChatRealtimeEvent) {
+function safeSend(
+  socket: SocketLike,
+  event: ChatRealtimeEvent,
+  observer?: ChatDeliveryObserver | null,
+) {
   try {
     socket.send(JSON.stringify(event));
+    // Only notify the observer when the underlying `send` didn't throw
+    // — we don't want the alert rule to count frames that ended up on
+    // a broken socket. Wrap the observer call in try/catch so a faulty
+    // metric handler can never break the fanout path.
+    if (observer) {
+      try {
+        observer(event);
+      } catch {
+        // ignore observer errors
+      }
+    }
   } catch {
     try {
       socket.close();
@@ -72,6 +112,7 @@ export class RedisChatRealtimeHub implements ChatRealtimeHub {
   private readonly connections = new Map<string, Set<SocketLike>>();
   private readonly heartbeatTimer: NodeJS.Timeout;
   private readonly ready: Promise<void>;
+  private deliveryObserver: ChatDeliveryObserver | null = null;
 
   constructor(redisUrl: string, heartbeatIntervalMs = 30_000) {
     this.publisher = new Redis(redisUrl, { lazyConnect: false });
@@ -92,7 +133,7 @@ export class RedisChatRealtimeHub implements ChatRealtimeHub {
       }
 
       for (const socket of sockets) {
-        safeSend(socket, event);
+        safeSend(socket, event, this.deliveryObserver);
       }
     });
     this.heartbeatTimer = setInterval(() => {
@@ -102,11 +143,17 @@ export class RedisChatRealtimeHub implements ChatRealtimeHub {
       };
       for (const sockets of this.connections.values()) {
         for (const socket of sockets) {
+          // Heartbeats intentionally bypass the delivery counter —
+          // they are not user messages.
           safeSend(socket, heartbeat);
         }
       }
     }, heartbeatIntervalMs);
     this.heartbeatTimer.unref();
+  }
+
+  bindDeliveryObserver(observer: ChatDeliveryObserver | null) {
+    this.deliveryObserver = observer;
   }
 
   attachConnection(userId: string, socket: SocketLike) {
@@ -168,6 +215,14 @@ export class RedisChatRealtimeHub implements ChatRealtimeHub {
     );
   }
 
+  async ping(): Promise<void> {
+    // `/readyz` probe — drive a Redis `PING` on both the publisher and
+    // subscriber clients. Both must answer because a one-legged hub
+    // silently drops delivery for half the live fanout.
+    await this.ready;
+    await Promise.all([this.publisher.ping(), this.subscriber.ping()]);
+  }
+
   async close() {
     clearInterval(this.heartbeatTimer);
     await Promise.all([this.publisher.quit(), this.subscriber.quit()]);
@@ -178,6 +233,11 @@ export class InMemoryChatRealtimeHub implements ChatRealtimeHub {
   readonly publishedEvents: Array<{ userIds: string[]; event: ChatRealtimeEvent }> = [];
   readonly disconnectedUsers: Array<{ userId: string; reason: string }> = [];
   private readonly connections = new Map<string, Set<SocketLike>>();
+  private deliveryObserver: ChatDeliveryObserver | null = null;
+
+  bindDeliveryObserver(observer: ChatDeliveryObserver | null) {
+    this.deliveryObserver = observer;
+  }
 
   attachConnection(userId: string, socket: SocketLike) {
     const sockets = this.connections.get(userId) ?? new Set<SocketLike>();
@@ -237,9 +297,14 @@ export class InMemoryChatRealtimeHub implements ChatRealtimeHub {
         continue;
       }
       for (const socket of sockets) {
-        safeSend(socket, event);
+        safeSend(socket, event, this.deliveryObserver);
       }
     }
+  }
+
+  async ping(): Promise<void> {
+    // In-memory fixture is always healthy — the ping just exists so
+    // `/readyz` can call it uniformly without type branching.
   }
 
   async close() {}

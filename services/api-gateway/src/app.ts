@@ -5,7 +5,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyWebsocket from '@fastify/websocket';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { InternalServiceTokenClaims } from './types.js';
 import { DefaultChatService, PgChatRepository, type ChatService } from '@weavenyc/chat';
 import { createMatchService, createPgMatchRepository, type MatchService } from '@weavenyc/match';
@@ -86,7 +86,7 @@ export interface BuildAppOptions {
   speechProvider?: SpeechProvider;
   syncRuntime?: P2PSyncRuntime;
   userStore?: UserStore;
-  logger?: boolean;
+  logger?: FastifyServerOptions['logger'];
 }
 
 function deriveAnchorSyncNodeId(config: AppConfig) {
@@ -353,6 +353,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   syncRuntime.bindObservability({
     logger: app.log,
     metrics,
+  });
+
+  // Wire the chat realtime delivery counter. `chat_messages_delivered_total`
+  // is ratio-paired with `chat_messages_sent_total` by the
+  // `ChatDeliveryRateFloor` alert (see
+  // `infra/prometheus/rules/api-gateway.yaml`) — a healthy gateway sees
+  // both rates roughly track each other; a flatlined delivered rate
+  // with a live send rate means the realtime fanout has broken.
+  chatRealtimeHub.bindDeliveryObserver((event) => {
+    metrics.chatMessagesDeliveredTotal.inc({ event_type: event.event_type });
   });
 
   attachFastifySentry(app, sentry);

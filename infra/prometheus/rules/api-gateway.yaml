@@ -1,11 +1,16 @@
 # Prometheus alert rules for the WeaveNYC API Gateway and core platform.
 #
 # Target metrics (exposed at https://api.weavenyc.org/metrics):
-#   - http_requests_total{status, route}        (counter)
-#   - http_request_duration_seconds_bucket{le}  (histogram)
-#   - db_errors_total                           (counter)
-#   - review_queue_pending                      (gauge)
-#   - auth_challenges_total{outcome}            (counter; outcome=success|failure|...)
+#   - http_requests_total{status, route}             (counter)
+#   - http_request_duration_seconds_bucket{le}       (histogram)
+#   - db_errors_total                                (counter)
+#   - review_queue_pending                           (gauge)
+#   - auth_challenges_total{kind, outcome}           (counter; outcome=
+#       issued|verified|rejected|rate_limited|exhausted|forbidden|
+#       not_found|error — `verified` is the success state)
+#   - chat_messages_sent_total                       (counter)
+#   - chat_messages_delivered_total                  (counter)
+#   - account_deletions_total{status}                (counter)
 #
 # Severity convention:
 #   - page     paging-grade; on-call must respond within the P0/P1 window
@@ -104,9 +109,14 @@ groups:
       # auth path (JWT verifier, session store, TOTP provider). Warning
       # because signup/login is user-initiated — outage is contained,
       # but it blocks all new sessions so on-call should treat urgently.
+      #
+      # NOTE: an earlier revision used `outcome="success"` which never
+      # matched — the `AuthChallengeOutcome` enum defined in
+      # `services/api-gateway/src/lib/metrics.ts` uses `verified` for
+      # the success state. The rule fires when `verified` flatlines.
       - alert: AuthChallengeFloor
         expr: |
-          rate(auth_challenges_total{outcome="success"}[30m]) == 0
+          rate(auth_challenges_total{outcome="verified"}[30m]) == 0
           and rate(auth_challenges_total[30m]) > 0
         for: 30m
         labels:
@@ -115,6 +125,96 @@ groups:
         annotations:
           summary: "Zero successful auth challenges in 30 minutes despite traffic"
           description: |
-            {{ $labels.surface }} saw auth attempts but none succeeded in
+            {{ $labels.surface }} saw auth attempts but none verified in
             the last 30 minutes. Likely causes: JWT keypair rotation
             without rollout, Redis session store down, TOTP clock skew.
+
+      # Issued-challenge floor: independent check that OTPs / magic
+      # links / anchor codes are actually being *issued*. If
+      # `auth_challenges_total` carries traffic but none of it is
+      # `issued`, the OTP/email provider has likely fallen over — users
+      # fail earlier in the funnel than the verified floor would catch.
+      - alert: AuthChallengeIssuedFloor
+        expr: |
+          rate(auth_challenges_total{outcome="issued"}[30m]) == 0
+          and rate(auth_challenges_total[30m]) > 0
+        for: 30m
+        labels:
+          severity: warning
+          surface: auth
+        annotations:
+          summary: "Zero challenges issued in 30 minutes despite traffic"
+          description: |
+            Auth traffic is flowing but zero challenges were issued in
+            the last 30 minutes — typical root cause is the SMS / email
+            provider being unavailable or the downstream notifications
+            service rejecting requests.
+
+  - name: api-gateway-resource-directory
+    interval: 30s
+    rules:
+      # Resource-directory acts as the fallback for every "I need help
+      # now" flow — pantries, shelters, hotlines. A sustained 5xx rate
+      # above 10% on `/v1/resources*` means the sidecar is wedged or the
+      # upstream geocoder is out. Warning because the PWA still has the
+      # last-known fixture baked in, but operators should triage.
+      - alert: ResourceDirectoryDown
+        expr: |
+          sum(rate(http_requests_total{route=~"/v1/resources.*", status=~"5.."}[5m])) /
+          clamp_min(sum(rate(http_requests_total{route=~"/v1/resources.*"}[5m])), 1) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          surface: resource-directory
+        annotations:
+          summary: "/v1/resources* 5xx rate >10% for 5 minutes"
+          description: |
+            {{ $value | humanizePercentage }} of /v1/resources* responses
+            are 5xx. Check the resource-directory sidecar, the upstream
+            geocoder (Mapbox/Nominatim), and the shared postgres pool.
+
+  - name: api-gateway-chat
+    interval: 30s
+    rules:
+      # Chat delivery floor: if users are sending messages but zero are
+      # being delivered, the WebSocket fanout is broken. `_delivered`
+      # counts outbound WS frames (server → peer), `_sent` counts
+      # inbound POST /conversations/:id/messages. If send traffic is
+      # live but delivery is zero for 10 min, the Redis pub/sub hub is
+      # dropping frames on the floor.
+      - alert: ChatDeliveryRateFloor
+        expr: |
+          rate(chat_messages_delivered_total[10m]) == 0
+          and rate(chat_messages_sent_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: page
+          surface: chat
+        annotations:
+          summary: "Chat messages are being sent but none are being delivered"
+          description: |
+            POST /conversations/*/messages is succeeding but no WS
+            frames were delivered in the last 10 minutes — investigate
+            the chat realtime hub (Redis pub/sub), the WS upgrade
+            handler, and the per-user socket registry.
+
+  - name: api-gateway-account
+    interval: 30s
+    rules:
+      # Account deletion reject surge: if >1 deletion-rejected event
+      # per second sustains for 5m, someone is likely brute-forcing
+      # the delete-confirm OTP / recovery code, OR a regression has
+      # broken deletion for every legitimate user. Either way on-call
+      # should look. Warning — disruptive but not a pagable outage.
+      - alert: AccountDeletionRejectSurge
+        expr: rate(account_deletions_total{status="rejected"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          surface: account
+        annotations:
+          summary: "account_deletions_total{status=rejected} >1/s for 5 minutes"
+          description: |
+            Sustained deletion-rejection rate of {{ $value }}/s. Check
+            for brute-force attempts against /v1/account/delete/confirm
+            or a regression rejecting every legitimate request.

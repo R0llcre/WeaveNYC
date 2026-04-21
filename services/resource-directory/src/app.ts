@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyServerOptions } from "fastify";
 import { Pool } from "pg";
 
 import type { ResourceDirectoryConfig } from "./config.js";
@@ -104,7 +104,7 @@ function verifyInternalToken(token: string, expectedAudience: string, config: Re
 export async function buildResourceDirectoryApp(
   options: {
     config?: ResourceDirectoryConfig;
-    logger?: boolean;
+    logger?: FastifyServerOptions['logger'];
     geocoder?: Geocoder;
   } = {},
 ): Promise<ResourceDirectoryApp> {

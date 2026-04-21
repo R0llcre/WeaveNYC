@@ -90,6 +90,20 @@ export interface WeaveMetrics {
   verifiedMatchesTotal: Counter<string>;
   accountDeletionsTotal: Counter<'status'>;
   /**
+   * Inbound conversation messages accepted by the API gateway
+   * (POST /v1/conversations/:id/messages). Paired with
+   * `chatMessagesDeliveredTotal` so `ChatDeliveryRateFloor` can tell the
+   * two apart — sends landing at the gateway but zero deliveries going
+   * out means the realtime fanout is broken rather than the send path.
+   */
+  chatMessagesSentTotal: Counter<string>;
+  /**
+   * Outbound realtime frames successfully handed to a connected user's
+   * WebSocket. Counted once per `event_type` (message.created,
+   * conversation.updated, …) per delivered frame.
+   */
+  chatMessagesDeliveredTotal: Counter<'event_type'>;
+  /**
    * Counts each P2P sync event by `event_type` and runtime result. The split
    * between `durable_*` (postgres INSERT) and `fanout_*` (Redis pub/sub +
    * WebSocket broadcast) lets an operator localise faults without reading
@@ -163,6 +177,19 @@ export function createWeaveMetrics(): WeaveMetrics {
     registers: [register],
   });
 
+  const chatMessagesSentTotal = new Counter({
+    name: 'chat_messages_sent_total',
+    help: 'Conversation messages accepted by the API (POST /v1/conversations/:id/messages).',
+    registers: [register],
+  });
+
+  const chatMessagesDeliveredTotal = new Counter({
+    name: 'chat_messages_delivered_total',
+    help: 'Realtime frames delivered to at least one connected user WebSocket, by event_type.',
+    labelNames: ['event_type'] as const,
+    registers: [register],
+  });
+
   const p2pSyncEventsTotal = new Counter({
     name: 'p2p_sync_events_total',
     help: 'Community sync events by event_type and runtime stage result.',
@@ -205,6 +232,8 @@ export function createWeaveMetrics(): WeaveMetrics {
     authChallengesTotal,
     verifiedMatchesTotal,
     accountDeletionsTotal,
+    chatMessagesSentTotal,
+    chatMessagesDeliveredTotal,
     p2pSyncEventsTotal,
     p2pSyncErrorsTotal,
     p2pSyncLagSeconds,
@@ -217,18 +246,30 @@ export function createWeaveMetrics(): WeaveMetrics {
  * Normalize a Fastify route URL to a static label so high-cardinality
  * path params (uuids, zip codes, …) do not explode the metric series count.
  * When Fastify recognises the route it surfaces the template (e.g.
- * `/v1/posts/:post_id`); otherwise we fall back to `unknown`.
+ * `/v1/posts/:post_id`); otherwise we collapse to the literal string
+ * `"unknown"`.
+ *
+ * History: an earlier revision fell back to `request.url` (the raw URL,
+ * including IDs/tokens/querystrings) when Fastify couldn't match a route.
+ * That blew up `http_requests_total{route=…}` on 404s, malformed URLs,
+ * and every pre-route error — each unique URL minted a new series. Since
+ * the same label feeds the latency histogram (O(N·bucketCount) series),
+ * cardinality explosion was the dominant driver of Prometheus memory.
+ * We always strip any querystring and collapse unknown routes to a
+ * single `"unknown"` series, keeping cardinality bounded to the
+ * registered Fastify routes plus one extra bucket.
+ *
+ * The second parameter (`_fallback`) is kept for call-site compatibility
+ * but intentionally ignored — we never want to let a raw URL through.
  */
-export function normalizeRouteLabel(routeOption: string | undefined, fallback: string): string {
+export function normalizeRouteLabel(routeOption: string | undefined, _fallback: string): string {
   if (routeOption && routeOption.length > 0) {
-    return routeOption;
+    // Defense-in-depth: even route templates shouldn't contain a `?`, but
+    // strip one if it somehow appears so the label stays clean.
+    return routeOption.split('?')[0];
   }
 
-  if (fallback.length === 0) {
-    return 'unknown';
-  }
-
-  return fallback;
+  return 'unknown';
 }
 
 export function recordAuthChallenge(
@@ -260,4 +301,29 @@ export function recordVerifiedMatch(app: FastifyInstance) {
     return;
   }
   metrics.verifiedMatchesTotal.inc();
+}
+
+export function recordChatMessageSent(app: FastifyInstance) {
+  const metrics = app.metrics;
+  if (!metrics) {
+    return;
+  }
+  metrics.chatMessagesSentTotal.inc();
+}
+
+/**
+ * Records one realtime delivery — one successful `socket.send()` per
+ * connected user. We increment once per delivered frame (not per
+ * recipient) to match what the alert rule wants: rate of frames
+ * leaving the gateway for connected peers.
+ */
+export function recordChatMessageDelivered(
+  app: FastifyInstance,
+  eventType: string,
+) {
+  const metrics = app.metrics;
+  if (!metrics) {
+    return;
+  }
+  metrics.chatMessagesDeliveredTotal.inc({ event_type: eventType });
 }

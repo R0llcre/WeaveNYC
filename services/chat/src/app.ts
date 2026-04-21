@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyServerOptions } from "fastify";
 import { Pool } from "pg";
 
 import type { ChatConfig } from "./config.js";
@@ -156,7 +156,9 @@ function mapChatError(error: unknown) {
   return null;
 }
 
-export async function buildChatApp(options: { config?: ChatConfig; logger?: boolean } = {}): Promise<ChatApp> {
+export async function buildChatApp(
+  options: { config?: ChatConfig; logger?: FastifyServerOptions['logger'] } = {},
+): Promise<ChatApp> {
   const config = options.config ?? loadChatConfig();
   const app = Fastify({
     logger: options.logger ?? false,

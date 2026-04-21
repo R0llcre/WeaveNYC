@@ -404,7 +404,21 @@ export const readinessDependencySchema = {
   additionalProperties: false,
   required: ["name", "status"],
   properties: {
-    name: { type: "string", enum: ["postgres", "redis"] },
+    // F4-D observability hardening: /readyz now probes the chat
+    // realtime hub, P2P sync runtime, and a JWT sign/verify round-trip
+    // in addition to the legacy postgres + redis probes. Add those
+    // names to the schema so the response still validates through
+    // `fastify-swagger`'s ajv compiler.
+    name: {
+      type: "string",
+      enum: [
+        "postgres",
+        "redis",
+        "chat_realtime",
+        "p2p_sync",
+        "jwt_sign_verify",
+      ],
+    },
     status: { type: "string", enum: ["ok", "degraded", "unavailable"] },
     latency_ms: { type: "number" },
     detail: { type: "string" }

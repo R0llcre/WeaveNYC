@@ -142,7 +142,15 @@ export type HealthResponse = {
 };
 
 export type ReadinessDependency = {
-  name: "postgres" | "redis";
+  // F4-D observability hardening: /readyz now includes chat realtime,
+  // P2P sync runtime, and JWT sign/verify round-trip probes alongside
+  // the legacy postgres + redis checks.
+  name:
+    | "postgres"
+    | "redis"
+    | "chat_realtime"
+    | "p2p_sync"
+    | "jwt_sign_verify";
   status: "ok" | "degraded" | "unavailable";
   latency_ms?: number;
   detail?: string;
