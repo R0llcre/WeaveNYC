@@ -220,7 +220,9 @@ describe('shell/BottomTabBar', () => {
     // Labels are the `en` bundle strings.
     expect(screen.getByTestId('tab-home')).toHaveTextContent('Home');
     expect(screen.getByTestId('tab-community')).toHaveTextContent('Community');
-    expect(screen.getByTestId('tab-post')).toHaveTextContent('Post');
+    // V1-C microcopy: "Post" → "Share" (EN). The CTA names the verb the
+    // user is about to do on the next screen, not the product noun.
+    expect(screen.getByTestId('tab-post')).toHaveTextContent('Share');
     expect(screen.getByTestId('tab-inbox')).toHaveTextContent('Inbox');
     expect(screen.getByTestId('tab-me')).toHaveTextContent('Me');
   });

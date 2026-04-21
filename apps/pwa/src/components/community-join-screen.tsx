@@ -266,7 +266,9 @@ export function CommunityJoinScreen() {
         setCameraError(t('cameraUnsupportedBrowser'));
         return;
       }
-      setCameraError(error instanceof Error ? error.message : t('qrUnsupported'));
+      // Route any remaining shape through resolveErrorKey so ZH/ES users
+      // never see the raw English `error.message` surfaced by the browser.
+      setCameraError(error ? t(resolveErrorKey(error)) : t('qrUnsupported'));
     }
   };
 
@@ -287,7 +289,7 @@ export function CommunityJoinScreen() {
       setQrToken(parsed.qrToken ?? '');
       setCameraError(null);
     } catch (error) {
-      setCameraError(error instanceof Error ? error.message : t('qrUnsupported'));
+      setCameraError(error ? t(resolveErrorKey(error)) : t('qrUnsupported'));
     }
   };
 
@@ -308,7 +310,7 @@ export function CommunityJoinScreen() {
       setQrToken(parsed.qrToken ?? '');
       setCameraError(null);
     } catch (error) {
-      setCameraError(error instanceof Error ? error.message : t('qrUnsupported'));
+      setCameraError(error ? t(resolveErrorKey(error)) : t('qrUnsupported'));
     }
   };
 

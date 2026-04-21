@@ -14,6 +14,7 @@ import {
   Stack,
   Tag,
 } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { useAppSelector, useMyPosts } from '@/lib/hooks';
 import {
   getCategoryLabel,
@@ -150,8 +151,8 @@ export function MyPostsScreen() {
             <Banner
               tone="danger"
               title={
-                postsQuery.error instanceof Error
-                  ? postsQuery.error.message
+                postsQuery.error
+                  ? t(resolveErrorKey(postsQuery.error))
                   : t('resourceLoadError')
               }
             />
@@ -170,7 +171,9 @@ export function MyPostsScreen() {
                     entry={entry}
                     language={preferences.language}
                     failedCopy={t('outboxFailedHint', {
-                      error: entry.last_error ?? '',
+                      error: entry.last_error
+                        ? t(resolveErrorKey(new Error(entry.last_error)))
+                        : '',
                     })}
                     pendingCopy={t('outboxPendingHint')}
                     retryLabel={t('outboxRetryAction')}

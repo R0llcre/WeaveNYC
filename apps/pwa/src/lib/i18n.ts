@@ -1,10 +1,18 @@
+/**
+ * i18n copy rules for WeaveNYC.
+ * Our readers are neighbors in food, health, or housing stress.
+ * Write calm, concrete, short. In their language, never translated at them.
+ * Grade-5 reading. No "danger zone", "hiccup", "oops", or product-speak.
+ * Every CTA names the next screen's noun. Every error names the cause
+ * and what is still safe.
+ * If a line would fit on a subway poster, it fits here.
+ */
 import type { PreferencesState, ResourceFilterType, SupportedLanguage, UserLevel } from '@/lib/types';
 
 type ChromeMessages = {
   brand: string;
   devLink: string;
   heroEyebrow: string;
-  heroTitle: string;
   heroCopy: string;
   sessionAnonymous: string;
   sessionVerified: string;
@@ -193,6 +201,12 @@ type ChromeMessages = {
   composeStepType: string;
   composeStepCompose: string;
   composeStepPreview: string;
+  // Short per-step hints — one imperative phrase each, rendered inline
+  // with the step label so the composer never needs the longer
+  // `composeCopy` paragraph inside the 3-stage flow.
+  composeStep1: string;
+  composeStep2: string;
+  composeStep3: string;
   composerStep1Label: string;
   composerStep2Label: string;
   composerStep3Label: string;
@@ -688,14 +702,16 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     brand: 'WeaveNYC',
     devLink: 'M0 debug',
     heroEyebrow: 'Nearby resources',
-    heroTitle: 'Find nearby food help with a quick, easy start.',
+    // NOTE: the old `heroTitle` key was removed in V1-C because no component
+    // referenced it; `homeHeroTitle` is the live hero copy for the Home screen
+    // (see resource-home.tsx).
     heroCopy: 'Pick your language, save a ZIP, and see food pantries near you. No sign-up needed to look around. Verify later only if you want to offer help or join a community.',
-    sessionAnonymous: 'Looking around',
+    sessionAnonymous: 'Browsing',
     sessionVerified: 'Verified neighbor',
     sessionAnchor: 'Community coordinator',
-    createSession: 'Start looking',
+    createSession: 'See nearby help',
     creatingSession: 'Getting ready…',
-    sessionReady: 'Ready to go',
+    sessionReady: "You're set.",
     goVerify: 'Verify',
     onboardingTitle: 'Start with language and ZIP',
     onboardingCopy: 'Keep it simple: pick the language you read best, save your ZIP, and see nearby help. You can verify or join a community later.',
@@ -712,7 +728,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     lowBandwidth: 'Low-bandwidth mode',
     resultTitle: 'Official resources near you',
     resultCount: '{count} resources near you',
-    sampleMode: 'Showing sample data because the real data is not ready yet.',
+    sampleMode: 'These are examples — real listings coming soon.',
     noResults: 'No resources matched the current ZIP and filters.',
     resourceEmptyTitle: 'No results for ZIP {zip}',
     resourceEmptyBody: 'Try a nearby ZIP or clear your location to see all.',
@@ -752,7 +768,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     verifyBenefitsTitle: 'Why verify?',
     verifyBenefit1: 'Offer help and reply to requests.',
     verifyBenefit2: 'Send private messages to neighbors.',
-    verifyBenefit3: 'Keep your account tied to one person.',
+    verifyBenefit3: 'Stops others from posting as you.',
     verifyMethodHelper: 'Choose text message or email.',
     verifyCodeSentTitle: 'Code on the way',
     verifyCodeSentBody: 'Check your messages for a 6-digit code.',
@@ -818,7 +834,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     p2pError_auth: 'Sign-in expired — please verify again.',
     p2pError_forbidden: "You're no longer a member of this community.",
     p2pError_network: "Network issue. We'll retry shortly.",
-    p2pError_server: 'Community server hiccupped. Trying again…',
+    p2pError_server: 'Reconnecting to {communityName}…',
     p2pError_unknown: 'Sync hit a snag. Tap Retry to try again.',
     p2pRetrySyncAction: 'Try again',
     p2pRetrySignInAction: 'Sign in again',
@@ -869,12 +885,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     qrCapture: 'Read the QR code',
     qrUnsupported: 'This browser cannot read QR codes. Please type the code instead.',
     composeTitle: 'New post',
-    composeCopy: 'Choose "ask" or "offer", write your post, and check it before you share. Anyone looking around can ask for help. To offer help, you need to verify.',
+    composeCopy: 'Ask for help, or offer a hand to a neighbor.',
     composeNeedsCommunity: 'Join a community first, before you post inside a community.',
     composeNeedsVerified: 'Verify first. Offering help or sensitive posts need a verified identity.',
     composeStepType: 'Choose type',
     composeStepCompose: 'Compose',
     composeStepPreview: 'Preview',
+    composeStep1: 'Ask or offer',
+    composeStep2: 'Write what you need',
+    composeStep3: 'Review before sharing',
     composerStep1Label: '1. Type',
     composerStep2Label: '2. Compose',
     composerStep3Label: '3. Preview',
@@ -1171,7 +1190,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // M8.5 redesign — app shell
     shellTabHome: 'Home',
     shellTabCommunity: 'Community',
-    shellTabPost: 'Post',
+    shellTabPost: 'Share',
     shellTabInbox: 'Inbox',
     shellTabMe: 'Me',
     shellSkipLink: 'Skip to content',
@@ -1199,8 +1218,8 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeFilterFood: 'Food',
     homeFilterMeal: 'Meals',
     homeFilterFresh: 'Fresh',
-    homeFilterHealth: 'Health',
-    homeFilterHousing: 'Housing',
+    homeFilterHealth: 'See a doctor',
+    homeFilterHousing: 'Shelter & housing',
     homeResultsCount: '{count} nearby',
     // M8.5 redesign — Me hub
     meTitle: 'Me',
@@ -1210,7 +1229,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     meSectionLanguage: 'Language',
     meSectionPrivacy: 'Privacy',
     meSectionVerify: 'Verify',
-    meSectionDanger: 'Danger zone',
+    meSectionDanger: 'Close your account',
     meActionSignOut: 'Clear this device',
     meActionChangeLanguage: 'Change language',
     meActionVerifyIdentity: 'Verify identity',
@@ -1218,7 +1237,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     meVerifyStatusVerified: 'Verified',
     meVerifyStatusUnverified: 'Not verified',
     meVerifyHelper: 'Verify to offer help and send messages.',
-    meDangerTitle: 'Danger zone',
+    meDangerTitle: 'Close your account',
     meDangerSubtitle: 'Once deleted, your posts and messages are gone after 30 days.',
     meDangerCta: 'Delete account',
     meDeleteStep1Title: 'Delete account?',
@@ -1258,7 +1277,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     toastSaved: 'Saved',
     toastSent: 'Sent',
     toastCopied: 'Copied',
-    toastFailed: "Didn't send",
+    toastFailed: "Saved — we'll try again.",
     toastRetrying: 'Retrying…',
     // M8.5 redesign — onboarding takeover (new step copy)
     obLangTitle: 'Pick your language',
@@ -1335,7 +1354,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     errorRateLimited: 'Too many tries. Please wait a moment and try again.',
     errorAuth: 'Please sign in again to continue.',
     errorForbidden: "You don't have permission to do that.",
-    errorServer: 'Something went wrong on our side. Please try again soon.',
+    errorServer: "We couldn't reach the listings. Your saved places still work — try again in a minute.",
     errorValidation: 'Please check the information and try again.',
     errorConflict: 'That was already done. Please refresh and try again.',
     errorNotFound: "We couldn't find that.",
@@ -1344,19 +1363,18 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // F4-C — Banner/Toast dismiss button label
     commonDismiss: 'Dismiss',
     // B5/B6 — Demo sandbox mode copy.
-    demoSandboxNotice: 'Demo mode — your code is 246810',
+    demoSandboxNotice: 'Demo only — this is not a real verification code. Code: 246810',
     demoSandboxPill: 'SANDBOX',
   },
   es: {
     brand: 'WeaveNYC',
     devLink: 'Depuración M0',
     heroEyebrow: 'Recursos cercanos',
-    heroTitle: 'Encuentra ayuda con comida cerca de ti, de forma sencilla.',
     heroCopy: 'Elige tu idioma, guarda un ZIP y mira las despensas cercanas. No necesitas crear cuenta para buscar. Verifica después si quieres ofrecer ayuda o unirte a una comunidad.',
-    sessionAnonymous: 'Mirando',
+    sessionAnonymous: 'Explorando',
     sessionVerified: 'Vecino verificado',
     sessionAnchor: 'Coordinador comunitario',
-    createSession: 'Empezar',
+    createSession: 'Ver ayuda cerca',
     creatingSession: 'Preparando…',
     sessionReady: 'Listo',
     goVerify: 'Verificar',
@@ -1375,7 +1393,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     lowBandwidth: 'Modo de bajo consumo',
     resultTitle: 'Recursos oficiales cerca de ti',
     resultCount: '{count} recursos cerca de ti',
-    sampleMode: 'Mostramos datos de ejemplo porque los datos reales no están listos todavía.',
+    sampleMode: 'Son ejemplos — pronto mostramos lugares reales.',
     noResults: 'No hay recursos con este ZIP y estos filtros.',
     resourceEmptyTitle: 'No hay resultados para el ZIP {zip}',
     resourceEmptyBody: 'Prueba con un ZIP cercano o quita tu ubicación para ver todos.',
@@ -1415,7 +1433,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     verifyBenefitsTitle: '¿Por qué verificar?',
     verifyBenefit1: 'Ofrece ayuda y responde solicitudes.',
     verifyBenefit2: 'Envía mensajes privados a vecinos.',
-    verifyBenefit3: 'Tu cuenta queda ligada a una persona.',
+    verifyBenefit3: 'Evita que otros publiquen en tu nombre.',
     verifyMethodHelper: 'Elige mensaje de texto o correo.',
     verifyCodeSentTitle: 'El código está en camino',
     verifyCodeSentBody: 'Revisa tus mensajes para ver el código de 6 dígitos.',
@@ -1481,7 +1499,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     p2pError_auth: 'Tu sesión venció. Verifícate otra vez.',
     p2pError_forbidden: 'Ya no eres parte de esta comunidad.',
     p2pError_network: 'Problema de conexión. Vamos a reintentar en un momento.',
-    p2pError_server: 'El servidor de la comunidad tuvo un tropiezo. Reintentando…',
+    p2pError_server: 'Reconectando a {communityName}…',
     p2pError_unknown: 'Hubo un problema al sincronizar. Toca Reintentar.',
     p2pRetrySyncAction: 'Reintentar',
     p2pRetrySignInAction: 'Iniciar sesión otra vez',
@@ -1532,12 +1550,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     qrCapture: 'Leer el QR',
     qrUnsupported: 'Este navegador no puede leer QR. Escribe el código a mano.',
     composeTitle: 'Nueva publicación',
-    composeCopy: 'Elige "pedir" u "ofrecer", escribe tu mensaje y revísalo antes de compartir. Cualquier persona puede pedir ayuda. Para ofrecer ayuda tienes que verificarte.',
+    composeCopy: 'Pide ayuda u ofrécele una mano a un vecino.',
     composeNeedsCommunity: 'Primero únete a una comunidad para publicar dentro de ella.',
     composeNeedsVerified: 'Verifica primero. Ofrecer ayuda o publicaciones sensibles requieren identidad verificada.',
     composeStepType: 'Tipo',
     composeStepCompose: 'Redactar',
     composeStepPreview: 'Vista previa',
+    composeStep1: 'Pedir u ofrecer',
+    composeStep2: 'Escribe lo que necesitas',
+    composeStep3: 'Revisa antes de compartir',
     composerStep1Label: '1. Tipo',
     composerStep2Label: '2. Redactar',
     composerStep3Label: '3. Vista previa',
@@ -1865,8 +1886,8 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeFilterFood: 'Comida',
     homeFilterMeal: 'Comidas',
     homeFilterFresh: 'Frescos',
-    homeFilterHealth: 'Salud',
-    homeFilterHousing: 'Vivienda',
+    homeFilterHealth: 'Atención médica',
+    homeFilterHousing: 'Vivienda y refugio',
     homeResultsCount: '{count} cerca',
     // M8.5 redesign — Me hub
     meTitle: 'Yo',
@@ -1876,7 +1897,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     meSectionLanguage: 'Idioma',
     meSectionPrivacy: 'Privacidad',
     meSectionVerify: 'Verificar',
-    meSectionDanger: 'Zona de peligro',
+    meSectionDanger: 'Cerrar tu cuenta',
     meActionSignOut: 'Cerrar esta sesión',
     meActionChangeLanguage: 'Cambiar idioma',
     meActionVerifyIdentity: 'Verificar identidad',
@@ -1884,7 +1905,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     meVerifyStatusVerified: 'Verificado',
     meVerifyStatusUnverified: 'Sin verificar',
     meVerifyHelper: 'Verifícate para ofrecer ayuda y enviar mensajes.',
-    meDangerTitle: 'Zona de peligro',
+    meDangerTitle: 'Cerrar tu cuenta',
     meDangerSubtitle: 'Si eliminas, tus publicaciones y mensajes se borran en 30 días.',
     meDangerCta: 'Eliminar cuenta',
     meDeleteStep1Title: '¿Eliminar cuenta?',
@@ -1924,7 +1945,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     toastSaved: 'Guardado',
     toastSent: 'Enviado',
     toastCopied: 'Copiado',
-    toastFailed: 'No se envió',
+    toastFailed: 'Guardado — reintentamos.',
     toastRetrying: 'Reintentando…',
     // M8.5 redesign — onboarding takeover (new step copy)
     obLangTitle: 'Elige tu idioma',
@@ -2000,7 +2021,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     errorRateLimited: 'Demasiados intentos. Espera un momento e int\u00e9ntalo de nuevo.',
     errorAuth: 'Inicia sesi\u00f3n de nuevo para continuar.',
     errorForbidden: 'No tienes permiso para hacer eso.',
-    errorServer: 'Algo sali\u00f3 mal de nuestro lado. Int\u00e9ntalo pronto.',
+    errorServer: 'No pudimos conectar. Tus lugares guardados siguen ah\u00ed \u2014 intenta en un minuto.',
     errorValidation: 'Revisa la informaci\u00f3n e int\u00e9ntalo de nuevo.',
     errorConflict: 'Eso ya se hizo. Actualiza e int\u00e9ntalo de nuevo.',
     errorNotFound: 'No encontramos eso.',
@@ -2009,21 +2030,20 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // F4-C — Banner/Toast dismiss button label
     commonDismiss: 'Descartar',
     // B5/B6 — Demo sandbox mode copy.
-    demoSandboxNotice: 'Modo demo — tu c\u00f3digo es 246810',
+    demoSandboxNotice: 'Solo demo \u2014 este no es un c\u00f3digo de verificaci\u00f3n real. C\u00f3digo: 246810',
     demoSandboxPill: 'SANDBOX',
   },
   zh: {
     brand: 'WeaveNYC',
     devLink: 'M0 调试',
     heroEyebrow: '附近的帮助',
-    heroTitle: '几步就能找到附近的食物帮助',
     heroCopy: '选一个你看得懂的语言，存下邮编，就能看到附近的食物发放点。想随便看看不用验证。以后想帮别人或加入社区，再验证也来得及。',
-    sessionAnonymous: '只是看看',
+    sessionAnonymous: '先看看附近',
     sessionVerified: '已验证的邻居',
     sessionAnchor: '社区协调员',
-    createSession: '开始看看',
+    createSession: '看附近的帮助',
     creatingSession: '准备中……',
-    sessionReady: '可以出发了',
+    sessionReady: '准备好了',
     goVerify: '去验证',
     onboardingTitle: '先选语言，再填邮编',
     onboardingCopy: '很简单：选一个你读起来最顺的语言，存下邮编，就能看到附近的帮助。之后再验证或加入社区都行。',
@@ -2040,7 +2060,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     lowBandwidth: '省流量',
     resultTitle: '你附近的官方资源',
     resultCount: '附近 {count} 个',
-    sampleMode: '真实数据还没接上，先给你看一批样例。',
+    sampleMode: '这是示例，真实地点很快就来。',
     noResults: '这个邮编和筛选下没有结果。',
     resourceEmptyTitle: '{zip} 附近暂时没有',
     resourceEmptyBody: '换个附近的邮编，或者清掉位置看全部。',
@@ -2080,7 +2100,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     verifyBenefitsTitle: '为什么要验证？',
     verifyBenefit1: '可以帮忙、回复别人的求助。',
     verifyBenefit2: '可以给邻居发私信。',
-    verifyBenefit3: '账号只属于你一个人。',
+    verifyBenefit3: '别人不能冒充你发帖。',
     verifyMethodHelper: '选短信或邮箱。',
     verifyCodeSentTitle: '验证码已发出',
     verifyCodeSentBody: '看一下短信，里面有 6 位验证码。',
@@ -2146,7 +2166,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     p2pError_auth: '登录过期了，重新验证一下。',
     p2pError_forbidden: '你已经不在这个社区里了。',
     p2pError_network: '网络有点问题，等一下会再试。',
-    p2pError_server: '社区服务器小打嗝，正在重试……',
+    p2pError_server: '正在重新连接 {communityName}…',
     p2pError_unknown: '同步卡住了。点「重试」再试一次。',
     p2pRetrySyncAction: '再试一次',
     p2pRetrySignInAction: '重新登录',
@@ -2197,12 +2217,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     qrCapture: '识别 QR 码',
     qrUnsupported: '这个浏览器没法扫 QR 码。手动输入邀请码吧。',
     composeTitle: '新帖子',
-    composeCopy: '先选「求助」还是「帮忙」，写好内容，预览一下再发。随便看看的人也能发求助帖；要帮别人，先验证一下。',
+    composeCopy: '求助，或者帮邻居一把。',
     composeNeedsCommunity: '先加入一个社区，才能在里面发帖。',
     composeNeedsVerified: '先验证身份。想帮人或发敏感帖要先验证。',
     composeStepType: '选类型',
     composeStepCompose: '写内容',
     composeStepPreview: '预览',
+    composeStep1: '求助或帮忙',
+    composeStep2: '写下你需要什么',
+    composeStep3: '发布前再看一遍',
     composerStep1Label: '1. 类型',
     composerStep2Label: '2. 写内容',
     composerStep3Label: '3. 预览',
@@ -2499,7 +2522,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // M8.5 redesign — app shell
     shellTabHome: '首页',
     shellTabCommunity: '社区',
-    shellTabPost: '发帖',
+    shellTabPost: '发布',
     shellTabInbox: '消息',
     shellTabMe: '我',
     shellSkipLink: '跳到主要内容',
@@ -2507,7 +2530,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     shellTabbarLabel: '主导航',
     // M8.5 redesign — home
     homeHeroEyebrow: '附近的帮助',
-    homeHeroTitle: '身边就有帮助',
+    homeHeroTitle: '附近的帮助',
     homeHeroSubtitle: '吃的、看病、住的，走几步就到。',
     homeHeroSearchPlaceholder: '按邮编搜附近',
     homeZipStatus: '显示 {zip} 附近的结果',
@@ -2527,8 +2550,8 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeFilterFood: '食物',
     homeFilterMeal: '餐食',
     homeFilterFresh: '新鲜',
-    homeFilterHealth: '健康',
-    homeFilterHousing: '住房',
+    homeFilterHealth: '看病',
+    homeFilterHousing: '住处',
     homeResultsCount: '附近 {count} 个',
     // M8.5 redesign — Me hub
     meTitle: '我',
@@ -2538,7 +2561,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     meSectionLanguage: '语言',
     meSectionPrivacy: '隐私',
     meSectionVerify: '身份验证',
-    meSectionDanger: '危险区',
+    meSectionDanger: '关闭账号',
     meActionSignOut: '清除本机',
     meActionChangeLanguage: '换语言',
     meActionVerifyIdentity: '验证身份',
@@ -2546,7 +2569,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     meVerifyStatusVerified: '已验证',
     meVerifyStatusUnverified: '未验证',
     meVerifyHelper: '验证后才能帮忙和发消息。',
-    meDangerTitle: '危险区',
+    meDangerTitle: '关闭账号',
     meDangerSubtitle: '删除后，帖子和消息会在 30 天后彻底消失。',
     meDangerCta: '删除账号',
     meDeleteStep1Title: '删除账号吗？',
@@ -2586,7 +2609,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     toastSaved: '已保存',
     toastSent: '已发送',
     toastCopied: '已复制',
-    toastFailed: '没发出去',
+    toastFailed: '已保留，会再试。',
     toastRetrying: '重试中……',
     // M8.5 redesign — onboarding takeover (new step copy)
     obLangTitle: '选你的语言',
@@ -2662,7 +2685,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     errorRateLimited: '请求太多。请稍等一下再试。',
     errorAuth: '请重新登录以继续。',
     errorForbidden: '你没有权限这样做。',
-    errorServer: '我们这边出了点问题。请稍后再试。',
+    errorServer: '暂时连不上。已保存的地方还能看 —— 一分钟后再试。',
     errorValidation: '请检查信息后再试。',
     errorConflict: '这件事已经做过了。请刷新后再试。',
     errorNotFound: '找不到这个内容。',
@@ -2671,7 +2694,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // F4-C — Banner/Toast dismiss button label
     commonDismiss: '关闭',
     // B5/B6 — Demo sandbox mode copy.
-    demoSandboxNotice: '演示模式 — 你的验证码是 246810',
+    demoSandboxNotice: '仅供演示 — 这不是真实的验证码。验证码：246810',
     demoSandboxPill: 'SANDBOX',
   },
 };

@@ -22,6 +22,7 @@ import {
   requestAccountDeletion,
   undeleteAccount,
 } from '@/lib/api';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { useAppDispatch, useAppSelector, useCommunityP2PSync } from '@/lib/hooks';
 import {
   selectCommunity,
@@ -258,14 +259,18 @@ function readPersistedRecoveryToken(): {
  * Map an HTTP-failure Error (thrown by `requestJson` as "path failed: HTTP
  * XXX body") onto the right i18n key. The server messages are not shown
  * directly because they are currently only in English.
+ *
+ * The delete-flow codes (deleteAuthError / deleteOtpInvalid /
+ * deleteLastAnchorError) are delete-specific phrasing, so we match them
+ * first. Anything that does not map to a delete-specific branch falls
+ * through to `resolveErrorKey`, which is the single source of truth for
+ * generic HTTP / network / business-code → i18n key routing. This keeps
+ * ZH/ES users from seeing raw English server text in the catch-all branch.
  */
 function mapDeleteError(error: unknown): TranslationKey {
   const message = error instanceof Error ? error.message : '';
   if (message.includes('HTTP 401')) {
     return 'deleteAuthError';
-  }
-  if (message.includes('HTTP 429')) {
-    return 'errorRateLimit';
   }
   if (message.includes('HTTP 400')) {
     return 'deleteOtpInvalid';
@@ -273,10 +278,12 @@ function mapDeleteError(error: unknown): TranslationKey {
   if (message.includes('last_anchor_blocks_delete') || message.includes('HTTP 409')) {
     return 'deleteLastAnchorError';
   }
-  if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-    return 'errorNetwork';
-  }
-  return 'deleteGenericError';
+  // resolveErrorKey covers 429 → errorRateLimited, network TypeErrors →
+  // errorNetwork, 5xx → errorServer, and falls back to errorGeneric. We
+  // narrow its return via a type assertion because resolveErrorKey returns
+  // its own ErrorKey union — every value of which is also a valid
+  // TranslationKey since each key is declared in messages.en.
+  return resolveErrorKey(error) as TranslationKey;
 }
 
 export function SettingsScreen() {
