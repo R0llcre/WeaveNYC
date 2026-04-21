@@ -112,6 +112,16 @@ jobs:
         # "Deploy invariant" section. The update-service call below triggers
         # a redeploy automatically when the ImageIdentifier changes, so no
         # separate start-deployment is needed.
+        #
+        # Defensive wait-until-RUNNING: update-service errors with
+        # InvalidStateException when the service is still in the middle of a
+        # prior operation (e.g. a previous workflow's deploy, a manual
+        # describe/update, or the initial AutoDeployments flip). We loop until
+        # the service is back to RUNNING before issuing our update. With
+        # AutoDeploymentsEnabled=false (set manually after disabling the
+        # auto-deploy race with update-service) the only thing that can cause
+        # OPERATION_IN_PROGRESS is another concurrent explicit update, so the
+        # wait is short in practice.
         run: |
           SERVICE_ARN=$(aws apprunner list-services \
             --region "$AWS_REGION" \
@@ -122,6 +132,24 @@ jobs:
             exit 1
           fi
           echo "service_arn=$SERVICE_ARN" >> "$GITHUB_OUTPUT"
+
+          for i in $(seq 1 30); do
+            PRE_STATUS=$(aws apprunner describe-service \
+              --service-arn "$SERVICE_ARN" \
+              --region "$AWS_REGION" \
+              --query 'Service.Status' --output text)
+            echo "[pre-update $i/30] App Runner status: $PRE_STATUS"
+            if [ "$PRE_STATUS" = "RUNNING" ]; then
+              break
+            fi
+            case "$PRE_STATUS" in
+              OPERATION_IN_PROGRESS) sleep 20 ;;
+              CREATE_FAILED|DELETE_FAILED|PAUSED)
+                echo "::error::service is in $PRE_STATUS before update-service; aborting"
+                exit 1 ;;
+              *) sleep 20 ;;
+            esac
+          done
 
           FULL_IMAGE="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.image_tag }}"
           echo "Pinning ImageIdentifier to $FULL_IMAGE"
