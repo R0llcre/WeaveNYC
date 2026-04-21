@@ -2701,12 +2701,22 @@ export function getTypeLabel(language: SupportedLanguage, type: ResourceFilterTy
     return copy.filtersAll;
   }
 
+  // Full label table covering the original 5 + public-ingest types (PR #70).
+  // Kept as a flat Record so that new types from future ingest sources fail
+  // compilation here (not silently render undefined) when the shared
+  // resourceTypeSchema enum gains more values.
   const labels: Record<Exclude<ResourceFilterType, 'all'>, Record<SupportedLanguage, string>> = {
     pantry: { en: 'Pantry', es: 'Despensa', zh: '食品领取点' },
     kitchen: { en: 'Kitchen', es: 'Comedor', zh: '社区厨房' },
     market: { en: 'Market', es: 'Mercado', zh: '流动市场' },
     benefits: { en: 'Benefits', es: 'Beneficios', zh: '福利支持' },
     other: { en: 'Other', es: 'Otro', zh: '其他' },
+    snap_retailer: { en: 'SNAP retailer', es: 'Tienda SNAP', zh: 'EBT 商店' },
+    senior_meal_site: { en: 'Senior meals', es: 'Comidas para mayores', zh: '老人餐点' },
+    fqhc: { en: 'Health center', es: 'Centro de salud', zh: '社区健康中心' },
+    soup_kitchen: { en: 'Soup kitchen', es: 'Comedor comunitario', zh: '免费餐厅' },
+    mobile_pantry: { en: 'Mobile pantry', es: 'Despensa móvil', zh: '流动食品站' },
+    community_fridge: { en: 'Community fridge', es: 'Nevera comunitaria', zh: '社区冰箱' },
   };
 
   return labels[type][language];

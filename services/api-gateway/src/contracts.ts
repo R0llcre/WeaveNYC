@@ -515,7 +515,24 @@ export const resourceSummarySchema = {
   properties: {
     provider_id: { type: "string", format: "uuid" },
     name: { type: "string" },
-    type: { type: "string", enum: ["pantry", "kitchen", "market", "benefits", "other"] },
+    // Keep in sync with packages/shared/src/validators/resources.ts::resourceTypeSchema.
+    // Expanded 2026-04-21 for the public-data-ingest sources landed in PR #70.
+    type: {
+      type: "string",
+      enum: [
+        "pantry",
+        "kitchen",
+        "market",
+        "benefits",
+        "other",
+        "snap_retailer",
+        "senior_meal_site",
+        "fqhc",
+        "soup_kitchen",
+        "mobile_pantry",
+        "community_fridge"
+      ]
+    },
     address: { type: "string" },
     city: { type: ["string", "null"] },
     state: { type: ["string", "null"] },

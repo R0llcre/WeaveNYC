@@ -1,6 +1,50 @@
 export type UserLevel = "anonymous" | "verified" | "anchor";
 export type SupportedLanguage = "en" | "es" | "zh";
-export type ResourceFilterType = "all" | "pantry" | "kitchen" | "market" | "benefits" | "other";
+// Keep in sync with packages/shared/src/validators/resources.ts::resourceTypeSchema
+// and services/api-gateway/src/contracts.ts::resourceSummary.type.
+// 2026-04-21: expanded to include public-ingest types (PR #70). `all` and
+// the 5 original categories remain the first-class filter values in
+// apps/pwa/src/components/resource-home.tsx FILTERS; the additional types
+// surface on cards + detail views but are mapped to existing icons/labels
+// via `narrowType()` in this file.
+export type ResourceFilterType =
+  | "all"
+  | "pantry"
+  | "kitchen"
+  | "market"
+  | "benefits"
+  | "other"
+  | "snap_retailer"
+  | "senior_meal_site"
+  | "fqhc"
+  | "soup_kitchen"
+  | "mobile_pantry"
+  | "community_fridge";
+
+// Map public-ingest types to one of the 5 first-class categories so the
+// existing FILTERS / icon set / label dictionary continue to cover every
+// row the PWA receives without requiring 30 new i18n entries or 6 new
+// icons. The filter pills still only cycle through the first 5 + "all";
+// this function lets resource-home + resource-detail reuse the existing
+// icon and label vocabulary for the extra types.
+export function narrowResourceType(
+  type: Exclude<ResourceFilterType, "all">,
+): Exclude<ResourceFilterType, "all" | "snap_retailer" | "senior_meal_site" | "fqhc" | "soup_kitchen" | "mobile_pantry" | "community_fridge"> {
+  switch (type) {
+    case "snap_retailer":
+      return "market"; // grocers / bodegas that accept EBT
+    case "soup_kitchen":
+    case "senior_meal_site":
+      return "kitchen"; // prepared-meal service
+    case "mobile_pantry":
+    case "community_fridge":
+      return "pantry"; // grab-and-go food
+    case "fqhc":
+      return "benefits"; // sliding-scale health services
+    default:
+      return type;
+  }
+}
 export type GeoPrecision = "exact" | "rooftop" | "street" | "zip_centroid" | "unknown";
 
 export type AuthUser = {

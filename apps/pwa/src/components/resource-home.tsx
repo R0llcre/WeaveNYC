@@ -49,6 +49,7 @@ import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
 import { selectPreferences, selectSession } from '@/lib/selectors';
 import { toggleBookmark } from '@/lib/slices/preferences-slice';
 import type { ResourceFilterType, ResourceSummary } from '@/lib/types';
+import { narrowResourceType } from '@/lib/types';
 import { usePullToRefresh } from '@/lib/use-pull-to-refresh';
 import { useSessionBootstrap } from '@/lib/use-session-bootstrap';
 
@@ -202,7 +203,7 @@ export function ResourceHome() {
               resource={{
                 id: resource.provider_id,
                 name: resource.name,
-                category: resource.type,
+                category: narrowResourceType(resource.type),
                 distanceLabel:
                   resource.distance_miles !== null
                     ? t('resourceCardDistanceMiles', {
