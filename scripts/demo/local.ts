@@ -29,27 +29,22 @@ const REPO_ROOT = path.resolve(
   ".."
 );
 
-function run(
+async function run(
   command: string,
   args: string[],
   opts: { env?: NodeJS.ProcessEnv; allowFailure?: boolean } = {}
 ): Promise<number> {
-  return new Promise(async (resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: REPO_ROOT,
-      env: { ...process.env, ...(opts.env ?? {}) },
-      stdio: "inherit"
-    });
-    const [code] = (await once(child, "exit")) as [number | null];
-    const exitCode = code ?? 0;
-    if (exitCode !== 0 && !opts.allowFailure) {
-      reject(
-        new Error(`${command} ${args.join(" ")} exited with code ${exitCode}`)
-      );
-      return;
-    }
-    resolve(exitCode);
+  const child = spawn(command, args, {
+    cwd: REPO_ROOT,
+    env: { ...process.env, ...(opts.env ?? {}) },
+    stdio: "inherit"
   });
+  const [code] = (await once(child, "exit")) as [number | null];
+  const exitCode = code ?? 0;
+  if (exitCode !== 0 && !opts.allowFailure) {
+    throw new Error(`${command} ${args.join(" ")} exited with code ${exitCode}`);
+  }
+  return exitCode;
 }
 
 async function main(): Promise<void> {

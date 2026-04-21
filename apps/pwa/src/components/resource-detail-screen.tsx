@@ -71,7 +71,6 @@ import { toggleBookmark } from '@/lib/slices/preferences-slice';
 import type {
   ResourceDetail,
   ResourceHoursEntry,
-  ResourceFilterType,
   SupportedLanguage,
 } from '@/lib/types';
 import { narrowResourceType } from '@/lib/types';
