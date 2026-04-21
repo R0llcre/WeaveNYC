@@ -161,20 +161,26 @@ async function stubHealthRoutes(
   });
 }
 
-test('onboarding/language: clicking ES pill persists language and routes to /onboarding/location', async ({
+test('onboarding/language: clicking ES pill persists language and routes to /onboarding/trust (V1-B Task 5)', async ({
   context,
   page,
 }) => {
   await stubHealthRoutes(context);
 
-  await page.goto(`${pwaBaseUrl}/onboarding/language`);
+  // V1-B Task 1 — the picker auto-skips when the browser locale was
+  // auto-detected, which is true in Playwright contexts. `?explicit=1`
+  // tells the screen the user asked for the picker (e.g. via TopBar
+  // switcher or Settings → Language) so it stays mounted for this
+  // assertion. V1-B Task 5 — the next step in the funnel is the
+  // anchor-model trust explainer, not the ZIP gate.
+  await page.goto(`${pwaBaseUrl}/onboarding/language?explicit=1`);
   await expect(page.getByTestId('onboarding-language-en')).toBeVisible();
   await expect(page.getByTestId('onboarding-language-es')).toBeVisible();
   await expect(page.getByTestId('onboarding-language-zh')).toBeVisible();
 
   await page.getByTestId('onboarding-language-es').click();
 
-  await expect(page).toHaveURL(/\/onboarding\/location\/?$/);
+  await expect(page).toHaveURL(/\/onboarding\/trust\/?$/);
 });
 
 test('onboarding/location: invalid ZIP is rejected; valid ZIP persists and routes home', async ({

@@ -8,7 +8,9 @@
  *   2. Each button displays the label in its OWN target language (`English` /
  *      `Español` / `中文`), not a translated form.
  *   3. Selecting a language dispatches `setLanguage` and navigates to the
- *      default destination `/onboarding/location` via `router.replace`.
+ *      default destination `/onboarding/trust/` via `router.replace`.
+ *      (V1-B Task 5: the anchor-model explainer sits between the language
+ *      picker and the ZIP gate in the funnel order.)
  *   4. The redesigned screen does NOT wrap its content in the AppShell
  *      (`main.shell`), i.e. the takeover contract holds.
  */
@@ -101,14 +103,16 @@ describe('LanguagePickerScreen · W5A redesign smoke', () => {
     expect(main?.className).not.toContain('shell');
   });
 
-  it('dispatches setLanguage and replaces to /onboarding/location on select', () => {
+  it('dispatches setLanguage and replaces to /onboarding/trust on select', () => {
     const { store } = renderScreen();
 
     fireEvent.click(screen.getByTestId('onboarding-language-es'));
 
     expect(store.getState().preferences.language).toBe('es');
     expect(store.getState().preferences.hasUserChosenLanguage).toBe(true);
-    expect(replaceMock).toHaveBeenCalledWith('/onboarding/location');
+    // V1-B Task 5 — the anchor-model trust step now sits between the
+    // language picker and the ZIP gate.
+    expect(replaceMock).toHaveBeenCalledWith('/onboarding/trust/');
   });
 
   it('marks the preselected language as active via aria-pressed', () => {

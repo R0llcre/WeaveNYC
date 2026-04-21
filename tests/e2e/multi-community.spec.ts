@@ -209,10 +209,16 @@ test.skip('multi-community: invite switch across Farmingdale + Queens + Bronx pi
     });
   });
 
-  await page.goto('/');
-  // Onboarding gate: pick language + home ZIP so the rest of the app mounts.
+  // V1-B Tasks 1 + 5 — first-visit guard skips the language picker when
+  // the browser locale was auto-detected (always true in Playwright),
+  // and funnels through an anchor-model trust step before the ZIP gate.
+  // Force-mount the picker with `?explicit=1` to keep this smoke path
+  // testing the explicit language choice.
+  await page.goto('/onboarding/language/?explicit=1');
   await page.waitForURL((url) => url.pathname.includes('/onboarding/language'));
   await page.getByTestId('onboarding-language-en').click();
+  await page.waitForURL((url) => url.pathname.includes('/onboarding/trust'));
+  await page.getByTestId('onboarding-trust-continue').click();
   await page.waitForURL((url) => url.pathname.includes('/onboarding/location'));
   await page.getByTestId('onboarding-location-zip-input').fill('11735');
   await page.getByTestId('onboarding-location-submit').click();

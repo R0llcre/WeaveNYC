@@ -3309,6 +3309,139 @@ section.danger-zone {
   margin-inline-start: auto;
 }
 
+/* --- Trust onboarding bullets (V1-B Task 5) ------------------------------- */
+/* Renders the three anchor-model bullets on /onboarding/trust/. Each row is
+   a large icon + single short title, sized generously for glanceable
+   scanning on mobile. The surrounding `.onboarding__options` container is
+   re-used from the language picker so spacing/motion treatments stay
+   consistent. */
+.onboarding__trust-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.onboarding__trust-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md, 12px);
+}
+
+.onboarding__trust-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.onboarding__trust-title {
+  font: var(--type-body);
+  color: var(--color-ink-primary);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* --- Privacy screen ------------------------------------------------------- */
+.privacy__lede {
+  color: var(--color-ink-primary);
+  font: var(--type-body);
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+/* --- Shell footer (V1-B Task 4) ------------------------------------------- */
+/* Persistent trust link anchored at the bottom of every shell-backed page.
+   Intentionally understated — muted ink, 13px, centred — so it reads as a
+   footnote rather than a CTA. The BottomTabBar sits outside the shell
+   <main>, so this block is the real visual floor of the content area. */
+.shell__footer {
+  margin-top: auto;
+  padding-block: var(--space-4) var(--space-3);
+  padding-inline: var(--space-4);
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--color-divider);
+}
+
+.shell__footer-link {
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.shell__footer-link:hover,
+.shell__footer-link:focus-visible {
+  color: var(--color-ink-primary);
+  text-decoration: underline;
+}
+
+/* --- TopBar language switcher (V1-B Task 2) ------------------------------- */
+/* Tiny 3-segment pill that sits at the trailing edge of the brand TopBar on
+   Home so a funnel visitor has a visible "we speak your language" signal on
+   first paint without hunting through Settings. Segments are 28-32px tall,
+   rendered in SF Mono / overline weight so the pill stays subordinate to
+   the WeaveNYC wordmark. Active segment gets the 朱砂 accent fill. */
+.topbar-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: auto;
+  padding: 2px;
+  min-height: 30px;
+  background: var(--color-surface-alt, var(--color-surface-solid));
+  border: 1px solid var(--color-divider);
+  border-radius: 999px;
+}
+
+.topbar-lang__segment {
+  appearance: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding-inline: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink-muted);
+  /* Overline-ish uppercase for the EN / ES letters; 中 is a single CJK glyph
+     so letter-spacing doesn't apply but the font-size carries parity. */
+  font-family: var(--font-family-sans, inherit);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.topbar-lang__segment:hover {
+  color: var(--color-ink-primary);
+}
+
+.topbar-lang__segment:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.topbar-lang__segment--active {
+  background: var(--color-accent);
+  color: var(--color-on-accent, #ffffff);
+}
+
+.topbar-lang__segment--active:hover {
+  color: var(--color-on-accent, #ffffff);
+}
+
 /* --- BottomTabBar ---------------------------------------------------------- */
 .tabbar {
   position: sticky;

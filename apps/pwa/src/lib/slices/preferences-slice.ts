@@ -16,6 +16,7 @@ export const initialPreferencesState: PreferencesState = {
   defaultPostVisibility: 'community_only',
   locationPrecision: 'zip_only',
   hasUserChosenLanguage: false,
+  trustBannerDismissed: false,
   hydrationComplete: false,
 };
 
@@ -77,12 +78,22 @@ const preferencesSlice = createSlice({
     applyDetectedLanguage(state, action: PayloadAction<SupportedLanguage>) {
       state.language = action.payload;
     },
+    /**
+     * V1-B Task 4 — persist the "user dismissed the first-visit trust
+     * banner" flag. Idempotent: calling twice is a no-op. We never flip
+     * it back to `false`; the banner is a one-time welcome, not a
+     * recurring reminder.
+     */
+    dismissTrustBanner(state) {
+      state.trustBannerDismissed = true;
+    },
   },
 });
 
 export const {
   applyDetectedLanguage,
   completeOnboarding,
+  dismissTrustBanner,
   hydratePreferences,
   setDefaultPostVisibility,
   setLanguage,

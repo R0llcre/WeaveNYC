@@ -9,7 +9,10 @@
  * leak.
  *
  * Coverage matrix (useOnboardingGuard):
- *   1. hydrated + !complete + !language        → /onboarding/language
+ *   1. hydrated + !complete + !language chosen → /onboarding/trust
+ *     (V1-B Task 1: the language picker auto-skips when the browser
+ *     locale was detected, so the guard bypasses it and points first-time
+ *     users at the anchor-model trust step directly.)
  *   2. hydrated + !complete + language chosen  → /onboarding/location
  *   3. hydrated + onboardingComplete           → no redirect
  *   4. !hydrated                               → no redirect (waits)
@@ -106,7 +109,7 @@ afterEach(() => {
 });
 
 describe('useOnboardingGuard', () => {
-  it('redirects to /onboarding/language when hydrated but no language chosen', () => {
+  it('redirects to /onboarding/trust when hydrated but no language chosen (V1-B Task 1 skip-if-auto-detected)', () => {
     currentPathname = '/';
     const store = buildStore({
       hasUserChosenLanguage: false,
@@ -116,7 +119,7 @@ describe('useOnboardingGuard', () => {
 
     expect(replaceMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/language/?return_to=${encodeURIComponent('/')}`,
+      `/onboarding/trust/?return_to=${encodeURIComponent('/')}`,
     );
   });
 
@@ -195,7 +198,7 @@ describe('useOnboardingGuard', () => {
     renderWithStore(<OnboardingGuardHarness />, store);
 
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/language/?return_to=${encodeURIComponent('/posts/abc?q=open')}`,
+      `/onboarding/trust/?return_to=${encodeURIComponent('/posts/abc?q=open')}`,
     );
   });
 
@@ -208,7 +211,7 @@ describe('useOnboardingGuard', () => {
     const { rerender } = renderWithStore(<OnboardingGuardHarness />, store);
 
     expect(replaceMock).toHaveBeenCalledWith(
-      `/onboarding/language/?return_to=${encodeURIComponent('/inbox')}`,
+      `/onboarding/trust/?return_to=${encodeURIComponent('/inbox')}`,
     );
 
     replaceMock.mockClear();
