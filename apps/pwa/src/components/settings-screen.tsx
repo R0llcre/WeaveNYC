@@ -10,17 +10,24 @@ import {
   Card,
   Checkbox,
   Field,
+  Inline,
   PageHeader,
   Pill,
   Radio,
+  Stack,
+  Tag,
 } from '@/components/ui';
 import {
   confirmAccountDeletion,
   requestAccountDeletion,
   undeleteAccount,
 } from '@/lib/api';
-import { useAppDispatch, useAppSelector } from '@/lib/hooks';
-import { selectPreferences, selectSession } from '@/lib/selectors';
+import { useAppDispatch, useAppSelector, useCommunityP2PSync } from '@/lib/hooks';
+import {
+  selectCommunity,
+  selectPreferences,
+  selectSession,
+} from '@/lib/selectors';
 import { clearSession, setSession } from '@/lib/slices/auth-slice';
 import {
   setDefaultPostVisibility,
@@ -276,6 +283,23 @@ export function SettingsScreen() {
   const dispatch = useAppDispatch();
   const preferences = useAppSelector(selectPreferences);
   const session = useAppSelector(selectSession);
+  const communityState = useAppSelector(selectCommunity);
+
+  // P6 UX — surface current-community P2P sync controls inside Settings
+  // so users can enable/disable community sync from this screen (parity
+  // with the `/community` toggle). If the user is not in any community,
+  // the subsection renders a "Not in a community yet" line instead.
+  const currentCommunity = useMemo(
+    () =>
+      communityState.joinedCommunities.find(
+        (item) => item.community.community_id === communityState.currentCommunityId,
+      )?.community ?? null,
+    [communityState.currentCommunityId, communityState.joinedCommunities],
+  );
+  const p2pSync = useCommunityP2PSync(
+    session?.access_token,
+    currentCommunity?.community_id ?? null,
+  );
 
   const [deleteState, setDeleteState] = useState<DeleteState>({ kind: 'idle' });
   const [otpCode, setOtpCode] = useState('');
@@ -666,6 +690,71 @@ export function SettingsScreen() {
             checked={preferences.lowBandwidth}
             onChange={() => dispatch(toggleLowBandwidth())}
           />
+
+          {/*
+            P6 UX — Community sync subsection. Mirrors the toggle that lives
+            on `/community` so users can opt out from Settings (the spec
+            `docs/03_User_Flows_And_Screens.md:241` promised a status note
+            here but the earlier wave shipped without it — audit finding 4
+            + 12). When the user is not in any community we show a short
+            "not in a community yet" line instead of the toggle so the
+            subsection is still informative.
+          */}
+          <Stack
+            gap={3}
+            as="section"
+            aria-labelledby="settings-p2p-heading"
+            data-testid="settings-p2p-section"
+          >
+            <Stack gap={1}>
+              <h3 id="settings-p2p-heading" className="text-h3">
+                {t('settingsP2PSectionTitle')}
+              </h3>
+              <p className="muted">{t('settingsP2PSectionCopy')}</p>
+            </Stack>
+
+            {currentCommunity ? (
+              <>
+                <Inline gap={2} align="center" wrap>
+                  <span className="overline">{t('settingsP2PPhaseLabel')}</span>
+                  <Tag tone={p2pSync.status.enabled ? 'verified' : 'muted'}>
+                    {p2pSync.status.phase === 'auth_required' ||
+                    p2pSync.status.phase === 'forbidden'
+                      ? t('p2pPhase_offline')
+                      : t(`p2pPhase_${p2pSync.status.phase}`)}
+                  </Tag>
+                </Inline>
+                <Inline gap={3} wrap>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    data-testid="settings-p2p-toggle"
+                    disabled={!session}
+                    onClick={() => {
+                      if (p2pSync.status.enabled) {
+                        p2pSync.disable();
+                        return;
+                      }
+                      p2pSync.enable();
+                    }}
+                  >
+                    {p2pSync.status.enabled
+                      ? t('p2pDisableAction')
+                      : t('p2pEnableAction')}
+                  </Button>
+                </Inline>
+              </>
+            ) : (
+              <p className="muted" data-testid="settings-p2p-not-in-community">
+                {t('settingsP2PNotInCommunity')}
+              </p>
+            )}
+
+            <details className="settings-p2p-explainer">
+              <summary>{t('settingsP2PLearnMore')}</summary>
+              <p>{t('p2pExplainerBody')}</p>
+            </details>
+          </Stack>
         </Card>
 
         <Card aria-labelledby="settings-safety-heading">
@@ -706,6 +795,16 @@ export function SettingsScreen() {
           >
             <summary>{t('deleteAccountSummary')}</summary>
             <p>{t('deleteAccountBody')}</p>
+            {/*
+              P6 UX finding 6 — the server purge flow hides posts server-side
+              but peer devices still hold copies that refresh on their own
+              cadence. Surface this so users have informed consent before
+              scheduling a delete. Rendered as a small muted paragraph
+              rather than a banner because it is a qualifier, not an alert.
+            */}
+            <p className="muted" data-testid="settings-delete-p2p-notice">
+              {t('deleteAccountP2PNotice')}
+            </p>
 
             {(deleteState.kind === 'idle' ||
               deleteState.kind === 'expanded' ||

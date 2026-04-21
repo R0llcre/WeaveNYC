@@ -34,6 +34,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  Banner,
   Button,
   EmptyState,
   Inline,
@@ -70,12 +71,31 @@ export function ResourceHome() {
   const preferences = useAppSelector(selectPreferences);
   const session = useAppSelector(selectSession);
   const [filter, setFilter] = useState<HomeFilterKey>('all');
+  // P6 UX finding 8 — offline banner on Home. We previously rendered
+  // stale results silently; now we pick up the browser online/offline
+  // events and surface a warning Banner with "last refreshed" stamp so
+  // users aren't guessing whether the list is current.
+  const [isOnline, setIsOnline] = useState(true);
 
   useSessionBootstrap();
 
   useEffect(() => {
     document.title = `${t('pageTitleHome')} \u2014 WeaveNYC`;
   }, [t]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const syncOnline = () => setIsOnline(window.navigator.onLine);
+    syncOnline();
+    window.addEventListener('online', syncOnline);
+    window.addEventListener('offline', syncOnline);
+    return () => {
+      window.removeEventListener('online', syncOnline);
+      window.removeEventListener('offline', syncOnline);
+    };
+  }, []);
 
   const activeFilter = FILTERS.find((entry) => entry.key === filter) ?? FILTERS[0];
   const hasValidZip = /^\d{5}$/.test(preferences.zipCode);
@@ -87,6 +107,26 @@ export function ResourceHome() {
   const items: ResourceSummary[] = resourceQuery.data?.items ?? [];
   const nearbyCount = useMemo(() => items.length, [items]);
   const isLoading = resourceQuery.isLoading || resourceQuery.isFetching;
+  // Pull the last-successful-fetch timestamp from the React Query cache
+  // so the offline banner can tell the user how current their data is.
+  // `dataUpdatedAt` is 0 before any fetch completes, so we fall back to
+  // an omitted timestamp rather than rendering "1970-01-01".
+  const lastRefreshedLabel = useMemo(() => {
+    const raw = resourceQuery.dataUpdatedAt;
+    if (!raw) {
+      return null;
+    }
+    try {
+      return new Date(raw).toLocaleString(preferences.language, {
+        hour: 'numeric',
+        minute: '2-digit',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return new Date(raw).toLocaleString();
+    }
+  }, [preferences.language, resourceQuery.dataUpdatedAt]);
 
   // Wave 6B pull-to-refresh. The hook binds to the inner page-content wrapper
   // rather than the outermost fragment so any future framer-motion
@@ -250,6 +290,24 @@ export function ResourceHome() {
               </Button>
             </div>
           </section>
+
+          {/* P6 UX finding 8 — offline banner. Wrapped in a live region so
+              SR users hear the state transition when connectivity drops.
+              Uses the same pattern as `community-screen.tsx` (warning tone
+              because the user can recover by reconnecting). The
+              "last refreshed" line appears only once at least one
+              successful fetch has landed. */}
+          {!isOnline ? (
+            <Banner
+              tone="warning"
+              title={t('bannerOfflineHint')}
+              data-testid="home-offline-banner"
+            >
+              {lastRefreshedLabel
+                ? t('homeLastRefreshedLabel', { time: lastRefreshedLabel })
+                : null}
+            </Banner>
+          ) : null}
 
           <Inline
             as="nav"
