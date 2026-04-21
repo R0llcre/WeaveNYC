@@ -30,6 +30,7 @@ import { loadMatchContactIntent } from '@/lib/match-intent';
 import { safeReturnTo } from '@/lib/safe-return-to';
 import { selectSession } from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
+import { useSessionBootstrap } from '@/lib/use-session-bootstrap';
 
 /**
  * VerifyScreen — W5C redesign of `/me/verify` inside the 5-tab AppShell IA.
@@ -74,6 +75,20 @@ export function VerifyScreen() {
   const [redirectedAfterVerify, setRedirectedAfterVerify] = useState(false);
   const [isBootstrappingSession, setIsBootstrappingSession] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<Error | null>(null);
+
+  // A1 P1-6: after PR #50, persistence.saveSession strips access_token
+  // before writing to IDB. On a reload that lands directly on /me/verify
+  // (a deep link, or the bookmark-then-reload flow exercised in
+  // resource-smoke), ClientBootstrap rehydrates Redux with
+  // `access_token: ''` and the refresh_token. Nothing else on this
+  // screen exchanges that for a fresh access_token — the existing
+  // createAnonymousSession effect (line 157) only fires when the URL
+  // carries ?challenge_id= (magic-link entry). Without a bootstrap, the
+  // send-code button's `disabled={!session?.access_token}` guard stays
+  // truthy forever. useSessionBootstrap handles both paths idempotently
+  // (no-op when access_token is already populated; refresh → anon mint
+  // fallback when the refresh token is stale).
+  useSessionBootstrap();
   // Success toast shown briefly after verification completes. We delay the
   // router.replace by ~800ms so the user sees the confirmation before the
   // tab navigates to /inbox (or the honored return_to). The toast lives on
@@ -380,7 +395,7 @@ export function VerifyScreen() {
                         variant="primary"
                         size="md"
                         data-testid="send-code"
-                        disabled={!session || otpStart.isPending}
+                        disabled={!session?.access_token || otpStart.isPending}
                         loading={otpStart.isPending}
                         onClick={() => otpStart.mutate({ phone })}
                         // Wave 6C — sending the OTP fires a server request;
@@ -410,7 +425,7 @@ export function VerifyScreen() {
                       <Button
                         variant="primary"
                         size="md"
-                        disabled={!session || magicLinkStart.isPending}
+                        disabled={!session?.access_token || magicLinkStart.isPending}
                         loading={magicLinkStart.isPending}
                         onClick={() => magicLinkStart.mutate({ email })}
                       >
@@ -466,7 +481,7 @@ export function VerifyScreen() {
                         variant="primary"
                         size="md"
                         data-testid="verify-code"
-                        disabled={!session || otpVerify.isPending || !otpStart.data}
+                        disabled={!session?.access_token || otpVerify.isPending || !otpStart.data}
                         loading={otpVerify.isPending}
                         onClick={() =>
                           otpVerify.mutate(

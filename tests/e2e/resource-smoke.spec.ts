@@ -203,6 +203,34 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
     });
   });
 
+  // A1 P1-6: persistence strips access_token, so on page reload the
+  // bootstrap hook exchanges the stored refresh_token for a fresh
+  // access_token via POST /v1/auth/refresh. Mock it so the hook doesn't
+  // hang on unmatched routes (which would block the send-code button
+  // from ever enabling). Response shape mirrors anonymous mint: rotated
+  // refresh + fresh access token for the same deterministic user_id.
+  await page.route('**/v1/auth/refresh', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        access_token: 'jwt-refreshed',
+        refresh_token: 'rt_fixture_rotated',
+        user: {
+          user_id: '11111111-1111-4111-8111-111111111111',
+          level: 'anonymous',
+        },
+        issued_via: 'refresh',
+      }),
+    });
+  });
+
   await page.route('**/v1/contact-requests/inbox**', async (route) => {
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: corsHeaders });
@@ -255,17 +283,31 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   // Deployed CF Pages resolves dynamic IDs via _redirects SPA fallback; for CI
   // the detail screen is covered by unit tests (resource-detail-screen.test.tsx).
 
-  // TODO(f2-e2e): F1-α (PR #50) split session hydration into (1) IDB
-  // load without access_token, (2) bootstrap refresh or anon-mint, (3)
-  // Redux set. Under Playwright the mutation under /me/verify's send-code
-  // reliably returns undefined `otpStart.data` — the code-input stage
-  // never renders — even though unit tests (verify-screen.test.tsx,
-  // use-session-bootstrap.test.ts) all pass and the flow works when
-  // exercised by hand. Suspect a timing interaction with the mocked
-  // `/v1/auth/anonymous` resolver vs the dispatch order in providers.tsx.
-  // The verify-flow itself is covered by unit + anchor-admin tests; we
-  // temporarily drop the E2E segment to unblock the A1/A4 security
-  // fixes. Re-enable after diagnosing in a follow-up PR.
+  await page.goto('/me/verify');
+  await expect(page.getByTestId('verify-title')).toBeVisible();
+  // Wait for the send-code button to be actionable. The PWA hydrates
+  // session from IDB (no access_token per A1 P1-6) and then useSessionBootstrap
+  // exchanges the refresh token for a fresh access_token. Until that
+  // completes, send-code stays disabled (guard: !session?.access_token).
+  // Without waiting, a click here would call useOtpStart with an empty
+  // accessToken and the mutation throws before the mock is hit.
+  await expect(page.getByTestId('send-code')).toBeEnabled({ timeout: 15_000 });
+  await page.getByTestId('send-code').click();
+  await expect(page.getByText('246810')).toBeVisible();
+  await page.getByLabel('Código de 6 dígitos').fill('246810');
+  await page.getByTestId('verify-code').click();
+  await page.waitForURL('**/inbox/**');
+  // inboxTitle (es) was renamed to "Bandeja" per the W4 i18n E2E contract
+  // (matching-inbox.spec.ts expects 'Inbox' for en — the es/zh values shifted
+  // to parallel single-word forms).
+  await expect(page.locator('h1', { hasText: 'Bandeja' })).toBeVisible();
+
+  // Back on Home after verification: the redesign replaced the session-level
+  // text chip with a user_id readout Tag. Session-chip is the canonical
+  // verified-user signal now (see resource-home.tsx session chip).
+  await page.goto('/');
+  await expect(page.getByTestId('session-chip')).toBeVisible();
+
   await page.goto('/dev/m0');
   await expect(page.getByText('Check the API, mint an anonymous session, and stop there.')).toBeVisible();
 });
