@@ -657,6 +657,10 @@ describe("anchor admin routes", () => {
       publishToUsers: vi.fn(async () => undefined),
       attachConnection: vi.fn(),
       detachConnection: vi.fn(),
+      // P0-9: the hub interface grew an `evictSocket(socket)` helper so
+      // the stale-socket sweeper + `disconnectUser` share one eviction
+      // path. Anchor-admin tests don't exercise it but must conform.
+      evictSocket: vi.fn(() => 0),
       disconnectUser: vi.fn(),
       close: vi.fn(async () => undefined),
     };
