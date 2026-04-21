@@ -1,7 +1,8 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { CommunityAnnouncements } from '@/components/community-announcements';
@@ -18,6 +19,7 @@ import {
   Skeleton,
   Stack,
   Tag,
+  Toast,
 } from '@/components/ui';
 import { TopBar } from '@/components/shell';
 import { createAnonymousSession } from '@/lib/api';
@@ -31,7 +33,11 @@ import {
 } from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
 import { setCurrentCommunity } from '@/lib/slices/community-slice';
-import type { CachedPostsValue, P2PSyncPhase } from '@/lib/types';
+import type {
+  CachedPostsValue,
+  P2PSyncErrorCategory,
+  P2PSyncPhase,
+} from '@/lib/types';
 import type { TagTone } from '@/components/ui/Tag';
 
 /**
@@ -65,6 +71,38 @@ const ASSERTIVE_PHASES: ReadonlySet<P2PSyncPhase> = new Set<P2PSyncPhase>([
 ]);
 
 /**
+ * P6 UX finding 10 — map the worker-emitted `errorCategory` onto localized
+ * i18n keys so users see translated copy instead of raw English. The raw
+ * `lastError` text is still rendered as a muted footnote for on-call
+ * debugging (Sentry breadcrumbs keep the English original anyway).
+ */
+const P2P_ERROR_I18N_KEY: Record<P2PSyncErrorCategory, string> = {
+  auth: 'p2pError_auth',
+  network: 'p2pError_network',
+  server: 'p2pError_server',
+  unknown: 'p2pError_unknown',
+};
+
+/**
+ * P6 UX finding 10 — `forbidden` is a phase, not an `errorCategory` value,
+ * but when the worker transitions here it carries its own copy. We keep the
+ * mapping separate so the community-screen can look up the right key from
+ * either the error category or the phase.
+ */
+function resolveP2PErrorKey(
+  phase: P2PSyncPhase,
+  category: P2PSyncErrorCategory | null | undefined,
+): string {
+  if (phase === 'forbidden') {
+    return 'p2pError_forbidden';
+  }
+  if (category) {
+    return P2P_ERROR_I18N_KEY[category];
+  }
+  return 'p2pError_unknown';
+}
+
+/**
  * CommunityScreen — /community.
  *
  * W3B redesign: one screen, one intent. Structure flows top-to-bottom:
@@ -92,6 +130,7 @@ const ASSERTIVE_PHASES: ReadonlySet<P2PSyncPhase> = new Set<P2PSyncPhase>([
  */
 export function CommunityScreen() {
   const t = useTranslations();
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const session = useAppSelector(selectSession);
   const preferences = useAppSelector(selectPreferences);
@@ -100,6 +139,13 @@ export function CommunityScreen() {
   const [isCreatingSession, setCreatingSession] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [cachedPosts, setCachedPosts] = useState<CachedPostsValue | null>(null);
+  // P6 UX finding 2 (addendum) — transient "Posts are up to date" toast
+  // when the phase transitions back to `ready` from connecting/degraded.
+  // Auto-dismisses after ~2s so it doesn't linger. We track the previous
+  // phase via a ref so we only fire on the transition edge, not every
+  // render where phase === 'ready'.
+  const [showReadyToast, setShowReadyToast] = useState(false);
+  const previousPhaseRef = useRef<P2PSyncPhase | null>(null);
 
   const currentCommunity = useMemo(
     () =>
@@ -182,6 +228,33 @@ export function CommunityScreen() {
     setCachedPosts(nextCache);
     void saveCachedPosts(nextCache);
   }, [currentCommunity, p2pSync.status.enabled, posts.data, tab]);
+
+  // P6 UX finding 2 (addendum). Fire a short live-region toast when the
+  // phase flips to `ready` from a non-ready state. Screen readers hear
+  // "Posts are up to date" and the toast also appears visually so
+  // sighted users get the same affordance. We keep the timer short (2s)
+  // so the toast doesn't linger on routine syncs.
+  useEffect(() => {
+    const phase = p2pSync.status.phase;
+    const previous = previousPhaseRef.current;
+    if (
+      previous &&
+      previous !== 'ready' &&
+      previous !== 'disabled' &&
+      phase === 'ready'
+    ) {
+      setShowReadyToast(true);
+      const id = window.setTimeout(() => {
+        setShowReadyToast(false);
+      }, 2000);
+      previousPhaseRef.current = phase;
+      return () => {
+        window.clearTimeout(id);
+      };
+    }
+    previousPhaseRef.current = phase;
+    return;
+  }, [p2pSync.status.phase]);
 
   // Tombstones live in the cache for version comparison but must never reach
   // the user feed (see persistence.ts `filterVisiblePostsForScope`). Network
@@ -436,16 +509,55 @@ export function CommunityScreen() {
 
               {/* Error banner paired with the phase chip above under the same
                   live region semantics so SR users hear the error when the
-                  phase flips. */}
+                  phase flips.
+                  P6 UX findings 3 + 10: surface a retry action (auth errors
+                  route to /verify, everything else calls syncNow) and map
+                  the worker's English `lastError` onto a localized string
+                  keyed by `errorCategory`. The raw `lastError` is kept as
+                  a small muted footnote so on-call can spot-check which
+                  worker message triggered the banner. */}
               <div
                 role="status"
                 aria-live={ASSERTIVE_PHASES.has(p2pSync.status.phase) ? 'assertive' : 'polite'}
                 aria-atomic="true"
               >
                 {p2pSync.status.lastError ? (
-                  <Banner tone="danger" title={t('resourceLoadError')}>
-                    {p2pSync.status.lastError}
-                  </Banner>
+                  (() => {
+                    const isAuth =
+                      p2pSync.status.errorCategory === 'auth' ||
+                      p2pSync.status.phase === 'auth_required';
+                    const errorKey = resolveP2PErrorKey(
+                      p2pSync.status.phase,
+                      p2pSync.status.errorCategory ?? null,
+                    );
+                    return (
+                      <Banner
+                        tone="danger"
+                        title={t(errorKey)}
+                        data-testid="p2p-error-banner"
+                        actionLabel={
+                          isAuth
+                            ? t('p2pRetrySignInAction')
+                            : t('p2pRetrySyncAction')
+                        }
+                        onAction={() => {
+                          if (isAuth) {
+                            router.push('/verify?return_to=/community/');
+                            return;
+                          }
+                          p2pSync.syncNow();
+                        }}
+                      >
+                        <span
+                          className="muted p2p-error-debug"
+                          data-testid="p2p-error-debug-detail"
+                          aria-label={p2pSync.status.lastError}
+                        >
+                          {p2pSync.status.lastError}
+                        </span>
+                      </Banner>
+                    );
+                  })()
                 ) : null}
 
                 {!isOnline ? <Banner tone="warning" title={t('p2pOfflineMode')} /> : null}
@@ -601,6 +713,21 @@ export function CommunityScreen() {
             ) : null}
           </Stack>
         </Card>
+
+        {/* P6 UX finding 2 addendum — transient ~2s toast when sync flips
+            from connecting/degraded back to ready. Toast's role=status +
+            aria-live=polite gets the announcement to AT, and the visual
+            chip gives sighted users the same cue. `onDismiss` lets a
+            user close it early with the ✕ button if they want. */}
+        {showReadyToast ? (
+          <Toast
+            tone="success"
+            title={t('p2pStatusLiveUpdate')}
+            data-testid="p2p-status-live-update"
+            dismissLabel={t('buttonClose')}
+            onDismiss={() => setShowReadyToast(false)}
+          />
+        ) : null}
       </Stack>
     </div>
   );

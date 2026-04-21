@@ -113,9 +113,14 @@ export default function MeDangerPage() {
               <>
                 {/* Two-tap confirm gate — the body copy above states what
                     "delete" means; this block asks for explicit
-                    commitment before we fire the network request. */}
+                    commitment before we fire the network request.
+                    P6 UX finding 6: append the peer-cache notice so the
+                    user understands the server purge does NOT reach
+                    other community members' devices immediately. */}
                 <Banner tone="warning" title={t('deleteAccountSummary')}>
                   {t('deleteAccountBody')}
+                  {' '}
+                  {t('deleteAccountP2PNotice')}
                 </Banner>
                 <Inline gap={3} wrap>
                   <Button

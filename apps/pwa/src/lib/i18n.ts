@@ -132,6 +132,29 @@ type ChromeMessages = {
   p2pPhase_ready: string;
   p2pPhase_degraded: string;
   p2pPhase_offline: string;
+  // P6 UX — mapped error strings by errorCategory + retry actions
+  p2pError_auth: string;
+  p2pError_forbidden: string;
+  p2pError_network: string;
+  p2pError_server: string;
+  p2pError_unknown: string;
+  p2pRetrySyncAction: string;
+  p2pRetrySignInAction: string;
+  p2pStatusLiveUpdate: string;
+  // P6 UX — Settings → Privacy → Community sync subsection
+  settingsP2PSectionTitle: string;
+  settingsP2PSectionCopy: string;
+  settingsP2PPhaseLabel: string;
+  settingsP2PNotInCommunity: string;
+  settingsP2PLearnMore: string;
+  p2pExplainerBody: string;
+  // P6 UX — onboarding disclosure (join-community)
+  joinP2PDisclosureCopy: string;
+  joinP2PDisclosureSettingsLink: string;
+  // P6 UX — delete account P2P peer-cache notice
+  deleteAccountP2PNotice: string;
+  // P6 UX — home offline last-refreshed timestamp
+  homeLastRefreshedLabel: string;
   communityTab: string;
   publicTab: string;
   currentCommunityLabel: string;
@@ -741,6 +764,29 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     p2pPhase_ready: 'Ready',
     p2pPhase_degraded: 'Weak signal',
     p2pPhase_offline: 'Offline',
+    // P6 UX — mapped error copy by errorCategory
+    p2pError_auth: 'Sign-in expired — please verify again.',
+    p2pError_forbidden: "You're no longer a member of this community.",
+    p2pError_network: "Network issue. We'll retry shortly.",
+    p2pError_server: 'Community server hiccupped. Trying again…',
+    p2pError_unknown: 'Sync hit a snag. Tap Retry to try again.',
+    p2pRetrySyncAction: 'Try again',
+    p2pRetrySignInAction: 'Sign in again',
+    p2pStatusLiveUpdate: 'Posts are up to date',
+    // P6 UX — Settings Privacy → Community sync subsection
+    settingsP2PSectionTitle: 'Community sync',
+    settingsP2PSectionCopy: 'When community sync is on, recent posts and announcements save to this phone so you can read them without internet. Your posts are also shared with other members of the same community on their own devices.',
+    settingsP2PPhaseLabel: 'Status',
+    settingsP2PNotInCommunity: 'Not in a community yet',
+    settingsP2PLearnMore: 'Learn more about community sync',
+    p2pExplainerBody: 'Community sync saves posts and announcements from your community on this device so you can open them offline. When you publish a post, a copy is shared with other members of the same community as they open the app. No one outside your community sees your posts this way, and messages never sync to other devices. You can turn this off here at any time.',
+    // P6 UX — join-community disclosure (before invite code input)
+    joinP2PDisclosureCopy: "When you join, recent posts and announcements save to this device for offline reading, and your posts sync to other community members' devices. You can turn this off in Settings → Privacy.",
+    joinP2PDisclosureSettingsLink: 'Open Privacy settings',
+    // P6 UX — delete-account peer cache notice (appended to deleteAccountBody)
+    deleteAccountP2PNotice: "Posts you've shared to communities may appear on other members' devices for up to a day after deletion while peers' apps refresh.",
+    // P6 UX — home offline last-refreshed timestamp
+    homeLastRefreshedLabel: 'Last refreshed {time}',
     communityTab: 'Community',
     publicTab: 'Public',
     currentCommunityLabel: 'Current community',
@@ -1340,6 +1386,29 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     p2pPhase_ready: 'Listo',
     p2pPhase_degraded: 'Señal débil',
     p2pPhase_offline: 'Sin conexión',
+    // P6 UX — mensajes de error por categoría
+    p2pError_auth: 'Tu sesión venció. Verifícate otra vez.',
+    p2pError_forbidden: 'Ya no eres parte de esta comunidad.',
+    p2pError_network: 'Problema de conexión. Vamos a reintentar en un momento.',
+    p2pError_server: 'El servidor de la comunidad tuvo un tropiezo. Reintentando…',
+    p2pError_unknown: 'Hubo un problema al sincronizar. Toca Reintentar.',
+    p2pRetrySyncAction: 'Reintentar',
+    p2pRetrySignInAction: 'Iniciar sesión otra vez',
+    p2pStatusLiveUpdate: 'Las publicaciones están al día',
+    // P6 UX — Ajustes Privacidad → Sincronización comunitaria
+    settingsP2PSectionTitle: 'Sincronización comunitaria',
+    settingsP2PSectionCopy: 'Cuando la sincronización comunitaria está activa, las publicaciones y avisos recientes se guardan en este teléfono para que puedas leerlos sin internet. Tus publicaciones también se comparten con otras personas de la misma comunidad en sus dispositivos.',
+    settingsP2PPhaseLabel: 'Estado',
+    settingsP2PNotInCommunity: 'Aún no estás en una comunidad',
+    settingsP2PLearnMore: 'Saber más sobre la sincronización comunitaria',
+    p2pExplainerBody: 'La sincronización comunitaria guarda publicaciones y avisos de tu comunidad en este dispositivo para que los puedas abrir sin conexión. Cuando publicas algo, una copia se comparte con otras personas de la misma comunidad cuando abren la app. Nadie fuera de tu comunidad ve tus publicaciones por esta vía, y los mensajes privados nunca se sincronizan a otros dispositivos. Puedes apagar esto aquí cuando quieras.',
+    // P6 UX — aviso al unirse a una comunidad (antes del código)
+    joinP2PDisclosureCopy: 'Al unirte, las publicaciones y avisos recientes se guardan en este dispositivo para leerlos sin conexión, y tus publicaciones se comparten con los dispositivos de otras personas de la comunidad. Puedes apagarlo en Ajustes → Privacidad.',
+    joinP2PDisclosureSettingsLink: 'Abrir ajustes de privacidad',
+    // P6 UX — aviso sobre copias en dispositivos de otros al eliminar la cuenta
+    deleteAccountP2PNotice: 'Las publicaciones que compartiste en comunidades pueden seguir apareciendo en los dispositivos de otras personas hasta por un día después de eliminar, mientras sus apps se actualizan.',
+    // P6 UX — última actualización en Home sin conexión
+    homeLastRefreshedLabel: 'Actualizado por última vez {time}',
     communityTab: 'Comunidad',
     publicTab: 'Público',
     currentCommunityLabel: 'Comunidad actual',
@@ -1942,6 +2011,29 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     p2pPhase_ready: '已连上',
     p2pPhase_degraded: '信号弱',
     p2pPhase_offline: '离线',
+    // P6 UX — 按错误类别显示的提示
+    p2pError_auth: '登录过期了，重新验证一下。',
+    p2pError_forbidden: '你已经不在这个社区里了。',
+    p2pError_network: '网络有点问题，等一下会再试。',
+    p2pError_server: '社区服务器小打嗝，正在重试……',
+    p2pError_unknown: '同步卡住了。点「重试」再试一次。',
+    p2pRetrySyncAction: '再试一次',
+    p2pRetrySignInAction: '重新登录',
+    p2pStatusLiveUpdate: '帖子都是最新的',
+    // P6 UX — 设置 隐私 → 社区同步
+    settingsP2PSectionTitle: '社区同步',
+    settingsP2PSectionCopy: '打开社区同步后，最近的帖子和公告会存在这部手机上，没网也能看。你发的帖子也会同步到同一个社区其他人的手机上。',
+    settingsP2PPhaseLabel: '状态',
+    settingsP2PNotInCommunity: '你还没加入社区',
+    settingsP2PLearnMore: '了解社区同步',
+    p2pExplainerBody: '社区同步会把你社区里的帖子和公告存在这部手机上，没网的时候也能打开看。你发帖的时候，社区里其他人打开 App，就能在他们的手机上看到一份。社区外面的人看不到你这样同步的帖子，私聊也不会同步到别人手机。你随时可以在这里关掉。',
+    // P6 UX — 加入社区前的说明（放在邀请码输入框之前）
+    joinP2PDisclosureCopy: '加入以后，最近的帖子和公告会存在这部手机上，没网也能看；你发的帖子也会同步到同社区其他人的手机上。你可以在 设置 → 隐私 里关掉。',
+    joinP2PDisclosureSettingsLink: '打开隐私设置',
+    // P6 UX — 删除账号时关于他人手机缓存的提醒
+    deleteAccountP2PNotice: '你在社区里发过的帖子，可能在你删除后还会在其他人的手机上停留一天左右，等他们的 App 刷新才会没掉。',
+    // P6 UX — Home 离线时显示的上次刷新时间
+    homeLastRefreshedLabel: '上次更新 {time}',
     communityTab: '社区',
     publicTab: '公开',
     currentCommunityLabel: '当前社区',

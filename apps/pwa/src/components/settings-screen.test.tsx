@@ -16,6 +16,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Provider } from 'react-redux';
 import { NextIntlClientProvider } from 'next-intl';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
   fireEvent,
@@ -72,6 +73,28 @@ vi.mock('@/lib/api', async () => {
   };
 });
 
+// P6 UX — SettingsScreen now calls `useCommunityP2PSync`, which opens the
+// P2P worker on mount. Stub the worker client and the persistence helpers
+// so jsdom doesn't touch IndexedDB or Worker.
+vi.mock('@/lib/p2p-worker-client', () => ({
+  createBrowserP2PWorkerClient: () => null,
+}));
+vi.mock('@/lib/persistence', () => ({
+  loadP2PSyncState: vi.fn(async () => null),
+  loadP2PKeyMaterial: vi.fn(async () => null),
+  loadP2PEventCursor: vi.fn(async () => null),
+  saveP2PSyncState: vi.fn(async () => undefined),
+  saveP2PKeyMaterial: vi.fn(async () => undefined),
+  saveP2PEventCursor: vi.fn(async () => undefined),
+  applyCommunitySyncDeltaToCache: vi.fn(async () => undefined),
+  loadCachedPosts: vi.fn(async () => null),
+  saveCachedPosts: vi.fn(async () => undefined),
+  loadCachedAnnouncements: vi.fn(async () => null),
+  saveCachedAnnouncements: vi.fn(async () => undefined),
+  filterVisiblePostsForScope: (items: unknown[] | undefined) => items ?? [],
+  filterVisibleAnnouncements: (items: unknown[] | undefined) => items ?? [],
+}));
+
 function buildStore() {
   return configureStore({
     reducer: {
@@ -99,15 +122,23 @@ function seedVerifiedSession() {
 function renderSettings() {
   const store = buildStore();
   store.dispatch(setSession(seedVerifiedSession()));
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
   const utils = render(
     <Provider store={store}>
-      <NextIntlClientProvider
-        locale="en"
-        messages={messages.en}
-        timeZone="America/New_York"
-      >
-        <SettingsScreen />
-      </NextIntlClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <NextIntlClientProvider
+          locale="en"
+          messages={messages.en}
+          timeZone="America/New_York"
+        >
+          <SettingsScreen />
+        </NextIntlClientProvider>
+      </QueryClientProvider>
     </Provider>,
   );
   return { ...utils, store };

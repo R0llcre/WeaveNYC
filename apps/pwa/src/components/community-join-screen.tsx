@@ -449,6 +449,34 @@ export function CommunityJoinScreen() {
               </h2>
             </Stack>
 
+            {/*
+              P6 UX finding 7 — explicit P2P informed-consent disclosure
+              before the user types / scans a code. Earlier waves dropped
+              users into the app without ever mentioning that joining a
+              community stores posts + announcements on this device AND
+              shares their posts to peers' devices. We surface that here
+              as a plain muted paragraph + a settings deep-link so users
+              know where to opt out later. Lives on the same card as the
+              invite input so it is unavoidable before the join action.
+            */}
+            <div
+              className="join-p2p-disclosure"
+              data-testid="join-p2p-disclosure"
+            >
+              <p className="muted">{t('joinP2PDisclosureCopy')}</p>
+              <p>
+                <Button
+                  as="a"
+                  variant="ghost"
+                  size="sm"
+                  href="/me/settings/#privacy"
+                  data-testid="join-p2p-settings-link"
+                >
+                  {t('joinP2PDisclosureSettingsLink')}
+                </Button>
+              </p>
+            </div>
+
             {mode === 'invite' ? (
               <Field label={t('inviteCodeLabel')}>
                 <input
