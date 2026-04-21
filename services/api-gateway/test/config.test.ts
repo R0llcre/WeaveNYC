@@ -211,4 +211,117 @@ describe("loadConfig", () => {
       }),
     ).rejects.toThrow("Missing required internal service URLs in staging/production");
   });
+
+  it("accepts a missing RESOURCE_DIRECTORY_SERVICE_URL in production (monolith fallback)", async () => {
+    // The resource-directory sidecar runs on GCP Cloud Run, which the AWS
+    // App Runner VPC egress cannot reach. When the URL is absent the gateway
+    // falls back to the in-process PgResourceDirectoryService (app.ts:265-269).
+    // Other four service URLs remain mandatory; only resource-directory has
+    // an in-gateway equivalent.
+    const { loadConfig } = await import("../src/config.js");
+
+    const config = await loadConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev",
+      REDIS_URL: "redis://localhost:6379",
+      JWT_SIGNING_PRIVATE_KEY: "./infra/dev/jwt-private.pem",
+      JWT_SIGNING_PUBLIC_KEY: "./infra/dev/jwt-public.pem",
+      INTERNAL_SERVICE_JWT_SECRET: "prod-secret",
+      IDENTITY_HASH_PEPPER: "prod-pepper",
+      ANCHOR_TOTP_ENCRYPTION_KEY: "prod-anchor-key",
+      ALLOWED_CORS_ORIGINS: "https://weavenyc.org",
+      POSTS_SERVICE_URL: "https://posts.example.com",
+      MATCH_SERVICE_URL: "https://match.example.com",
+      CHAT_SERVICE_URL: "https://chat.example.com",
+      NOTIFICATIONS_SERVICE_URL: "https://notifications.example.com",
+      // RESOURCE_DIRECTORY_SERVICE_URL intentionally absent
+    });
+
+    expect(config.internalServices.resourceDirectoryServiceUrl).toBeNull();
+    expect(config.internalServices.postsServiceUrl).toBe("https://posts.example.com");
+  });
+
+  it("also accepts RESOURCE_DIRECTORY_SERVICE_URL set to the empty string (explicit unset)", async () => {
+    // AWS App Runner's UpdateService MERGES RuntimeEnvironmentVariables
+    // instead of replacing the map, so the only runtime mechanism to
+    // "remove" an env var is to PUT an empty string. The
+    // emptyStringToUndefined preprocessor + optional required-list keeps
+    // this a valid config.
+    const { loadConfig } = await import("../src/config.js");
+
+    const config = await loadConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev",
+      REDIS_URL: "redis://localhost:6379",
+      JWT_SIGNING_PRIVATE_KEY: "./infra/dev/jwt-private.pem",
+      JWT_SIGNING_PUBLIC_KEY: "./infra/dev/jwt-public.pem",
+      INTERNAL_SERVICE_JWT_SECRET: "prod-secret",
+      IDENTITY_HASH_PEPPER: "prod-pepper",
+      ANCHOR_TOTP_ENCRYPTION_KEY: "prod-anchor-key",
+      ALLOWED_CORS_ORIGINS: "https://weavenyc.org",
+      POSTS_SERVICE_URL: "https://posts.example.com",
+      MATCH_SERVICE_URL: "https://match.example.com",
+      CHAT_SERVICE_URL: "https://chat.example.com",
+      NOTIFICATIONS_SERVICE_URL: "https://notifications.example.com",
+      RESOURCE_DIRECTORY_SERVICE_URL: "",
+    });
+
+    expect(config.internalServices.resourceDirectoryServiceUrl).toBeNull();
+  });
+
+  it("honors USE_MONOLITH_RESOURCE_DIRECTORY=1 override even when URL is set", async () => {
+    // Ops escape hatch. App Runner's UpdateService MERGE semantics mean
+    // empty-stringing RESOURCE_DIRECTORY_SERVICE_URL on a running service
+    // is silently dropped. The override flag is additive (new key) so it
+    // can be flipped via UpdateService without touching the URL. When set,
+    // the resolved resourceDirectoryServiceUrl becomes null even with a
+    // non-null URL.
+    const { loadConfig } = await import("../src/config.js");
+
+    const config = await loadConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev",
+      REDIS_URL: "redis://localhost:6379",
+      JWT_SIGNING_PRIVATE_KEY: "./infra/dev/jwt-private.pem",
+      JWT_SIGNING_PUBLIC_KEY: "./infra/dev/jwt-public.pem",
+      INTERNAL_SERVICE_JWT_SECRET: "prod-secret",
+      IDENTITY_HASH_PEPPER: "prod-pepper",
+      ANCHOR_TOTP_ENCRYPTION_KEY: "prod-anchor-key",
+      ALLOWED_CORS_ORIGINS: "https://weavenyc.org",
+      POSTS_SERVICE_URL: "https://posts.example.com",
+      MATCH_SERVICE_URL: "https://match.example.com",
+      CHAT_SERVICE_URL: "https://chat.example.com",
+      NOTIFICATIONS_SERVICE_URL: "https://notifications.example.com",
+      RESOURCE_DIRECTORY_SERVICE_URL: "https://resource-directory.example.com",
+      USE_MONOLITH_RESOURCE_DIRECTORY: "1",
+    });
+
+    expect(config.internalServices.resourceDirectoryServiceUrl).toBeNull();
+  });
+
+  it("USE_MONOLITH_RESOURCE_DIRECTORY=0 is explicit opt-out (URL wins)", async () => {
+    const { loadConfig } = await import("../src/config.js");
+
+    const config = await loadConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://weavenyc:weavenyc@localhost:5432/weavenyc_dev",
+      REDIS_URL: "redis://localhost:6379",
+      JWT_SIGNING_PRIVATE_KEY: "./infra/dev/jwt-private.pem",
+      JWT_SIGNING_PUBLIC_KEY: "./infra/dev/jwt-public.pem",
+      INTERNAL_SERVICE_JWT_SECRET: "prod-secret",
+      IDENTITY_HASH_PEPPER: "prod-pepper",
+      ANCHOR_TOTP_ENCRYPTION_KEY: "prod-anchor-key",
+      ALLOWED_CORS_ORIGINS: "https://weavenyc.org",
+      POSTS_SERVICE_URL: "https://posts.example.com",
+      MATCH_SERVICE_URL: "https://match.example.com",
+      CHAT_SERVICE_URL: "https://chat.example.com",
+      NOTIFICATIONS_SERVICE_URL: "https://notifications.example.com",
+      RESOURCE_DIRECTORY_SERVICE_URL: "https://resource-directory.example.com",
+      USE_MONOLITH_RESOURCE_DIRECTORY: "0",
+    });
+
+    expect(config.internalServices.resourceDirectoryServiceUrl).toBe(
+      "https://resource-directory.example.com",
+    );
+  });
 });
