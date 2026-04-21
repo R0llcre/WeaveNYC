@@ -20,6 +20,29 @@
  *                       real 500s used to mimic "Nothing nearby" and blame
  *                       the user's ZIP).
  *
+ * V1-D filter redesign: the single-select 6-category rail forced false
+ * choices ("pantry OR kitchen") and the categories didn't match user
+ * mental models (SNAP retailer → market, FQHC → benefits). The real
+ * question the user is asking is "is this open right now and can I walk
+ * in?". So the rail is now TWO rows:
+ *   1. Situational (multi-select): `Open now`, `Today`. Answers the real
+ *      question. No `Walk-in` chip yet — `ResourceSummary` has no boolean
+ *      for walk-in availability at the time of this change, so shipping
+ *      it would be a promise the data can't keep. Revisit once the
+ *      public-ingest pipeline learns that field.
+ *   2. Category (single-select, existing): the 6 mental-model buckets
+ *      All / Food / Meals / Fresh / Health / Housing. Sits below a small
+ *      dashed divider added by the stacked `.pill-scroll + .pill-scroll`
+ *      rule in globals.css.
+ *
+ * V1-D a11y: the result wrapper now has `role="region"` + `aria-live="polite"`
+ * + `aria-atomic="true"` so screen readers announce the updated count when
+ * the filter toggles change the list length.
+ *
+ * V1-D sparse-results fallback: when the list has 1-2 items, a secondary
+ * EmptyState prompts "See a wider area? / Try a nearby ZIP". Reuses the
+ * previously-dead `homeSparse*` slot so U3's dead-key flag is now coverage.
+ *
  * All layout uses <Stack> / <Inline> atoms so the JSX carries NO dead BEM
  * classes (the former `.home__*` hooks had no matching rules in globals.css
  * and were load-bearing nowhere). The one new CSS addition is `.pill-scroll`,
@@ -35,10 +58,14 @@
  *   - `see-nearby`           — the "All" filter pill.
  *   - `resource-detail-{id}` — emitted by ResourceCard.
  *   - `bookmark-{id}`        — emitted by ResourceCard.
+ *   - `home-filter-open-now` — V1-D situational chip.
+ *   - `home-filter-today`    — V1-D situational chip.
+ *   - `home-sparse-fallback` — V1-D sparse-results card (1-2 results).
+ *   - `home-sparse-nearby`   — V1-D sparse-fallback CTA.
  */
 
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   Banner,
@@ -65,7 +92,11 @@ import { useSessionBootstrap } from '@/lib/use-session-bootstrap';
 // protocol stays unchanged; only the presentation layer shifts.
 type HomeFilterKey = 'all' | 'food' | 'meal' | 'fresh' | 'health' | 'housing';
 
-const FILTERS: Array<{ key: HomeFilterKey; type: ResourceFilterType; i18n: string }> = [
+const CATEGORY_FILTERS: Array<{
+  key: HomeFilterKey;
+  type: ResourceFilterType;
+  i18n: string;
+}> = [
   { key: 'all', type: 'all', i18n: 'homeFilterAll' },
   { key: 'food', type: 'pantry', i18n: 'homeFilterFood' },
   { key: 'meal', type: 'kitchen', i18n: 'homeFilterMeal' },
@@ -74,12 +105,70 @@ const FILTERS: Array<{ key: HomeFilterKey; type: ResourceFilterType; i18n: strin
   { key: 'housing', type: 'other', i18n: 'homeFilterHousing' },
 ];
 
+// V1-D situational chips — multi-select. `walk_in` deliberately dropped
+// from the MVP because `ResourceSummary` has no boolean for it yet; add
+// when the public-ingest pipeline surfaces that field.
+type SituationalKey = 'open_now' | 'today';
+
+const SITUATIONAL_FILTERS: Array<{
+  key: SituationalKey;
+  i18n: string;
+  testId: string;
+}> = [
+  { key: 'open_now', i18n: 'homeFilterOpenNow', testId: 'home-filter-open-now' },
+  { key: 'today', i18n: 'homeFilterToday', testId: 'home-filter-today' },
+];
+
+// V1-D sparse-results threshold. When the list length is strictly between 0
+// and this value, we append the fallback card. 3 is the product threshold
+// where a list stops reading as a failure and starts reading as "choice".
+const SPARSE_RESULTS_THRESHOLD = 3;
+
+/**
+ * Suggest up to 3 adjacent ZIPs by flexing the last digit of the current
+ * ZIP. This is a deliberately cheap client-side heuristic — the V1-D
+ * spec allows the sparse CTA to simply guide the user toward a nearby ZIP
+ * rather than implement server-side radius expansion. The walk fans out
+ * (+1, -1, +2, -2, …) so adjacent ZIPs surface first.
+ */
+function suggestNearbyZips(current: string): string[] {
+  const match = /^(\d{4})(\d)$/.exec(current);
+  if (!match) {
+    return [];
+  }
+  const prefix = match[1];
+  const last = Number(match[2]);
+  const candidates: string[] = [];
+  for (let step = 1; step <= 5 && candidates.length < 3; step += 1) {
+    for (const delta of [step, -step]) {
+      const nextDigit = last + delta;
+      if (nextDigit >= 0 && nextDigit <= 9) {
+        const candidate = `${prefix}${nextDigit}`;
+        if (candidate !== current && !candidates.includes(candidate)) {
+          candidates.push(candidate);
+          if (candidates.length === 3) {
+            break;
+          }
+        }
+      }
+    }
+  }
+  return candidates;
+}
+
 export function ResourceHome() {
   const t = useTranslations();
   const dispatch = useAppDispatch();
   const preferences = useAppSelector(selectPreferences);
   const session = useAppSelector(selectSession);
   const [filter, setFilter] = useState<HomeFilterKey>('all');
+  // V1-D: situational chips are multi-select. A `Set` keeps the add/remove
+  // logic simple, and memoised `has` lookups are O(1) for the query-input
+  // derivation below. Initial empty — "no filter" means "show everything
+  // the category selection allows".
+  const [situational, setSituational] = useState<Set<SituationalKey>>(
+    () => new Set(),
+  );
   // P6 UX finding 8 — offline banner on Home. We previously rendered
   // stale results silently; now we pick up the browser online/offline
   // events and surface a warning Banner with "last refreshed" stamp so
@@ -106,10 +195,34 @@ export function ResourceHome() {
     };
   }, []);
 
-  const activeFilter = FILTERS.find((entry) => entry.key === filter) ?? FILTERS[0];
+  const toggleSituational = useCallback((key: SituationalKey) => {
+    setSituational((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const activeFilter =
+    CATEGORY_FILTERS.find((entry) => entry.key === filter) ?? CATEGORY_FILTERS[0];
   const hasValidZip = /^\d{5}$/.test(preferences.zipCode);
   const resourceQuery = useResources(
-    { zip: preferences.zipCode, type: activeFilter.type, limit: 20 },
+    {
+      zip: preferences.zipCode,
+      type: activeFilter.type,
+      // `|| undefined` means the flag omits the query param when false,
+      // keeping the wire payload identical to pre-V1-D when no situational
+      // chip is active. The backend's `searchResources` only appends these
+      // to the URLSearchParams when truthy, but this double-guard keeps
+      // the React Query cache key minimal too.
+      openNow: situational.has('open_now') || undefined,
+      today: situational.has('today') || undefined,
+      limit: 20,
+    },
     preferences.onboardingComplete && hasValidZip,
   );
 
@@ -177,7 +290,7 @@ export function ResourceHome() {
 
     if (isLoading) {
       return (
-        <Stack gap={3} aria-live="polite" aria-busy="true">
+        <Stack gap={3} aria-busy="true">
           <span className="sr-only">{t('homeLoadingLabel')}</span>
           <Skeleton variant="rect" height={72} label={t('homeLoadingLabel')} />
           <Skeleton variant="rect" height={72} />
@@ -222,6 +335,16 @@ export function ResourceHome() {
       );
     }
 
+    // V1-D sparse-results fallback — list AND secondary CTA. When the user
+    // sees only 1-2 rows the raw list looks like a failure; this card re-
+    // frames that as "you can expand your search" instead of "nothing here".
+    const showSparseFallback =
+      items.length > 0 && items.length < SPARSE_RESULTS_THRESHOLD;
+    const nearbyZipSuggestions = showSparseFallback
+      ? suggestNearbyZips(preferences.zipCode)
+      : [];
+    const sparseSubtitle = t('homeSparseSubtitle', { count: nearbyCount });
+
     return (
       <Stack gap={3}>
         <p className="muted">{t('homeResultsCount', { count: nearbyCount })}</p>
@@ -258,6 +381,24 @@ export function ResourceHome() {
             />
           ))}
         </Stack>
+        {showSparseFallback ? (
+          <EmptyState
+            data-testid="home-sparse-fallback"
+            illustrationName="search-empty"
+            title={t('homeSparseTitle')}
+            subtitle={
+              nearbyZipSuggestions.length > 0
+                ? `${sparseSubtitle} ${nearbyZipSuggestions.join(', ')}`
+                : sparseSubtitle
+            }
+            cta={{
+              label: t('homeSparseCta'),
+              href: '/me/settings/',
+              variant: 'secondary',
+              testId: 'home-sparse-nearby',
+            }}
+          />
+        ) : null}
       </Stack>
     );
   };
@@ -355,13 +496,36 @@ export function ResourceHome() {
             </Banner>
           ) : null}
 
+          {/* V1-D filter rail — two adjacent scroll-rails sharing the
+              `.pill-scroll` atom. The stacked `.pill-scroll + .pill-scroll`
+              rule adds a dashed divider in CSS so the JSX stays atom-first.
+              Each nav has its own accessible name so SR users hear
+              "When: Open now pressed" vs "Category: Food pressed". */}
           <Inline
             as="nav"
             gap={2}
             className="pill-scroll"
-            aria-label={t('filtersType')}
+            aria-label={t('homeFilterSituationalLabel')}
           >
-            {FILTERS.map(({ key, i18n }) => (
+            {SITUATIONAL_FILTERS.map(({ key, i18n, testId }) => (
+              <Pill
+                key={key}
+                active={situational.has(key)}
+                data-testid={testId}
+                onClick={() => toggleSituational(key)}
+              >
+                {t(i18n)}
+              </Pill>
+            ))}
+          </Inline>
+
+          <Inline
+            as="nav"
+            gap={2}
+            className="pill-scroll"
+            aria-label={t('homeFilterCategoryLabel')}
+          >
+            {CATEGORY_FILTERS.map(({ key, i18n }) => (
               <Pill
                 key={key}
                 active={filter === key}
@@ -378,7 +542,13 @@ export function ResourceHome() {
             ))}
           </Inline>
 
+          {/* V1-A + V1-D a11y: wrap results in a polite live region so the
+              count change is announced when a filter toggle mutates the list.
+              `aria-atomic="true"` ensures the full label is re-read
+              (otherwise only the diff would be spoken, which is unhelpful
+              for a count readout). */}
           <section
+            role="region"
             aria-label={t('searchTitle')}
             aria-live="polite"
             aria-atomic="true"

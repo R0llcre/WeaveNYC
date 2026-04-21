@@ -200,6 +200,29 @@ describe('ui/Pill', () => {
     expect(on).toHaveAttribute('aria-pressed', 'true');
     expect(off.className).not.toContain('pill--active');
   });
+
+  // V1-D a11y fix — anchors are not toggle buttons; aria-pressed on an <a>
+  // is a WAI-ARIA role/host mismatch. The anchor branch must use
+  // `aria-current="page"` when active and omit it otherwise.
+  it('uses aria-current="page" instead of aria-pressed on anchor pills', () => {
+    render(
+      <Pill as="a" href="/tab/a" data-testid="pill-link-on" active>
+        Tab A
+      </Pill>,
+    );
+    render(
+      <Pill as="a" href="/tab/b" data-testid="pill-link-off">
+        Tab B
+      </Pill>,
+    );
+    const on = screen.getByTestId('pill-link-on');
+    const off = screen.getByTestId('pill-link-off');
+    expect(on.tagName).toBe('A');
+    expect(on).toHaveAttribute('aria-current', 'page');
+    expect(on).not.toHaveAttribute('aria-pressed');
+    expect(off).not.toHaveAttribute('aria-current');
+    expect(off).not.toHaveAttribute('aria-pressed');
+  });
 });
 
 describe('ui/Banner', () => {

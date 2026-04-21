@@ -285,4 +285,75 @@ describe('ResourceHome (Wave 3A redesign)', () => {
       expect(latest?.type).toBe('pantry');
     });
   });
+
+  // V1-D situational chips — multi-select. Each chip toggles an openNow /
+  // today flag on the query input; both can be active simultaneously.
+  it('toggles Open now / Today situational chips into the query input', async () => {
+    renderHome({ zip: '11735' });
+    await waitFor(() => {
+      expect(searchResourcesMock).toHaveBeenCalled();
+    });
+    // First mount: no situational filters set, openNow/today are undefined.
+    const firstCall = searchResourcesMock.mock.calls[0][0];
+    expect(firstCall.openNow).toBeUndefined();
+    expect(firstCall.today).toBeUndefined();
+
+    fireEvent.click(screen.getByTestId('home-filter-open-now'));
+    await waitFor(() => {
+      const latest = searchResourcesMock.mock.calls.at(-1)?.[0];
+      expect(latest?.openNow).toBe(true);
+      expect(latest?.today).toBeUndefined();
+    });
+
+    // Multi-select: Today can be added on top of Open now.
+    fireEvent.click(screen.getByTestId('home-filter-today'));
+    await waitFor(() => {
+      const latest = searchResourcesMock.mock.calls.at(-1)?.[0];
+      expect(latest?.openNow).toBe(true);
+      expect(latest?.today).toBe(true);
+    });
+
+    // Tapping again removes the chip (toggle semantics).
+    fireEvent.click(screen.getByTestId('home-filter-open-now'));
+    await waitFor(() => {
+      const latest = searchResourcesMock.mock.calls.at(-1)?.[0];
+      expect(latest?.openNow).toBeUndefined();
+      expect(latest?.today).toBe(true);
+    });
+  });
+
+  // V1-D sparse-results fallback — when the list has 1-2 items, the UI
+  // appends a secondary EmptyState card so the thin result set reads as
+  // "expand your search" instead of "nothing here".
+  it('renders the sparse-results fallback when the list has 1-2 items', async () => {
+    searchResourcesMock.mockResolvedValue({
+      items: [buildResource()],
+      next_cursor: null,
+      source_mode: 'api',
+    } satisfies ResourcesResponse);
+
+    renderHome({ zip: '11368' });
+
+    expect(await screen.findByTestId('home-sparse-fallback')).toBeInTheDocument();
+    expect(screen.getByTestId('home-sparse-nearby')).toBeInTheDocument();
+    // The primary result card still renders above the fallback.
+    expect(screen.getByText(/St. Kilian Food Pantry/)).toBeInTheDocument();
+  });
+
+  it('does not render the sparse-results fallback when 3+ items are present', async () => {
+    searchResourcesMock.mockResolvedValue({
+      items: [
+        buildResource({ provider_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }),
+        buildResource({ provider_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }),
+        buildResource({ provider_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' }),
+      ],
+      next_cursor: null,
+      source_mode: 'api',
+    } satisfies ResourcesResponse);
+
+    renderHome({ zip: '11368' });
+
+    await screen.findByText(/3 nearby/);
+    expect(screen.queryByTestId('home-sparse-fallback')).not.toBeInTheDocument();
+  });
 });
