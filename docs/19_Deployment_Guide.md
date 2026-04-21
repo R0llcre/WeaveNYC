@@ -28,7 +28,7 @@
 - `pnpm test:smoke:real`、`pnpm test:e2e`、`pnpm test:smoke:p2p` 继续作为当前可执行验证链的一部分，优先服务于 rehearsal / closeout
 - 当前阶段真值固定为：`main = M7 completed`，下一阶段入口固定为 `M8 Pilot Readiness`
 
-## 2.5) M8 pilot — live AWS deploy (2026-04-16)
+## 2.5) M8 pilot — live AWS deploy (2026-04-20, Redis on Upstash)
 
 The pilot `api-gateway` container is deployed to AWS App Runner in region `us-east-1`:
 
@@ -37,45 +37,68 @@ The pilot `api-gateway` container is deployed to AWS App Runner in region `us-ea
 | App Runner service | `weavenyc-api-gateway` (0.25 vCPU / 0.5 GB) |
 | Default URL | `https://hykmfmcf58.us-east-1.awsapprunner.com` |
 | Public API URL | `https://api.weavenyc.org` (Cloudflare DNS-only → App Runner custom domain) |
-| Image | `590517422743.dkr.ecr.us-east-1.amazonaws.com/weavenyc-api-gateway:v0.1.3` |
-| Database | RDS Postgres `weavenyc-pilot` (PostGIS, 11 migrations applied) |
-| Redis | **Not yet deployed** — `REDIS_URL` still points at `localhost:6379` |
+| Image | `590517422743.dkr.ecr.us-east-1.amazonaws.com/weavenyc-api-gateway:<sha>` (current SHA managed by `.github/workflows/deploy-api.yml`) |
+| Database | RDS Postgres `weavenyc-pilot` (PostGIS, 13 migrations applied) |
+| Redis | **Upstash Redis** (TLS), URL kept in AWS Secrets Manager entry `weavenyc/pilot/redis-url-jJCCYP` |
 
-Deploy artifacts and step-by-step runbook live in [`infra/aws/README.md`](../infra/aws/README.md).
+Deploy artifacts and step-by-step runbook live in [`infra/aws/README.md`](../infra/aws/README.md). Redis rotation SOP: [`11_Ops_Runbook.md §G.5`](./11_Ops_Runbook.md).
 
-**Probe contract while Redis is unresolved:**
+**Probe contract:**
 
 - `GET /healthz` → `200 {"status":"ok"}` — reflects process liveness only.
-- `GET /readyz` → `503 {"status":"degraded", "checks":[{"postgres":"ok"},{"redis":"degraded"}]}` — will stay 503 until `REDIS_URL` is rotated to an Upstash or ElastiCache endpoint.
+- `GET /readyz` → `200 {"status":"ok", "checks":[{"name":"postgres","status":"ok"},{"name":"redis","status":"ok"}]}` once the Upstash URL has been rotated into Secrets Manager and a fresh deploy has landed.
 
-To rotate `REDIS_URL` without rebuilding the image (see also `infra/aws/README.md` §6.1):
+### 2.5.1 Upstash Redis provisioning (manual, one-time)
+
+**Needs a maintainer with an Upstash account.** The Upstash Console provisioning is manual for this pilot — no programmatic token exists in CI. If you are the maintainer running this PR to completion:
+
+1. Log in at https://console.upstash.com (free tier is sufficient for the pilot's load profile).
+2. **Create Database** → type `Regional` → region `us-east-1` → engine `Redis 7.x` → name `weavenyc-pilot-redis`.
+3. From the database's **Details** / **REST** panel, copy the TLS connection string. It will look like:
+   ```
+   rediss://default:<password>@global-xxxxxx.upstash.io:6379
+   ```
+   The `rediss://` scheme (two `s`) is required — Upstash rejects plain `redis://`.
+4. Proceed with §2.5.2 to wire the URL into AWS Secrets Manager and trigger a redeploy.
+
+If this PR is being merged by someone without Upstash access, §2.5.1 is a **prerequisite step that blocks merge**. The remaining workflow / smoke changes still ship independently, but `/readyz` will not turn green until Upstash is provisioned and step 2.5.2 is executed. Coordinate with the primary on-call before merging.
+
+### 2.5.2 Rotate `REDIS_URL` in AWS Secrets Manager + trigger a fresh deploy
 
 ```bash
-SERVICE_ARN="arn:aws:apprunner:us-east-1:590517422743:service/weavenyc-api-gateway/07509b0481ce4b099e40085ed79bb506"
-aws apprunner describe-service --service-arn "$SERVICE_ARN" --region us-east-1 \
-  --query 'Service.SourceConfiguration' > /tmp/src.json
+# 1. Update the pre-existing Secrets Manager entry that App Runner
+#    binds into REDIS_URL at runtime. The entry id is stable
+#    (weavenyc/pilot/redis-url-jJCCYP) so the App Runner binding does
+#    not need to be re-wired.
+aws secretsmanager update-secret \
+  --region us-east-1 \
+  --secret-id weavenyc/pilot/redis-url-jJCCYP \
+  --secret-string 'rediss://default:<password>@global-xxxxxx.upstash.io:6379'
 
-python3 - <<'PY'
-import json
-with open('/tmp/src.json') as f: s = json.load(f)
-s['ImageRepository']['ImageConfiguration']['RuntimeEnvironmentVariables']['REDIS_URL'] = \
-  'rediss://default:<password>@global-xxxxx.upstash.io:6379'
-json.dump({'SourceConfiguration': s}, open('/tmp/new-src.json', 'w'))
-PY
+# 2. Confirm the value is there:
+aws secretsmanager describe-secret \
+  --region us-east-1 \
+  --secret-id weavenyc/pilot/redis-url-jJCCYP \
+  --query '{Name:Name, ARN:ARN, LastChanged:LastChangedDate}'
 
-aws apprunner update-service \
-  --service-arn "$SERVICE_ARN" \
-  --cli-input-json file:///tmp/new-src.json \
-  --region us-east-1
+# 3. Trigger a Deploy API Gateway workflow run. The deploy-api.yml
+#    workflow now explicitly updates the App Runner ImageIdentifier
+#    (A8 P0-6 invariant) and its post-deploy smoke asserts
+#    uptime < 5 min, so a silent no-op would fail loudly.
+gh workflow run deploy-api.yml --ref main
+
+# 4. After the workflow reports success, confirm redis is healthy:
+curl -s https://api.weavenyc.org/readyz | jq '.checks[] | select(.name=="redis")'
+# expected: {"name":"redis","status":"ok"}
 ```
 
-App Runner redeploys in ~5 minutes; `/readyz` will flip to `200 {"status":"ok"}` once the subscriber/publisher ioredis clients complete their first handshake.
+App Runner redeploys in ~5 minutes; `/readyz` flips to `200 {"status":"ok"}` once the subscriber/publisher ioredis clients complete their first handshake against Upstash.
 
-**Smoke commands confirmed passing on 2026-04-16:**
+**Smoke commands confirmed passing (target post-rotation):**
 
 ```bash
 curl -sS https://api.weavenyc.org/healthz   # 200 {"status":"ok", ...}
-curl -sS https://api.weavenyc.org/readyz    # 503 while Redis URL is localhost
+curl -sS https://api.weavenyc.org/readyz    # 200 {"status":"ok", ...}
 ```
 
 ---

@@ -36,7 +36,10 @@ export async function runMigrations(): Promise<void> {
     `);
 
     const files = (await readdir(migrationsDir))
-      .filter((entry) => entry.endsWith(".sql"))
+      // Forward runner must NOT pick up `*.rollback.sql` paired down
+      // migrations introduced by the db:migrate:rollback SOP (A8 P0-4).
+      // Those run via scripts/rollback.ts only.
+      .filter((entry) => entry.endsWith(".sql") && !entry.endsWith(".rollback.sql"))
       .sort((left, right) => left.localeCompare(right));
 
     for (const filename of files) {

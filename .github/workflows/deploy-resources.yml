@@ -20,6 +20,14 @@ name: Deploy Resource Directory
 # Required Secrets (kept in Secret Manager, referenced by --set-secrets):
 #   weavenyc-database-url                  (managed out-of-band by W4B-AWS)
 #   weavenyc-internal-service-jwt-secret   (shared with api-gateway)
+#
+# Freshness invariant (A8 P0-6): every run explicitly pins the Cloud Run
+# revision to the SHA-tagged image, then verifies post-deploy that the
+# serving revision's container image matches that SHA AND that the
+# resource-directory /metrics.json `uptime_seconds` is under 5 minutes.
+# Cloud Run always creates a new revision when `--image` changes, but the
+# traffic routing could silently stay on a prior revision if the deploy
+# action surfaces an error we don't check — so we assert both here.
 
 on:
   push:
@@ -31,6 +39,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/deploy-resources.yml'
+      - 'scripts/staging/post-deploy-smoke.ts'
   workflow_dispatch:
     inputs:
       image_tag:
@@ -62,14 +71,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Resolve image tag
         id: meta
         run: |
           if [ -n "${{ github.event.inputs.image_tag }}" ]; then
-            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ github.event.inputs.image_tag }}"
           else
-            echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_SHA::12}"
           fi
+          FULL_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_AR_REPOSITORY}/resource-directory:${TAG}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "full=${FULL_IMAGE}" >> "$GITHUB_OUTPUT"
 
       - name: Google Auth (WIF)
         id: auth
@@ -97,18 +123,21 @@ jobs:
           file: services/resource-directory/Dockerfile
           push: true
           tags: |
-            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_AR_REPOSITORY }}/resource-directory:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.full }}
             ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_AR_REPOSITORY }}/resource-directory:latest
           cache-from: type=gha,scope=resource-directory
           cache-to: type=gha,scope=resource-directory,mode=max
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to Cloud Run (pinning to SHA tag)
         id: deploy
+        # A8 P0-6: deploy explicitly references the SHA-tagged image, not
+        # :latest. When the image identifier changes Cloud Run rolls a new
+        # revision; we verify routing below before smoke.
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.GCP_SERVICE_NAME }}
           region: ${{ env.GCP_REGION }}
-          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_AR_REPOSITORY }}/resource-directory:${{ steps.meta.outputs.tag }}
+          image: ${{ steps.meta.outputs.full }}
           flags: >-
             --allow-unauthenticated
             --port=8080
@@ -131,10 +160,33 @@ jobs:
             DATABASE_URL=weavenyc-database-url:latest
             INTERNAL_SERVICE_JWT_SECRET=weavenyc-internal-service-jwt-secret:latest
 
-      - name: Smoke test
+      - name: Verify serving revision is pinned to the new SHA tag
+        # Cloud Run can route 100% traffic to the new revision only if the
+        # image in the serving revision matches the one we just pushed. If
+        # a race or a failed revision caused traffic to stay on the prior
+        # rev, this catches it before the smoke step.
+        run: |
+          EXPECTED="${{ steps.meta.outputs.full }}"
+          ACTUAL=$(gcloud run services describe "${GCP_SERVICE_NAME}" \
+            --region "${GCP_REGION}" \
+            --format='value(status.traffic[0].revisionName)')
+          echo "serving revision: ${ACTUAL}"
+          IMAGE=$(gcloud run revisions describe "${ACTUAL}" \
+            --region "${GCP_REGION}" \
+            --format='value(spec.containers[0].image)')
+          echo "expected image:    ${EXPECTED}"
+          echo "serving rev image: ${IMAGE}"
+          if [ "$IMAGE" != "$EXPECTED" ]; then
+            echo "::error::serving revision image ($IMAGE) does not match the SHA tag ($EXPECTED) — traffic did not cut over"
+            exit 1
+          fi
+
+      - name: Reachability smoke
+        id: reach
         run: |
           CLOUD_RUN_URL="${{ steps.deploy.outputs.url }}"
           echo "Deployed to: $CLOUD_RUN_URL"
+          echo "url=${CLOUD_RUN_URL}" >> "$GITHUB_OUTPUT"
           # resource-directory doesn't expose /healthz; we treat any HTTP response
           # other than connection-refused (000) as "server is up and reachable".
           for i in 1 2 3 4 5; do
@@ -148,3 +200,16 @@ jobs:
           done
           echo "server never responded"
           exit 1
+
+      - name: Post-deploy smoke — assert FRESH container
+        # A8 P0-6 freshness gate. The resource-directory standalone runtime
+        # exposes /metrics.json with `uptime_seconds`; assert it's under
+        # 5min to prove the new revision is actually serving, not a stale
+        # revision that never rolled.
+        env:
+          MODE: uptime
+          TARGET_URL: ${{ steps.reach.outputs.url }}
+          MAX_UPTIME_SECONDS: "300"
+          REQUIRE_P2P_METRICS: "false"
+        run: |
+          pnpm exec tsx scripts/staging/post-deploy-smoke.ts

@@ -24,8 +24,8 @@ All twelve items must be checked (green) before inviting real pilot users. If **
 - [ ] **Azure notifications deployed** — `notify.weavenyc.org` internal health returns 200; one test SMS + one test email successfully delivered end-to-end
 - [ ] **3 community anchors have signed MOU** — Farmingdale (11735), Queens Corona (11368), Bronx Hunts Point (10474); PDFs stored in the shared team drive with both signatures
 - [ ] **3 anchors have activated TOTP in production** — `anchor_activated` event exists in `analytics_events` for each of the three communities, and `anchors.status = 'active'` for each
-- [ ] **Sentry receiving events from all 5 services** — api-gateway, posts-service, match-service, chat-service, resource-directory-service, notifications-service; at least one event per service in the last 24 hours
-- [ ] **Prometheus scraping `/metrics`** — all five runtimes exposing a metrics endpoint that Prometheus has scraped successfully at least once in the last hour
+- [ ] **Sentry SDK wired and DSN provisioned (downgraded)** — each of api-gateway, posts-service, match-service, chat-service, resource-directory, notifications-service has the Sentry SDK imported and a DSN available in Secrets Manager / Secret Manager / Key Vault. The stricter gate ("Sentry receiving events from all 5 services") has been downgraded for go-live (A8 P0-3): a real DSN was not yet provisioned in pilot secrets as of 2026-04-20. Acceptance: first Sentry event captured within **48 hours of go-live** via an artificial 4xx trigger per service; documented in the deploy log.
+- [ ] **`/metrics` endpoint live and verified by curl (downgraded)** — each runtime exposes `/metrics` (Prometheus text) and a manual `curl` from a maintainer laptop returns >= 10 non-empty lines. The stricter gate ("Prometheus scraping `/metrics`") has been downgraded for go-live (A8 P0-3): no Prometheus server is provisioned in the pilot environment. Scraper deployment is deferred to the **first week of pilot** (tracked under W4D); on-call uses manual `curl /metrics | promtool query instant` as the interim check per `docs/11_Ops_Runbook.md §H.2`.
 - [ ] **First 10 test users run through happy path** — pick ZIP → browse resources → create account → publish one post → anchor approves → contact request → match success; zero P0 incidents during the dry run
 - [ ] **Pilot rollback SOP tested once in staging** — Section 3 below was exercised end-to-end against the staging environment and the run was documented in the deploy log
 
@@ -39,7 +39,8 @@ The default answer to any failed gate is "do not go live." Use the matrix below 
 |---|---|---|---|
 | Code freeze / review findings | Code quality | Freeze new work. Cherry-pick fixes into a hotfix branch. Re-run CI. | Project lead |
 | CF Pages / API / resource-directory / notifications health | Infra | Roll back to previous known-good deploy (see Section 3). Investigate root cause before re-deploying. | On-call engineer |
-| Sentry / Prometheus not receiving | Observability | Do not go live blind. Verify DSN / scrape config; re-deploy. | On-call engineer |
+| Sentry SDK / DSN missing | Observability (downgraded gate — A8 P0-3) | Verify the SDK import exists in the service entrypoint and provision a DSN in the platform secret store. Go-live is OK with DSN + SDK wired; acceptance remains first-event-within-48h via an artificial 4xx. | On-call engineer |
+| `/metrics` endpoint missing or empty | Observability (downgraded gate — A8 P0-3) | Verify `/metrics` returns Prometheus text with >= 10 lines via manual `curl`. Scraper deployment is deferred to pilot week 1; do not block go-live on Prometheus infrastructure alone. | On-call engineer |
 | Anchor MOU unsigned | Partner | Call anchor. If anchor declines, pause that specific community and launch the other two. A two-community launch is acceptable. | Project lead |
 | Anchor TOTP not activated | Partner + security | Re-run the per-community activation walkthrough. Do not launch that specific community until activation is confirmed. | Community lead |
 | 10-user happy path hit a P0 | Safety | Do not launch any community. File the bug, fix, re-run the full 10-user happy path. | Project lead |
@@ -162,26 +163,55 @@ az containerapp ingress traffic set \
 
 Verify: internal health check returns 200; one test notification end-to-end.
 
-### 3.7 Database migration rollback (Drizzle)
+### 3.7 Database migration rollback
 Only relevant if the failed deploy shipped a migration. Most pilot deploys will not.
 
+The rollback runner (A8 P0-4) reads the last-applied migration from the
+`schema_migrations` tracking table and looks for a paired
+`<filename>.rollback.sql` down file under `packages/db/migrations/`.
+If the paired file exists, it runs inside a single transaction and the
+`schema_migrations` row is removed. If it does NOT exist, the command
+FAILS LOUD — forcing a pg_dump + restore path instead of silently
+no-op'ing.
+
 ```bash
-# From the repo root, using the drizzle migration runner:
-pnpm db:migrate:rollback --env production
+# From the repo root. DATABASE_URL must point at the production DB.
+# The "--env production" flag is accepted for documentation symmetry
+# but ignored: DATABASE_URL is authoritative.
+DATABASE_URL="postgres://..." pnpm db:migrate:rollback --env production
 
 # If the rollback step isn't reversible (e.g., dropped columns, altered enums),
-# restore from the most recent pg_dump. See 11_Ops_Runbook §8 for the exact
+# restore from the most recent pg_dump. See 11_Ops_Runbook §D.4 for the exact
 # restore procedure.
 pg_restore -h $DB_HOST -U weavenyc -d weavenyc_prod /backup/latest.dump
 ```
 
 **Before you run this:** verify you have a fresh pg_dump from before the broken migration. If you don't, stop and call the project lead before touching the DB.
 
+Recent risky migrations have paired down files:
+- `0013_p2p_sync_compound_index.rollback.sql` — restores the 0009-era index shape.
+- `0014_idempotency_keys.rollback.sql` — drops `idempotency_keys`, `uq_messages_client_dedup`, and related artifacts. Roll the application image BACK first, then run this rollback — the post-0014 code assumes the table exists.
+
+### 3.7.1 App Runner image rollback (A8 P0-4)
+For infra-only rollbacks (no schema change), pin the App Runner service to a known-good ECR tag:
+
+```bash
+# From the repo root. Accepts a bare tag, a short SHA, or a full
+# <repo>-<sha> identifier. Prompts for confirmation unless
+# WEAVENYC_NO_CONFIRM=1 is set.
+scripts/ops/reset-to-last-good-image.sh v0.1.3
+```
+
+The script verifies the tag exists in ECR before touching the service, splices it into the live `SourceConfiguration`, and polls until the service returns to `RUNNING`. See `docs/11_Ops_Runbook.md §G.4` for invocation details.
+
 ### 3.8 Observability check
 After rollback:
 1. Re-run the smoke script: `pnpm test:smoke:real --base-url https://api.weavenyc.org`
-2. Confirm Sentry has no new 500-series errors in the last 5 minutes.
-3. Confirm Prometheus `up{job=~"weavenyc-.*"}` returns 1 for all five services.
+2. Confirm `/readyz` checks are green:
+   `curl -s https://api.weavenyc.org/readyz | jq .checks`
+3. Sentry and Prometheus are partially deferred (see §1 downgrade notes and A8 P0-3). Interim:
+   - `curl https://api.weavenyc.org/metrics | head` — confirm non-empty metrics output.
+   - If Sentry DSN is provisioned, check the dashboard for new issues in the last 5 minutes.
 
 ### 3.9 Close the loop
 1. On-call engineer posts to `#incident`: `ROLLBACK COMPLETE — <service> — <duration> — <commit>`.

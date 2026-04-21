@@ -195,9 +195,16 @@ jobs:
 
       - name: Post-deploy smoke (verify NEW container actually serving)
         # Prior smoke just checked /healthz. That's necessary but not
-        # sufficient — a stale container also returns 200. This stage now
+        # sufficient — a stale container also returns 200. This stage
         # asserts the container is FRESH (uptime < 5min) AND the P2P
         # metrics added in PR #39 are exposed at /metrics, which proves the
-        # new build is live.
+        # new build is live. A8 P0-6 extended the same smoke script to the
+        # other four deploy workflows; here we pin MODE=uptime explicitly so
+        # behaviour is unchanged from PR #45.
+        env:
+          MODE: uptime
+          TARGET_URL: https://api.weavenyc.org
+          MAX_UPTIME_SECONDS: "300"
+          REQUIRE_P2P_METRICS: "true"
         run: |
           pnpm exec tsx scripts/staging/post-deploy-smoke.ts
