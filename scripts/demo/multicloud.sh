@@ -71,9 +71,13 @@ probe_aws_api() {
 
 probe_gcp_resource_dir() {
   # Cloud: GCP Cloud Run (resource-dir.weavenyc.org, via CF Worker proxy per PR #67).
-  # Proof: x-cloud-trace-context is added by the Google Frontend load balancer in front of Cloud Run.
+  # Proof: x-cloud-trace-context header from Google Frontend in front of Cloud Run.
+  # Probe /versionz (no DB) rather than /readyz — DB connectivity is the AWS pane's
+  # job; this pane only proves GCP is live + on the network path. Cloud Run RDS
+  # access was locked out of the VPC SG as a P0 security fix, so /readyz would
+  # 504. /versionz returns the service's build metadata without hitting the DB.
   local hdrs
-  if hdrs=$(curl -sI --max-time 5 https://resource-dir.weavenyc.org/readyz 2>/dev/null); then
+  if hdrs=$(curl -sI --max-time 5 https://resource-dir.weavenyc.org/versionz 2>/dev/null); then
     local trace
     trace=$(printf '%s' "$hdrs" | grep -i '^x-cloud-trace-context:' | awk '{print $2}' | tr -d '\r\n' | cut -c1-16)
     if [ -n "$trace" ]; then
