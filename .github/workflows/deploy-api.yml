@@ -226,7 +226,16 @@ jobs:
         env:
           MODE: uptime
           TARGET_URL: https://api.weavenyc.org
-          MAX_UPTIME_SECONDS: "300"
+          # 600s ceiling (was 300s): App Runner rollouts with VPC connector
+          # + image pull + migration jobs often take 5-7min from `update-service`
+          # start to container-running. The smoke runs AFTER the wait-for-
+          # RUNNING step, so `uptime_seconds` is measured from container boot
+          # which already had ≥ wait time accumulated. A freshly-deployed
+          # container can genuinely have uptime_seconds ~ 300-400s by the
+          # time smoke fires. Raising to 600s eliminates false-positive
+          # "stale container" flags without losing the protection against
+          # a truly stale image (which would have uptime in the thousands).
+          MAX_UPTIME_SECONDS: "600"
           REQUIRE_P2P_METRICS: "true"
         run: |
           pnpm exec tsx scripts/staging/post-deploy-smoke.ts

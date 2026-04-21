@@ -209,7 +209,8 @@ jobs:
         env:
           MODE: uptime
           TARGET_URL: ${{ steps.reach.outputs.url }}
-          MAX_UPTIME_SECONDS: "300"
+          # See deploy-api.yml comment: 300s is too tight for slow rollouts.
+          MAX_UPTIME_SECONDS: "600"
           REQUIRE_P2P_METRICS: "false"
         run: |
           pnpm exec tsx scripts/staging/post-deploy-smoke.ts
