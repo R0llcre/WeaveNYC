@@ -678,6 +678,9 @@ type ChromeMessages = {
   shellLoading: string;
   // F4-C — shared Banner/Toast dismiss label (was hardcoded "Dismiss").
   commonDismiss: string;
+  // B5/B6 — Demo sandbox mode copy.
+  demoSandboxNotice: string;
+  demoSandboxPill: string;
 };
 
 export const messages: Record<SupportedLanguage, ChromeMessages> = {
@@ -1340,6 +1343,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     shellLoading: 'Loading\u2026',
     // F4-C — Banner/Toast dismiss button label
     commonDismiss: 'Dismiss',
+    // B5/B6 — Demo sandbox mode copy.
+    demoSandboxNotice: 'Demo mode — your code is 246810',
+    demoSandboxPill: 'SANDBOX',
   },
   es: {
     brand: 'WeaveNYC',
@@ -2002,6 +2008,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     shellLoading: 'Cargando\u2026',
     // F4-C — Banner/Toast dismiss button label
     commonDismiss: 'Descartar',
+    // B5/B6 — Demo sandbox mode copy.
+    demoSandboxNotice: 'Modo demo — tu c\u00f3digo es 246810',
+    demoSandboxPill: 'SANDBOX',
   },
   zh: {
     brand: 'WeaveNYC',
@@ -2661,6 +2670,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     shellLoading: '加载中\u2026',
     // F4-C — Banner/Toast dismiss button label
     commonDismiss: '关闭',
+    // B5/B6 — Demo sandbox mode copy.
+    demoSandboxNotice: '演示模式 — 你的验证码是 246810',
+    demoSandboxPill: 'SANDBOX',
   },
 };
 

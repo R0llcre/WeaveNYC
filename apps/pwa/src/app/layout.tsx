@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { Providers } from '@/components/providers';
 import { PwaRegistration } from '@/components/pwa-registration';
 import { RouteGuards, ShellFrame } from '@/components/shell';
+import { SandboxBanner } from '@/components/ui';
 import { messages } from '@/lib/i18n';
 
 import './globals.css';
@@ -103,6 +104,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
         </a>
         <Providers initialLanguage={INITIAL_LANGUAGE}>
           <PwaRegistration />
+          {/* B5/B6 — Demo sandbox pill. Self-gates via `isDemoSandbox()`
+              so weavenyc.org never renders the pill even if the user
+              appends `?demo=1`. No-op on SSR; activates after hydration
+              when env or URL says we're in sandbox mode. */}
+          <SandboxBanner />
           {/*
            * RouteGuards runs `useOnboardingGuard` which reads
            * `useSearchParams()`. Under static export that hook must sit

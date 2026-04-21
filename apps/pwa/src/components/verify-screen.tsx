@@ -18,6 +18,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
+import { DEMO_OTP_CODE, isDemoSandbox } from '@/lib/demo';
 import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAppDispatch,
@@ -76,6 +77,10 @@ export function VerifyScreen() {
   const [redirectedAfterVerify, setRedirectedAfterVerify] = useState(false);
   const [isBootstrappingSession, setIsBootstrappingSession] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<Error | null>(null);
+  // B5/B6 — sandbox mode banner + auto-fill affordance. Evaluated after
+  // mount so the SSG shell never ships the sandbox UI; see
+  // `@/lib/demo.ts` for the production-origin kill-switch.
+  const [sandboxActive, setSandboxActive] = useState(false);
 
   // A1 P1-6: after PR #50, persistence.saveSession strips access_token
   // before writing to IDB. On a reload that lands directly on /me/verify
@@ -90,6 +95,43 @@ export function VerifyScreen() {
   // (no-op when access_token is already populated; refresh → anon mint
   // fallback when the refresh token is stale).
   useSessionBootstrap();
+
+  // B5/B6 — Sandbox demo banner + auto-fill. We gate on `isDemoSandbox()`
+  // which is false on the production origin (weavenyc.org) unless also on
+  // a preview host, localhost, or *.pages.dev / *.vercel.app. The effect
+  // runs once on mount; a demo-URL change mid-session would require a
+  // reload anyway (the OTP code field is not a controlled query string).
+  useEffect(() => {
+    const active = isDemoSandbox();
+    if (!active) {
+      return;
+    }
+    setSandboxActive(true);
+
+    // Visible typing animation. We start after a 2s pause so users can
+    // read the banner before the code appears. Each digit is typed ~120ms
+    // apart, giving the whole reveal a ~750ms arc that matches the tempo
+    // of the rest of the page's state transitions.
+    const typingDelays: number[] = [];
+    const startTimer = window.setTimeout(() => {
+      for (let i = 0; i < DEMO_OTP_CODE.length; i++) {
+        const digit = DEMO_OTP_CODE.slice(0, i + 1);
+        typingDelays.push(
+          window.setTimeout(() => {
+            setOtpCode(digit);
+          }, i * 120)
+        );
+      }
+    }, 2000);
+
+    return () => {
+      window.clearTimeout(startTimer);
+      for (const id of typingDelays) {
+        window.clearTimeout(id);
+      }
+    };
+  }, []);
+
   // Success toast shown briefly after verification completes. We delay the
   // router.replace by ~800ms so the user sees the confirmation before the
   // tab navigates to /inbox (or the honored return_to). The toast lives on
@@ -466,6 +508,19 @@ export function VerifyScreen() {
                     <Banner tone="info" title={t('verifyCodeSentTitle')}>
                       {t('verifyCodeSentBody')}
                     </Banner>
+                  ) : null}
+
+                  {/* B5/B6 — Sandbox amber banner above the OTP input.
+                      Only renders when `isDemoSandbox()` returned true on
+                      mount, which is gated so weavenyc.org can never show
+                      it. data-testid hook is used by the demo preflight's
+                      UI smoke test. */}
+                  {sandboxActive ? (
+                    <Banner
+                      tone="warning"
+                      title={t('demoSandboxNotice')}
+                      data-testid="demo-sandbox-banner"
+                    />
                   ) : null}
 
                   {mode === 'otp' ? (

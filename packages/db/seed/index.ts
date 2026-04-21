@@ -22,6 +22,7 @@ import {
   users,
   verificationLogs
 } from "../src/schema";
+import { seedDemoPersonas } from "./demo-personas";
 import { seedIds, seedValues } from "./fixtures";
 
 export async function seedDatabase(db: Database) {
@@ -666,6 +667,13 @@ export async function seedDatabase(db: Database) {
 
   await seedPilotCommunity(db, queensPilot);
   await seedPilotCommunity(db, bronxPilot);
+
+  // Demo-persona seed (B5/B6) — gated on SEED_DEMO_PERSONAS=1 so the
+  // default dev seed stays lean. Relies on Queens + Farmingdale
+  // communities being present, which they are after the blocks above.
+  if (process.env.SEED_DEMO_PERSONAS === "1") {
+    await seedDemoPersonas(db);
+  }
 
   const seededUser = await db.query.users.findFirst({
     where: eq(users.userId, seedIds.anonymousUserId)
