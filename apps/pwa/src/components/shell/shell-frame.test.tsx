@@ -18,10 +18,29 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextIntlClientProvider } from 'next-intl';
+import { Provider } from 'react-redux';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { configureStore } from '@reduxjs/toolkit';
 import { cleanup, render, screen } from '@testing-library/react';
 
 import { messages } from '@/lib/i18n';
+import { authReducer } from '@/lib/slices/auth-slice';
+import { communityReducer } from '@/lib/slices/community-slice';
+import { postDraftReducer } from '@/lib/slices/post-draft-slice';
+import { preferencesReducer } from '@/lib/slices/preferences-slice';
 import { ShellFrame } from './ShellFrame';
+
+// ShellFrame now mounts `useOutboxDrain`, which touches IndexedDB via
+// `@/lib/db` and the persistence helpers. In the node/jsdom harness
+// IndexedDB is absent, so we stub the Dexie getter to return null —
+// matching the runtime branch that short-circuits on missing IDB.
+vi.mock('@/lib/db', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/db')>('@/lib/db');
+  return {
+    ...actual,
+    getPwaDb: () => null,
+  };
+});
 
 // --- next/link → plain anchor (tab bar renders <Link> items). ---------------
 vi.mock('next/link', () => ({
@@ -56,11 +75,33 @@ vi.mock('next/navigation', () => ({
   usePathname: () => pathnameValue,
 }));
 
+function buildStore() {
+  return configureStore({
+    reducer: {
+      auth: authReducer,
+      community: communityReducer,
+      postDraft: postDraftReducer,
+      preferences: preferencesReducer,
+    },
+  });
+}
+
 function renderFrame(ui: React.ReactElement) {
+  // ShellFrame mounts `useOutboxDrain` which reads the Redux session and
+  // uses the React-Query client. Wrap each render in both providers so
+  // the hook's dependencies resolve cleanly under jsdom.
+  const store = buildStore();
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <NextIntlClientProvider locale="en" messages={messages.en} timeZone="America/New_York">
-      {ui}
-    </NextIntlClientProvider>,
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <NextIntlClientProvider locale="en" messages={messages.en} timeZone="America/New_York">
+          {ui}
+        </NextIntlClientProvider>
+      </QueryClientProvider>
+    </Provider>,
   );
 }
 

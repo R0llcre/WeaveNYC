@@ -36,6 +36,8 @@
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
+import { useOutboxDrain } from '@/lib/hooks';
+
 import { AppShell } from './AppShell';
 
 /**
@@ -61,6 +63,14 @@ export type ShellFrameProps = {
 
 export function ShellFrame({ children }: ShellFrameProps) {
   const pathname = usePathname();
+
+  // Run the offline-outbox drain loop on every route — including the
+  // onboarding takeover — so a user who queued a post on a prior session
+  // and lands anywhere in the app still triggers a drain on mount,
+  // `online`, and visibility. The hook is a side-effect only (returns
+  // nothing) so mounting it here doesn't change the rendered tree. See
+  // `useOutboxDrain` / `docs/offline-outbox.md`.
+  useOutboxDrain();
 
   if (isOnboardingRoute(pathname)) {
     return <>{children}</>;

@@ -631,6 +631,14 @@ type ChromeMessages = {
   cameraPermissionDenied: string;
   cameraUnsupportedBrowser: string;
   obLocBack: string;
+  // M8.5 — offline write outbox (subway-safe post publish).
+  outboxPendingHeading: string;
+  outboxPendingHint: string;
+  outboxFailedHint: string;
+  outboxRetryAction: string;
+  outboxDiscardAction: string;
+  outboxQueuedToast: string;
+  outboxDrainingToast: string;
 };
 
 export const messages: Record<SupportedLanguage, ChromeMessages> = {
@@ -1255,6 +1263,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     resourceDetailSaveAction: 'Save',
     resourceDetailRemoveAction: 'Remove',
     resourceDetailShareCopied: 'Link copied',
+    // M8.5 — offline write outbox
+    outboxPendingHeading: 'Waiting to publish',
+    outboxPendingHint: "Will send when you're back online.",
+    outboxFailedHint: "Couldn't send: {error}",
+    outboxRetryAction: 'Retry now',
+    outboxDiscardAction: 'Discard',
+    outboxQueuedToast: "Saved — we'll publish it when you're online.",
+    outboxDrainingToast: 'Sending your post\u2026',
   },
   es: {
     brand: 'WeaveNYC',
@@ -1880,6 +1896,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     resourceDetailSaveAction: 'Guardar',
     resourceDetailRemoveAction: 'Quitar',
     resourceDetailShareCopied: 'Enlace copiado',
+    // M8.5 — offline write outbox
+    outboxPendingHeading: 'Pendientes de publicar',
+    outboxPendingHint: 'Se enviar\u00e1 cuando vuelvas a tener conexi\u00f3n.',
+    outboxFailedHint: 'No se pudo enviar: {error}',
+    outboxRetryAction: 'Reintentar',
+    outboxDiscardAction: 'Descartar',
+    outboxQueuedToast: 'Guardado \u2014 lo publicaremos cuando tengas conexi\u00f3n.',
+    outboxDrainingToast: 'Enviando tu publicaci\u00f3n\u2026',
   },
   zh: {
     brand: 'WeaveNYC',
@@ -2502,6 +2526,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     resourceDetailSaveAction: '收藏',
     resourceDetailRemoveAction: '取消收藏',
     resourceDetailShareCopied: '链接已复制',
+    // M8.5 — offline write outbox
+    outboxPendingHeading: '等待发布',
+    outboxPendingHint: '网络恢复后会自动发布。',
+    outboxFailedHint: '发布失败：{error}',
+    outboxRetryAction: '立即重试',
+    outboxDiscardAction: '放弃',
+    outboxQueuedToast: '已保存\u2014\u2014联网后自动发布。',
+    outboxDrainingToast: '正在发布\u2026\u2026',
   },
 };
 
