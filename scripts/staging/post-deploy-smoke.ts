@@ -182,6 +182,81 @@ async function assertUptimeUnder(
   }
 }
 
+/**
+ * F4-F4: PR #55 made the api-gateway the sole authoritative server for
+ * `/v1/resources` in the pilot (USE_MONOLITH_RESOURCE_DIRECTORY=1 hard-
+ * nulls the sidecar URL so the in-process Pg service serves the path).
+ * The uptime-mode check only hit `/metrics.json` + `/metrics` before,
+ * which could pass even if the monolith branch of the code 500'd on
+ * every resource query — a catastrophic regression that neither user
+ * journey E2E nor unit tests would catch (they run against stubs).
+ *
+ * Assert the shape of the live resource list:
+ *   - 200 OK
+ *   - `items[]` is present and non-empty
+ *   - `items[0].provider_id` is UUID-shaped
+ *
+ * The zip=11735 corner is Farmingdale NY (W1 anchor community) which
+ * has seeded fixtures guaranteed to exist in every deployment
+ * environment.
+ */
+async function assertResourceListShape(baseUrl: string): Promise<AssertionResult> {
+  const url = `${baseUrl}/v1/resources?zip=11735&limit=1`;
+  try {
+    const response = await fetchWithTimeout(url, {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) {
+      return {
+        name: "/v1/resources returns 200 with non-empty items[]",
+        ok: false,
+        detail: `GET ${url} -> HTTP ${response.status}`,
+      };
+    }
+    const body = (await response.json()) as {
+      items?: Array<{ provider_id?: unknown }>;
+    };
+    if (!Array.isArray(body.items)) {
+      return {
+        name: "/v1/resources returns 200 with non-empty items[]",
+        ok: false,
+        detail: `response body missing items[]: ${JSON.stringify(body).slice(0, 300)}`,
+      };
+    }
+    if (body.items.length === 0) {
+      return {
+        name: "/v1/resources returns 200 with non-empty items[]",
+        ok: false,
+        detail: `items[] is empty — directory has no rows for zip=11735, likely a seed/migration regression`,
+      };
+    }
+    const first = body.items[0];
+    const providerId = first?.provider_id;
+    // RFC 4122-ish UUID-shape check: 8-4-4-4-12 hex. Relaxed on the
+    // version/variant nybbles to allow any valid uuid variant the
+    // directory might emit.
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof providerId !== "string" || !uuidRegex.test(providerId)) {
+      return {
+        name: "/v1/resources returns 200 with non-empty items[]",
+        ok: false,
+        detail: `items[0].provider_id is not UUID-shaped (got ${JSON.stringify(providerId)}) — monolith branch likely regressed PR #55`,
+      };
+    }
+    return {
+      name: "/v1/resources returns 200 with non-empty items[]",
+      ok: true,
+      detail: `items.length=${body.items.length}, provider_id=${providerId}`,
+    };
+  } catch (error) {
+    return {
+      name: "/v1/resources returns 200 with non-empty items[]",
+      ok: false,
+      detail: `GET ${url} failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
 async function assertP2pMetricsPresent(baseUrl: string): Promise<AssertionResult> {
   const url = `${baseUrl}/metrics`;
   try {
@@ -363,6 +438,14 @@ async function runUptimeMode(): Promise<AssertionResult[]> {
   const results: AssertionResult[] = [await assertUptimeUnder(baseUrl, maxUptime)];
   if (requireP2p) {
     results.push(await assertP2pMetricsPresent(baseUrl));
+  }
+  // F4-F4: guard the monolith /v1/resources branch. Same scoping as the
+  // P2P metrics check — only run when the target base URL is the
+  // api-gateway (auto-detected via host, or forced via
+  // REQUIRE_P2P_METRICS). Other backend targets (notifications,
+  // resource-directory sidecar) don't serve /v1/resources.
+  if (requireP2p) {
+    results.push(await assertResourceListShape(baseUrl));
   }
   return results;
 }

@@ -101,3 +101,21 @@ jobs:
       - name: Stop local infrastructure
         if: always()
         run: docker compose down -v
+
+  # F4-F5: promtool-check-rules guard. `infra/prometheus/rules/*.yaml`
+  # is the source of truth for the pilot's alerting rules, but plain
+  # YAML doesn't catch PromQL typos — a silently-never-firing alert
+  # rule shipped to prod is a silent page-miss. Running `promtool check
+  # rules` against every file in the directory on every PR surfaces
+  # syntax errors + PromQL parse errors before merge.
+  prom-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate Prometheus rules
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/infra/prometheus/rules:/rules" \
+            prom/prometheus:latest \
+            promtool check rules /rules/*.yaml
