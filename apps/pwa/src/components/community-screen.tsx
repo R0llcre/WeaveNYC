@@ -23,6 +23,7 @@ import {
 } from '@/components/ui';
 import { TopBar } from '@/components/shell';
 import { createAnonymousSession } from '@/lib/api';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { isP2PDevDemoVisible } from '@/lib/p2p-env';
 import { useAppDispatch, useAppSelector, useCommunityP2PSync, usePosts } from '@/lib/hooks';
 import { filterVisiblePostsForScope, loadCachedPosts, saveCachedPosts } from '@/lib/persistence';
@@ -689,9 +690,7 @@ export function CommunityScreen() {
               <Banner tone="danger" title={t('resourceLoadError')}>
                 {usingCachedPosts
                   ? t('p2pLiveRefreshDelayed')
-                  : posts.error instanceof Error
-                    ? posts.error.message
-                    : null}
+                  : t(resolveErrorKey(posts.error))}
               </Banner>
             ) : null}
 

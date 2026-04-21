@@ -18,6 +18,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAppDispatch,
   useAppSelector,
@@ -553,7 +554,7 @@ export function VerifyScreen() {
           <Stack gap={2}>
             {errors.map((error, index) => (
               <Banner key={index} tone="danger" title={t('verifyError')}>
-                {error.message}
+                {t(resolveErrorKey(error))}
               </Banner>
             ))}
           </Stack>

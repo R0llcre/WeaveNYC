@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 
 import { PostDetailScreen } from '@/components/post-detail-screen';
+import { RouteLoadingFallback } from '@/components/ui';
 
 type PostDetailPageProps = {
   params: Promise<{
@@ -20,15 +21,7 @@ export const dynamicParams = false;
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const resolvedParams = await params;
   return (
-    <Suspense
-      fallback={
-        <div className="page-content">
-          <section className="card">
-            <p>Loading…</p>
-          </section>
-        </div>
-      }
-    >
+    <Suspense fallback={<RouteLoadingFallback />}>
       <PostDetailScreen postId={resolvedParams.postId} />
     </Suspense>
   );

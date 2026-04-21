@@ -4,7 +4,7 @@ import { forwardRef } from 'react';
 
 export type ToastTone = 'info' | 'success' | 'warning' | 'danger';
 
-export interface ToastProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title' | 'role'> {
+type ToastBaseProps = Omit<React.HTMLAttributes<HTMLDivElement>, 'title' | 'role'> & {
   tone: ToastTone;
   /** Required headline. Callers pass an already-translated string. */
   title: string;
@@ -15,15 +15,20 @@ export interface ToastProps extends Omit<React.HTMLAttributes<HTMLDivElement>, '
     label: string;
     onClick: () => void;
   };
-  /**
-   * When provided, renders a ✕ button. The caller owns dismissal logic —
-   * this atom never auto-dismisses because a higher-level provider handles
-   * the queue/timer.
-   */
-  onDismiss?: () => void;
-  /** Accessible label for the ✕ dismiss button (must be localized). */
-  dismissLabel?: string;
-}
+};
+
+/**
+ * Discriminated props for the dismiss button. When a caller provides
+ * `onDismiss`, they MUST also provide a localized `dismissLabel` (the
+ * previous default was a hardcoded English "Dismiss"). Omitting one and
+ * passing the other is a compile error so ZH/ES users don't see English
+ * aria-labels.
+ */
+type ToastDismissProps =
+  | { onDismiss: () => void; dismissLabel: string }
+  | { onDismiss?: undefined; dismissLabel?: undefined };
+
+export type ToastProps = ToastBaseProps & ToastDismissProps;
 
 /**
  * Toast — transient status notification.
@@ -34,7 +39,7 @@ export interface ToastProps extends Omit<React.HTMLAttributes<HTMLDivElement>, '
  * `role=status` for info/success for a polite announcement.
  */
 export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
-  { tone, title, description, action, onDismiss, dismissLabel = 'Dismiss', className, ...rest },
+  { tone, title, description, action, onDismiss, dismissLabel, className, ...rest },
   ref,
 ) {
   const role = tone === 'danger' || tone === 'warning' ? 'alert' : 'status';

@@ -1,21 +1,12 @@
 import { Suspense } from 'react';
 
 import { LanguagePickerScreen } from '@/components/language-picker-screen';
+import { RouteLoadingFallback } from '@/components/ui';
 
 
 export default function LanguageOnboardingPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="shell">
-          <div className="shell__inner">
-            <section className="card">
-              <p>Loading…</p>
-            </section>
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<RouteLoadingFallback shellMode="shell" />}>
       <LanguagePickerScreen />
     </Suspense>
   );

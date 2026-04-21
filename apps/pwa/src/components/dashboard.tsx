@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
@@ -10,6 +11,7 @@ import {
   probeEndpoint,
   type AnonymousSessionResponse,
 } from '@/lib/api';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { selectSession } from '@/lib/selectors';
 import { clearSession, setSession } from '@/lib/slices/auth-slice';
 
@@ -33,6 +35,7 @@ export function Dashboard() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const session = useAppSelector(selectSession);
+  const t = useTranslations();
 
   const healthzQuery = useQuery({
     queryKey: ['api-health', 'healthz'],
@@ -143,11 +146,7 @@ export function Dashboard() {
             <div className="result-panel">
               <div className="result-block">
                 <strong>Request failed</strong>
-                <pre className="result-code">
-                  {anonymousSessionMutation.error instanceof Error
-                    ? anonymousSessionMutation.error.message
-                    : 'Unknown error'}
-                </pre>
+                <pre className="result-code">{t(resolveErrorKey(anonymousSessionMutation.error))}</pre>
               </div>
             </div>
           ) : null}

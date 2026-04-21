@@ -16,6 +16,7 @@ import {
   Tag,
   Toast,
 } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAppDispatch,
   useAppSelector,
@@ -220,9 +221,7 @@ export function CommunityJoinScreen() {
       dispatch(clearJoinPreview());
       const staleMessage = isExpiredJoinError(error)
         ? t('joinCodeExpiredBody')
-        : error instanceof Error
-          ? error.message
-          : t('joinCodeExpiredBody');
+        : t(resolveErrorKey(error));
       setJoinStaleError(staleMessage);
     }
   };
@@ -587,7 +586,7 @@ export function CommunityJoinScreen() {
               </Banner>
             ) : resolveMutation.error ? (
               <Banner tone="danger" title={t('resourceLoadError')}>
-                {resolveMutation.error instanceof Error ? resolveMutation.error.message : null}
+                {t(resolveErrorKey(resolveMutation.error))}
               </Banner>
             ) : null}
 

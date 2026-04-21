@@ -642,6 +642,42 @@ type ChromeMessages = {
   outboxDiscardAction: string;
   outboxQueuedToast: string;
   outboxDrainingToast: string;
+  // F4-C — chat safety-flag surfacing on rendered messages.
+  // Keys follow the existing flat camelCase convention (e.g. `chatSafety*`),
+  // which mirrors the rest of `chatThread*`. The server-side enum lives in
+  // @weavenyc/shared `messageSafetyFlags` (see packages/shared/src/enums.ts);
+  // UI copy is intentionally non-clinical ("Possible phone number") so
+  // benign false positives don't scare users away from real conversations.
+  chatSafetyHateSpeech: string;
+  chatSafetyHarassment: string;
+  chatSafetyPhone: string;
+  chatSafetyAddress: string;
+  chatSafetySsn: string;
+  chatSafetyBankAccount: string;
+  chatSafetyPassport: string;
+  chatSafetyBank: string;
+  chatSafetyWire: string;
+  chatSafetyCrypto: string;
+  chatSafetyGiftCard: string;
+  chatSafetyShowAnyway: string;
+  chatSafetyHidden: string;
+  // F4-C — systemic error.message i18n (replaces raw English backend text
+  // leaking into ZH/ES). See apps/pwa/src/lib/error-i18n.ts for mapping.
+  // NOTE: `errorGeneric` and `errorNetwork` already exist above (Wave 1
+  // error/empty-state block); this wave only adds the keys not already in
+  // the bundle. `errorRateLimited` lives alongside the legacy
+  // `errorRateLimit` key (still used by settings-screen.tsx#mapDeleteError).
+  errorRateLimited: string;
+  errorAuth: string;
+  errorForbidden: string;
+  errorServer: string;
+  errorValidation: string;
+  errorConflict: string;
+  errorNotFound: string;
+  // F4-C — shell-level "Loading…" for route Suspense fallbacks.
+  shellLoading: string;
+  // F4-C — shared Banner/Toast dismiss label (was hardcoded "Dismiss").
+  commonDismiss: string;
 };
 
 export const messages: Record<SupportedLanguage, ChromeMessages> = {
@@ -1277,6 +1313,33 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     outboxDiscardAction: 'Discard',
     outboxQueuedToast: "Saved — we'll publish it when you're online.",
     outboxDrainingToast: 'Sending your post\u2026',
+    // F4-C — chat safety banners
+    chatSafetyHateSpeech: 'This message may contain hateful language.',
+    chatSafetyHarassment: 'This message may contain harassing language.',
+    chatSafetyPhone: 'This message may contain a phone number.',
+    chatSafetyAddress: 'This message may contain a home address.',
+    chatSafetySsn: 'This message may contain a Social Security number.',
+    chatSafetyBankAccount: 'This message may contain a bank account number.',
+    chatSafetyPassport: 'This message mentions passport info.',
+    chatSafetyBank: 'This message mentions bank details.',
+    chatSafetyWire: 'This message mentions wire transfers.',
+    chatSafetyCrypto: 'This message mentions cryptocurrency.',
+    chatSafetyGiftCard: 'This message mentions gift cards.',
+    chatSafetyShowAnyway: 'Show anyway',
+    chatSafetyHidden: 'Message hidden for your safety.',
+    // F4-C — error.message i18n (errorGeneric + errorNetwork already
+    // declared above in the Wave 1 error block).
+    errorRateLimited: 'Too many tries. Please wait a moment and try again.',
+    errorAuth: 'Please sign in again to continue.',
+    errorForbidden: "You don't have permission to do that.",
+    errorServer: 'Something went wrong on our side. Please try again soon.',
+    errorValidation: 'Please check the information and try again.',
+    errorConflict: 'That was already done. Please refresh and try again.',
+    errorNotFound: "We couldn't find that.",
+    // F4-C — shell-level loading fallback
+    shellLoading: 'Loading\u2026',
+    // F4-C — Banner/Toast dismiss button label
+    commonDismiss: 'Dismiss',
   },
   es: {
     brand: 'WeaveNYC',
@@ -1913,6 +1976,32 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     outboxDiscardAction: 'Descartar',
     outboxQueuedToast: 'Guardado \u2014 lo publicaremos cuando tengas conexi\u00f3n.',
     outboxDrainingToast: 'Enviando tu publicaci\u00f3n\u2026',
+    // F4-C — chat safety banners
+    chatSafetyHateSpeech: 'Este mensaje puede contener lenguaje de odio.',
+    chatSafetyHarassment: 'Este mensaje puede contener lenguaje de acoso.',
+    chatSafetyPhone: 'Este mensaje puede incluir un n\u00famero de tel\u00e9fono.',
+    chatSafetyAddress: 'Este mensaje puede incluir una direcci\u00f3n de casa.',
+    chatSafetySsn: 'Este mensaje puede incluir un n\u00famero de Seguro Social.',
+    chatSafetyBankAccount: 'Este mensaje puede incluir un n\u00famero de cuenta bancaria.',
+    chatSafetyPassport: 'Este mensaje menciona informaci\u00f3n de pasaporte.',
+    chatSafetyBank: 'Este mensaje menciona datos bancarios.',
+    chatSafetyWire: 'Este mensaje menciona transferencias bancarias.',
+    chatSafetyCrypto: 'Este mensaje menciona criptomonedas.',
+    chatSafetyGiftCard: 'Este mensaje menciona tarjetas de regalo.',
+    chatSafetyShowAnyway: 'Mostrar de todos modos',
+    chatSafetyHidden: 'Mensaje oculto por tu seguridad.',
+    // F4-C — error.message i18n
+    errorRateLimited: 'Demasiados intentos. Espera un momento e int\u00e9ntalo de nuevo.',
+    errorAuth: 'Inicia sesi\u00f3n de nuevo para continuar.',
+    errorForbidden: 'No tienes permiso para hacer eso.',
+    errorServer: 'Algo sali\u00f3 mal de nuestro lado. Int\u00e9ntalo pronto.',
+    errorValidation: 'Revisa la informaci\u00f3n e int\u00e9ntalo de nuevo.',
+    errorConflict: 'Eso ya se hizo. Actualiza e int\u00e9ntalo de nuevo.',
+    errorNotFound: 'No encontramos eso.',
+    // F4-C — shell-level loading fallback
+    shellLoading: 'Cargando\u2026',
+    // F4-C — Banner/Toast dismiss button label
+    commonDismiss: 'Descartar',
   },
   zh: {
     brand: 'WeaveNYC',
@@ -2546,6 +2635,32 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     outboxDiscardAction: '放弃',
     outboxQueuedToast: '已保存\u2014\u2014联网后自动发布。',
     outboxDrainingToast: '正在发布\u2026\u2026',
+    // F4-C — chat safety banners
+    chatSafetyHateSpeech: '这条消息可能含有仇恨言论。',
+    chatSafetyHarassment: '这条消息可能含有骚扰内容。',
+    chatSafetyPhone: '这条消息里可能有电话号码。',
+    chatSafetyAddress: '这条消息里可能有家庭住址。',
+    chatSafetySsn: '这条消息里可能有社安号码。',
+    chatSafetyBankAccount: '这条消息里可能有银行账号。',
+    chatSafetyPassport: '这条消息提到护照信息。',
+    chatSafetyBank: '这条消息提到银行信息。',
+    chatSafetyWire: '这条消息提到电汇。',
+    chatSafetyCrypto: '这条消息提到加密货币。',
+    chatSafetyGiftCard: '这条消息提到礼品卡。',
+    chatSafetyShowAnyway: '仍然显示',
+    chatSafetyHidden: '为了你的安全，这条消息已隐藏。',
+    // F4-C — error.message i18n
+    errorRateLimited: '请求太多。请稍等一下再试。',
+    errorAuth: '请重新登录以继续。',
+    errorForbidden: '你没有权限这样做。',
+    errorServer: '我们这边出了点问题。请稍后再试。',
+    errorValidation: '请检查信息后再试。',
+    errorConflict: '这件事已经做过了。请刷新后再试。',
+    errorNotFound: '找不到这个内容。',
+    // F4-C — shell-level loading fallback
+    shellLoading: '加载中\u2026',
+    // F4-C — Banner/Toast dismiss button label
+    commonDismiss: '关闭',
   },
 };
 

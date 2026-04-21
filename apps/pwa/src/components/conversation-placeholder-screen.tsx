@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { TopBar } from '@/components/shell';
 import { Banner, EmptyState, Inline, Skeleton, Stack, Tag } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { useAppSelector, useConversationPlaceholder } from '@/lib/hooks';
 import { selectSession } from '@/lib/selectors';
 
@@ -74,9 +75,7 @@ export function ConversationPlaceholderScreen({
             actionLabel={t('sendFailedRetry')}
             onAction={() => void placeholderQuery.refetch()}
           >
-            {placeholderQuery.error instanceof Error
-              ? placeholderQuery.error.message
-              : t('resourceLoadError')}
+            {t(resolveErrorKey(placeholderQuery.error))}
           </Banner>
         ) : null}
 

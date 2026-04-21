@@ -17,6 +17,7 @@ import {
   Stack,
   Tag,
 } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAppSelector,
   useBlockUser,
@@ -27,7 +28,11 @@ import {
 } from '@/lib/hooks';
 import { selectPreferences, selectSession } from '@/lib/selectors';
 import { useChatWebSocket, type ChatWebSocketState } from '@/lib/use-chat-websocket';
-import type { ChatRealtimeEvent, ConversationMessage } from '@/lib/types';
+import type {
+  ChatRealtimeEvent,
+  ConversationMessage,
+  MessageSafetyFlag,
+} from '@/lib/types';
 
 type ConversationThreadScreenProps = {
   conversationId: string;
@@ -160,6 +165,155 @@ function groupMessagesByDay(
     label: formatDayLabel(new Date(items[0].sent_at), locale),
     items,
   }));
+}
+
+/**
+ * F4-C P0 — map a `MessageSafetyFlag` (server-side enum, canonical source
+ * in `@weavenyc/shared` `messageSafetyFlags`) to a {tone, i18nKey} pair for
+ * the inline banner we render above a flagged message body.
+ *
+ * - `danger`  → hate_speech / harassment. These also trigger the "hide by
+ *               default, click to Show anyway" disclosure (see `isBlockingFlag`).
+ * - `warning` → SSN / bank account / passport / bank — possibly sensitive
+ *               financial or identity data that the user probably didn't
+ *               mean to broadcast.
+ * - `info`    → phone / address / wire / crypto / gift_card — softer heads-up
+ *               that could still be a false positive (e.g. "bank of the river").
+ */
+type SafetyBannerTone = 'info' | 'warning' | 'danger';
+type SafetyFlagDescriptor = {
+  tone: SafetyBannerTone;
+  messageKey:
+    | 'chatSafetyHateSpeech'
+    | 'chatSafetyHarassment'
+    | 'chatSafetyPhone'
+    | 'chatSafetyAddress'
+    | 'chatSafetySsn'
+    | 'chatSafetyBankAccount'
+    | 'chatSafetyPassport'
+    | 'chatSafetyBank'
+    | 'chatSafetyWire'
+    | 'chatSafetyCrypto'
+    | 'chatSafetyGiftCard';
+};
+
+const SAFETY_FLAG_DESCRIPTORS: Record<MessageSafetyFlag, SafetyFlagDescriptor> = {
+  hate_speech: { tone: 'danger', messageKey: 'chatSafetyHateSpeech' },
+  harassment: { tone: 'danger', messageKey: 'chatSafetyHarassment' },
+  sensitive_ssn: { tone: 'warning', messageKey: 'chatSafetySsn' },
+  sensitive_bank_account: { tone: 'warning', messageKey: 'chatSafetyBankAccount' },
+  keyword_passport: { tone: 'warning', messageKey: 'chatSafetyPassport' },
+  keyword_bank: { tone: 'warning', messageKey: 'chatSafetyBank' },
+  sensitive_phone: { tone: 'info', messageKey: 'chatSafetyPhone' },
+  sensitive_address: { tone: 'info', messageKey: 'chatSafetyAddress' },
+  keyword_wire: { tone: 'info', messageKey: 'chatSafetyWire' },
+  keyword_crypto: { tone: 'info', messageKey: 'chatSafetyCrypto' },
+  keyword_gift_card: { tone: 'info', messageKey: 'chatSafetyGiftCard' },
+};
+
+const BLOCKING_SAFETY_FLAGS = new Set<MessageSafetyFlag>(['hate_speech', 'harassment']);
+
+function hasBlockingFlag(flags: readonly MessageSafetyFlag[] | undefined): boolean {
+  if (!flags) return false;
+  for (const flag of flags) {
+    if (BLOCKING_SAFETY_FLAGS.has(flag)) return true;
+  }
+  return false;
+}
+
+/**
+ * MessageBubble — single-message render that surfaces `safety_flags`.
+ *
+ * Prior to F4-C we rendered `message.body` raw. Anything the server
+ * flagged on SEND (see PR #57 — the chat-safety hate/harassment/Luhn/E.164
+ * pipeline) reached the wire-through with no UI indication whatsoever:
+ * the flags landed in the message row but the PWA silently ignored them.
+ *
+ * Now:
+ *   1. If `safety_flags` is non-empty, stack a Banner per flag ABOVE the
+ *      bubble body. Tone maps via `SAFETY_FLAG_DESCRIPTORS`.
+ *   2. For hate_speech / harassment, the bubble body is hidden by default
+ *      and replaced with a "Show anyway" disclosure — sensitive-surface
+ *      pattern used across the app (e.g. block-user confirmation).
+ *   3. Non-blocking flags keep the body visible because hiding every
+ *      phone-number false positive would make the product unusable.
+ *
+ * Accessibility:
+ *   - Each Banner already carries `role="alert"` (danger/warning) or
+ *     `role="status"` (info) from the Banner atom — screen readers get
+ *     the right announcement priority without extra wiring here.
+ *   - The Show-anyway toggle uses `aria-expanded` and `aria-controls` so
+ *     AT users understand it reveals the hidden body rather than doing
+ *     something destructive.
+ */
+function MessageBubble({
+  message,
+  locale,
+}: {
+  message: ConversationMessage;
+  locale: string;
+}) {
+  const t = useTranslations();
+  const flags = message.safety_flags ?? [];
+  const blocking = hasBlockingFlag(flags);
+  const [revealed, setRevealed] = useState(false);
+  const bodyId = `chat-body-${message.message_id}`;
+  const showBody = !blocking || revealed;
+
+  return (
+    <article
+      className={`message-bubble ${
+        message.is_mine ? 'message-bubble--self' : 'message-bubble--peer'
+      }`}
+      data-testid={`chat-message-${message.message_id}`}
+    >
+      <div className="message-bubble__meta">
+        <span>{message.is_mine ? t('chatThreadYou') : message.sender_alias}</span>
+        <span>{formatMessageTime(message.sent_at, locale)}</span>
+      </div>
+
+      {flags.length > 0 ? (
+        <Stack gap={1} data-testid={`chat-message-${message.message_id}-safety`}>
+          {flags.map((flag) => {
+            const descriptor = SAFETY_FLAG_DESCRIPTORS[flag];
+            if (!descriptor) return null;
+            return (
+              <Banner
+                key={flag}
+                tone={descriptor.tone}
+                title={t(descriptor.messageKey)}
+                data-testid={`chat-safety-banner-${flag}`}
+              />
+            );
+          })}
+        </Stack>
+      ) : null}
+
+      {blocking && !revealed ? (
+        <>
+          <p className="muted" id={bodyId}>
+            {t('chatSafetyHidden')}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevealed(true)}
+            aria-expanded={false}
+            aria-controls={bodyId}
+            data-testid={`chat-message-${message.message_id}-show-anyway`}
+          >
+            {t('chatSafetyShowAnyway')}
+          </Button>
+        </>
+      ) : null}
+
+      {showBody ? (
+        <p id={bodyId} aria-live={blocking && revealed ? 'polite' : undefined}>
+          {message.body}
+        </p>
+      ) : null}
+    </article>
+  );
 }
 
 /**
@@ -505,9 +659,7 @@ export function ConversationThreadScreen({
                 void messagesQuery.refetch();
               }}
             >
-              {(conversationQuery.error instanceof Error && conversationQuery.error.message) ||
-                (messagesQuery.error instanceof Error && messagesQuery.error.message) ||
-                t('resourceLoadError')}
+              {t(resolveErrorKey(conversationQuery.error ?? messagesQuery.error))}
             </Banner>
           ) : null}
 
@@ -528,21 +680,11 @@ export function ConversationThreadScreen({
                 <span className="overline">{group.label}</span>
               </div>
               {group.items.map((message) => (
-                <article
-                  className={`message-bubble ${
-                    message.is_mine ? 'message-bubble--self' : 'message-bubble--peer'
-                  }`}
+                <MessageBubble
                   key={message.message_id}
-                  data-testid={`chat-message-${message.message_id}`}
-                >
-                  <div className="message-bubble__meta">
-                    <span>
-                      {message.is_mine ? t('chatThreadYou') : message.sender_alias}
-                    </span>
-                    <span>{formatMessageTime(message.sent_at, locale)}</span>
-                  </div>
-                  <p>{message.body}</p>
-                </article>
+                  message={message}
+                  locale={locale}
+                />
               ))}
             </section>
           ))}
@@ -601,9 +743,7 @@ export function ConversationThreadScreen({
               actionLabel={t('sendFailedRetry')}
               onAction={() => sendMessageMutation.reset()}
             >
-              {sendMessageMutation.error instanceof Error
-                ? sendMessageMutation.error.message
-                : t('resourceLoadError')}
+              {t(resolveErrorKey(sendMessageMutation.error))}
             </Banner>
           ) : null}
 

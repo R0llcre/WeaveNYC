@@ -220,6 +220,64 @@ describe('ConversationThreadScreen (/conversations/:id)', () => {
     });
   });
 
+  it('renders a danger safety banner and hides the body for hate_speech flags (F4-C)', async () => {
+    getConversationMock.mockResolvedValue(makeConversationDetail());
+    listConversationMessagesMock.mockResolvedValue({
+      items: [
+        makeMessage({
+          message_id: 'msg-flagged',
+          body: 'You should go away forever.',
+          safety_flags: ['hate_speech'],
+        }),
+      ],
+      next_cursor: null,
+    });
+    renderThread();
+
+    const banner = await screen.findByTestId('chat-safety-banner-hate_speech');
+    expect(banner).toBeTruthy();
+    // Banner should use role=alert (danger tone) for assertive announcement.
+    expect(banner).toHaveAttribute('role', 'alert');
+
+    // Body stays hidden behind the disclosure CTA until the user opts in.
+    expect(screen.queryByText('You should go away forever.')).toBeNull();
+    const showAnyway = screen.getByTestId('chat-message-msg-flagged-show-anyway');
+    expect(showAnyway).toBeTruthy();
+
+    fireEvent.click(showAnyway);
+    await waitFor(() => {
+      expect(screen.getByText('You should go away forever.')).toBeTruthy();
+    });
+  });
+
+  it('renders an info safety banner for phone-like flags and keeps the body visible (F4-C)', async () => {
+    getConversationMock.mockResolvedValue(makeConversationDetail());
+    listConversationMessagesMock.mockResolvedValue({
+      items: [
+        makeMessage({
+          message_id: 'msg-phone',
+          body: 'Call me at 555-123-4567 if you need a ride.',
+          safety_flags: ['sensitive_phone'],
+        }),
+      ],
+      next_cursor: null,
+    });
+    renderThread();
+
+    const banner = await screen.findByTestId('chat-safety-banner-sensitive_phone');
+    expect(banner).toBeTruthy();
+    // Info tone uses role=status (polite announcement) — not alert.
+    expect(banner).toHaveAttribute('role', 'status');
+
+    // Non-blocking flags must still render the body so benign false
+    // positives don't bury the conversation.
+    expect(
+      screen.getByText('Call me at 555-123-4567 if you need a ride.'),
+    ).toBeTruthy();
+    // No disclosure button is offered for non-blocking flags.
+    expect(screen.queryByTestId('chat-message-msg-phone-show-anyway')).toBeNull();
+  });
+
   it('dispatches the send mutation with the typed body when the button is clicked', async () => {
     getConversationMock.mockResolvedValue(makeConversationDetail());
     listConversationMessagesMock.mockResolvedValue({

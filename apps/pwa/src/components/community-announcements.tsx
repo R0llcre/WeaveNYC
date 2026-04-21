@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Banner, Card } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { useCommunityAnnouncements } from '@/lib/hooks';
 import {
   filterVisibleAnnouncements,
@@ -140,11 +141,7 @@ export function CommunityAnnouncements({
       {query.isLoading ? <p className="status-copy">{t('postsLoading')}</p> : null}
       {query.isError ? (
         <p className="status-copy status-copy--error">
-          {usingCachedAnnouncements
-            ? t('p2pLiveRefreshDelayed')
-            : query.error instanceof Error
-              ? query.error.message
-              : t('resourceLoadError')}
+          {usingCachedAnnouncements ? t('p2pLiveRefreshDelayed') : t(resolveErrorKey(query.error))}
         </p>
       ) : null}
 

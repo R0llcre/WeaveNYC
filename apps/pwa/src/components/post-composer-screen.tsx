@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { createAnonymousSession } from '@/lib/api';
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/datetime';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAppDispatch,
   useAppSelector,
@@ -628,14 +629,7 @@ export function PostComposerScreen() {
                   <Banner tone="warning" title={browserSpeechError} />
                 ) : null}
                 {speechMutation.error ? (
-                  <Banner
-                    tone="danger"
-                    title={
-                      speechMutation.error instanceof Error
-                        ? speechMutation.error.message
-                        : t('speechFallbackAction')
-                    }
-                  />
+                  <Banner tone="danger" title={t(resolveErrorKey(speechMutation.error))} />
                 ) : null}
 
                 <div className="form-row">
@@ -786,14 +780,7 @@ export function PostComposerScreen() {
               </Card>
 
               {createPostMutation.error ? (
-                <Banner
-                  tone="danger"
-                  title={
-                    createPostMutation.error instanceof Error
-                      ? createPostMutation.error.message
-                      : t('verifyError')
-                  }
-                />
+                <Banner tone="danger" title={t(resolveErrorKey(createPostMutation.error))} />
               ) : null}
 
               <Inline gap={3} wrap>

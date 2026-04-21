@@ -59,6 +59,8 @@ export type {
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps, EmptyStateCta, EmptyStateTone } from './EmptyState';
 
+export { RouteLoadingFallback } from './RouteLoadingFallback';
+
 // --- Wave 1B layout primitives ---
 
 export { Stack } from './Stack';

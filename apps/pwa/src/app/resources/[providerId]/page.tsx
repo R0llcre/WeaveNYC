@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { ResourceDetailScreen } from "@/components/resource-detail-screen";
+import { RouteLoadingFallback } from "@/components/ui";
 
 type ResourceDetailPageProps = {
   params: Promise<{
@@ -17,15 +18,7 @@ export const dynamicParams = false;
 export default async function ResourceDetailPage({ params }: ResourceDetailPageProps) {
   const resolved = await params;
   return (
-    <Suspense
-      fallback={
-        <div className="page-content">
-          <section className="card">
-            <p>Loading…</p>
-          </section>
-        </div>
-      }
-    >
+    <Suspense fallback={<RouteLoadingFallback />}>
       <ResourceDetailScreen providerId={resolved.providerId} />
     </Suspense>
   );
