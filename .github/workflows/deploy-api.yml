@@ -101,7 +101,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger App Runner deployment
+      - name: Update App Runner ImageIdentifier to new SHA tag
+        id: update-service
+        # IMPORTANT: we explicitly update the service's ImageIdentifier to the
+        # just-pushed SHA-tagged image instead of calling `start-deployment`
+        # alone. start-deployment redeploys WHATEVER tag the service is
+        # currently pinned to — if that's a stale pin (as it was pre-2026-04-20
+        # when the service was pinned to `:v0.1.5` for 4 days) the workflow
+        # succeeds without actually rolling new code. See docs/11_Ops_Runbook
+        # "Deploy invariant" section. The update-service call below triggers
+        # a redeploy automatically when the ImageIdentifier changes, so no
+        # separate start-deployment is needed.
         run: |
           SERVICE_ARN=$(aws apprunner list-services \
             --region "$AWS_REGION" \
@@ -111,17 +121,34 @@ jobs:
             echo "::error::App Runner service $APPRUNNER_SERVICE_NAME not found — create it manually first (see infra/aws/README.md)."
             exit 1
           fi
-          echo "Starting deployment on $SERVICE_ARN"
-          aws apprunner start-deployment \
+          echo "service_arn=$SERVICE_ARN" >> "$GITHUB_OUTPUT"
+
+          FULL_IMAGE="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.image_tag }}"
+          echo "Pinning ImageIdentifier to $FULL_IMAGE"
+
+          # Pull the current SourceConfiguration verbatim, then splice in the
+          # new ImageIdentifier. This preserves env vars, secrets, port, and
+          # the access-role ARN exactly as configured — update-service is
+          # a full replacement of SourceConfiguration so omitting fields
+          # would reset them.
+          aws apprunner describe-service \
             --service-arn "$SERVICE_ARN" \
-            --region "$AWS_REGION"
+            --region "$AWS_REGION" \
+            --query 'Service.SourceConfiguration' > /tmp/apprunner-source.json
+
+          jq --arg tag "$FULL_IMAGE" \
+            '.ImageRepository.ImageIdentifier = $tag' \
+            /tmp/apprunner-source.json > /tmp/apprunner-source-updated.json
+
+          aws apprunner update-service \
+            --service-arn "$SERVICE_ARN" \
+            --region "$AWS_REGION" \
+            --source-configuration file:///tmp/apprunner-source-updated.json \
+            --query 'Service.Status' --output text
 
       - name: Wait for App Runner deployment
         run: |
-          SERVICE_ARN=$(aws apprunner list-services \
-            --region "$AWS_REGION" \
-            --query "ServiceSummaryList[?ServiceName=='$APPRUNNER_SERVICE_NAME'].ServiceArn" \
-            --output text)
+          SERVICE_ARN="${{ steps.update-service.outputs.service_arn }}"
           for i in $(seq 1 30); do
             STATUS=$(aws apprunner describe-service \
               --service-arn "$SERVICE_ARN" \
@@ -138,12 +165,11 @@ jobs:
           echo "::error::Timed out waiting for deployment to reach RUNNING"
           exit 1
 
-      - name: Post-deploy smoke probe
+      - name: Post-deploy smoke (verify NEW container actually serving)
+        # Prior smoke just checked /healthz. That's necessary but not
+        # sufficient — a stale container also returns 200. This stage now
+        # asserts the container is FRESH (uptime < 5min) AND the P2P
+        # metrics added in PR #39 are exposed at /metrics, which proves the
+        # new build is live.
         run: |
-          for i in $(seq 1 10); do
-            if curl -fsS --max-time 8 https://api.weavenyc.org/healthz; then
-              echo ""; echo "healthz ok"; exit 0
-            fi
-            sleep 10
-          done
-          echo "::warning::/healthz did not respond — check App Runner logs"
+          pnpm exec tsx scripts/staging/post-deploy-smoke.ts

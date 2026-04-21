@@ -444,3 +444,86 @@ npm run deploy -- --tag v1.2.3
 - [ ] 确认备份正常执行（S3 最新备份时间）
 - [ ] 检查依赖库安全漏洞（`npm audit`）
 - [ ] 确认日志中无敏感信息泄露
+
+---
+
+## Appendix G) Deploy invariant — api-gateway on AWS App Runner
+
+### G.1 The invariant
+
+**Every api-gateway deploy workflow run must explicitly update the App Runner service's `ImageIdentifier` to the SHA-tagged image it just pushed.** Not just `aws apprunner start-deployment` — that command redeploys whatever tag the service is currently pinned to, so a stale pin turns every deploy into a silent no-op.
+
+`.github/workflows/deploy-api.yml` enforces this: the "Update App Runner ImageIdentifier to new SHA tag" step pulls the service's current `SourceConfiguration`, splices in the new `ImageIdentifier`, and calls `update-service` (which triggers a redeploy automatically when the identifier changes).
+
+### G.2 Incident: 2026-04-20 — 4-day silent no-op deploy
+
+**Symptom:** PR #39 (P2P server security hardening — two P0 findings) merged at 23:43 UTC and its Deploy API Gateway workflow reported success. But `GET /metrics` still returned `500 Cannot read properties of undefined (reading 'register')` — an error that only the pre-#39 code could produce. Three subsequent workflow runs (PRs #40, #41, #42) also "succeeded" without rolling new code.
+
+**Root cause:** `aws apprunner describe-service` revealed `ImageIdentifier` pinned to `...:v0.1.5`, a tag not pushed by the workflow for 4 days. Every deploy workflow pushed to `:latest` and `:<sha>` then called `start-deployment`, which just re-pulled `:v0.1.5`. The `/healthz` probe in the workflow kept passing because the stale container was perfectly healthy — just stale.
+
+**Fix applied:**
+1. Live service config updated via `aws apprunner update-service` to pin `:latest` and enable `AutoDeploymentsEnabled: true`.
+2. `.github/workflows/deploy-api.yml` rewritten to explicitly update `ImageIdentifier` with the new SHA tag on every run (see G.1).
+3. New `scripts/staging/post-deploy-smoke.ts` asserts `uptime_seconds < 300` and presence of `p2p_*` counters in `/metrics` — fails the workflow if the deploy was a no-op.
+
+**Recognise this symptom again:**
+- `/healthz` 200, `/readyz` 200, but behaviour matches code from days ago
+- `curl /metrics.json | jq .uptime_seconds` returns a value hours larger than the last deploy workflow run time
+- AWS App Runner console shows an `ImageIdentifier` SHA that doesn't match the latest merged PR's commit
+
+### G.3 Playbook: verify a new api-gateway deploy landed
+
+```bash
+# 1. uptime — should be within 5 minutes of the workflow's "Wait for
+#    App Runner deployment" step completion.
+curl -s https://api.weavenyc.org/metrics.json | jq .uptime_seconds
+
+# 2. /metrics text must include the P2P counters from PR #39.
+curl -s https://api.weavenyc.org/metrics | grep -E '^# HELP (p2p_sync_events_total|p2p_sync_errors_total|p2p_active_connections)'
+
+# 3. AWS console: App Runner > weavenyc-api-gateway > Configuration >
+#    ImageIdentifier should end with the 12-char SHA prefix of the most
+#    recently merged PR touching services/api-gateway/**.
+
+# 4. Or run the smoke script end-to-end:
+pnpm exec tsx scripts/staging/post-deploy-smoke.ts
+```
+
+### G.4 Force a redeploy (manual)
+
+When the workflow looks stuck or you need to redeploy the current main:
+
+```bash
+SERVICE_ARN=$(aws apprunner list-services \
+  --region us-east-1 \
+  --query "ServiceSummaryList[?ServiceName=='weavenyc-api-gateway'].ServiceArn" \
+  --output text)
+
+aws apprunner start-deployment --service-arn "$SERVICE_ARN" --region us-east-1
+```
+
+This re-pulls whatever tag the service is currently configured for. Only use this after confirming the workflow-produced `:latest` tag is in ECR and the service is configured to use it (both now enforced by G.1).
+
+---
+
+## Appendix H) Alert rules
+
+### H.1 Where they live
+
+`infra/prometheus/rules/p2p.yaml` — 5 Prometheus alert rules covering the P2P overlay:
+
+| Alert | Severity | Fires when |
+|---|---|---|
+| `P2PSyncErrorRateHigh` | warning | error rate > 1% over 10min |
+| `P2PRedisFanoutDown` | **critical** | Redis fanout errors > 0.1/s for 5min |
+| `P2PSyncStalled` | warning | 0 events in 30min despite active subscribers |
+| `P2PBootstrapDenyRateHigh` | warning | bootstrap denial rate > 10% for 15min |
+| `P2PSyncLagHighP95` | warning | p95 fanout lag > 15s for 10min |
+
+### H.2 Scraping / deployment status
+
+As of M8 pilot readiness, the staging/pilot environment does **not** yet run a Prometheus server or Grafana Agent. `/metrics` is exposed by the api-gateway but nothing scrapes it.
+
+When a Prometheus deployment lands (tracked as an ops milestone), copy `infra/prometheus/rules/p2p.yaml` into the Prometheus `rule_files` path and reload. Wire the severities to PagerDuty via Alertmanager.
+
+Until then, the rules are documentation: they encode "what we want to be notified about" so the future Prometheus rollout knows what to wire up. They also serve as a guide for on-call to run the equivalent checks manually via `curl /metrics | promtool query instant …`.

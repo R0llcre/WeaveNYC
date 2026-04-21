@@ -1,0 +1,116 @@
+# Prometheus alert rules for the P2P community-sync overlay.
+#
+# Target metrics (exposed at https://api.weavenyc.org/metrics, added in PR #39):
+#   - p2p_sync_events_total{event_type, result}
+#   - p2p_sync_errors_total{op, kind}
+#   - p2p_sync_lag_seconds (histogram)
+#   - p2p_active_connections{community_id}
+#   - p2p_bootstrap_total{outcome}
+#
+# Deployment: these rules are "ready to drop in" but the pilot/staging
+# environment does not yet run a Prometheus server or Grafana Agent that
+# scrapes /metrics. When that lands (tracked as an ops milestone), copy
+# this file into the Prometheus rule_files path and reload.
+#
+# Severity convention:
+#   - warning   alert the on-call but no auto-page; sync is degraded
+#   - critical  page on-call; sync is effectively broken for users
+#
+# All rates are computed over 5-minute windows to smooth over a single
+# transient spike while still catching sustained badness.
+
+groups:
+  - name: p2p-sync
+    interval: 30s
+    rules:
+      # Catches sustained publish / fanout / list errors across the whole
+      # runtime. 1% is conservative — at pilot volume this is ~1 error per
+      # 100 sync events per community. `clamp_min` to 1 prevents a
+      # divide-by-zero surge when traffic is quiet.
+      - alert: P2PSyncErrorRateHigh
+        expr: |
+          sum(rate(p2p_sync_errors_total[5m])) /
+          clamp_min(sum(rate(p2p_sync_events_total[5m])), 1) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          surface: p2p
+        annotations:
+          summary: "P2P sync error rate >1% for 10 minutes"
+          description: |
+            {{ $value | humanizePercentage }} of P2P operations are
+            erroring. See docs/11_Ops_Runbook §alerts for triage.
+
+      # Redis publisher failures mean cross-node fanout is dead — events
+      # only reach subscribers on the same api-gateway pod as the writer.
+      # In multi-pod production this is silent data loss for peers.
+      # 0.1/s = 6 errors/min — any sustained Redis badness trips this.
+      - alert: P2PRedisFanoutDown
+        expr: |
+          sum(rate(p2p_sync_errors_total{op="fanout",kind="redis"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          surface: p2p
+        annotations:
+          summary: "Redis P2P fanout failing — multi-node sync is degraded"
+          description: |
+            Publisher failures in RedisP2PSyncRuntime.fanout. Check Redis
+            health via /readyz and cloudwatch logs. Fix is either
+            restart Redis or fail over to a healthy replica.
+
+      # Catches the case where subscribers exist (someone is watching a
+      # community's WebSocket) but no events are flowing. This can indicate
+      # a stuck publish pipeline, a Redis subscribe imbalance, or a
+      # deadlock in the runtime. Window is long (30m) to tolerate quiet
+      # communities — we only care when SOMEONE is listening.
+      - alert: P2PSyncStalled
+        expr: |
+          sum(rate(p2p_sync_events_total{result=~"durable_ok|fanout_ok"}[30m])) == 0
+          and sum(p2p_active_connections) > 0
+        for: 30m
+        labels:
+          severity: warning
+          surface: p2p
+        annotations:
+          summary: "Zero P2P events in 30 minutes despite active subscribers"
+          description: |
+            {{ $labels.community_id }} has live /ws/p2p connections but no
+            events were published in the last 30 minutes. Could be a
+            legitimately quiet community OR a broken publish path. Cross-
+            check by posting into the community from a staging account.
+
+      # High bootstrap denial rate indicates an authorisation regression
+      # (token scope drift, membership-check bug) or a bad client version
+      # storming the endpoint with unauthorised requests.
+      - alert: P2PBootstrapDenyRateHigh
+        expr: |
+          sum(rate(p2p_bootstrap_total{outcome="denied"}[10m])) /
+          clamp_min(sum(rate(p2p_bootstrap_total[10m])), 1) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          surface: p2p
+        annotations:
+          summary: "Bootstrap denial rate >10% — possible auth/membership misconfig"
+          description: |
+            {{ $value | humanizePercentage }} of bootstrap calls are being
+            denied. Check for recent auth changes, membership revocations,
+            or a bad client shipping with a stale scope.
+
+      # Client catch-up lag >15s p95 means real users are seeing stale
+      # feeds. Tied to the p2p_sync_lag_seconds histogram emitted at
+      # fanout time. Skipped when there's no data (handled by the
+      # histogram_quantile gracefully returning NaN, which doesn't fire).
+      - alert: P2PSyncLagHighP95
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(p2p_sync_lag_seconds_bucket[5m]))) > 15
+        for: 10m
+        labels:
+          severity: warning
+          surface: p2p
+        annotations:
+          summary: "P2P sync lag p95 >15s for 10 minutes"
+          description: |
+            Users are seeing posts {{ $value }}s after they were authored.
+            Typical causes: DB or Redis saturation, WebSocket backpressure.
