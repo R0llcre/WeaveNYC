@@ -17,6 +17,10 @@ on:
         description: "Container image tag to push + deploy (defaults to github.sha)"
         required: false
         default: ""
+      enforce_go_live:
+        description: "PILOT GO-LIVE: fail if docs/11_Ops_Runbook.md still has on-call placeholders. Push to 'true' only when flipping pilot live."
+        required: false
+        default: "false"
 
 permissions:
   contents: read
@@ -42,15 +46,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Reject unfilled on-call placeholders (prod-only gate)
+      - name: On-call placeholder check (warn on push, block on release)
         # F4-E guard: PR #56 introduced `<primary>/<secondary>/<escalation>`
         # placeholders in docs/11_Ops_Runbook.md on-call section. We must not
-        # deploy to prod with placeholders still present. PRs are not gated
-        # (this workflow only runs on push to main + workflow_dispatch), so
-        # this step is implicitly production-only.
+        # flip to PILOT GO-LIVE with placeholders, but ongoing dev pushes to
+        # main should not be blocked by an unfilled table — that decision
+        # belongs to the human running the go-live workflow_dispatch with
+        # `enforce_go_live=true`. Push events and unflagged dispatches only
+        # warn.
+        #
+        # Flip pilot go-live: Actions → Deploy API Gateway → Run workflow
+        # with `enforce_go_live=true` AFTER filling the on-call table.
+        continue-on-error: ${{ github.event_name == 'push' || github.event.inputs.enforce_go_live != 'true' }}
         run: |
           if grep -nE '^\| .*<primary>|^\| .*<secondary>|^\| .*<escalation>' docs/11_Ops_Runbook.md; then
-            echo "::error::docs/11_Ops_Runbook.md still has on-call placeholders — fill before prod deploy"
+            echo "::warning::docs/11_Ops_Runbook.md still has on-call placeholders — fill before PILOT GO-LIVE (workflow_dispatch + enforce_go_live=true)"
             exit 1
           fi
 

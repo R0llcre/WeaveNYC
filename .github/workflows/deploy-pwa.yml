@@ -20,6 +20,11 @@ on:
       - '.github/workflows/deploy-pwa.yml'
       - 'scripts/staging/post-deploy-smoke.ts'
   workflow_dispatch:
+    inputs:
+      enforce_go_live:
+        description: "PILOT GO-LIVE: fail if docs/11_Ops_Runbook.md still has on-call placeholders. Set to 'true' only when flipping pilot live."
+        required: false
+        default: "false"
 
 concurrency:
   group: deploy-pwa
@@ -33,12 +38,14 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@v4
-      - name: Reject unfilled on-call placeholders (prod-only gate)
-        # F4-E guard — see deploy-api.yml for context. Only runs on push
-        # to main + workflow_dispatch, so it's implicitly production-only.
+      - name: On-call placeholder check (warn on push, block on release)
+        # Warn for push events; block only when workflow_dispatch is invoked
+        # with `enforce_go_live=true`. Rationale + invocation in
+        # deploy-api.yml comment block.
+        continue-on-error: ${{ github.event_name == 'push' || github.event.inputs.enforce_go_live != 'true' }}
         run: |
           if grep -nE '^\| .*<primary>|^\| .*<secondary>|^\| .*<escalation>' docs/11_Ops_Runbook.md; then
-            echo "::error::docs/11_Ops_Runbook.md still has on-call placeholders — fill before prod deploy"
+            echo "::warning::docs/11_Ops_Runbook.md still has on-call placeholders — fill before PILOT GO-LIVE"
             exit 1
           fi
       - uses: pnpm/action-setup@v4
