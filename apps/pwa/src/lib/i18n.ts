@@ -548,6 +548,21 @@ type ChromeMessages = {
   homeFilterFresh: string;
   homeFilterHealth: string;
   homeFilterHousing: string;
+  // V1-D situational filter rail — multi-select chips that answer the user's
+  // real question: "is this open right now and can I walk in?". Sit above the
+  // 6 category chips on the same rail, divided by a small visual separator.
+  homeFilterOpenNow: string;
+  homeFilterToday: string;
+  // V1-D filter rail aria labels — the rail is two adjacent groups (timing +
+  // category) so each needs its own accessible name.
+  homeFilterSituationalLabel: string;
+  homeFilterCategoryLabel: string;
+  // V1-D sparse-results fallback — rendered AFTER the list when the user sees
+  // 1-2 results. Prompts "try a nearby ZIP" so a thin result set doesn't read
+  // like a failure. Reuses homeEmptyTitle/Subtitle/Cta slots (formerly dead).
+  homeSparseTitle: string;
+  homeSparseSubtitle: string;
+  homeSparseCta: string;
   homeResultsCount: string;
   // M8.5 PWA Redesign — Me hub (aggregates settings + verify + language + danger)
   meTitle: string;
@@ -1233,6 +1248,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeFilterFresh: 'Fresh',
     homeFilterHealth: 'See a doctor',
     homeFilterHousing: 'Shelter & housing',
+    // V1-D situational chips — multi-select
+    homeFilterOpenNow: 'Open now',
+    homeFilterToday: 'Today',
+    homeFilterSituationalLabel: 'When',
+    homeFilterCategoryLabel: 'Category',
+    // V1-D sparse-results fallback (1-2 items)
+    homeSparseTitle: 'See a wider area?',
+    homeSparseSubtitle: 'Only {count} within your ZIP. Try a nearby ZIP or see all NYC options.',
+    homeSparseCta: 'Try a nearby ZIP',
     homeResultsCount: '{count} nearby',
     // M8.5 redesign — Me hub
     meTitle: 'Me',
@@ -1905,6 +1929,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeFilterFresh: 'Frescos',
     homeFilterHealth: 'Atención médica',
     homeFilterHousing: 'Vivienda y refugio',
+    // V1-D situational chips — multi-select
+    homeFilterOpenNow: 'Abierto ahora',
+    homeFilterToday: 'Hoy',
+    homeFilterSituationalLabel: 'Cuándo',
+    homeFilterCategoryLabel: 'Categoría',
+    // V1-D sparse-results fallback (1-2 items)
+    homeSparseTitle: '¿Ver un área más amplia?',
+    homeSparseSubtitle: 'Solo {count} en tu ZIP. Prueba un ZIP cercano o revisa todas las opciones de NYC.',
+    homeSparseCta: 'Probar un ZIP cercano',
     homeResultsCount: '{count} cerca',
     // M8.5 redesign — Me hub
     meTitle: 'Yo',
@@ -2572,6 +2605,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeFilterFresh: '新鲜',
     homeFilterHealth: '看病',
     homeFilterHousing: '住处',
+    // V1-D situational chips — multi-select
+    homeFilterOpenNow: '现在开门',
+    homeFilterToday: '今天',
+    homeFilterSituationalLabel: '时间',
+    homeFilterCategoryLabel: '类别',
+    // V1-D sparse-results fallback (1-2 items)
+    homeSparseTitle: '看更远一点？',
+    homeSparseSubtitle: '邮编内只有 {count} 个。试试附近的邮编或查看全纽约。',
+    homeSparseCta: '换个邮编',
     homeResultsCount: '附近 {count} 个',
     // M8.5 redesign — Me hub
     meTitle: '我',

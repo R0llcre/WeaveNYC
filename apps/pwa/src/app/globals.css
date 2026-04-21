@@ -1005,12 +1005,11 @@ main[id="main-content"]:focus {
 }
 
 /*
- * V1-A UX fix — `.muted` on paper-cream measured ~4.52:1 with
+ * V1-A + V1-D UX fix — `.muted` on paper-cream measured ~4.52:1 with
  * `--color-ink-muted`, which fails WCAG AA for normal body text by a hair.
- * `--color-ink-secondary` measures ~7.8:1 on the same surface, so switch to
- * it for any class consumer that binds to `.muted` (empty-state subtitles,
- * result counts, etc.). Specialty "muted" tokens (`.text-micro`,
- * `.ink-muted`, button/icon muted tones) stay on the lighter value.
+ * `--color-ink-secondary` (~7.8:1 on the same surface) clears AA with
+ * headroom. Specialty "muted" tokens (`.text-micro`, `.ink-muted`,
+ * 0.75rem micro copy, button/icon muted tones) stay on the lighter value.
  */
 .muted {
   color: var(--color-ink-secondary);
@@ -1106,14 +1105,38 @@ main[id="main-content"]:focus {
 /* Horizontal pill rail — scroll-snap so half-visible pills are never stranded
    mid-tap. Used by Home filter row and any future filter-rail consumer. The
    hidden scrollbar keeps the row visually quiet on mobile; padding-inline
-   gives the leading pill breathing room against its scroll edge. */
+   gives the leading pill breathing room against its scroll edge.
+
+   V1-D scroll affordance: the hidden scrollbar + zero edge fade meant sighted
+   users had no signal that more chips lived off-screen (flagged in the a11y
+   review). `mask-image` fades the trailing 24px of the rail so the last
+   visible pill half-fades, telegraphing "more →". The leading edge uses a
+   tiny 8px fade so a scroll-back affordance appears as soon as the rail is
+   scrolled. Browsers without `mask-image` simply render a hard edge; the
+   chevron badge on `.pill-scroll--overflow` (toggled from JS) is the
+   explicit textual signal for those fallbacks. */
 .pill-scroll {
+  position: relative;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   scroll-snap-type: x mandatory;
   padding-inline: var(--space-4);
   padding-block: var(--space-1);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 8px,
+    #000 calc(100% - 24px),
+    transparent 100%
+  );
+          mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 8px,
+    #000 calc(100% - 24px),
+    transparent 100%
+  );
 }
 
 .pill-scroll::-webkit-scrollbar {
@@ -1122,6 +1145,15 @@ main[id="main-content"]:focus {
 
 .pill-scroll > * {
   scroll-snap-align: start;
+}
+
+/* V1-D: two pill-scroll rails may sit back-to-back on the home filter (the
+   situational chips + the category chips). A slim divider on the second rail
+   hints at the vertical separation without adding a full HR. */
+.pill-scroll + .pill-scroll {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-divider);
 }
 
 /* Stepper rail — horizontal list of numbered step pills used by the post

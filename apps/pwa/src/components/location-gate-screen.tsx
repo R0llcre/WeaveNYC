@@ -236,6 +236,14 @@ export function LocationGateScreen() {
             >
               <input
                 data-testid="onboarding-location-zip-input"
+                // V1-D: older Android browsers (Chrome 55- on Android 7) ignore
+                // `inputMode` entirely and defer to the HTML `type` attribute.
+                // `type="tel"` is the most compatible way to force a numeric
+                // keypad for a 5-digit postal code — "number" would emit a
+                // spinner and auto-strip leading zeros on iOS, which breaks
+                // New England ZIPs. `inputMode="numeric"` is kept for modern
+                // browsers that honor it; both attrs are mutually compatible.
+                type="tel"
                 inputMode="numeric"
                 autoComplete="postal-code"
                 maxLength={5}

@@ -562,6 +562,14 @@ export function VerifyScreen() {
                     <>
                       <Field label={t('codeLabel')}>
                         <input
+                          // V1-D: `inputMode` alone is silently ignored on
+                          // older Android browsers (Chrome <= 60), forcing
+                          // alphanumeric keyboards on the OTP screen — the
+                          // one place the user ABSOLUTELY needs a numpad.
+                          // `type="tel"` forces the numeric keypad on every
+                          // Android browser we support; `inputMode` is the
+                          // belt-and-braces signal for modern engines.
+                          type="tel"
                           inputMode="numeric"
                           autoComplete="one-time-code"
                           value={otpCode}
