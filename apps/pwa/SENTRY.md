@@ -63,3 +63,39 @@ Local `pnpm --filter @weavenyc/pwa build` does NOT need the token —
 without it, the Sentry wrap simply skips the upload and the build
 succeeds normally. Do not put the token in `.env.local` unless you
 are actively debugging the upload path; keep the token scoped to CI.
+
+## DSN variables — PWA vs Anchor Admin
+
+We publish two independent Sentry projects (`weavenyc-pwa` and
+`weavenyc-admin`) so operator noise in the admin console never drowns
+out real user errors in the consumer PWA. The client/server/edge
+Sentry config files pick their DSN in this order:
+
+| App             | First match | Fallback                             |
+| --------------- | ------------------------------------ | ------------------------- |
+| `apps/pwa`      | `NEXT_PUBLIC_SENTRY_DSN`             | — (no-op if unset)        |
+| `apps/anchor-admin` client | `NEXT_PUBLIC_SENTRY_ADMIN_DSN` | `NEXT_PUBLIC_SENTRY_DSN` |
+| `apps/anchor-admin` server/edge | `SENTRY_ADMIN_DSN` → `NEXT_PUBLIC_SENTRY_ADMIN_DSN` | `SENTRY_DSN` → `NEXT_PUBLIC_SENTRY_DSN` |
+
+The fallback is intentional — if the admin DSN is not yet
+provisioned in a given environment, admin errors at least land in the
+PWA project instead of disappearing. In any production deployment
+both values **must** be set to distinct DSNs pointing at their
+respective projects, otherwise admin events pollute the consumer
+error budget.
+
+## Trace sample rate (`SENTRY_TRACES_SAMPLE_RATE`)
+
+Per-runtime, per-deployment sampling lives in env vars rather than
+hard-coded defaults:
+
+- Client: `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`
+  (falls back to `SENTRY_TRACES_SAMPLE_RATE`).
+- Server + Edge: `SENTRY_TRACES_SAMPLE_RATE`
+  (falls back to `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`).
+
+Both apps' configs read the value, clamp it to `[0, 1]`, and fall
+back to the hard-coded default (PWA `0.1`, Admin `0.2`) when the env
+var is unset, non-numeric, or out of range. To temporarily crank
+tracing up during an incident, set the env var in your hosting
+platform and redeploy — no code change required.

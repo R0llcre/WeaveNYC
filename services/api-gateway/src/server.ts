@@ -26,7 +26,55 @@ process.on('unhandledRejection', (reason: unknown) => {
 });
 
 async function start(): Promise<void> {
-  const app = await buildApp({ logger: true });
+  // Pino redact + custom request serializer — keep Bearer JWTs, cookies,
+  // and query-string tokens out of the logs. The default Fastify
+  // serializer logs `req.headers.authorization` verbatim (would leak
+  // every access JWT) and `req.url` with the full query string (would
+  // leak `?token=` for chat/P2P WS upgrades). We pair the redact paths
+  // with a `serializers.req` that strips everything after `?` from the
+  // URL so operators still see the path but never the bearer token.
+  // We also redact common PII field names (phone/email/address/password)
+  // so app-level `req.log.info({ ... })` callsites can't accidentally
+  // persist user identifiers.
+  const app = await buildApp({
+    logger: {
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.query.token',
+          '*.phone',
+          '*.email',
+          '*.address_line_1',
+          '*.address_line_2',
+          '*.password',
+          '*.otp',
+          '*.code',
+        ],
+        censor: '[REDACTED]',
+      },
+      serializers: {
+        req(request: {
+          id?: string;
+          method?: string;
+          url?: string;
+          host?: string;
+          remoteAddress?: string;
+          remotePort?: number;
+        }) {
+          const rawUrl = typeof request.url === 'string' ? request.url : '';
+          return {
+            id: request.id,
+            method: request.method,
+            url: rawUrl.split('?')[0],
+            host: request.host,
+            remoteAddress: request.remoteAddress,
+            remotePort: request.remotePort,
+          };
+        },
+      },
+    },
+  });
 
   try {
     await app.listen({

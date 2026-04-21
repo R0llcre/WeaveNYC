@@ -26,6 +26,7 @@ import {
   sendConversationMessageResponseSchema,
 } from "../contracts.js";
 import { withIdempotency } from "../lib/idempotency.js";
+import { recordChatMessageSent } from "../lib/metrics.js";
 import { loadCurrentActor } from "../lib/require-anchor.js";
 
 type ConversationParams = {
@@ -228,6 +229,12 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
               body: body.body,
               clientMessageId: body.client_message_id,
             });
+
+            // Bump `chat_messages_sent_total` after the send succeeded
+            // so the counter tracks durable, post-idempotency writes —
+            // paired with `chat_messages_delivered_total` by the
+            // `ChatDeliveryRateFloor` alert rule.
+            recordChatMessageSent(app);
 
             const participantIds = result.conversation.participant_preview.map((participant) => participant.user_id);
             const participantConversations = await Promise.all(

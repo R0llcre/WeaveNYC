@@ -47,6 +47,20 @@ export function initSentryNode(options: InitSentryOptions): SentryBootstrap {
     initialScope: {
       tags: { service: options.serviceName },
     },
+    // `beforeSend` — strip any `?querystring` from both the native
+    // `request.url` field and the `extra.url` hint we pass from
+    // `attachFastifySentry` below. Chat + P2P WebSocket upgrades carry
+    // the access JWT as `?token=…` so without this scrub the token
+    // would land in Sentry alongside every onError event.
+    beforeSend(event) {
+      if (event.request?.url) {
+        event.request.url = event.request.url.split('?')[0];
+      }
+      if (event.extra && typeof event.extra.url === 'string') {
+        event.extra.url = event.extra.url.split('?')[0];
+      }
+      return event;
+    },
   });
 
   return {

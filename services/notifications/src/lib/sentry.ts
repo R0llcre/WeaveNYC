@@ -40,6 +40,18 @@ export function initSentryNode(options: InitSentryOptions): SentryBootstrap {
     initialScope: {
       tags: { service: options.serviceName },
     },
+    // `beforeSend` — strip `?querystring` from `request.url` and any
+    // `extra.url` we pass from the Fastify onError hook so JWTs
+    // embedded in WS upgrades do not reach Sentry.
+    beforeSend(event) {
+      if (event.request?.url) {
+        event.request.url = event.request.url.split('?')[0];
+      }
+      if (event.extra && typeof event.extra.url === 'string') {
+        event.extra.url = event.extra.url.split('?')[0];
+      }
+      return event;
+    },
   });
 
   return {

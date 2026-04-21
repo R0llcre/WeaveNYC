@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyServerOptions } from "fastify";
 import { Pool } from "pg";
 
 import { ResourceQueryRepository } from "@weavenyc/resource-directory";
@@ -149,7 +149,9 @@ function mapMatchError(error: unknown) {
   return null;
 }
 
-export async function buildMatchApp(options: { config?: MatchConfig; logger?: boolean } = {}): Promise<MatchApp> {
+export async function buildMatchApp(
+  options: { config?: MatchConfig; logger?: FastifyServerOptions['logger'] } = {},
+): Promise<MatchApp> {
   const config = options.config ?? loadMatchConfig();
   const app = Fastify({
     logger: options.logger ?? false,

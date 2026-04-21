@@ -132,6 +132,14 @@ export interface P2PSyncRuntime {
   fanout(event: P2PEventEnvelope): Promise<boolean>;
   publish(input: P2PPublishInput): Promise<P2PPublishResult>;
   topicsForCommunity(communityId: string): P2PCommunityTopics;
+  /**
+   * Cheap round-trip that `/readyz` uses to verify the Redis pub/sub
+   * fanout + Postgres event store are both reachable. Must throw when
+   * either dependency is unreachable so a degraded runtime fails the
+   * readiness probe instead of serving 200 while sync events silently
+   * drop.
+   */
+  ping(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -499,6 +507,11 @@ export class InMemoryP2PSyncRuntime implements P2PSyncRuntime {
     return topicsForCommunity(communityId);
   }
 
+  async ping(): Promise<void> {
+    // In-memory fixture is always healthy — the ping just exists so
+    // `/readyz` can call it uniformly without type branching.
+  }
+
   async close() {
     clearInterval(this.heartbeatTimer);
   }
@@ -524,8 +537,8 @@ export class RedisP2PSyncRuntime implements P2PSyncRuntime {
       heartbeatIntervalMs?: number;
     },
     dependencies?: {
-      publisher?: Pick<Redis, "publish" | "quit">;
-      subscriber?: Pick<Redis, "psubscribe" | "on" | "quit">;
+      publisher?: Pick<Redis, "publish" | "quit" | "ping">;
+      subscriber?: Pick<Redis, "psubscribe" | "on" | "quit" | "ping">;
       database?: Pick<Pool, "query" | "end">;
       ready?: Promise<void>;
     },
@@ -903,6 +916,21 @@ export class RedisP2PSyncRuntime implements P2PSyncRuntime {
 
   topicsForCommunity(communityId: string): P2PCommunityTopics {
     return topicsForCommunity(communityId);
+  }
+
+  async ping(): Promise<void> {
+    // `/readyz` probe — verify the publisher Redis, subscriber Redis,
+    // and the Postgres event store are all reachable. Postgres sits
+    // behind `SELECT 1` (any connection in the pool will answer); the
+    // Redis side drives two `PING`s so a half-connected hub (publish
+    // works but subscribe is stuck) fails the probe instead of hiding
+    // the fanout break.
+    await this.ready;
+    await Promise.all([
+      this.publisher.ping(),
+      this.subscriber.ping(),
+      this.database.query("SELECT 1"),
+    ]);
   }
 
   async close() {

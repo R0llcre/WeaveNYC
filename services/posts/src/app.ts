@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyServerOptions } from "fastify";
 
 import { createPostsRepository } from "./repository.js";
 import { createPostsService } from "./service.js";
@@ -149,7 +149,9 @@ function mapPostsError(error: unknown) {
   return null;
 }
 
-export async function buildPostsApp(options: { config?: PostsConfig; logger?: boolean } = {}): Promise<PostsApp> {
+export async function buildPostsApp(
+  options: { config?: PostsConfig; logger?: FastifyServerOptions['logger'] } = {},
+): Promise<PostsApp> {
   const config = options.config ?? loadPostsConfig();
   const app = Fastify({
     logger: options.logger ?? false,

@@ -1,3 +1,4 @@
+import type { FastifyServerOptions } from 'fastify';
 import type {
   NotificationMagicLinkSendRequest,
   NotificationMagicLinkSendResponse,
@@ -71,7 +72,7 @@ export type BuildNotificationsAppOptions = {
   config?: NotificationsConfig;
   otpProvider?: OtpNotificationProvider;
   magicLinkProvider?: MagicLinkNotificationProvider;
-  logger?: boolean;
+  logger?: FastifyServerOptions['logger'];
 };
 
 export class NotificationsServiceError extends Error {
