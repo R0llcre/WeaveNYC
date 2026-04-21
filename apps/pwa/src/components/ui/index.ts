@@ -61,6 +61,8 @@ export type { EmptyStateProps, EmptyStateCta, EmptyStateTone } from './EmptyStat
 
 export { RouteLoadingFallback } from './RouteLoadingFallback';
 
+export { SandboxBanner } from './SandboxBanner';
+
 // --- Wave 1B layout primitives ---
 
 export { Stack } from './Stack';

@@ -1,0 +1,109 @@
+# WeaveNYC — demo stack (B5/B6).
+#
+# Stands up every service the 30-min pilot demo exercises:
+#   - pwa      (Next.js, port 3000, bind-mounted for fast edits)
+#   - api      (api-gateway Fastify, port 4000)
+#   - postgres (postgis 16/3.4, port 5432)
+#   - redis    (7.4-alpine, port 6379)
+#   - mailhog  (1024 SMTP, 8025 UI, for magic-link email preview)
+#
+# Usage:
+#   docker compose -f docker-compose.demo.yml up --build -d
+#   pnpm db:migrate
+#   SEED_DEMO_PERSONAS=1 SEED_PUBLIC_SOURCES=1 pnpm db:seed
+#
+# Or one-liner (same effect):
+#   pnpm demo:local
+#
+# The PWA image uses the base Node 20 Alpine runtime and relies on a
+# bind-mount of the repo root so `next dev` hot-reloads against the host
+# source tree. We ship a dedicated Dockerfile for the api-gateway (the
+# same one production uses) so the demo reproduces real server behaviour.
+#
+# Data is persisted in compose-scoped volumes so re-running the stack
+# doesn't wipe the demo seed. Delete `weavenyc-demo-postgres` to reset.
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: weavenyc_demo
+      POSTGRES_USER: weavenyc
+      POSTGRES_PASSWORD: weavenyc
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weavenyc -d weavenyc_demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - weavenyc-demo-postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - weavenyc-demo-redis:/data
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      API_HOST: 0.0.0.0
+      API_PORT: "4000"
+      DATABASE_URL: postgres://weavenyc:weavenyc@postgres:5432/weavenyc_demo
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      WEAVENYC_DEPLOY_PROFILE: development
+      SEED_DEMO_PERSONAS: "1"
+    ports:
+      - "4000:4000"
+
+  pwa:
+    image: node:20-alpine
+    working_dir: /workspace/apps/pwa
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+      NEXT_PUBLIC_DEMO_SANDBOX: "1"
+      NODE_ENV: development
+    # The demo PWA runs from the bind-mounted source tree so hot-reload
+    # works without rebuilding the image. `corepack` enables the pinned
+    # pnpm version from package.json without pulling from the npm registry.
+    command: >-
+      sh -c "corepack enable && corepack prepare pnpm@10.33.0 --activate
+      && cd /workspace && pnpm install --frozen-lockfile
+      && pnpm --filter @weavenyc/pwa dev"
+    volumes:
+      - .:/workspace
+      - /workspace/node_modules
+      - /workspace/apps/pwa/node_modules
+    ports:
+      - "3000:3000"
+
+volumes:
+  weavenyc-demo-postgres:
+  weavenyc-demo-redis:

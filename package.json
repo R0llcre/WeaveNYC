@@ -26,7 +26,9 @@
     "db:seed": "pnpm --filter @weavenyc/db db:seed",
     "resources:import:cfc": "pnpm --filter @weavenyc/resource-directory resources:import:cfc",
     "resources:import:island-harvest": "pnpm --filter @weavenyc/resource-directory resources:import:island-harvest",
-    "resources:sync": "pnpm --filter @weavenyc/resource-directory resources:sync"
+    "resources:sync": "pnpm --filter @weavenyc/resource-directory resources:sync",
+    "demo:preflight": "tsx scripts/demo/preflight.ts",
+    "demo:local": "tsx scripts/demo/local.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
