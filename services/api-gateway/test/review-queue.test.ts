@@ -166,7 +166,7 @@ describe('review queue routes', () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it('rejects review decisions for posts that are not pending review', async () => {
+  it('returns idempotent 200 when the post is not pending review (race-safe)', async () => {
     const userStore = new InMemoryUserStore();
     const verifiedUser = createUserRecord({
       userId: '22222222-2222-4222-8222-222222222222',
@@ -218,7 +218,14 @@ describe('review queue routes', () => {
       },
     });
 
-    expect(decisionResponse.statusCode).toBe(400);
+    // A4 P0-1 fix: deciding a non-pending post is idempotent rather than
+    // 409/400. Two anchors racing a decision both see 200 with the current
+    // decision body, and only one moderation_actions row is inserted.
+    expect(decisionResponse.statusCode).toBe(200);
+    expect(decisionResponse.json()).toMatchObject({
+      post_id: createResponse.json().post_id,
+      status: 'active',
+    });
   });
 
   it('rejects malformed post ids for review decisions', async () => {

@@ -453,30 +453,104 @@ export class PgChatRepository implements ChatRepository {
     safetyFlags: ChatMessage["safety_flags"];
     sentAt: string;
   }): Promise<ChatMessage> {
-    const result = await this.pool.query<MessageRow>(
-      `
-        insert into messages (
-          conversation_id,
-          sender_user_id,
-          body,
-          safety_flags,
-          sent_at
-        )
-        values ($1, $2, $3, $4::text[], $5::timestamptz)
-        returning message_id, conversation_id, sender_user_id, body, safety_flags, sent_at
-      `,
-      [input.conversationId, input.senderUserId, input.body, input.safetyFlags, input.sentAt],
-    );
-    await this.pool.query(
-      `
-        update conversations
-        set last_activity_at = $2::timestamptz
-        where conversation_id = $1
-      `,
-      [input.conversationId, input.sentAt],
-    );
+    // Atomic check-and-insert: the WHERE EXISTS predicate resolves the
+    // conversation status AND the blocks table in the same snapshot as the
+    // INSERT. This closes the TOCTOU window in service.sendMessage between the
+    // initial getConversation/findBlockBetweenUsers checks and the DB write —
+    // if a peer blocks during that window, the INSERT returns zero rows and
+    // the caller raises conversation_blocked without emitting any realtime
+    // fanout.
+    return this.withTransaction(async (client) => {
+      const insertResult = await client.query<MessageRow>(
+        `
+          insert into messages (
+            conversation_id,
+            sender_user_id,
+            body,
+            safety_flags,
+            sent_at
+          )
+          select $1::uuid, $2::uuid, $3, $4::text[], $5::timestamptz
+          where exists (
+            select 1 from conversations c
+            where c.conversation_id = $1::uuid
+              and c.status = 'active'
+              and $2::uuid = any(c.participants)
+              and not exists (
+                select 1 from blocks b
+                where (
+                  (b.blocker_user_id = any(c.participants)
+                    and b.blocked_user_id = any(c.participants))
+                )
+              )
+          )
+          returning message_id, conversation_id, sender_user_id, body, safety_flags, sent_at
+        `,
+        [input.conversationId, input.senderUserId, input.body, input.safetyFlags, input.sentAt],
+      );
 
-    return mapMessage(result.rows[0]!);
+      if (insertResult.rows.length === 0) {
+        // Diagnose why the predicate failed. Re-read the conversation to pick
+        // the specific error code (conversation_closed vs conversation_blocked
+        // vs not_found). Doing this INSIDE the same transaction ensures the
+        // diagnostic SELECT sees the state that caused the insert to reject.
+        const diag = await client.query<{
+          status: string;
+          participants_include_sender: boolean;
+          has_active_block: boolean;
+        }>(
+          `
+            select
+              c.status,
+              $2::uuid = any(c.participants) as participants_include_sender,
+              exists (
+                select 1 from blocks b
+                where b.blocker_user_id = any(c.participants)
+                  and b.blocked_user_id = any(c.participants)
+              ) as has_active_block
+            from conversations c
+            where c.conversation_id = $1::uuid
+            limit 1
+          `,
+          [input.conversationId, input.senderUserId],
+        );
+
+        const row = diag.rows[0];
+        if (!row) {
+          throw new ChatServiceError("Conversation not found", "not_found");
+        }
+        if (!row.participants_include_sender) {
+          throw new ChatServiceError("Conversation is not available to this user", "forbidden");
+        }
+        if (row.has_active_block) {
+          throw new ChatServiceError("Conversation is blocked", "conversation_blocked");
+        }
+        if (row.status !== "active") {
+          throw new ChatServiceError(
+            row.status === "blocked" ? "Conversation is blocked" : "Conversation is closed",
+            row.status === "blocked" ? "conversation_blocked" : "conversation_closed",
+          );
+        }
+        // Unreachable in steady state: the INSERT predicate would have matched.
+        throw new ChatServiceError("Message could not be persisted", "internal_error");
+      }
+
+      // The INSERT succeeded — by construction the conversation was active, the
+      // sender was a participant, and no block existed at commit time. Realtime
+      // fanout invoked by the caller after this returns is therefore safe: the
+      // block state seen by the atomic predicate is the state the transaction
+      // will commit with.
+      await client.query(
+        `
+          update conversations
+          set last_activity_at = $2::timestamptz
+          where conversation_id = $1
+        `,
+        [input.conversationId, input.sentAt],
+      );
+
+      return mapMessage(insertResult.rows[0]!);
+    });
   }
 
   async markConversationRead(input: {

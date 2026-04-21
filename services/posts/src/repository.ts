@@ -1481,6 +1481,50 @@ export class PostsRepository {
 
   async applyReviewDecision(input: ReviewDecisionInput & { decidedAt: string; status: PostStatus }) {
     return this.withTransaction(async (queryable) => {
+      // Lock the target row for the duration of the transaction so two anchors
+      // deciding the same pending post cannot both succeed and each insert a
+      // moderation_actions row. The status filter inside the UPDATE below is a
+      // defense-in-depth check; the row lock is the primary guard.
+      const lockedResult = await queryable.query<{
+        post_id: string;
+        status: PostStatus;
+        community_id: string;
+        updated_at: Date | string;
+      }>(
+        `
+          select post_id, status, community_id, updated_at
+          from posts
+          where post_id = $1
+          limit 1
+          for update
+        `,
+        [input.postId]
+      );
+
+      const lockedRow = lockedResult.rows[0];
+      if (!lockedRow) {
+        return null;
+      }
+
+      // If the post is no longer pending review (another anchor decided first,
+      // or the author removed it, etc.), short-circuit with an idempotent
+      // "already decided" sentinel. The route layer surfaces this as a 200 with
+      // the current decision body instead of a 409.
+      if (lockedRow.status !== 'pending_review') {
+        const current = await this.findPost(input.postId);
+        if (!current) {
+          return null;
+        }
+
+        return {
+          post: current,
+          moderationActionId: null,
+          syncEvents: [],
+          alreadyDecided: true as const,
+          decidedAt: toIso(lockedRow.updated_at),
+        };
+      }
+
       const postResult = await queryable.query<PostRow>(
         `
           update posts
@@ -1488,6 +1532,7 @@ export class PostsRepository {
               p2p_version = p2p_version + 1,
               updated_at = $3::timestamptz
           where post_id = $1
+            and status = 'pending_review'
           returning
             post_id,
             community_id,
@@ -1513,6 +1558,9 @@ export class PostsRepository {
 
       const row = postResult.rows[0];
       if (!row) {
+        // The row lock guarantees the status was pending_review moments ago, so
+        // this branch should be unreachable. Treat it defensively as a
+        // not-found so the caller surfaces a 404 rather than silently passing.
         return null;
       }
 
@@ -1576,6 +1624,8 @@ export class PostsRepository {
         post,
         moderationActionId: actionId,
         syncEvents,
+        alreadyDecided: false as const,
+        decidedAt: input.decidedAt,
       };
     });
   }

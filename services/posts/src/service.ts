@@ -332,6 +332,11 @@ export class DefaultPostsService implements PostsService {
       throw new PostsDomainError('Only anchors can review posts', 'forbidden');
     }
 
+    // Authorization check: confirm the actor is an anchor for the target
+    // community. We still load the post once here to get community_id, but we
+    // intentionally do NOT pre-check post.status — the transactional
+    // SELECT ... FOR UPDATE inside the repository handles that race-safely and
+    // emits an idempotent response when another anchor has already decided.
     const post = await this.repository.findPost(input.postId);
     if (!post) {
       throw new PostsDomainError('Post not found', 'not_found');
@@ -339,10 +344,6 @@ export class DefaultPostsService implements PostsService {
 
     if (!isCommunityAnchor(input.actor, post.communityId)) {
       throw new PostsDomainError('Anchor does not belong to this community', 'forbidden');
-    }
-
-    if (post.status !== 'pending_review') {
-      throw new PostsDomainError('Only pending review posts can receive a review decision', 'invalid_state');
     }
 
     const status =
@@ -364,9 +365,10 @@ export class DefaultPostsService implements PostsService {
     return {
       post_id: decisionResult.post.postId,
       status: decisionResult.post.status,
-      decided_at: decidedAt,
+      decided_at: decisionResult.decidedAt,
       moderationActionId: decisionResult.moderationActionId ?? null,
       syncEvents: decisionResult.syncEvents,
+      alreadyDecided: decisionResult.alreadyDecided,
     };
   }
 

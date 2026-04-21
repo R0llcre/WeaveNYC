@@ -421,6 +421,142 @@ describe("PgChatRepository", () => {
     expect(client.query.mock.calls.at(-1)?.[0]).toBe("commit");
   });
 
+  it("saveMessage commits the row when the atomic predicate matches", async () => {
+    const client = {
+      query: vi
+        .fn()
+        // begin
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        // atomic insert: predicate matched, row returned
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              message_id: "11111111-1111-4111-8111-111111111111",
+              conversation_id: "22222222-2222-4222-8222-222222222222",
+              sender_user_id: "33333333-3333-4333-8333-333333333333",
+              body: "hello",
+              safety_flags: [],
+              sent_at: "2026-04-10T12:05:00.000Z",
+            },
+          ],
+          rowCount: 1,
+        })
+        // update conversations.last_activity_at
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        // commit
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const repository = new PgChatRepository({
+      connect: vi.fn().mockResolvedValue(client),
+      query: vi.fn(),
+    });
+
+    const message = await repository.saveMessage({
+      conversationId: "22222222-2222-4222-8222-222222222222",
+      senderUserId: "33333333-3333-4333-8333-333333333333",
+      body: "hello",
+      safetyFlags: [],
+      sentAt: "2026-04-10T12:05:00.000Z",
+    });
+
+    expect(message.message_id).toBe("11111111-1111-4111-8111-111111111111");
+    const sqls = client.query.mock.calls.map((call) => String(call[0]));
+    expect(sqls[0]).toBe("begin");
+    // The INSERT uses `select ... where exists (...)` — this is the atomic
+    // check-and-insert that closes the A2 P0-8 TOCTOU.
+    expect(sqls[1]).toMatch(/insert into messages/i);
+    expect(sqls[1]).toMatch(/where exists/i);
+    expect(sqls[1]).toMatch(/not exists \(\s*select 1 from blocks/i);
+    expect(sqls.at(-1)).toBe("commit");
+  });
+
+  it("saveMessage raises conversation_blocked when a block exists between participants", async () => {
+    const client = {
+      query: vi
+        .fn()
+        // begin
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        // atomic insert rejected by predicate
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        // diagnostic SELECT: conversation still active, sender is a
+        // participant, but there is an active block
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              status: "active",
+              participants_include_sender: true,
+              has_active_block: true,
+            },
+          ],
+          rowCount: 1,
+        })
+        // rollback (we throw inside the transaction)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const repository = new PgChatRepository({
+      connect: vi.fn().mockResolvedValue(client),
+      query: vi.fn(),
+    });
+
+    await expect(
+      repository.saveMessage({
+        conversationId: "22222222-2222-4222-8222-222222222222",
+        senderUserId: "33333333-3333-4333-8333-333333333333",
+        body: "still there?",
+        safetyFlags: [],
+        sentAt: "2026-04-10T12:05:00.000Z",
+      }),
+    ).rejects.toMatchObject({
+      name: "ChatServiceError",
+      code: "conversation_blocked",
+    });
+
+    const sqls = client.query.mock.calls.map((call) => String(call[0]));
+    expect(sqls[0]).toBe("begin");
+    expect(sqls.at(-1)).toBe("rollback");
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it("saveMessage raises conversation_closed when the conversation is no longer active", async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              status: "closed",
+              participants_include_sender: true,
+              has_active_block: false,
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
+    const repository = new PgChatRepository({
+      connect: vi.fn().mockResolvedValue(client),
+      query: vi.fn(),
+    });
+
+    await expect(
+      repository.saveMessage({
+        conversationId: "22222222-2222-4222-8222-222222222222",
+        senderUserId: "33333333-3333-4333-8333-333333333333",
+        body: "hello",
+        safetyFlags: [],
+        sentAt: "2026-04-10T12:05:00.000Z",
+      }),
+    ).rejects.toMatchObject({
+      name: "ChatServiceError",
+      code: "conversation_closed",
+    });
+  });
+
   it("records the resolved moderation target for suspend_user decisions", async () => {
     const query = vi
       .fn()
