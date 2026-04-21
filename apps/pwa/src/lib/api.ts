@@ -497,6 +497,37 @@ export async function createAnonymousSession(): Promise<AnonymousSessionResponse
   );
 }
 
+/**
+ * Revoke the caller's refresh-token family (or every family for this
+ * user if `revokeAllDevices`) on the gateway (A1 P1-7). Best-effort —
+ * the caller still clears local state if this POST fails (offline),
+ * but on success the stolen-refresh-token blast radius shrinks from
+ * the 7-day TTL to zero.
+ *
+ * The endpoint returns 204 with no body, so we fetch directly rather
+ * than going through requestJson's schema-parser path.
+ */
+export async function logoutSession(
+  accessToken: string,
+  options: { revokeAllDevices?: boolean } = {},
+): Promise<void> {
+  const response = await fetch(`${getApiBaseUrl()}/v1/auth/logout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: 'no-store',
+    body: JSON.stringify({
+      revoke_all_devices: Boolean(options.revokeAllDevices),
+    }),
+  });
+  if (!response.ok && response.status !== 204) {
+    // Swallow — sign-out is best-effort; caller still clears local state.
+    throw new Error(`/v1/auth/logout failed: HTTP ${response.status}`);
+  }
+}
+
 export async function refreshSession(refreshToken: string): Promise<AnonymousSessionResponse> {
   return requestJson(
     "/v1/auth/refresh",

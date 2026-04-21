@@ -20,14 +20,27 @@ export function createSmsVerificationProvider(app: FastifyInstance): SmsProvider
 
   return {
     async sendOtp(input) {
+      // The notification service accepts either `phone` (new enrollment
+      // flow) or `user_id` (account-delete re-auth flow — A1 P0-14).
+      // When `user_id` is passed the service resolves the phone on its
+      // own side, so the gateway never synthesizes a placeholder.
+      const body =
+        'phone' in input
+          ? {
+              phone: input.phone,
+              code: input.code,
+              challenge_id: input.challengeId
+            }
+          : {
+              user_id: input.userId,
+              code: input.code,
+              challenge_id: input.challengeId
+            };
+
       const response = await requestInternalJson<NotificationOtpSendResponse>(app, 'notifications', {
         path: '/internal/notifications/send-otp',
         method: 'POST',
-        body: {
-          phone: input.phone,
-          code: input.code,
-          challenge_id: input.challengeId
-        }
+        body
       });
 
       return {
@@ -46,14 +59,23 @@ export function createMagicLinkVerificationProvider(app: FastifyInstance): Email
 
   return {
     async sendMagicLink(input) {
+      const body =
+        'email' in input
+          ? {
+              email: input.email,
+              challenge_id: input.challengeId,
+              token: input.token
+            }
+          : {
+              user_id: input.userId,
+              challenge_id: input.challengeId,
+              token: input.token
+            };
+
       const response = await requestInternalJson<NotificationMagicLinkSendResponse>(app, 'notifications', {
         path: '/internal/notifications/send-magic-link',
         method: 'POST',
-        body: {
-          email: input.email,
-          challenge_id: input.challengeId,
-          token: input.token
-        }
+        body
       });
 
       return {

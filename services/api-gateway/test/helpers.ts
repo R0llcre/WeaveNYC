@@ -5,9 +5,13 @@ import { resolve } from 'node:path';
 import {
   accountDeleteBurstLimit,
   accountDeleteWindowSeconds,
+  anchorActivateBurstLimit,
+  anchorActivateWindowSeconds,
   anchorSessionIdleTtlSeconds,
   recoveryCodeBurstLimit,
   recoveryCodeWindowSeconds,
+  undeleteRequestBurstLimit,
+  undeleteRequestWindowSeconds,
 } from '@weavenyc/shared';
 import { DefaultChatService, InMemoryChatRepository, type ChatService } from '@weavenyc/chat';
 import { createMatchService, type MatchRepository, type MatchService } from '@weavenyc/match';
@@ -571,11 +575,43 @@ export class InMemoryUserStore implements UserStore {
   }
 
   async getActiveAnchorByUser(userId: string, communityId: string) {
-    return (
-      Array.from(this.anchors.values()).find(
-        (anchor) => anchor.userId === userId && anchor.communityId === communityId && anchor.status === 'active'
-      ) ?? null
+    const explicit = Array.from(this.anchors.values()).find(
+      (anchor) => anchor.userId === userId && anchor.communityId === communityId && anchor.status === 'active'
     );
+    if (explicit) {
+      return explicit;
+    }
+
+    // M8 A1-hardening — `requireFreshAnchorMfa` cross-references
+    // `anchors.last_mfa_at` on every destructive write. Many legacy
+    // tests only seed the `users` row with `mfaVerifiedAt` and rely on
+    // the old JWT-only check. To keep those tests passing without a
+    // mass refactor, synthesize an anchor row on the fly when the user
+    // record is already an active anchor of this community and carries
+    // an `mfaVerifiedAt` — the synthesized `lastMfaAt` mirrors the user's
+    // claim so the DB cross-check succeeds. Tests that exercise "stale
+    // mfa rejection" should populate `userStore.anchors` explicitly
+    // with an older `lastMfaAt` — that explicit entry wins above.
+    const user = this.users.get(userId);
+    if (
+      user &&
+      user.role === 'anchor' &&
+      user.anchorCommunityId === communityId &&
+      user.mfaVerifiedAt
+    ) {
+      return {
+        anchorId: userId,
+        userId,
+        communityId,
+        orgName: 'Test Anchor (auto)',
+        status: 'active' as const,
+        totpSecretCiphertext: null,
+        recoveryCodesHashes: [],
+        activatedAt: user.mfaVerifiedAt,
+        lastMfaAt: user.mfaVerifiedAt,
+      };
+    }
+    return null;
   }
 
   async activateAnchor(input: {
@@ -691,6 +727,10 @@ export class InMemoryUserStore implements UserStore {
       status: user.status,
       hasPhoneHash: Boolean(phone?.hash),
       hasEmailHash: Boolean(email?.hash),
+      phoneHash: phone?.hash ?? null,
+      phoneHashSalt: phone?.salt ?? null,
+      emailHash: email?.hash ?? null,
+      emailHashSalt: email?.salt ?? null,
       deletedAt: deletion?.deletedAt ?? null,
       purgeAt: deletion?.purgeAt ?? null,
       deletionReason: deletion?.deletionReason ?? null
@@ -788,14 +828,20 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
   readonly otpDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly accountDeleteDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly recoveryCodeDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
+  readonly anchorActivateDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
+  readonly undeleteRequestDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly cooldowns = new Set<string>();
   readonly seenAnonymousKeys: string[] = [];
   readonly seenRefreshKeys: string[] = [];
   readonly seenOtpKeys: string[] = [];
   readonly seenAccountDeleteKeys: string[] = [];
   readonly seenRecoveryKeys: string[] = [];
+  readonly seenAnchorActivateKeys: string[] = [];
+  readonly seenUndeleteRequestKeys: string[] = [];
   private readonly accountDeleteCounts = new Map<string, number>();
   private readonly recoveryCodeCounts = new Map<string, number>();
+  private readonly anchorActivateCounts = new Map<string, number>();
+  private readonly undeleteRequestCounts = new Map<string, number>();
 
   async checkAnonymousAuth(ipAddress: string) {
     this.seenAnonymousKeys.push(ipAddress);
@@ -878,6 +924,54 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
       allowed: true,
       retryAfterSeconds: 0,
       remaining: Math.max(recoveryCodeBurstLimit - next, 0)
+    };
+  }
+
+  async checkAnchorActivateAttempt(userId: string) {
+    this.seenAnchorActivateKeys.push(userId);
+    const override = this.anchorActivateDecisions.get(userId);
+    if (override) {
+      return override;
+    }
+
+    const next = (this.anchorActivateCounts.get(userId) ?? 0) + 1;
+    this.anchorActivateCounts.set(userId, next);
+    if (next > anchorActivateBurstLimit) {
+      return {
+        allowed: false,
+        retryAfterSeconds: anchorActivateWindowSeconds,
+        remaining: 0
+      };
+    }
+
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(anchorActivateBurstLimit - next, 0)
+    };
+  }
+
+  async checkUndeleteRequest(ipHash: string) {
+    this.seenUndeleteRequestKeys.push(ipHash);
+    const override = this.undeleteRequestDecisions.get(ipHash);
+    if (override) {
+      return override;
+    }
+
+    const next = (this.undeleteRequestCounts.get(ipHash) ?? 0) + 1;
+    this.undeleteRequestCounts.set(ipHash, next);
+    if (next > undeleteRequestBurstLimit) {
+      return {
+        allowed: false,
+        retryAfterSeconds: undeleteRequestWindowSeconds,
+        remaining: 0
+      };
+    }
+
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(undeleteRequestBurstLimit - next, 0)
     };
   }
 

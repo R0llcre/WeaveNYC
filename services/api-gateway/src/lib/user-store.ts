@@ -13,6 +13,18 @@ export interface UserDeletionIdentity {
   status: AuthenticatedUserRecord['status'];
   hasPhoneHash: boolean;
   hasEmailHash: boolean;
+  /**
+   * The user's CURRENT phone/email identity hash + salt, loaded from
+   * the `users` table. Used by the account-delete re-auth flow to bind
+   * the OTP/magic-link challenge to the user's real identity on record
+   * (not a synthesized placeholder — see A1 P0-14). At confirm time we
+   * re-read these to detect "identity rotated since issuance" and
+   * reject the confirmation.
+   */
+  phoneHash: string | null;
+  phoneHashSalt: string | null;
+  emailHash: string | null;
+  emailHashSalt: string | null;
   deletedAt: string | null;
   purgeAt: string | null;
   deletionReason: string | null;
@@ -513,13 +525,16 @@ export class PgUserStore implements UserStore {
       user_id: string;
       status: AuthenticatedUserRecord['status'];
       phone_hash: string | null;
+      phone_hash_salt: string | null;
       email_hash: string | null;
+      email_hash_salt: string | null;
       deleted_at: Date | string | null;
       purge_at: Date | string | null;
       deletion_reason: string | null;
     }>(
       `
-        select user_id, status, phone_hash, email_hash, deleted_at, purge_at, deletion_reason
+        select user_id, status, phone_hash, phone_hash_salt, email_hash, email_hash_salt,
+               deleted_at, purge_at, deletion_reason
         from users
         where user_id = $1
         limit 1
@@ -537,6 +552,10 @@ export class PgUserStore implements UserStore {
       status: row.status,
       hasPhoneHash: Boolean(row.phone_hash && row.phone_hash.length > 0),
       hasEmailHash: Boolean(row.email_hash && row.email_hash.length > 0),
+      phoneHash: row.phone_hash ?? null,
+      phoneHashSalt: row.phone_hash_salt ?? null,
+      emailHash: row.email_hash ?? null,
+      emailHashSalt: row.email_hash_salt ?? null,
       deletedAt: row.deleted_at ? toIso(row.deleted_at) : null,
       purgeAt: row.purge_at ? toIso(row.purge_at) : null,
       deletionReason: row.deletion_reason ?? null

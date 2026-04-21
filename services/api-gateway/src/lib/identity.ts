@@ -3,6 +3,8 @@ import { createHmac, randomBytes, randomInt } from "node:crypto";
 import {
   accountDeleteBurstLimit,
   accountDeleteWindowSeconds,
+  anchorActivateBurstLimit,
+  anchorActivateWindowSeconds,
   anonymousAuthBurstLimit,
   anonymousAuthWindowSeconds,
   otpCodeLength,
@@ -12,7 +14,9 @@ import {
   recoveryCodeBurstLimit,
   recoveryCodeWindowSeconds,
   refreshAuthBurstLimit,
-  refreshAuthWindowSeconds
+  refreshAuthWindowSeconds,
+  undeleteRequestBurstLimit,
+  undeleteRequestWindowSeconds
 } from "@weavenyc/shared";
 import { Redis } from "ioredis";
 
@@ -34,6 +38,20 @@ export interface AuthAbuseStore {
   checkOtpStart(userId: string, phoneHash: string): Promise<RateLimitDecision>;
   checkAccountDeleteRequest(userId: string): Promise<RateLimitDecision>;
   checkAnchorRecoveryAttempt(userId: string): Promise<RateLimitDecision>;
+  /**
+   * Bucket keyed on authenticated `userId` — 5 attempts per hour.
+   * Applied to `/v1/auth/anchor/activate` to block brute-force guessing
+   * of anchor invite codes (A4 P0-2). Seed fixtures previously used
+   * guessable codes like `WEAVE-ANCHOR-11735`; even after the entropy
+   * upgrade to random base32, a rate limit is cheap defence-in-depth.
+   */
+  checkAnchorActivateAttempt(userId: string): Promise<RateLimitDecision>;
+  /**
+   * Bucket keyed on caller IP hash, NOT the body `user_id` — the old
+   * keying was trivially bypassed by submitting a different `user_id`
+   * on each attempt (A1 P1-11).
+   */
+  checkUndeleteRequest(ipHash: string): Promise<RateLimitDecision>;
   activateOtpCooldown(phoneHash: string): Promise<void>;
   close(): Promise<void>;
 }
@@ -96,6 +114,20 @@ export function hashPhoneAbuseKey(normalizedPhone: string, pepper: string): stri
   return hashIdentity(normalizedPhone, {
     namespace: "phone",
     salt: "auth-abuse-phone",
+    pepper
+  });
+}
+
+/**
+ * Hash a client IP address for use as an opaque rate-limit key. We hash
+ * with the service pepper so the bucket key never leaks the raw IP into
+ * Redis (operator read-thru guardrail) and so buckets from different
+ * deployments can't collide on a shared Redis.
+ */
+export function hashClientIpAddress(ipAddress: string, pepper: string): string {
+  return hashIdentity(ipAddress, {
+    namespace: "ip",
+    salt: "undelete-request",
     pepper
   });
 }
@@ -179,6 +211,22 @@ export class RedisAuthAbuseStore implements AuthAbuseStore {
       ["recovery-code", userId],
       recoveryCodeBurstLimit,
       recoveryCodeWindowSeconds
+    );
+  }
+
+  async checkAnchorActivateAttempt(userId: string): Promise<RateLimitDecision> {
+    return this.consumeRateLimit(
+      ["anchor-activate", userId],
+      anchorActivateBurstLimit,
+      anchorActivateWindowSeconds
+    );
+  }
+
+  async checkUndeleteRequest(ipHash: string): Promise<RateLimitDecision> {
+    return this.consumeRateLimit(
+      ["undelete-request", ipHash],
+      undeleteRequestBurstLimit,
+      undeleteRequestWindowSeconds
     );
   }
 

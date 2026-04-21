@@ -15,7 +15,11 @@ import {
   reviewQueueQuerySchema,
 } from '../contracts.js';
 import { fanoutSyncEvents, publishModerationDecisionEvent, publishPostEvent } from '../lib/p2p-events.js';
-import { isAnchorForCommunity, loadCurrentActor } from '../lib/require-anchor.js';
+import {
+  isAnchorForCommunity,
+  loadCurrentActor,
+  requireFreshAnchorMfa
+} from '../lib/require-anchor.js';
 
 type ReviewQueueQuery = {
   community_id: string;
@@ -83,11 +87,12 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
         response: {
           200: reviewDecisionResponseSchema,
           400: errorResponseSchema,
+          401: errorResponseSchema,
           403: errorResponseSchema,
           404: errorResponseSchema,
         },
       },
-      preHandler: [app.authenticate],
+      preHandler: [app.authenticate, requireFreshAnchorMfa(app)],
     },
     async (request, reply) => {
       try {

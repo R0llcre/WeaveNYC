@@ -1,8 +1,46 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 function hashAnchorInviteCode(code: string): string {
   return createHash("sha256").update(code.toUpperCase()).digest("hex");
 }
+
+/**
+ * Generate an anchor-invite suffix with 8 random base32 characters
+ * (~40 bits of entropy) instead of the previous community-zip-derived
+ * suffix that made codes like `WEAVE-ANCHOR-11735` trivially guessable
+ * (A4 P0-2). We intentionally accept the loss of seed reproducibility
+ * for pilot — the invite code is a one-time handoff to each anchor,
+ * not a stable identifier that tests or fixtures should hard-code.
+ * Tests that need a known code should mint their own via the gateway's
+ * /v1/auth/anchor/activate helper, not pull from seedValues.
+ *
+ * Base32 (no padding) gives 5 bits per char × 8 chars = 40 bits and
+ * renders as A–Z / 2–7 — case-insensitive and unambiguous under the
+ * "print it on a sticker and read it over the phone" UX constraint.
+ */
+function generateAnchorInviteCode(): string {
+  const bytes = randomBytes(5); // 5 bytes = 40 bits → 8 base32 chars.
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0;
+  let buffer = 0;
+  let suffix = "";
+  for (const byte of bytes) {
+    buffer = (buffer << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      suffix += alphabet[(buffer >>> bits) & 0x1f];
+    }
+  }
+  if (bits > 0) {
+    suffix += alphabet[(buffer << (5 - bits)) & 0x1f];
+  }
+  return `WEAVE-ANCHOR-${suffix.slice(0, 8)}`;
+}
+
+const farmingdaleAnchorInviteCode = generateAnchorInviteCode();
+const queensAnchorInviteCode = generateAnchorInviteCode();
+const bronxAnchorInviteCode = generateAnchorInviteCode();
 
 export const seedIds = {
   anonymousUserId: "11111111-1111-4111-8111-111111111111",
@@ -73,8 +111,8 @@ export const seedIds = {
 export const seedValues = {
   communityInviteCode: "FARMINGDALE-HELP",
   communityQrToken: "FARMINGDALE-QR",
-  anchorInviteCode: "WEAVE-ANCHOR-11735",
-  anchorInviteCodeHash: hashAnchorInviteCode("WEAVE-ANCHOR-11735"),
+  anchorInviteCode: farmingdaleAnchorInviteCode,
+  anchorInviteCodeHash: hashAnchorInviteCode(farmingdaleAnchorInviteCode),
   anchorTotpSecret: "JBSWY3DPEHPK3PXP",
   anchorTotpSecretCiphertext:
     "AAECAwQFBgcICQoL.9PEJAG8ZtSayC07NMgKepQ._8TUg1U-fKOzerIFHWm2MA",
@@ -94,8 +132,8 @@ export const seedValues = {
   // Queens (11368) pilot community
   queensInviteCode: "QUEENS-CORONA-HELP",
   queensQrToken: "QUEENS-CORONA-QR",
-  queensAnchorInviteCode: "WEAVE-ANCHOR-Q113",
-  queensAnchorInviteCodeHash: hashAnchorInviteCode("WEAVE-ANCHOR-Q113"),
+  queensAnchorInviteCode: queensAnchorInviteCode,
+  queensAnchorInviteCodeHash: hashAnchorInviteCode(queensAnchorInviteCode),
   queensAnnouncementTitle: "Welcome to the Queens pilot community",
   queensAnnouncementBody:
     "Corona neighbors can now use WeaveNYC to trade requests, offers, and pantry information. Reach out to the anchor for help getting started.",
@@ -103,8 +141,8 @@ export const seedValues = {
   // Bronx (10474) pilot community
   bronxInviteCode: "BRONX-HUNTS-POINT-HELP",
   bronxQrToken: "BRONX-HUNTS-POINT-QR",
-  bronxAnchorInviteCode: "WEAVE-ANCHOR-BX104",
-  bronxAnchorInviteCodeHash: hashAnchorInviteCode("WEAVE-ANCHOR-BX104"),
+  bronxAnchorInviteCode: bronxAnchorInviteCode,
+  bronxAnchorInviteCodeHash: hashAnchorInviteCode(bronxAnchorInviteCode),
   bronxAnnouncementTitle: "Welcome to the Bronx pilot community",
   bronxAnnouncementBody:
     "Hunts Point neighbors can now coordinate food and mutual aid requests through WeaveNYC. The anchor is available for verifications and referrals."

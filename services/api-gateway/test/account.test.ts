@@ -180,7 +180,7 @@ describe('account deletion three-step flow', () => {
     expect(after.statusCode).toBe(400);
   });
 
-  it('returns 409 cannot_verify_identity when user has no phone/email bound', async () => {
+  it('returns 409 no_verified_identity when user has no phone/email bound', async () => {
     const userStore = new InMemoryUserStore();
     const refreshTokenStore = new InMemoryRefreshTokenStore();
     const { app } = await createTestApp({ userStore, refreshTokenStore });
@@ -193,8 +193,11 @@ describe('account deletion three-step flow', () => {
     });
     const anonBody = anon.json() as SessionResponse;
 
-    // Anonymous users cannot pass the preHandler `authenticate` check? They can —
-    // level is anonymous but status=active so the middleware allows them through.
+    // A1 P0-14: a user with no phone / email on record cannot be
+    // re-authed for destructive delete, so we MUST NOT issue a
+    // challenge. Previously the route synthesized a placeholder phone
+    // and happily issued an OTP the attacker could pluck out of the
+    // response body. Now the gateway returns 409 no_verified_identity.
     const resp = await app.inject({
       method: 'POST',
       url: '/v1/account/delete/request',
@@ -202,7 +205,7 @@ describe('account deletion three-step flow', () => {
       payload: {},
     });
     expect(resp.statusCode).toBe(409);
-    expect(resp.json().message).toContain('cannot_verify_identity');
+    expect(resp.json().message).toBe('no_verified_identity');
   });
 
   it('rate limits account-delete requests after the hourly burst', async () => {
@@ -411,7 +414,9 @@ describe('account undelete flow', () => {
     expect(userRow?.status).toBe('active');
     // PII was nulled during delete and is NOT re-populated on undelete
     expect(userStore.phoneIdentities.has(session.user.user_id)).toBe(false);
-    // A second undelete with the same token fails
+    // A second undelete with the same token fails.
+    // A1 P1-11: every non-success branch collapses to an opaque 404 so
+    // the endpoint can't enumerate user existence.
     const replay = await app.inject({
       method: 'POST',
       url: '/v1/account/undelete',
@@ -420,10 +425,11 @@ describe('account undelete flow', () => {
         recovery_token: deleteConfirm.undelete_recovery_token,
       },
     });
-    expect([400, 409]).toContain(replay.statusCode);
+    expect(replay.statusCode).toBe(404);
+    expect(replay.json().message).toBe('recovery_not_available');
   });
 
-  it('returns 410 gone when purge_at is in the past', async () => {
+  it('returns opaque 404 (not 410) when purge_at is in the past (A1 P1-11)', async () => {
     const userStore = new InMemoryUserStore();
     const refreshTokenStore = new InMemoryRefreshTokenStore();
     const { app } = await createTestApp({ userStore, refreshTokenStore });
@@ -458,12 +464,17 @@ describe('account undelete flow', () => {
       userStore.deletionRecords.set(session.user.user_id, record);
     }
 
+    // Distinct 410/409/404 responses previously enumerated whether a
+    // user was in the "past purge", "not deletable", or "unknown"
+    // states. A1 P1-11 collapses every failure into an opaque 404 so
+    // an attacker can't probe a list of `user_id`s.
     const undeleteRequest = await app.inject({
       method: 'POST',
       url: '/v1/account/undelete/request',
       payload: { user_id: session.user.user_id },
     });
-    expect(undeleteRequest.statusCode).toBe(410);
+    expect(undeleteRequest.statusCode).toBe(404);
+    expect(undeleteRequest.json().message).toBe('recovery_not_available');
 
     const undeleteConfirm = await app.inject({
       method: 'POST',
@@ -473,10 +484,11 @@ describe('account undelete flow', () => {
         recovery_token: deleteConfirm.undelete_recovery_token,
       },
     });
-    expect(undeleteConfirm.statusCode).toBe(410);
+    expect(undeleteConfirm.statusCode).toBe(404);
+    expect(undeleteConfirm.json().message).toBe('recovery_not_available');
   });
 
-  it('returns 404 for undelete on a user that does not exist', async () => {
+  it('returns opaque 404 for undelete on a user that does not exist', async () => {
     const { app } = await createTestApp();
     apps.push(app);
 
@@ -490,9 +502,10 @@ describe('account undelete flow', () => {
       },
     });
     expect(resp.statusCode).toBe(404);
+    expect(resp.json().message).toBe('recovery_not_available');
   });
 
-  it('rejects undelete with an incorrect recovery token', async () => {
+  it('rejects undelete with an incorrect recovery token (opaque 404)', async () => {
     const userStore = new InMemoryUserStore();
     const refreshTokenStore = new InMemoryRefreshTokenStore();
     const { app } = await createTestApp({ userStore, refreshTokenStore });
@@ -525,6 +538,100 @@ describe('account undelete flow', () => {
         recovery_token: 'uri_00000000_deadbeefdeadbeefdeadbeefdeadbeef',
       },
     });
-    expect(resp.statusCode).toBe(400);
+    // A1 P1-11: collapsed to 404 `recovery_not_available` to block
+    // the "does this user exist / was this token correct" oracle.
+    expect(resp.statusCode).toBe(404);
+    expect(resp.json().message).toBe('recovery_not_available');
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────
+// A1 P0-14 regressions — re-auth cannot be bypassed
+// ───────────────────────────────────────────────────────────────────
+
+describe('account deletion re-auth hardening (A1 P0-14)', () => {
+  const apps: Array<{ close: () => Promise<unknown> }> = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((entry) => entry.close()));
+  });
+
+  it('returns 409 no_verified_identity when the user has neither phone nor email hash', async () => {
+    // Regression: previously startDeleteChallenge synthesized a
+    // `phonePlaceholder = 'user:' + userId` even for anonymous sessions
+    // with no identity bound and happily issued an OTP in the response
+    // body (demo_code). Any access-token holder could read the code
+    // and immediately call /confirm — full re-auth bypass.
+    const { app } = await createTestApp();
+    apps.push(app);
+
+    const anon = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anonymous',
+      payload: { device_id: randomUUID() },
+    });
+    const anonBody = anon.json() as SessionResponse;
+
+    const resp = await app.inject({
+      method: 'POST',
+      url: '/v1/account/delete/request',
+      headers: { authorization: `Bearer ${anonBody.access_token}` },
+      payload: {},
+    });
+    expect(resp.statusCode).toBe(409);
+    expect(resp.json().message).toBe('no_verified_identity');
+    // The 409 response MUST NOT leak a code / token / challenge id.
+    expect(resp.json().demo_code).toBeUndefined();
+    expect(resp.json().demo_token).toBeUndefined();
+    expect(resp.json().challenge_id).toBeUndefined();
+  });
+
+  it('rejects /confirm with 401 mismatched identity hash if the user rotated their phone after /request', async () => {
+    // Regression: the challenge's `identityHash` was computed from a
+    // placeholder, never compared against the user's current phone
+    // hash at confirm. A token-holder could hold the challenge even
+    // after the user rotated their phone. Now we re-read the user's
+    // phone_hash at /confirm and reject if it has changed.
+    const userStore = new InMemoryUserStore();
+    const refreshTokenStore = new InMemoryRefreshTokenStore();
+    const { app } = await createTestApp({ userStore, refreshTokenStore });
+    apps.push(app);
+
+    const session = await bootstrapVerifiedUser(app);
+
+    const requestResp = (
+      await app.inject({
+        method: 'POST',
+        url: '/v1/account/delete/request',
+        headers: { authorization: `Bearer ${session.access_token}` },
+        payload: {},
+      })
+    ).json() as DeleteRequestResponse;
+    expect(requestResp.challenge_id).toBeDefined();
+    expect(requestResp.demo_code).toBeDefined();
+
+    // Rotate the user's phone hash AFTER the challenge was issued.
+    // This simulates the attacker-holding-challenge-while-user-rotated
+    // scenario; the old challenge's bound identityHash is now stale.
+    userStore.phoneIdentities.set(session.user.user_id, {
+      hash: 'rotated-phone-hash-00000000000000000000000000000000000000000000000000000000',
+      salt: 'rotated-salt-hex-32-chars-xxxxxx',
+    });
+
+    const confirm = await app.inject({
+      method: 'POST',
+      url: '/v1/account/delete/confirm',
+      headers: { authorization: `Bearer ${session.access_token}` },
+      payload: {
+        challenge_id: requestResp.challenge_id,
+        code: requestResp.demo_code,
+        reason: 'privacy_concerns',
+      },
+    });
+
+    expect(confirm.statusCode).toBe(401);
+    expect(confirm.json().message).toBe('identity_changed_reverify_required');
+    // User must NOT have been soft-deleted.
+    expect(userStore.users.get(session.user.user_id)?.status).toBe('active');
   });
 });

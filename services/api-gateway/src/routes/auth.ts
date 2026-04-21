@@ -105,6 +105,10 @@ type AnchorSessionVerifyBody = {
   totp_code: string;
 };
 
+type LogoutBody = {
+  revoke_all_devices?: boolean;
+};
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const authAbuseStore = getAuthAbuseStore(app);
   const smsProvider = createSmsVerificationProvider(app);
@@ -517,7 +521,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           200: anchorActivateResponseSchema,
           400: errorResponseSchema,
           403: errorResponseSchema,
-          404: errorResponseSchema
+          404: errorResponseSchema,
+          429: errorResponseSchema
         }
       },
       preHandler: [app.authenticate]
@@ -528,6 +533,23 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         recordAuthChallenge(app, "anchor_activate", "forbidden");
         reply.code(403);
         return { message: "Verification is required before anchor activation" };
+      }
+
+      // SECURITY (A4 P0-2): brute-force guard on invite-code guessing.
+      // Seed fixtures previously used guessable codes like
+      // `WEAVE-ANCHOR-11735` (community zip as suffix); even after the
+      // fixture entropy upgrade, this per-user bucket is defence-in-depth
+      // so a compromised access token can't grind through a candidate
+      // list at `/v1/auth/anchor/activate`.
+      const rateDecision = await authAbuseStore.checkAnchorActivateAttempt(currentUser.userId);
+      if (!rateDecision.allowed) {
+        recordAuthChallenge(app, "anchor_activate", "rate_limited");
+        reply
+          .code(429)
+          .header("retry-after", String(Math.max(rateDecision.retryAfterSeconds, 1)));
+        return {
+          message: `Too many anchor activation attempts. Retry in ${rateDecision.retryAfterSeconds}s.`
+        };
       }
 
       const invite = await app.userStore.findAnchorInviteByCodeHash(hashAnchorInviteCode(request.body.invite_code));
@@ -891,6 +913,53 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         ...sessionResponse,
         remaining_attempts: rateDecision.remaining
       };
+    }
+  );
+
+  // Server-side logout (A1 P1-7). Previously sign-out was client-only,
+  // so a stolen refresh token stayed valid for up to 7 days after the
+  // user hit "Clear this device". Now the client POSTs here first and
+  // we revoke the user's session families in Redis. `revoke_all_devices`
+  // controls scope: false (default) revokes just the caller's family,
+  // true revokes every family belonging to `userId` (used by the
+  // "Clear all devices" action in Settings and admin-shell).
+  //
+  // Best-effort on the client side — if the POST fails (offline, gateway
+  // down), the client still clears local state so the UX is never stuck.
+  app.post<{ Body: LogoutBody }>(
+    "/v1/auth/logout",
+    {
+      schema: {
+        summary: "Revoke the caller's refresh session(s) server-side",
+        tags: ["auth"],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            revoke_all_devices: { type: "boolean" }
+          }
+        },
+        response: {
+          204: { type: "null" },
+          401: errorResponseSchema
+        }
+      },
+      preHandler: [app.authenticate]
+    },
+    async (request, reply) => {
+      // `request.user.sub` is the authenticated user's id (the access
+      // token has already been verified by `app.authenticate`). For the
+      // narrow "just this device" case we would prefer to revoke only
+      // the caller's current refresh-token family, but JWT claims do
+      // not yet carry `refresh_token_family_id`. Until that lands we
+      // revoke EVERY family for this user; this is strictly safer than
+      // the previous behaviour (no revocation at all) and still unblocks
+      // the "Clear all devices" surface.
+      const userId = request.user.sub;
+      await app.refreshTokenStore.revokeUserSessions(userId);
+      reply.code(204);
+      return null;
     }
   );
 };
