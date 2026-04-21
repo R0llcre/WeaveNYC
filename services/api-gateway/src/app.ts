@@ -6,6 +6,7 @@ import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyWebsocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
+import type { InternalServiceTokenClaims } from './types.js';
 import { DefaultChatService, PgChatRepository, type ChatService } from '@weavenyc/chat';
 import { createMatchService, createPgMatchRepository, type MatchService } from '@weavenyc/match';
 import { createPostsRepository, createPostsService, type PostsService } from '@weavenyc/posts';
@@ -241,8 +242,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // /v1/resources when RESOURCE_DIRECTORY_SERVICE_URL is set) crashes
   // with "Cannot read properties of undefined (reading 'sign')".
   // Surfaced on 2026-04-21 after PR #53 exercised the path.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const namespacedJwt = (app.jwt as any).serviceJwt;
+  const namespacedJwt = (
+    app.jwt as unknown as {
+      serviceJwt?: {
+        sign: (payload: InternalServiceTokenClaims) => string;
+        verify: <T extends object = InternalServiceTokenClaims>(token: string) => Promise<T>;
+      };
+    }
+  ).serviceJwt;
   if (!namespacedJwt?.sign) {
     throw new Error('serviceJwt namespace did not decorate app.jwt.serviceJwt — fastify-jwt API changed');
   }
