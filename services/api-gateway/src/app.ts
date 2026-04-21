@@ -229,6 +229,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
+  // @fastify/jwt v9 decorates a namespaced instance at
+  // `app.jwt[namespace]`, NOT `app[namespace]` — the older pre-v9
+  // behaviour was the other way around. Internal callers use
+  // `app.serviceJwt.sign(...)` everywhere (see internal-service-client.ts,
+  // global.d.ts FastifyInstance type). Decorate a shim at the expected
+  // location so existing call sites keep working and the type stays
+  // accurate, while preserving all the plugin-provided behaviour.
+  //
+  // Without this, any call through the sidecar HTTP path (e.g.
+  // /v1/resources when RESOURCE_DIRECTORY_SERVICE_URL is set) crashes
+  // with "Cannot read properties of undefined (reading 'sign')".
+  // Surfaced on 2026-04-21 after PR #53 exercised the path.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const namespacedJwt = (app.jwt as any).serviceJwt;
+  if (!namespacedJwt?.sign) {
+    throw new Error('serviceJwt namespace did not decorate app.jwt.serviceJwt — fastify-jwt API changed');
+  }
+  app.decorate('serviceJwt', {
+    sign: namespacedJwt.sign.bind(namespacedJwt),
+    verify: namespacedJwt.verify.bind(namespacedJwt),
+  });
+
   const internalClientContext = {
     config,
     serviceJwt: app.serviceJwt
