@@ -513,7 +513,13 @@ describe("DefaultMatchService", () => {
 
     expect(accepted.status).toBe("accepted");
     expect(accepted.conversation_id).toBeTruthy();
-    expect(acceptedAgain).toEqual(accepted);
+    // A3 P0-1: the first accept flags is_new_accept=true so the gateway
+    // increments `verified_matches_total`. The second accept returns the
+    // same conversation/payload but with is_new_accept=false so the
+    // metric is not double-counted.
+    expect(accepted.is_new_accept).toBe(true);
+    expect(acceptedAgain.is_new_accept).toBe(false);
+    expect({ ...acceptedAgain, is_new_accept: true }).toEqual(accepted);
 
     const replay = await service.createContactRequest(requester, {
       from_post_id: requestPost.post_id,

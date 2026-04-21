@@ -23,6 +23,11 @@ import {
   createRedisAuthAbuseStore,
   type AuthAbuseStore
 } from './lib/identity.js';
+import {
+  InMemoryIdempotencyStore,
+  PgIdempotencyStore,
+  type IdempotencyStore,
+} from './lib/idempotency.js';
 import { createWeaveMetrics, normalizeRouteLabel, type WeaveMetrics } from './lib/metrics.js';
 import { attachFastifySentry, initSentryNode } from './lib/sentry.js';
 import {
@@ -70,6 +75,7 @@ export interface BuildAppOptions {
   chatRealtimeHub?: ChatRealtimeHub;
   chatService?: ChatService;
   config?: AppConfig;
+  idempotencyStore?: IdempotencyStore;
   matchService?: MatchService;
   metrics?: WeaveMetrics;
   postsService?: PostsService;
@@ -256,6 +262,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       ? createHttpPostsService(internalClientContext)
       : createPostsService(createPostsRepository(config.databaseUrl)));
 
+  let idempotencyStorePool: Pool | null = null;
+  const idempotencyStore: IdempotencyStore =
+    options.idempotencyStore ??
+    (config.env === 'test'
+      ? new InMemoryIdempotencyStore()
+      : (() => {
+          idempotencyStorePool = new Pool({ connectionString: config.databaseUrl });
+          return new PgIdempotencyStore(idempotencyStorePool);
+        })());
+
   let purgeJobPool: Pool | null = null;
   const purgeJob =
     options.purgeJob ??
@@ -286,6 +302,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.decorate('analyticsRecorder', analyticsRecorder);
   app.decorate('config', config);
+  app.decorate('idempotencyStore', idempotencyStore);
   app.decorate('metrics', metrics);
   app.decorate('userStore', userStore);
   app.decorate('refreshTokenStore', refreshTokenStore);
@@ -370,6 +387,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       authAbuseStore.close(),
       app.chatRealtimeHub.close(),
       app.chatService.close(),
+      app.idempotencyStore.close(),
       app.matchService.close(),
       app.postsService.close(),
       app.purgeJob.stop(),
@@ -378,6 +396,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       app.analyticsRecorder.close(),
       maybeCloseSpeechProvider
     ]);
+    if (idempotencyStorePool) {
+      await idempotencyStorePool.end().catch(() => undefined);
+    }
     if (purgeJobPool) {
       await purgeJobPool.end();
     }

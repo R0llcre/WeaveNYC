@@ -307,6 +307,7 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
     body: string;
     safetyFlags: import('@weavenyc/chat').ChatMessage['safety_flags'];
     sentAt: string;
+    clientMessageId?: string;
   }) {
     this.syncConversations();
     return super.saveMessage(input);
@@ -404,7 +405,10 @@ class InMemoryLinkedChatRepository extends InMemoryChatRepository {
       report.status !== 'dismissed' &&
       report.status !== 'resolved',
     );
-    if (openReports.length < threshold) {
+    // A2 P1-7: distinct reporters, not rows. A single user tapping Report
+    // three times does not auto-hide.
+    const distinctReporters = new Set(openReports.map((report) => report.reporter_user_id)).size;
+    if (distinctReporters < threshold) {
       return null;
     }
 
@@ -1367,7 +1371,7 @@ export function createNoopPurgeJob(): PurgeJob {
     start() {},
     async stop() {},
     async runOnce() {
-      return { deletedUsers: 0 };
+      return { deletedUsers: 0, deletedIdempotencyKeys: 0 };
     },
   };
 }

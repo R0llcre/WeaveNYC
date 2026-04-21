@@ -66,6 +66,7 @@ export class InMemoryChatRepository implements ChatRepository {
   readonly conversations = new Map<string, ConversationRecord>();
   readonly messages = new Map<string, ChatMessage>();
   readonly conversationMessages = new Map<string, string[]>();
+  readonly messagesByClientId = new Map<string, string>();
   readonly reads = new Map<string, { messageId: string; readAt: string }>();
   readonly blocks = new Map<string, BlockRecord>();
   readonly reports = new Map<string, ReportRecord>();
@@ -165,13 +166,30 @@ export class InMemoryChatRepository implements ChatRepository {
     body: string;
     safetyFlags: ChatMessage["safety_flags"];
     sentAt: string;
+    clientMessageId?: string;
   }): Promise<ChatMessage> {
-    // Mirror the atomic check-and-insert in the PG repo. The in-memory store
-    // is single-threaded so "atomic" just means evaluating all predicates
-    // against the current state before writing, and raising ChatServiceError
-    // when the conversation was closed/blocked between the service-level
-    // pre-check and this write. Tests for the send-while-block race rely on
-    // this to model the TOCTOU closure.
+    // (1) Dedup first (F1-β): a retry with the same client_message_id
+    // returns the original row regardless of current conversation state.
+    // This matches HTTP idempotency semantics — a retry must not start
+    // failing just because a peer blocked between the first attempt and
+    // the retry. Mirrors the Postgres `uq_messages_client_dedup` partial
+    // unique index.
+    if (input.clientMessageId) {
+      const dedupKey = `${input.senderUserId}:${input.clientMessageId}`;
+      const existingId = this.messagesByClientId.get(dedupKey);
+      if (existingId) {
+        const existing = this.messages.get(existingId);
+        if (existing) {
+          return existing;
+        }
+      }
+    }
+
+    // (2) Atomic check-and-insert (F1-γ): evaluate all predicates against
+    // current state before writing, raise ChatServiceError when the
+    // conversation was closed/blocked between the service-level pre-check
+    // and this write. Tests for the send-while-block race rely on this to
+    // model the TOCTOU closure.
     const conversation = this.conversations.get(input.conversationId);
     if (!conversation) {
       throw new ChatServiceError("Conversation not found", "not_found");
@@ -194,6 +212,7 @@ export class InMemoryChatRepository implements ChatRepository {
       throw new ChatServiceError("Conversation is closed", "conversation_closed");
     }
 
+
     const message: ChatMessage = {
       message_id: randomUUID(),
       conversation_id: input.conversationId,
@@ -203,6 +222,9 @@ export class InMemoryChatRepository implements ChatRepository {
       sent_at: input.sentAt,
     };
     this.seedMessage(message);
+    if (input.clientMessageId) {
+      this.messagesByClientId.set(`${input.senderUserId}:${input.clientMessageId}`, message.message_id);
+    }
 
     conversation.last_activity_at = input.sentAt;
     conversation.last_message_preview = input.body;
@@ -312,7 +334,19 @@ export class InMemoryChatRepository implements ChatRepository {
     reporterUserId: string;
     createdAt: string;
   }) {
-    const report: ReportRecord = {
+    // Mirror the partial unique index added in migration 0014
+    // `uq_reports_reporter_target_active`: a single user cannot stack
+    // multiple 'new' reports against the same target. Re-submitting returns
+    // the existing row instead of creating a duplicate, preventing the
+    // single-user-auto-hide griefing vector (A2 P1-7).
+    const existingReport = Array.from(this.reports.values()).find(
+      (row) =>
+        row.target_type === input.targetType &&
+        row.target_id === input.targetId &&
+        row.reporter_user_id === input.reporterUserId &&
+        row.status === "new",
+    );
+    const report: ReportRecord = existingReport ?? {
       report_id: randomUUID(),
       community_id: input.communityId,
       target_type: input.targetType,
@@ -530,15 +564,21 @@ export class InMemoryChatRepository implements ChatRepository {
   }
 
   async autoHidePostIfThresholdReached(input: { communityId: string; postId: string }) {
-    const reportCount = Array.from(this.reports.values()).filter(
-      (report) =>
-        report.community_id === input.communityId &&
-        report.target_type === "post" &&
-        report.target_id === input.postId &&
-        report.status !== "dismissed" &&
-        report.status !== "resolved",
-    ).length;
-    if (reportCount < 3) {
+    // Distinct reporters, not rows (A2 P1-7). See pg-repository.ts for the
+    // full rationale.
+    const reporterCount = new Set(
+      Array.from(this.reports.values())
+        .filter(
+          (report) =>
+            report.community_id === input.communityId &&
+            report.target_type === "post" &&
+            report.target_id === input.postId &&
+            report.status !== "dismissed" &&
+            report.status !== "resolved",
+        )
+        .map((report) => report.reporter_user_id),
+    ).size;
+    if (reporterCount < 3) {
       return null;
     }
 
@@ -624,6 +664,14 @@ export class InMemoryChatRepository implements ChatRepository {
       return null;
     }
     return message;
+  }
+
+  async findMessageByClientId(input: { senderUserId: string; clientMessageId: string }) {
+    const messageId = this.messagesByClientId.get(`${input.senderUserId}:${input.clientMessageId}`);
+    if (!messageId) {
+      return null;
+    }
+    return this.messages.get(messageId) ?? null;
   }
 
   async getMessageContext(messageId: string) {

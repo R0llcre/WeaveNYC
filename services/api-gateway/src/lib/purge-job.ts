@@ -7,7 +7,7 @@ import type { Pool, PoolClient } from "pg";
 export interface PurgeJob {
   start(): void;
   stop(): Promise<void>;
-  runOnce(): Promise<{ deletedUsers: number }>;
+  runOnce(): Promise<{ deletedUsers: number; deletedIdempotencyKeys: number }>;
 }
 
 export interface PurgeJobConfig {
@@ -67,10 +67,10 @@ export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
   }
 
   let scheduled: ReturnType<typeof nodeCron.schedule> | null = null;
-  let runInFlight: Promise<{ deletedUsers: number }> | null = null;
+  let runInFlight: Promise<{ deletedUsers: number; deletedIdempotencyKeys: number }> | null = null;
   let stopping = false;
 
-  async function runOnce(): Promise<{ deletedUsers: number }> {
+  async function runOnce(): Promise<{ deletedUsers: number; deletedIdempotencyKeys: number }> {
     if (runInFlight) {
       return runInFlight;
     }
@@ -78,7 +78,12 @@ export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
     runInFlight = (async () => {
       const client = await config.pool.connect();
       try {
-        return await executePurge(client, logger, config.actorHashPepper);
+        const purge = await executePurge(client, logger, config.actorHashPepper);
+        const idempotency = await executeIdempotencyReaper(client, logger);
+        return {
+          deletedUsers: purge.deletedUsers,
+          deletedIdempotencyKeys: idempotency.deleted,
+        };
       } finally {
         client.release();
       }
@@ -108,13 +113,19 @@ export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
         }
         try {
           const result = await runOnce();
-          if (result.deletedUsers > 0) {
+          if (result.deletedUsers > 0 || result.deletedIdempotencyKeys > 0) {
             logger?.info(
-              { deletedUsers: result.deletedUsers },
-              "purge-job deleted expired soft-deleted users",
+              {
+                deletedUsers: result.deletedUsers,
+                deletedIdempotencyKeys: result.deletedIdempotencyKeys,
+              },
+              "purge-job deleted expired rows",
             );
           } else {
-            logger?.debug?.({ deletedUsers: 0 }, "purge-job found no users to purge");
+            logger?.debug?.(
+              { deletedUsers: 0, deletedIdempotencyKeys: 0 },
+              "purge-job found nothing to purge",
+            );
           }
         } catch (error) {
           logger?.error({ err: error }, "purge-job tick failed");
@@ -145,6 +156,41 @@ export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
   }
 
   return { start, stop, runOnce };
+}
+
+/**
+ * Sweeps expired rows from `idempotency_keys`. Stripe-style 24h windows
+ * mean most rows age out within a day of creation; we delete in batches
+ * of 1000 per tick so a big backlog doesn't lock the table. The helper
+ * uses `expires_at < now()` and the index `idx_idempotency_keys_expires_at`
+ * for an index-scan plan.
+ */
+async function executeIdempotencyReaper(
+  client: PoolClient,
+  logger: FastifyBaseLogger | undefined,
+): Promise<{ deleted: number }> {
+  try {
+    const result = await client.query<{ deleted: string }>(
+      `
+        with doomed as (
+          select key
+          from idempotency_keys
+          where expires_at < now()
+          limit 1000
+        )
+        delete from idempotency_keys
+        where key in (select key from doomed)
+        returning key
+      `,
+    );
+    return { deleted: result.rowCount ?? 0 };
+  } catch (error) {
+    logger?.warn(
+      { err: error },
+      "purge-job failed to sweep expired idempotency_keys rows",
+    );
+    return { deleted: 0 };
+  }
 }
 
 async function executePurge(

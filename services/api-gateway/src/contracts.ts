@@ -1520,6 +1520,9 @@ export const sendConversationMessageRequestSchema = {
   required: ["body"],
   properties: {
     body: { type: "string", minLength: 1, maxLength: 2000 },
+    // Optional client-side dedup key. Mirrors the Zod validator in
+    // packages/shared/src/validators/chat.ts `sendConversationMessageRequestSchema`.
+    client_message_id: { type: "string", minLength: 1, maxLength: 128 },
   },
 } as const;
 

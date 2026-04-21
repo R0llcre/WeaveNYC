@@ -155,6 +155,26 @@ export class DefaultChatService implements ChatService {
       throw new ChatServiceError("Conversation is closed", "conversation_closed");
     }
 
+    // Server-side dedup via client_message_id. If the sender previously
+    // submitted the same `(sender_user_id, client_message_id)` pair, return
+    // the original message without rate-limiting, running the safety
+    // detector, or firing hooks again. This is the second line of defense
+    // behind the HTTP-layer `Idempotency-Key` cache: if the cache has been
+    // purged but the client retries with the same client_message_id we
+    // still collapse to the original row.
+    if (input.clientMessageId) {
+      const existing = await this.repository.findMessageByClientId({
+        senderUserId: input.actor.userId,
+        clientMessageId: input.clientMessageId,
+      });
+      if (existing && existing.conversation_id === input.conversationId) {
+        return {
+          conversation,
+          message: existing,
+        };
+      }
+    }
+
     const body = trimMessageBody(input.body);
     if (!body) {
       throw new ChatServiceError("Message body is required", "invalid_input");
@@ -199,6 +219,7 @@ export class DefaultChatService implements ChatService {
       body,
       safetyFlags: inspection.advisoryFlags,
       sentAt: now,
+      clientMessageId: input.clientMessageId,
     });
     await this.repository.markConversationRead({
       conversationId: input.conversationId,

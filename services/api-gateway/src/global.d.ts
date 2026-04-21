@@ -7,6 +7,7 @@ import type { ChatService } from '@weavenyc/chat';
 import type { AnalyticsRecorder } from './lib/analytics.js';
 import type { AuthAbuseStore } from './lib/identity.js';
 import type { ChatRealtimeHub } from './lib/chat-realtime.js';
+import type { IdempotencyStore } from './lib/idempotency.js';
 import type { WeaveMetrics } from './lib/metrics.js';
 import type { PurgeJob } from './lib/purge-job.js';
 import type { RefreshTokenStore } from './lib/refresh-token-store.js';
@@ -29,6 +30,7 @@ declare module 'fastify' {
     authAbuseStore: AuthAbuseStore;
     chatRealtimeHub: ChatRealtimeHub;
     chatService: ChatService;
+    idempotencyStore: IdempotencyStore;
     matchService: MatchService;
     metrics: WeaveMetrics;
     postsService: PostsService;

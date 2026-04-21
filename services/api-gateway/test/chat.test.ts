@@ -433,4 +433,123 @@ describe('chat routes', () => {
     expect(detailResponse.json().status).toBe('closed');
     expect(realtimeHub.publishedEvents.filter((entry) => entry.event.event_type === 'conversation.updated')).toHaveLength(2);
   });
+
+  it('dedupes a duplicate chat send via client_message_id at the DB layer (A2 P0-4)', async () => {
+    // Even without `Idempotency-Key` on the HTTP envelope, the same
+    // `client_message_id` from the same sender collapses to a single row.
+    // This is the second line of defense behind the HTTP-layer cache:
+    // the cache entry can age out, but the `uq_messages_client_dedup`
+    // index still prevents duplicate submissions.
+    const { app, chatRepository, requesterToken } = await createChatFixture();
+
+    const payload = {
+      body: 'Can I bring my kid?',
+      client_message_id: 'composer-tap-42',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/v1/conversations/${conversationId}/messages`,
+      headers: { authorization: `Bearer ${requesterToken}` },
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+    const firstMessageId = first.json().message.message_id as string;
+
+    const second = await app.inject({
+      method: 'POST',
+      url: `/v1/conversations/${conversationId}/messages`,
+      headers: { authorization: `Bearer ${requesterToken}` },
+      payload,
+    });
+    expect(second.statusCode).toBe(200);
+    expect(second.json().message.message_id).toBe(firstMessageId);
+
+    // And the repository actually has one row, not two — proving dedup
+    // landed at the data layer.
+    const rows = Array.from(chatRepository.messages.values()).filter(
+      (row) => row.conversation_id === conversationId && row.sender_user_id === requesterId,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it('replays the same send response when Idempotency-Key is reused (A7 P0-4)', async () => {
+    const { app, chatRepository, requesterToken } = await createChatFixture();
+
+    const headers = {
+      authorization: `Bearer ${requesterToken}`,
+      'idempotency-key': 'send-retry-key-1',
+    };
+    const payload = {
+      body: 'I can meet at 3pm.',
+      client_message_id: 'cap-send-retry-1',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/v1/conversations/${conversationId}/messages`,
+      headers,
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+
+    const retry = await app.inject({
+      method: 'POST',
+      url: `/v1/conversations/${conversationId}/messages`,
+      headers,
+      payload,
+    });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replay']).toBe('true');
+    expect(retry.json().message.message_id).toBe(first.json().message.message_id);
+
+    const ownedMessages = Array.from(chatRepository.messages.values()).filter(
+      (row) => row.sender_user_id === requesterId && row.conversation_id === conversationId,
+    );
+    expect(ownedMessages).toHaveLength(1);
+  });
+
+  it('replays the same report response when Idempotency-Key is reused (A7 P0-3)', async () => {
+    const { app, chatRepository, requesterToken } = await createChatFixture();
+
+    const headers = {
+      authorization: `Bearer ${requesterToken}`,
+      'idempotency-key': 'report-tap-1',
+    };
+    const payload = {
+      target_type: 'post' as const,
+      target_id: relatedPostId,
+      reason: 'misinformation' as const,
+      evidence_description: 'Double-tap of the same report button.',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/v1/reports',
+      headers,
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+    const reportId = first.json().report_id as string;
+
+    const retry = await app.inject({
+      method: 'POST',
+      url: '/v1/reports',
+      headers,
+      payload,
+    });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replay']).toBe('true');
+    expect(retry.json().report_id).toBe(reportId);
+
+    // Even without the header, the DB-level partial index would dedup:
+    // same reporter + same target + status='new' must collapse to one row.
+    const ownedReports = Array.from(chatRepository.reports.values()).filter(
+      (row) =>
+        row.reporter_user_id === requesterId &&
+        row.target_id === relatedPostId &&
+        row.status === 'new',
+    );
+    expect(ownedReports).toHaveLength(1);
+  });
 });

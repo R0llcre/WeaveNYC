@@ -20,6 +20,7 @@ import {
   postsQuerySchema,
   updatePostRequestSchema,
 } from '../contracts.js';
+import { withIdempotency } from '../lib/idempotency.js';
 import { fanoutSyncEvents, publishPostEvent } from '../lib/p2p-events.js';
 import { loadCurrentActor } from '../lib/require-anchor.js';
 
@@ -68,46 +69,60 @@ export const postRoutes: FastifyPluginAsync = async (app) => {
           return;
         }
 
-        const body = createPostBodySchema.parse(request.body);
-        const created = await app.postsService.createPost({
-          actor,
-          request: body,
-        });
+        // A7 P0-2: wrap post-create with HTTP idempotency. Clients that send
+        // `Idempotency-Key` (typically the draft's client_id from PR #47's
+        // outbox, or a fresh randomUUID() on publish-button-tap) see the
+        // original response replayed verbatim on retry. Legacy clients that
+        // omit the header fall through to the normal handler.
+        return await withIdempotency({
+          app,
+          request,
+          reply,
+          routeName: 'posts.create',
+          userId: actor.userId,
+          handler: async () => {
+            const body = createPostBodySchema.parse(request.body);
+            const created = await app.postsService.createPost({
+              actor,
+              request: body,
+            });
 
-        if (body.post_type === 'request' && created.status === 'active') {
-          await tryPrecomputeMatches(app.matchService, created.postId);
-        }
+            if (body.post_type === 'request' && created.status === 'active') {
+              await tryPrecomputeMatches(app.matchService, created.postId);
+            }
 
-        if (created.syncEvents !== undefined) {
-          await fanoutSyncEvents(app, created.syncEvents, { postId: created.postId });
-        } else {
-          const detail = await app.postsService.getPostDetail(actor, created.postId);
-          await publishPostEvent(app, {
-            eventType: 'post.published',
-            post: detail,
-            actorUserId: actor.userId,
-          });
-        }
+            if (created.syncEvents !== undefined) {
+              await fanoutSyncEvents(app, created.syncEvents, { postId: created.postId });
+            } else {
+              const detail = await app.postsService.getPostDetail(actor, created.postId);
+              await publishPostEvent(app, {
+                eventType: 'post.published',
+                post: detail,
+                actorUserId: actor.userId,
+              });
+            }
 
-        if (created.status === 'active') {
-          await app.analyticsRecorder.recordEvent({
-            event_type: 'post_published',
-            community_id: body.community_id,
-            actor_user_id: actor.userId,
-            payload: {
+            if (created.status === 'active') {
+              await app.analyticsRecorder.recordEvent({
+                event_type: 'post_published',
+                community_id: body.community_id,
+                actor_user_id: actor.userId,
+                payload: {
+                  post_id: created.postId,
+                  post_type: body.post_type,
+                  category: body.category,
+                  risk_level: created.riskLevel,
+                },
+              });
+            }
+
+            return {
               post_id: created.postId,
-              post_type: body.post_type,
-              category: body.category,
+              status: created.status,
               risk_level: created.riskLevel,
-            },
-          });
-        }
-
-        return {
-          post_id: created.postId,
-          status: created.status,
-          risk_level: created.riskLevel,
-        };
+            };
+          },
+        });
       } catch (error) {
         return replyWithPostsError(reply, error);
       }

@@ -904,8 +904,20 @@ export async function sendConversationMessage(
   accessToken: string,
   input: SendConversationMessageInput,
 ): Promise<SendConversationMessageResult> {
+  // Generate both a fresh `client_message_id` (used by the server-side
+  // unique index `uq_messages_client_dedup` for DB-level dedup) AND an
+  // `Idempotency-Key` header (used by the HTTP idempotency cache) the
+  // first time we send. On retry the caller reuses the same values via
+  // the `clientMessageId` / `idempotencyKey` fields. If the caller
+  // doesn't supply either, we generate fresh UUIDs per call and the
+  // server still gets a stable pair for this submission — a transient
+  // network retry of THIS fetch will fall back to HTTP response-level
+  // retry at the platform layer, not ours.
+  const clientMessageId = input.clientMessageId ?? crypto.randomUUID();
+  const idempotencyKey = input.idempotencyKey ?? clientMessageId;
   const payload = {
     body: input.body,
+    client_message_id: clientMessageId,
   };
   sendConversationMessageRequestSchema.parse(payload);
 
@@ -917,6 +929,7 @@ export async function sendConversationMessage(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(payload),
+      idempotencyKey,
     },
     sendConversationMessageResponseSchema,
   );
@@ -956,6 +969,11 @@ export async function blockUser(accessToken: string, input: BlockUserInput): Pro
 }
 
 export async function createReport(accessToken: string, input: ReportCreateInput): Promise<ReportCreateResult> {
+  // A7 P0-3: send `Idempotency-Key` so a double-tap of "Report" produces
+  // the same response and doesn't create two rows. The server's
+  // `uq_reports_reporter_target_active` index is the second line of
+  // defense if the cache has aged out.
+  const idempotencyKey = input.idempotencyKey ?? crypto.randomUUID();
   return requestJson(
     '/v1/reports',
     {
@@ -970,12 +988,19 @@ export async function createReport(accessToken: string, input: ReportCreateInput
         conversation_id: input.conversationId,
         evidence_description: input.evidenceDescription,
       }),
+      idempotencyKey,
     },
     reportCreateResponseSchema,
   );
 }
 
 export async function createPost(accessToken: string, input: CreatePostInput): Promise<CreatePostResult> {
+  // A7 P0-2: generate a fresh Idempotency-Key per publish-button-tap.
+  // Callers that already track a draft via the offline outbox (PR #47)
+  // should pass that `client_id` through `idempotencyKey` so retries of
+  // the same draft collapse to one post. When omitted, a new UUID per
+  // call is safe — the server only dedupes within the key's 24h TTL.
+  const idempotencyKey = input.idempotencyKey ?? crypto.randomUUID();
   return requestJson(
     '/v1/posts',
     {
@@ -995,6 +1020,7 @@ export async function createPost(accessToken: string, input: CreatePostInput): P
         expires_at: input.expiresAt,
         contact_pref: input.contactPref,
       }),
+      idempotencyKey,
     },
     createPostResponseSchema,
   );
@@ -1295,9 +1321,22 @@ export async function undeleteAccount(
   );
 }
 
+type RequestJsonOptions = RequestInit & {
+  /**
+   * When provided, the client sets the `Idempotency-Key` header on the
+   * outgoing request. The server (api-gateway) uses this to cache the
+   * first response for 24h and replay it verbatim on retry, which makes
+   * our three critical write paths (post create, chat send, report submit)
+   * safe against network retries + double-tap mistakes. Callers generate
+   * a fresh `crypto.randomUUID()` per user-initiated action; retries
+   * reuse the same key until the server confirms success.
+   */
+  idempotencyKey?: string;
+};
+
 async function requestJson<T>(
   path: string,
-  init: RequestInit,
+  init: RequestJsonOptions,
   schema: { parse(input: unknown): T },
 ): Promise<T> {
   const headers = new Headers(init.headers ?? {});
@@ -1305,10 +1344,19 @@ async function requestJson<T>(
   if (init.body && !isFormData && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
+  if (init.idempotencyKey && !headers.has('Idempotency-Key')) {
+    headers.set('Idempotency-Key', init.idempotencyKey);
+  }
+
+  // Strip the non-standard idempotencyKey property from the init object
+  // before forwarding to fetch so the DOM layer doesn't complain about
+  // unknown fields. Everything else spreads through unchanged.
+  const { idempotencyKey: _idempotencyKey, ...fetchInit } = init;
+  void _idempotencyKey;
 
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     cache: "no-store",
-    ...init,
+    ...fetchInit,
     // Headers MUST be applied AFTER the init spread — otherwise init's own
     // headers stomp the Content-Type we just auto-injected, the request
     // goes out as text/plain, and every JSON-body POST returns 400. (This

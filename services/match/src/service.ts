@@ -353,11 +353,15 @@ export class DefaultMatchService implements MatchService {
       normalizedRequest.contactRequestId,
     );
     if (normalizedRequest.status === "accepted" && existingConversation) {
+      // Idempotent replay: the recipient already accepted. Do not update
+      // anything; signal via `is_new_accept: false` so the gateway skips
+      // analytics + the `verified_matches_total` Prometheus counter.
       return {
         contact_request_id: normalizedRequest.contactRequestId,
         status: "accepted",
         responded_at: normalizedRequest.respondedAt ?? existingConversation.created_at,
         conversation_id: existingConversation.conversation_id,
+        is_new_accept: false,
       };
     }
 
@@ -398,6 +402,7 @@ export class DefaultMatchService implements MatchService {
       status: "accepted",
       responded_at: respondedAt,
       conversation_id: acceptedConversation.conversation_id,
+      is_new_accept: true,
     };
   }
 

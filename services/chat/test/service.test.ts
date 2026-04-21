@@ -286,7 +286,10 @@ describe("DefaultChatService", () => {
     expect(submission.report.community_id).toBe(communityId);
   });
 
-  it("returns the anchor identity when auto-hide removes a post", async () => {
+  it("returns the anchor identity when auto-hide removes a post after three DISTINCT reporters", async () => {
+    // A2 P1-7: auto-hide triggers on three *distinct* reporters, not three
+    // reports from the same user. Seeds two reporters directly and fires a
+    // third submitReport() from a third neighbor to cross the threshold.
     const repository = new InMemoryChatRepository();
     const conversation = seedConversation(repository);
     repository.seedActiveAnchorUserId(communityId, "88888888-8888-4888-8888-888888888888");
@@ -320,8 +323,14 @@ describe("DefaultChatService", () => {
     });
     const service = new DefaultChatService(repository, defaultChatSafetyDetector, {}, () => new Date("2026-04-10T12:05:00.000Z"));
 
+    const thirdReporter: ChatActor = {
+      userId: "77777777-7777-4777-8777-777777777777",
+      level: "verified",
+      alias: "Third neighbor",
+      communityIds: [communityId],
+    };
     const submission = await service.submitReport({
-      actor: requester,
+      actor: thirdReporter,
       targetType: "post",
       targetId: conversation.related_post_ids[0]!,
       reason: "unsafe_behavior",
@@ -330,6 +339,38 @@ describe("DefaultChatService", () => {
 
     expect(submission.autoHiddenPostId).toBe(conversation.related_post_ids[0]!);
     expect(submission.autoHiddenActorUserId).toBe("88888888-8888-4888-8888-888888888888");
+  });
+
+  it("does NOT auto-hide when a single user stacks three reports (A2 P1-7 regression)", async () => {
+    // Prior behaviour: the same user could tap Report three times and
+    // trip auto-hide. This test locks in the new behaviour where only
+    // distinct reporters count, and the dedup index collapses the same
+    // reporter's repeat taps to one 'new' row.
+    const repository = new InMemoryChatRepository();
+    const conversation = seedConversation(repository);
+    repository.seedActiveAnchorUserId(communityId, "88888888-8888-4888-8888-888888888888");
+    const service = new DefaultChatService(repository, defaultChatSafetyDetector, {}, () => new Date("2026-04-10T12:05:00.000Z"));
+
+    for (let i = 0; i < 3; i += 1) {
+      const submission = await service.submitReport({
+        actor: requester,
+        targetType: "post",
+        targetId: conversation.related_post_ids[0]!,
+        reason: "unsafe_behavior",
+        detailText: `Tap ${i + 1} from the same griefer`,
+      });
+      expect(submission.autoHiddenPostId).toBeNull();
+    }
+
+    // Only a single 'new' row exists despite 3 submissions from the same
+    // reporter against the same target.
+    const reportsForTarget = Array.from(repository.reports.values()).filter(
+      (row) =>
+        row.target_id === conversation.related_post_ids[0]! &&
+        row.status === "new",
+    );
+    expect(reportsForTarget).toHaveLength(1);
+    expect(reportsForTarget[0]!.reporter_user_id).toBe(requester.userId);
   });
 
   it("creates a user report without conversation context when the community is unambiguous", async () => {

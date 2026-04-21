@@ -283,13 +283,20 @@ export async function buildChatApp(options: { config?: ChatConfig; logger?: bool
       }),
     );
 
-    internal.post<{ Body: { conversationId: string; body: string } }>("/internal/v1/chat/send-message", async (request) =>
-      service.sendMessage({
+    internal.post<{
+      Body: { conversationId?: string; conversation_id?: string; body: string; clientMessageId?: string; client_message_id?: string };
+    }>("/internal/v1/chat/send-message", async (request) => {
+      const conversationId = request.body.conversationId ?? request.body.conversation_id;
+      if (!conversationId) {
+        throw new ChatDomainError("conversationId is required", "invalid_input");
+      }
+      return service.sendMessage({
         actor: toChatActor(request.internalClaims?.actor),
-        conversationId: request.body.conversationId,
+        conversationId,
         body: request.body.body,
-      }),
-    );
+        clientMessageId: request.body.clientMessageId ?? request.body.client_message_id,
+      });
+    });
 
     internal.post<{ Body: CloseConversationInput }>("/internal/v1/chat/close-conversation", async (request) =>
       service.closeConversation({

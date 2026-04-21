@@ -89,7 +89,7 @@ describe('createPurgeJob', () => {
     const job = createPurgeJob({ pool, enabled: false });
 
     const result = await job.runOnce();
-    expect(result).toEqual({ deletedUsers: 0 });
+    expect(result).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
     // Only the initial candidate-select runs; no transaction is opened.
     expect(captured.some((entry) => entry.sql.startsWith('begin'))).toBe(false);
     expect(captured.some((entry) => entry.sql.startsWith('commit'))).toBe(false);
@@ -120,7 +120,7 @@ describe('createPurgeJob', () => {
     const job = createPurgeJob({ pool, enabled: false, actorHashPepper: 'test-pepper' });
     const result = await job.runOnce();
 
-    expect(result).toEqual({ deletedUsers: 1 });
+    expect(result).toEqual({ deletedUsers: 1, deletedIdempotencyKeys: 0 });
 
     const sequence = captured.map((entry) => entry.sql);
 
@@ -187,8 +187,54 @@ describe('createPurgeJob', () => {
 
     const first = await job.runOnce();
     const second = await job.runOnce();
-    expect(first).toEqual({ deletedUsers: 0 });
-    expect(second).toEqual({ deletedUsers: 0 });
+    expect(first).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
+    expect(second).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
+  });
+
+  it('runOnce sweeps expired idempotency_keys rows', async () => {
+    // The idempotency reaper DELETEs rows where `expires_at < now()`. We
+    // capture the SQL and report 5 rows deleted; the purge-job should
+    // bubble that count up into the runOnce result.
+    const captured: CapturedQuery[] = [];
+    const client = {
+      async query(sql: string, params: unknown[] = []): Promise<{
+        rows: Array<Record<string, unknown>>;
+        rowCount: number;
+      }> {
+        const normalized = sql.trim().toLowerCase();
+        captured.push({ sql: normalized, params });
+
+        if (normalized.startsWith('select user_id, deleted_at, purge_at')) {
+          return { rows: [], rowCount: 0 };
+        }
+
+        if (normalized.includes('from idempotency_keys') && normalized.startsWith('with doomed')) {
+          return {
+            rows: [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }, { key: 'e' }],
+            rowCount: 5,
+          };
+        }
+
+        return { rows: [], rowCount: 0 };
+      },
+      release() {},
+    };
+    const pool = {
+      async connect() {
+        return client;
+      },
+    } as unknown as Pool;
+
+    const job = createPurgeJob({ pool, enabled: false });
+    const result = await job.runOnce();
+    expect(result).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 5 });
+    expect(
+      captured.some(
+        (entry) =>
+          entry.sql.includes('from idempotency_keys') &&
+          entry.sql.includes('where expires_at < now()'),
+      ),
+    ).toBe(true);
   });
 
   it('rolls back the transaction when a per-user query fails', async () => {
@@ -248,7 +294,7 @@ describe('createPurgeJob', () => {
 
     const job = createPurgeJob({ pool, enabled: false, logger });
     const result = await job.runOnce();
-    expect(result).toEqual({ deletedUsers: 0 });
+    expect(result).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
     const sequence = captured.map((c) => c.sql);
     expect(sequence.filter((s) => s === 'begin').length).toBe(1);
     expect(sequence.filter((s) => s === 'rollback').length).toBe(1);
@@ -302,7 +348,7 @@ describe('createPurgeJob', () => {
 
       const job = createPurgeJob({ pool, enabled: false, actorHashPepper: 'test-pepper' });
       const result = await job.runOnce();
-      expect(result).toEqual({ deletedUsers: 1 });
+      expect(result).toEqual({ deletedUsers: 1, deletedIdempotencyKeys: 0 });
 
       // Find the payload tombstone + actor_p2p_id scrub statement.
       const tombstoneUpdate = captured.find(
@@ -408,7 +454,7 @@ describe('createPurgeJob', () => {
     resumer();
     const result = await runPromise;
     await stopPromise;
-    expect(result).toEqual({ deletedUsers: 1 });
+    expect(result).toEqual({ deletedUsers: 1, deletedIdempotencyKeys: 0 });
     expect(sawCommit).toBe(true);
   });
 });
