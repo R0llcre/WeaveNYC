@@ -539,10 +539,16 @@ export function CommunityScreen() {
                       p2pSync.status.phase,
                       p2pSync.status.errorCategory ?? null,
                     );
+                    // V1-C: `p2pError_server` copy names the community the
+                    // sync is reconnecting to. Other p2pError_* keys do not
+                    // interpolate and ignore the value.
+                    const errorTitle = t(errorKey, {
+                      communityName: currentCommunity?.name ?? '',
+                    });
                     return (
                       <Banner
                         tone="danger"
-                        title={t(errorKey)}
+                        title={errorTitle}
                         data-testid="p2p-error-banner"
                         actionLabel={
                           isAuth

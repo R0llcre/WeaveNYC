@@ -59,6 +59,7 @@ import {
   Tag,
   Toast,
 } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { useAppDispatch, useAppSelector, useResource } from '@/lib/hooks';
 import { getTypeLabel } from '@/lib/i18n';
 import {
@@ -225,8 +226,8 @@ export function ResourceDetailScreen({ providerId }: ResourceDetailScreenProps) 
           tone="error"
           title={t('resourceNotFound')}
           subtitle={
-            resourceQuery.error instanceof Error
-              ? resourceQuery.error.message
+            resourceQuery.error
+              ? t(resolveErrorKey(resourceQuery.error))
               : t('resourceLoadError')
           }
           cta={{ label: t('backHome'), href: '/' }}

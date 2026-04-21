@@ -204,7 +204,11 @@ export function PostComposerScreen() {
         }),
       );
     } catch (error) {
-      setBrowserSpeechError(error instanceof Error ? error.message : t('speechBrowserError'));
+      // Never surface the raw browser-speech error string to ZH/ES users —
+      // resolveErrorKey collapses it onto a localized errorGeneric /
+      // errorNetwork / etc. Fallback to the speech-specific copy when the
+      // error is null/undefined.
+      setBrowserSpeechError(error ? t(resolveErrorKey(error)) : t('speechBrowserError'));
     }
   };
 
@@ -470,7 +474,10 @@ export function PostComposerScreen() {
             <Stack gap={3}>
               <Stack gap={1}>
                 <span className="overline">{t('composeStepType')}</span>
-                <p className="muted">{t('composeCopy')}</p>
+                {/* V1-C: short imperative hint per step (composeStep1) instead
+                    of the legacy `composeCopy` paragraph, so the chrome in each
+                    stepper stage fits on one line on a phone. */}
+                <p className="muted">{t('composeStep1')}</p>
               </Stack>
               <Inline gap={3} wrap align="start">
                 <ModeCard
@@ -504,6 +511,9 @@ export function PostComposerScreen() {
                 <Stack gap={1}>
                   <span className="overline">{t('composeStepCompose')}</span>
                   <h2>{draftPostTypeLabel}</h2>
+                  {/* V1-C: per-step imperative hint; `composeCopy` is now
+                      a teaser shown only before step 1. */}
+                  <p className="muted">{t('composeStep2')}</p>
                 </Stack>
 
                 <Field
@@ -750,7 +760,10 @@ export function PostComposerScreen() {
             <Stack gap={4}>
               <Stack gap={1}>
                 <span className="overline">{t('composeStepPreview')}</span>
-                <p className="muted">{t('composeCopy')}</p>
+                {/* V1-C: preview-step hint (composeStep3). The earlier
+                    `composeCopy` is now only the teaser on the compose-title
+                    area. */}
+                <p className="muted">{t('composeStep3')}</p>
               </Stack>
 
               <Card variant="accent" aria-labelledby="compose-preview-title">

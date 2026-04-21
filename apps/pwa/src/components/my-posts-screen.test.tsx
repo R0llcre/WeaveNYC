@@ -280,9 +280,11 @@ describe('MyPostsScreen (/posts/mine)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('pending-retry-pending-fail')).toBeInTheDocument();
     });
-    // Failed copy interpolates the error message so the user can tell
-    // what went wrong semantically (e.g. bad ZIP, not "network offline").
+    // V1-C: the raw `HTTP 400 invalid zip` message is routed through
+    // `resolveErrorKey` → `errorValidation`, so the user sees a localized
+    // string instead of a raw English backend message. ZH/ES users never
+    // see the untranslated server text.
     const row = screen.getByTestId('my-post-pending-pending-fail');
-    expect(row.textContent ?? '').toContain('HTTP 400 invalid zip');
+    expect(row.textContent ?? '').toContain(messages.en.errorValidation);
   });
 });

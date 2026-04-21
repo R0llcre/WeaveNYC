@@ -61,6 +61,36 @@ import { useSessionBootstrap } from '@/lib/use-session-bootstrap';
  *
  * All copy derives from `useTranslations()` — no English string literals.
  */
+
+/**
+ * V1-C — belt-and-suspenders production-origin guard for the sandbox
+ * demo banner. `demoSandboxNotice` literally renders the OTP `246810`.
+ * `isDemoSandbox()` already gates on hostname, but if that ever regressed
+ * (e.g. the kill-switch list changed), this helper prevents a phishing
+ * page from ever showing the fake "your code is 246810" banner on
+ * weavenyc.org. In dev we throw so the regression is loud; in prod we
+ * silently return false so nothing leaks.
+ */
+function renderSandboxNoticeSafely(active: boolean): boolean {
+  if (!active) {
+    return false;
+  }
+  if (typeof window === 'undefined') {
+    // SSG/SSR — never render. The client effect flips sandboxActive.
+    return false;
+  }
+  const host = window.location.hostname;
+  if (host === 'weavenyc.org' || host === 'www.weavenyc.org') {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        'demoSandboxNotice must never render on the production origin',
+      );
+    }
+    return false;
+  }
+  return true;
+}
+
 export function VerifyScreen() {
   const t = useTranslations();
   const router = useRouter();
@@ -514,8 +544,13 @@ export function VerifyScreen() {
                       Only renders when `isDemoSandbox()` returned true on
                       mount, which is gated so weavenyc.org can never show
                       it. data-testid hook is used by the demo preflight's
-                      UI smoke test. */}
-                  {sandboxActive ? (
+                      UI smoke test.
+                      V1-C safety: `demoSandboxNotice` literally contains the
+                      OTP `246810`. If `isDemoSandbox()` ever regressed, the
+                      render-time hostname check below is a second line of
+                      defense so a phishing page on weavenyc.org can never
+                      show a fake "your code is 246810" banner. */}
+                  {renderSandboxNoticeSafely(sandboxActive) ? (
                     <Banner
                       tone="warning"
                       title={t('demoSandboxNotice')}
