@@ -95,6 +95,15 @@ const envSchema = z.object({
   MATCH_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   CHAT_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   RESOURCE_DIRECTORY_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+  // USE_MONOLITH_RESOURCE_DIRECTORY=1 forces the gateway to fall back to the
+  // in-process PgResourceDirectoryService regardless of whether
+  // RESOURCE_DIRECTORY_SERVICE_URL is set. This is the pilot-stable setting
+  // for AWS App Runner with VPC egress (the Cloud Run sidecar lives at an
+  // external URL that VPC-routed egress cannot reach, and App Runner's
+  // UpdateService MERGES env vars rather than replacing, so empty-stringing
+  // the URL is silently ignored). The flag is independent of the URL value
+  // so ops can flip it live without touching Cloud Run deploys.
+  USE_MONOLITH_RESOURCE_DIRECTORY: z.preprocess(emptyStringToUndefined, z.enum(['0', '1']).optional()),
   NOTIFICATIONS_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   ENABLE_PURGE_JOB: z.preprocess(emptyStringToUndefined, z.enum(['0', '1']).optional()),
   PURGE_JOB_CRON: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
@@ -202,13 +211,22 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
   if (strictRuntime && internalServiceJwtSecret === devInternalServiceJwtSecret) {
     throw new Error('INTERNAL_SERVICE_JWT_SECRET must not use the checked-in development/test sample in staging/production');
   }
+  // RESOURCE_DIRECTORY_SERVICE_URL is intentionally optional even in strict
+  // runtime: when unset (or empty), the gateway falls back to the in-process
+  // PgResourceDirectoryService path (see app.ts:265-269). This lets prod
+  // bypass the GCP Cloud Run sidecar when the VPC egress topology cannot
+  // reach external internet — the monolith path is functionally identical
+  // (same PgResourceDirectoryService implementation the Cloud Run service
+  // uses internally) and is the chosen pilot configuration while Redis
+  // lives in ElastiCache (VPC-only). Other four internal service URLs
+  // remain required because the matching/posts/chat/notification domains
+  // do NOT yet have in-gateway fallbacks.
   const missingInternalServiceUrls =
     strictRuntime
       ? [
           ['POSTS_SERVICE_URL', env.POSTS_SERVICE_URL],
           ['MATCH_SERVICE_URL', env.MATCH_SERVICE_URL],
           ['CHAT_SERVICE_URL', env.CHAT_SERVICE_URL],
-          ['RESOURCE_DIRECTORY_SERVICE_URL', env.RESOURCE_DIRECTORY_SERVICE_URL],
           ['NOTIFICATIONS_SERVICE_URL', env.NOTIFICATIONS_SERVICE_URL]
         ].filter(([, value]) => !value).map(([key]) => key)
       : [];
@@ -260,7 +278,13 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
       postsServiceUrl: env.POSTS_SERVICE_URL ?? null,
       matchServiceUrl: env.MATCH_SERVICE_URL ?? null,
       chatServiceUrl: env.CHAT_SERVICE_URL ?? null,
-      resourceDirectoryServiceUrl: env.RESOURCE_DIRECTORY_SERVICE_URL ?? null,
+      // Monolith override (USE_MONOLITH_RESOURCE_DIRECTORY=1) hard-nulls the
+      // URL so app.ts picks createPgResourceDirectoryService regardless of
+      // what's set in the env map.
+      resourceDirectoryServiceUrl:
+        env.USE_MONOLITH_RESOURCE_DIRECTORY === '1'
+          ? null
+          : env.RESOURCE_DIRECTORY_SERVICE_URL ?? null,
       notificationsServiceUrl: env.NOTIFICATIONS_SERVICE_URL ?? null,
     },
     purgeJob: {
