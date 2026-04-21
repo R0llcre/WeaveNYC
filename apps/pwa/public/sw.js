@@ -1,28 +1,10 @@
+// Pull in the shared `isCacheableStaticRequest` predicate so both the SW and
+// its Node-based unit test (sw-predicate.test.ts) execute the exact same
+// logic. See apps/pwa/public/sw-predicate.js for the rationale.
+importScripts('/sw-predicate.js');
+
 const CACHE_NAME = 'weavenyc-shell-v3';
-const CORE_ASSETS = ['/', '/manifest.webmanifest', '/icons/app-icon.svg', '/icons/maskable-icon.svg'];
-const STATIC_DESTINATIONS = new Set(['style', 'script', 'worker', 'image', 'font']);
-
-function isCacheableStaticRequest(request) {
-  const url = new URL(request.url);
-
-  if (url.origin !== self.location.origin) {
-    return false;
-  }
-
-  if (request.headers.has('authorization') || url.pathname.startsWith('/v1/')) {
-    return false;
-  }
-
-  if (request.destination && STATIC_DESTINATIONS.has(request.destination)) {
-    return true;
-  }
-
-  return (
-    CORE_ASSETS.includes(url.pathname) ||
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.startsWith('/icons/')
-  );
-}
+const CORE_ASSETS = self.CORE_ASSETS;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -54,7 +36,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (!isCacheableStaticRequest(event.request)) {
+  if (!self.isCacheableStaticRequest(event.request)) {
     return;
   }
 
