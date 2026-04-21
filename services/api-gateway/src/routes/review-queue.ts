@@ -113,6 +113,20 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
           notes: body.notes,
         });
         const postDetail = await app.postsService.getPostDetail(actor, params.post_id);
+
+        // If a concurrent anchor already decided this post, the service layer
+        // returns the current decision body with alreadyDecided = true. In that
+        // case skip realtime fanout and analytics — both were already emitted
+        // by the winning caller — but still return 200 with the canonical
+        // decision body so the UI is idempotent.
+        if (decision.alreadyDecided) {
+          const response = { ...decision };
+          delete response.moderationActionId;
+          delete response.syncEvents;
+          delete response.alreadyDecided;
+          return response;
+        }
+
         if (decision.syncEvents !== undefined) {
           await fanoutSyncEvents(app, decision.syncEvents, { postId: decision.post_id });
         } else {
@@ -167,6 +181,7 @@ export const reviewQueueRoutes: FastifyPluginAsync = async (app) => {
         const response = { ...decision };
         delete response.moderationActionId;
         delete response.syncEvents;
+        delete response.alreadyDecided;
         return response;
       } catch (error) {
         return replyWithPostsError(reply, error);

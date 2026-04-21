@@ -166,6 +166,34 @@ export class InMemoryChatRepository implements ChatRepository {
     safetyFlags: ChatMessage["safety_flags"];
     sentAt: string;
   }): Promise<ChatMessage> {
+    // Mirror the atomic check-and-insert in the PG repo. The in-memory store
+    // is single-threaded so "atomic" just means evaluating all predicates
+    // against the current state before writing, and raising ChatServiceError
+    // when the conversation was closed/blocked between the service-level
+    // pre-check and this write. Tests for the send-while-block race rely on
+    // this to model the TOCTOU closure.
+    const conversation = this.conversations.get(input.conversationId);
+    if (!conversation) {
+      throw new ChatServiceError("Conversation not found", "not_found");
+    }
+    if (!conversation.participant_user_ids.includes(input.senderUserId)) {
+      throw new ChatServiceError("Conversation is not available to this user", "forbidden");
+    }
+
+    const participantPair = conversation.participant_user_ids;
+    const activeBlock =
+      this.blocks.get(`${participantPair[0]}:${participantPair[1]}`) ??
+      this.blocks.get(`${participantPair[1]}:${participantPair[0]}`);
+    if (activeBlock) {
+      throw new ChatServiceError("Conversation is blocked", "conversation_blocked");
+    }
+    if (conversation.status === "blocked") {
+      throw new ChatServiceError("Conversation is blocked", "conversation_blocked");
+    }
+    if (conversation.status !== "active") {
+      throw new ChatServiceError("Conversation is closed", "conversation_closed");
+    }
+
     const message: ChatMessage = {
       message_id: randomUUID(),
       conversation_id: input.conversationId,
@@ -176,23 +204,20 @@ export class InMemoryChatRepository implements ChatRepository {
     };
     this.seedMessage(message);
 
-    const conversation = this.conversations.get(input.conversationId);
-    if (conversation) {
-      conversation.last_activity_at = input.sentAt;
-      conversation.last_message_preview = input.body;
-      conversation.last_message_at = input.sentAt;
-      const otherParticipant = conversation.participant_user_ids.find(
-        (userId) => userId !== input.senderUserId,
-      );
-      if (otherParticipant) {
-        const key = `${conversation.conversation_id}:${otherParticipant}`;
-        const existing = this.reads.get(key);
-        if (existing && existing.readAt > input.sentAt) {
-          return message;
-        }
+    conversation.last_activity_at = input.sentAt;
+    conversation.last_message_preview = input.body;
+    conversation.last_message_at = input.sentAt;
+    const otherParticipant = conversation.participant_user_ids.find(
+      (userId) => userId !== input.senderUserId,
+    );
+    if (otherParticipant) {
+      const key = `${conversation.conversation_id}:${otherParticipant}`;
+      const existing = this.reads.get(key);
+      if (existing && existing.readAt > input.sentAt) {
+        return message;
       }
-      this.conversations.set(input.conversationId, { ...conversation });
     }
+    this.conversations.set(input.conversationId, { ...conversation });
 
     return message;
   }

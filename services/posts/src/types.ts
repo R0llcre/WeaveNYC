@@ -160,7 +160,11 @@ export type PostsService = {
   listMyPosts(input: ListMyPostsInput): Promise<MyPostsResponse>;
   listReviewQueue(input: ReviewQueueInput): Promise<ReviewQueueResponse>;
   decideReview(input: ReviewDecisionInput): Promise<
-    ReviewDecisionResponse & { moderationActionId?: string | null; syncEvents?: CommunitySyncEvent[] }
+    ReviewDecisionResponse & {
+      moderationActionId?: string | null;
+      syncEvents?: CommunitySyncEvent[];
+      alreadyDecided?: boolean;
+    }
   >;
   getAdminDashboard(input: AdminDashboardInput): Promise<AdminDashboardResponse>;
   getCommunityRules(input: CommunityRulesInput): Promise<CommunityRules>;

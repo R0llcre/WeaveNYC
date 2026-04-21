@@ -220,7 +220,7 @@ describe('InMemoryPostsService', () => {
     expect(queue.items[0]?.post_id).toBe(created.postId);
   });
 
-  it('only allows review decisions for pending_review posts', async () => {
+  it('returns idempotent decision for non-pending posts rather than throwing', async () => {
     const service = createService();
 
     const created = await service.createPost({
@@ -238,13 +238,18 @@ describe('InMemoryPostsService', () => {
       },
     });
 
-    await expect(
-      service.decideReview({
-        actor: anchorActor,
-        postId: created.postId,
-        decision: 'approve',
-      })
-    ).rejects.toThrowError(PostsServiceError);
+    // The post is auto-active (low risk). Calling decideReview must NOT throw
+    // — it must return the current decision body with alreadyDecided = true so
+    // two anchors deciding simultaneously both see a consistent 200 response.
+    const decided = await service.decideReview({
+      actor: anchorActor,
+      postId: created.postId,
+      decision: 'approve',
+    });
+
+    expect(decided.status).toBe('active');
+    expect(decided.alreadyDecided).toBe(true);
+    expect(decided.moderationActionId).toBeNull();
   });
 
   it('separates public feed from community feed', async () => {
@@ -448,30 +453,55 @@ describe('InMemoryPostsService', () => {
     expect(feed.items.map((item) => item.post_id)).toEqual([visible.postId]);
   });
 
-  it('only allows review decisions for pending-review posts', async () => {
+  it('decideReview is idempotent when a concurrent anchor has already decided', async () => {
+    // Two anchors on the same pending post race to decide. The first call
+    // flips the post to active; the second call must return the same decision
+    // body with alreadyDecided = true. No exception, no duplicate
+    // moderation_actions.
     const service = createService();
 
     const created = await service.createPost({
       actor: verifiedActor,
       request: {
         community_id: community.community_id,
-        post_type: 'request',
-        category: 'food',
-        title: 'Need groceries',
-        body: 'Need groceries for tonight.',
+        post_type: 'offer',
+        category: 'transportation',
+        title: 'Can drive someone',
+        body: 'Can drive a neighbor to the pantry after school pickup.',
         language: 'en',
         location_zip: '11735',
         privacy: 'community_only',
         expires_at: new Date(Date.now() + 60_000).toISOString(),
       },
     });
+    expect(created.status).toBe('pending_review');
 
-    await expect(
+    const [first, second] = await Promise.all([
       service.decideReview({
         actor: anchorActor,
         postId: created.postId,
         decision: 'approve',
-      })
-    ).rejects.toThrowError(PostsServiceError);
+      }),
+      service.decideReview({
+        actor: anchorActor,
+        postId: created.postId,
+        decision: 'approve',
+      }),
+    ]);
+
+    // Both callers receive identical observable state for the post.
+    expect(first.status).toBe('active');
+    expect(second.status).toBe('active');
+    expect(first.post_id).toBe(second.post_id);
+
+    // Exactly one call created a moderation_actions row; the later caller
+    // short-circuited with alreadyDecided = true.
+    const decidedFirst = first.alreadyDecided === true;
+    const decidedSecond = second.alreadyDecided === true;
+    expect(decidedFirst !== decidedSecond).toBe(true);
+    const winner = decidedFirst ? second : first;
+    const loser = decidedFirst ? first : second;
+    expect(winner.moderationActionId).toEqual(expect.any(String));
+    expect(loser.moderationActionId).toBeNull();
   });
 });

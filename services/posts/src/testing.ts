@@ -510,8 +510,19 @@ export class InMemoryPostsService implements PostsService {
       throw new PostsServiceError('Anchor does not belong to this community', 'forbidden');
     }
 
+    // Mirror the PG repo: if the post is no longer pending, return the
+    // current decision body idempotently rather than throwing. This keeps
+    // the in-memory service and the PG service behaviorally equivalent for
+    // the race-safety contract.
     if (post.status !== 'pending_review') {
-      throw new PostsServiceError('Only pending review posts can receive a review decision', 'invalid_state');
+      return {
+        post_id: post.postId,
+        status: post.status,
+        decided_at: post.updatedAt,
+        moderationActionId: null,
+        alreadyDecided: true,
+        syncEvents: [],
+      };
     }
 
     post.status =
@@ -528,6 +539,7 @@ export class InMemoryPostsService implements PostsService {
       status: post.status,
       decided_at: post.updatedAt,
       moderationActionId,
+      alreadyDecided: false,
       syncEvents: [
         createCommunitySyncEvent({
           communityId: post.communityId,

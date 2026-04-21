@@ -136,6 +136,14 @@ export class DefaultChatService implements ChatService {
   }
 
   async sendMessage(input: SendMessageInput): Promise<SendMessageResult> {
+    // Pre-check conversation state so we can short-circuit early for the
+    // common case where the peer has already blocked or closed. This keeps
+    // ergonomics (skip the safety scan + DB work when we already know the
+    // answer) without relying on it for correctness — the repository's
+    // saveMessage performs the authoritative atomic check-and-insert that
+    // closes the TOCTOU window (A2 P0-8). If a peer blocks between the check
+    // below and the INSERT, saveMessage raises conversation_blocked and no
+    // realtime fanout fires.
     const conversation = await this.getConversation({
       actor: input.actor,
       conversationId: input.conversationId,
@@ -181,6 +189,10 @@ export class DefaultChatService implements ChatService {
       );
     }
 
+    // Atomic check-and-insert. If this throws conversation_blocked /
+    // conversation_closed, the caller's realtime fanout never runs — both
+    // because we bail before calling the accepted hook and because the caller
+    // only fans out after sendMessage returns successfully.
     const message = await this.repository.saveMessage({
       conversationId: input.conversationId,
       senderUserId: input.actor.userId,
@@ -201,11 +213,17 @@ export class DefaultChatService implements ChatService {
       advisoryFlags: inspection.advisoryFlags,
     });
 
+    // Re-read via the repository (not service.getConversation) so that a
+    // block inserted between our atomic INSERT above and this read doesn't
+    // turn a successful send into a thrown conversation_blocked. The message
+    // is already persisted — the caller needs a coherent response.
+    const refreshed = await this.repository.getConversation(input.conversationId, input.actor.userId);
+    if (!refreshed) {
+      throw new ChatServiceError("Conversation not found", "not_found");
+    }
+    this.ensureParticipant(refreshed, input.actor.userId);
     return {
-      conversation: await this.getConversation({
-        actor: input.actor,
-        conversationId: input.conversationId,
-      }),
+      conversation: toConversationSummary(refreshed, input.actor.userId),
       message,
     };
   }
