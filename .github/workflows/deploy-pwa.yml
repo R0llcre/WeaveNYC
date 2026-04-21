@@ -42,6 +42,11 @@ jobs:
       - name: Build PWA
         env:
           NEXT_PUBLIC_API_BASE_URL: https://api.weavenyc.org
+          # SENTRY_AUTH_TOKEN triggers `withSentryConfig` to upload
+          # sourcemaps during `next build`. A missing/empty token is a
+          # no-op — the build still succeeds and ships without symbolicated
+          # traces. See apps/pwa/SENTRY.md for provisioning.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: pnpm --filter @weavenyc/pwa build
       - name: Deploy to Cloudflare Pages
         env:
