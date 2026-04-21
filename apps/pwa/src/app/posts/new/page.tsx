@@ -1,18 +1,11 @@
 import { Suspense } from 'react';
 
 import { PostComposerScreen } from '@/components/post-composer-screen';
+import { RouteLoadingFallback } from '@/components/ui';
 
 export default function PostComposerPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="page-content">
-          <section className="card">
-            <p>Loading…</p>
-          </section>
-        </div>
-      }
-    >
+    <Suspense fallback={<RouteLoadingFallback />}>
       <PostComposerScreen />
     </Suspense>
   );

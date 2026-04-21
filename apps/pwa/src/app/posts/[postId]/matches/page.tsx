@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 
 import { MatchResultsScreen } from '@/components/match-results-screen';
+import { RouteLoadingFallback } from '@/components/ui';
 
 type MatchResultsPageProps = {
   params: Promise<{
@@ -17,15 +18,7 @@ export const dynamicParams = false;
 export default async function MatchResultsPage({ params }: MatchResultsPageProps) {
   const resolvedParams = await params;
   return (
-    <Suspense
-      fallback={
-        <div className="page-content">
-          <section className="card">
-            <p>Loading…</p>
-          </section>
-        </div>
-      }
-    >
+    <Suspense fallback={<RouteLoadingFallback />}>
       <MatchResultsScreen postId={resolvedParams.postId} />
     </Suspense>
   );

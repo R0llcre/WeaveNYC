@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
+import { NextIntlClientProvider } from 'next-intl';
+
 import {
   Banner,
   Button,
@@ -11,7 +13,9 @@ import {
   PageHeader,
   Pill,
   Radio,
+  RouteLoadingFallback,
 } from './index';
+import { messages } from '@/lib/i18n';
 import { triggerHaptic } from '@/lib/use-haptic';
 
 // Mock next/link so <Link> renders as a plain anchor in the test env.
@@ -223,6 +227,7 @@ describe('ui/Banner', () => {
         actionLabel="Retry"
         onAction={onAction}
         onDismiss={onDismiss}
+        dismissLabel="Dismiss"
       />,
     );
     const el = screen.getByTestId('banner');
@@ -506,5 +511,34 @@ describe('ui/IconButton · haptic prop', () => {
     fireEvent.click(screen.getByTestId('ibtn'));
     expect(vibrate).not.toHaveBeenCalled();
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ui/RouteLoadingFallback', () => {
+  it('renders the localized shellLoading label in English (inner mode)', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en} timeZone="UTC">
+        <RouteLoadingFallback />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getAllByText(messages.en.shellLoading).length).toBeGreaterThan(0);
+  });
+
+  it('renders the localized shellLoading label in Chinese', () => {
+    render(
+      <NextIntlClientProvider locale="zh" messages={messages.zh} timeZone="UTC">
+        <RouteLoadingFallback />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getAllByText(messages.zh.shellLoading).length).toBeGreaterThan(0);
+  });
+
+  it('emits a <main> wrapper when shellMode="shell"', () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="es" messages={messages.es} timeZone="UTC">
+        <RouteLoadingFallback shellMode="shell" />
+      </NextIntlClientProvider>,
+    );
+    expect(container.querySelector('main.shell')).not.toBeNull();
   });
 });

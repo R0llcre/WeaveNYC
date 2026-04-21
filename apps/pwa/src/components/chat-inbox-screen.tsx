@@ -18,6 +18,7 @@ import {
   Stack,
   Tag,
 } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAcceptContactRequest,
   useAppSelector,
@@ -370,9 +371,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                 actionLabel={t('sendFailedRetry')}
                 onAction={() => void inboxRequestsQuery.refetch()}
               >
-                {inboxRequestsQuery.error instanceof Error
-                  ? inboxRequestsQuery.error.message
-                  : t('resourceLoadError')}
+                {t(resolveErrorKey(inboxRequestsQuery.error))}
               </Banner>
             ) : null}
 
@@ -520,9 +519,7 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
                 actionLabel={t('sendFailedRetry')}
                 onAction={() => void conversationsQuery.refetch()}
               >
-                {conversationsQuery.error instanceof Error
-                  ? conversationsQuery.error.message
-                  : t('resourceLoadError')}
+                {t(resolveErrorKey(conversationsQuery.error))}
               </Banner>
             ) : null}
 

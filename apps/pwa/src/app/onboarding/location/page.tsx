@@ -1,21 +1,12 @@
 import { Suspense } from 'react';
 
 import { LocationGateScreen } from '@/components/location-gate-screen';
+import { RouteLoadingFallback } from '@/components/ui';
 
 
 export default function LocationOnboardingPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="shell">
-          <div className="shell__inner">
-            <section className="card">
-              <p>Loading…</p>
-            </section>
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<RouteLoadingFallback shellMode="shell" />}>
       <LocationGateScreen />
     </Suspense>
   );

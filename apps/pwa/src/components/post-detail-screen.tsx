@@ -17,6 +17,7 @@ import {
   Stack,
   Tag,
 } from '@/components/ui';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import {
   useAppSelector,
   useClosePost,
@@ -171,14 +172,7 @@ export function PostDetailScreen({ postId }: PostDetailScreenProps) {
           ) : null}
 
           {errored ? (
-            <Banner
-              tone="danger"
-              title={
-                postQuery.error instanceof Error
-                  ? postQuery.error.message
-                  : t('resourceLoadError')
-              }
-            />
+            <Banner tone="danger" title={t(resolveErrorKey(postQuery.error))} />
           ) : null}
 
           {post && !editing ? (

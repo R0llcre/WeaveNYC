@@ -230,8 +230,14 @@ describe('VerifyScreen (/me/verify)', () => {
 
   it('renders the danger Banner with verifyError copy when a mutation errors', () => {
     // Drive the otpStart mutation into an error state so the screen has
-    // an Error to render in the error stack.
-    otpStartState.error = new Error('Rate limited');
+    // an Error to render in the error stack. F4-C: the raw English
+    // `error.message` is no longer surfaced verbatim — it is routed
+    // through `resolveErrorKey()` so ZH/ES users see localized copy.
+    // Use a message that resolves to the rate-limit key so we still
+    // exercise the mapping path here.
+    otpStartState.error = new Error(
+      '/v1/auth/otp/start failed: HTTP 429 {"error":"rate_limited"}',
+    );
     renderVerify('anonymous');
 
     // The Banner uses role="alert" for danger tone.
@@ -241,7 +247,9 @@ describe('VerifyScreen (/me/verify)', () => {
     );
     expect(dangerBanner).toBeDefined();
     expect(dangerBanner?.textContent).toContain("Couldn't verify");
-    expect(dangerBanner?.textContent).toContain('Rate limited');
+    // The banner body should now show the localized rate-limit copy
+    // rather than the raw "HTTP 429" English backend string.
+    expect(dangerBanner?.textContent).toContain('Too many tries');
   });
 
   it('renders the EmptyState success card for already-verified users', () => {

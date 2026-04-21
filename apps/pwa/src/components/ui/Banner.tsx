@@ -4,11 +4,10 @@ import { forwardRef } from 'react';
 
 import { Button } from './Button';
 
-export interface BannerProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'role' | 'title'> {
+type BannerBaseProps = Omit<React.HTMLAttributes<HTMLDivElement>, 'role' | 'title'> & {
   tone: 'info' | 'warning' | 'danger' | 'success';
   title: string;
   children?: React.ReactNode;
-  onDismiss?: () => void;
   actionLabel?: string;
   onAction?: () => void;
   /**
@@ -20,7 +19,20 @@ export interface BannerProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 
    * action is the only thing the user should do next).
    */
   actionVariant?: 'primary' | 'secondary' | 'ghost';
-}
+};
+
+/**
+ * Discriminated props for the dismiss button. When a caller provides
+ * `onDismiss`, they MUST also provide a localized `dismissLabel`
+ * (previously defaulted to hardcoded English "Dismiss"). Omitting either
+ * both or providing only `onDismiss` is a compile error — this is the
+ * whole point of F4-C fix #3.
+ */
+type BannerDismissProps =
+  | { onDismiss: () => void; dismissLabel: string }
+  | { onDismiss?: undefined; dismissLabel?: undefined };
+
+export type BannerProps = BannerBaseProps & BannerDismissProps;
 
 /**
  * Banner — inline status / advisory surface.
@@ -49,6 +61,7 @@ export const Banner = forwardRef<HTMLDivElement, BannerProps>(function Banner(
     title,
     children,
     onDismiss,
+    dismissLabel,
     actionLabel,
     onAction,
     actionVariant = 'secondary',
@@ -82,7 +95,7 @@ export const Banner = forwardRef<HTMLDivElement, BannerProps>(function Banner(
               type="button"
               className="banner__dismiss"
               onClick={onDismiss}
-              aria-label="Dismiss"
+              aria-label={dismissLabel}
             >
               ×
             </button>
