@@ -8,6 +8,8 @@ import {
   anchorActivateBurstLimit,
   anchorActivateWindowSeconds,
   anchorSessionIdleTtlSeconds,
+  communityAccessResolveBurstLimit,
+  communityAccessResolveWindowSeconds,
   recoveryCodeBurstLimit,
   recoveryCodeWindowSeconds,
   undeleteRequestBurstLimit,
@@ -49,12 +51,28 @@ class InMemoryLinkedMatchRepository implements MatchRepository {
   readonly suggestionBatches = new Map<string, import('@weavenyc/match').MatchSuggestionBatch[]>();
   readonly contactRequests = new Map<string, import('@weavenyc/match').ContactRequestRecord>();
   readonly conversations = new Map<string, import('@weavenyc/match').AcceptedConversationRecord>();
+  /**
+   * Lazy-resolved reference to the linked chat repository's `blocks` map.
+   * Set by `createTestApp` once both repositories exist so the match
+   * service sees the same block state chat does (F4-A Fix #1). Kept
+   * optional so tests that only construct the match repository still
+   * behave as "no blocks".
+   */
+  chatRepositoryRef: InMemoryChatRepository | null = null;
 
   constructor(
     private readonly postsService: InMemoryPostsService,
     private readonly userStore: InMemoryUserStore,
     private readonly resourceDirectory: InMemoryResourceDirectory,
   ) {}
+
+  async isBlockedBetween(userA: string, userB: string): Promise<boolean> {
+    const blocks = this.chatRepositoryRef?.blocks;
+    if (!blocks) {
+      return false;
+    }
+    return blocks.has(`${userA}:${userB}`) || blocks.has(`${userB}:${userA}`);
+  }
 
   async close(): Promise<void> {}
 
@@ -834,6 +852,7 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
   readonly recoveryCodeDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly anchorActivateDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly undeleteRequestDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
+  readonly communityAccessResolveDecisions = new Map<string, { allowed: boolean; retryAfterSeconds: number; remaining: number }>();
   readonly cooldowns = new Set<string>();
   readonly seenAnonymousKeys: string[] = [];
   readonly seenRefreshKeys: string[] = [];
@@ -842,10 +861,12 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
   readonly seenRecoveryKeys: string[] = [];
   readonly seenAnchorActivateKeys: string[] = [];
   readonly seenUndeleteRequestKeys: string[] = [];
+  readonly seenCommunityAccessResolveKeys: string[] = [];
   private readonly accountDeleteCounts = new Map<string, number>();
   private readonly recoveryCodeCounts = new Map<string, number>();
   private readonly anchorActivateCounts = new Map<string, number>();
   private readonly undeleteRequestCounts = new Map<string, number>();
+  private readonly communityAccessResolveCounts = new Map<string, number>();
 
   async checkAnonymousAuth(ipAddress: string) {
     this.seenAnonymousKeys.push(ipAddress);
@@ -976,6 +997,31 @@ export class InMemoryAuthAbuseStore implements AuthAbuseStore {
       allowed: true,
       retryAfterSeconds: 0,
       remaining: Math.max(undeleteRequestBurstLimit - next, 0)
+    };
+  }
+
+  async checkCommunityAccessResolve(userId: string, ipHash: string) {
+    const key = `${userId}:${ipHash}`;
+    this.seenCommunityAccessResolveKeys.push(key);
+    const override = this.communityAccessResolveDecisions.get(key);
+    if (override) {
+      return override;
+    }
+
+    const next = (this.communityAccessResolveCounts.get(key) ?? 0) + 1;
+    this.communityAccessResolveCounts.set(key, next);
+    if (next > communityAccessResolveBurstLimit) {
+      return {
+        allowed: false,
+        retryAfterSeconds: communityAccessResolveWindowSeconds,
+        remaining: 0
+      };
+    }
+
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(communityAccessResolveBurstLimit - next, 0)
     };
   }
 
@@ -1516,6 +1562,11 @@ export async function createTestApp(options: {
           userStore as InMemoryUserStore,
         )
       : new InMemoryChatRepository());
+  // F4-A Fix #1: thread the chat `blocks` map into the match repository so
+  // `isBlockedBetween` observes the same block state chat applies on send.
+  if (linkedMatchRepository) {
+    linkedMatchRepository.chatRepositoryRef = chatRepository;
+  }
   const chatService = options.chatService ?? new DefaultChatService(chatRepository);
   const chatRealtimeHub = options.chatRealtimeHub ?? new InMemoryChatRealtimeHub();
   const matchService =

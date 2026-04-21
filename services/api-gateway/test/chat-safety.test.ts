@@ -182,7 +182,13 @@ describe('chat-safety routes — P0-4 block disconnects the blocked user', () =>
     expect(hub.disconnectedUsers[0].reason.length).toBeGreaterThan(0);
   });
 
-  it('closes the blocked peer socket, leaves the blocker socket open, and fans out conversation.updated only to the blocker', async () => {
+  // F4-A Fix #4 (recipient-list scrub) + PR #58 (socket disconnect).
+  // After block: (a) B's socket is severed with close(1008), (b) A's
+  // socket stays open, (c) the block `conversation.updated` fanout
+  // recipient list EXCLUDES B — B never hears the explicit "blocked"
+  // status via the realtime channel. These two layers together make the
+  // block unilateral from B's perspective.
+  it('closes the blocked peer socket, leaves the blocker open, and scrubs B from the conversation.updated fanout', async () => {
     const { app, chatRealtimeHub, requesterToken } = await createFixture();
     const hub = chatRealtimeHub as InMemoryChatRealtimeHub;
 
@@ -204,41 +210,42 @@ describe('chat-safety routes — P0-4 block disconnects the blocked user', () =>
     });
     expect(blockResponse.statusCode).toBe(200);
 
-    // The block path must sever the abuser's socket within the same
-    // request tick. close() was called with a policy-violation code
-    // (1008) so the browser surfaces a recoverable error rather than a
-    // protocol error, and the reason string is the human copy.
+    // (a) The block path severs B's socket within the same request tick
+    // with policy-violation code 1008 and a human-readable reason.
     expect(recipientSocket.closed).toBe(true);
     expect(recipientSocket.closeCalls).toHaveLength(1);
-    expect(recipientSocket.closeCalls[0]).toMatchObject({
-      code: 1008,
-    });
+    expect(recipientSocket.closeCalls[0]).toMatchObject({ code: 1008 });
     expect(recipientSocket.closeCalls[0].reason).toBeTruthy();
 
-    // The blocker's socket stays open — they still need to see the
-    // conversation.updated event that flips status → blocked on their
-    // own inbox. The hub must NOT have called close() on them.
+    // (b) A's socket stays open — they still need to see their own
+    // inbox flip.
     expect(requesterSocket.closed).toBe(false);
     expect(requesterSocket.closeCalls).toHaveLength(0);
 
-    // After the close, the route publishes conversation.updated. Because
-    // the blocked socket is severed + evicted, the fanout must only
-    // reach the blocker. The hub's `publishedEvents` ledger confirms
-    // the user-ids the event was addressed to (both peers, on purpose,
-    // per the route code), but only the blocker's socket actually
-    // received a payload via send().
-    expect(requesterSocket.sent.length).toBeGreaterThan(0);
-    const payloads = requesterSocket.sent.map((raw) => JSON.parse(raw));
-    expect(payloads.some((p) => p.event_type === 'conversation.updated')).toBe(true);
-    const conversationUpdate = payloads.find((p) => p.event_type === 'conversation.updated');
-    expect(conversationUpdate.conversation.status).toBe('blocked');
+    // (c) The block `conversation.updated` fanout must exclude B from
+    // the recipient list entirely (F4-A scrub). Filter the hub ledger
+    // to just the block-side-channel frames and assert every frame's
+    // `userIds` contains A but NOT B.
+    const blockUpdateEvents = hub.publishedEvents.filter(
+      (entry) =>
+        entry.event.event_type === 'conversation.updated' &&
+        entry.event.conversation.conversation_id === conversationId &&
+        entry.event.conversation.status === 'blocked',
+    );
+    expect(blockUpdateEvents.length).toBeGreaterThan(0);
+    for (const entry of blockUpdateEvents) {
+      expect(entry.userIds).toContain(requesterId);
+      expect(entry.userIds).not.toContain(recipientId);
+    }
 
-    // The blocked peer's socket receives ZERO subsequent payloads. The
-    // hub drops any send() attempt to an evicted socket (`connections`
-    // map no longer has a bucket for the blocked user), and even if
-    // the route tried to re-publish manually a second time, the guard
-    // above (`closed === true`) would throw on send() — the test
-    // setup specifically fails loud if a closed fake receives data.
+    // And as a belt-and-braces: A's socket actually received the
+    // payload via send(), B's never did.
+    const aPayloads = requesterSocket.sent.map((raw) => JSON.parse(raw));
+    expect(
+      aPayloads.some(
+        (p) => p.event_type === 'conversation.updated' && p.conversation?.status === 'blocked',
+      ),
+    ).toBe(true);
     expect(recipientSocket.sent).toHaveLength(0);
   });
 });

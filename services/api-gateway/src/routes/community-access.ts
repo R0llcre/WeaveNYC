@@ -11,6 +11,7 @@ import {
   joinCommunityRequestSchema,
   joinCommunityResponseSchema,
 } from '../contracts.js';
+import { hashClientIpAddress } from '../lib/identity.js';
 import { signCommunityJoinToken, verifyCommunityJoinToken, joinTokenTtlSeconds } from '../lib/join-tokens.js';
 import { loadCurrentActor } from '../lib/require-anchor.js';
 import { PostsServiceError } from '@weavenyc/posts';
@@ -52,6 +53,26 @@ export const communityAccessRoutes: FastifyPluginAsync = async (app) => {
         if (!actor) {
           reply.code(404);
           return { message: 'User not found' };
+        }
+
+        // F4-A Fix #2: invite-code brute-force guard. The sibling
+        // `/v1/auth/anchor/activate` path already has a `checkAnchorActivateAttempt`
+        // bucket (auth.ts) — without a matching one here, an anonymous-auth
+        // token could grind invite codes uncapped. Keyed on (userId, ipHash)
+        // so a user rotating IPs is still throttled per-user, and a pool of
+        // userIds from the same IP is still capped by the IP component. 10/h.
+        const ipHash = hashClientIpAddress(request.ip, app.config.identityHashPepper);
+        const rateDecision = await app.authAbuseStore.checkCommunityAccessResolve(
+          actor.userId,
+          ipHash,
+        );
+        if (!rateDecision.allowed) {
+          reply
+            .code(429)
+            .header('retry-after', String(Math.max(rateDecision.retryAfterSeconds, 1)));
+          return {
+            message: `Too many community access attempts. Retry in ${rateDecision.retryAfterSeconds}s.`,
+          };
         }
 
         const resolved = await app.postsService.resolveCommunityAccess({

@@ -1,3 +1,4 @@
+import { communityAccessResolveBurstLimit } from '@weavenyc/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTestApp, createUserRecord, InMemoryUserStore } from './helpers.js';
@@ -141,5 +142,62 @@ describe('community access routes', () => {
     });
 
     expect(response.statusCode).toBe(403);
+  });
+
+  // F4-A Fix #2: invite-code brute-force guard. The anchor-activate path
+  // already had a bucket (auth.ts `checkAnchorActivateAttempt`); this
+  // mirrors it for `/v1/community-access/resolve` so anonymous-auth tokens
+  // can't grind invite codes uncapped. 10/h per (userId, ipHash); the
+  // 11th call in the same window must return 429 + retry-after.
+  it('rate-limits /v1/community-access/resolve at the configured burst limit', async () => {
+    const userStore = new InMemoryUserStore();
+    const user = createUserRecord();
+    userStore.users.set(user.userId, user);
+
+    const { app, postsService } = await createTestApp({ userStore });
+    apps.push(app);
+    // Seed a valid resolvable code so the first N calls return 200 rather
+    // than 4xx — the rate-limit check runs BEFORE `resolveCommunityAccess`
+    // so we need the underlying call to succeed for the baseline.
+    postsService.communityAccessCodes.set('invite:FARMINGDALE-HELP', {
+      community,
+      join_token: 'ignored',
+      entry: 'invite_code',
+      expires_in_seconds: 600,
+    });
+
+    const token = app.jwt.sign(
+      {
+        sub: user.userId,
+        level: user.level,
+        role: user.role,
+        community_ids: user.communityIds,
+      },
+      {
+        algorithm: 'RS256',
+        iss: app.config.jwt.issuer,
+        expiresIn: app.config.jwt.accessTokenTtl,
+      },
+    );
+
+    for (let i = 0; i < communityAccessResolveBurstLimit; i++) {
+      const ok = await app.inject({
+        method: 'POST',
+        url: '/v1/community-access/resolve',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { invite_code: 'FARMINGDALE-HELP' },
+      });
+      expect(ok.statusCode).toBe(200);
+    }
+
+    // The (limit + 1)th call must be rejected with 429 + retry-after.
+    const throttled = await app.inject({
+      method: 'POST',
+      url: '/v1/community-access/resolve',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { invite_code: 'FARMINGDALE-HELP' },
+    });
+    expect(throttled.statusCode).toBe(429);
+    expect(Number(throttled.headers['retry-after'])).toBeGreaterThan(0);
   });
 });

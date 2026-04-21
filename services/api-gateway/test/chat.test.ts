@@ -205,6 +205,11 @@ describe('chat routes', () => {
 
     const socket = new WebSocket(
       `ws://127.0.0.1:${address.port}/v1/ws/chat?token=${encodeURIComponent(requesterToken)}`,
+      // F4-A Fix #3: handshake requires an allow-listed Origin before
+      // the JWT is evaluated. `http://localhost:*` is in the test
+      // config allow-list so this test — which asserts the "Inactive
+      // user" close reason — still exercises that downstream branch.
+      { origin: 'http://localhost:3000' },
     );
     const closeEvent = await new Promise<{ code: number; reason: string }>((resolve, reject) => {
       socket.once('close', (code: number, reason: Buffer) =>

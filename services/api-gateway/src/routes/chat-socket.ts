@@ -5,6 +5,18 @@ type ChatSocketQuery = {
   token?: string;
 };
 
+/**
+ * Compile one of `app.config.corsAllowedOrigins` — which may contain glob
+ * wildcards like `https://*.weavenyc.org` or `http://localhost:*` — into a
+ * predicate. Mirrors `compileCorsOriginMatcher` in `app.ts` so the WS
+ * handshake enforces the exact same origin grammar as `@fastify/cors`.
+ */
+function compileWsOriginMatcher(pattern: string): (origin: string) => boolean {
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  const regex = new RegExp(`^${escaped}$`);
+  return (origin) => regex.test(origin);
+}
+
 // P0-3: socket-level liveness bookkeeping. A half-open socket (peer dropped
 // without a FIN) keeps `readyState === OPEN` on the server even though
 // writes silently buffer forever. The client sends `{type:"ping"}` every
@@ -38,6 +50,13 @@ const chatSocketRoutesImpl: FastifyPluginAsync = async (app) => {
   const liveSockets = new Set<TrackedSocket>();
   const lastPongAt = new WeakMap<TrackedSocket, number>();
   const openedAt = new WeakMap<TrackedSocket, number>();
+
+  // F4-A Fix #3: precompute origin matchers from `corsAllowedOrigins`. The
+  // HTTP surface is already gated by `@fastify/cors`; the WS handshake was
+  // NOT — only the JWT was checked, so a leaked `chat_ws` token from logs
+  // or Referer headers let any web origin open the socket. Compile once
+  // per app so every handshake is a cheap regex test.
+  const wsOriginMatchers = app.config.corsAllowedOrigins.map(compileWsOriginMatcher);
 
   // Tests can override the clock so the sweeper can be driven without
   // actually waiting 90s of wall time. Production uses `Date.now`.
@@ -105,6 +124,22 @@ const chatSocketRoutesImpl: FastifyPluginAsync = async (app) => {
     { websocket: true },
     async (socket, request) => {
       const trackedSocket = socket as unknown as TrackedSocket;
+
+      // F4-A Fix #3: WS Origin check. `@fastify/cors` only gates the HTTP
+      // preflight; the WS upgrade is a separate protocol and silently
+      // accepted any origin before this. A leaked `chat_ws` JWT — from an
+      // access log, a copy-paste, or a stale Referer — would otherwise
+      // unlock the chat socket from any web origin. Match against the
+      // same `corsAllowedOrigins` list (wildcards expanded) that gates
+      // the HTTP routes so dev (localhost:*) keeps working and prod
+      // (explicit domains) is tight. Missing OR mismatched origin → 1008
+      // (policy violation) close code.
+      const originHeader = request.headers.origin;
+      if (!originHeader || !wsOriginMatchers.some((matcher) => matcher(originHeader))) {
+        socket.close(1008, "Invalid origin");
+        return;
+      }
+
       const token = request.query.token;
       if (!token) {
         socket.close(1008, "Missing token");

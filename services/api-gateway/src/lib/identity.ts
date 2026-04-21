@@ -7,6 +7,8 @@ import {
   anchorActivateWindowSeconds,
   anonymousAuthBurstLimit,
   anonymousAuthWindowSeconds,
+  communityAccessResolveBurstLimit,
+  communityAccessResolveWindowSeconds,
   otpCodeLength,
   otpCooldownSeconds,
   otpStartBurstLimit,
@@ -52,6 +54,13 @@ export interface AuthAbuseStore {
    * on each attempt (A1 P1-11).
    */
   checkUndeleteRequest(ipHash: string): Promise<RateLimitDecision>;
+  /**
+   * Bucket keyed on the authenticated `userId` paired with the caller's
+   * hashed IP — covers both a user on a single IP brute-forcing invite
+   * codes and a pool of anonymous-auth userIds all grinding from the same
+   * IP. 10/hour by default (F4-A Fix #2).
+   */
+  checkCommunityAccessResolve(userId: string, ipHash: string): Promise<RateLimitDecision>;
   activateOtpCooldown(phoneHash: string): Promise<void>;
   close(): Promise<void>;
 }
@@ -227,6 +236,14 @@ export class RedisAuthAbuseStore implements AuthAbuseStore {
       ["undelete-request", ipHash],
       undeleteRequestBurstLimit,
       undeleteRequestWindowSeconds
+    );
+  }
+
+  async checkCommunityAccessResolve(userId: string, ipHash: string): Promise<RateLimitDecision> {
+    return this.consumeRateLimit(
+      ["community-access-resolve", userId, ipHash],
+      communityAccessResolveBurstLimit,
+      communityAccessResolveWindowSeconds
     );
   }
 
