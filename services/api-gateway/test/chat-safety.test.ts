@@ -1,8 +1,54 @@
 import type { PostRecord } from '@weavenyc/posts';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { InMemoryChatRealtimeHub } from '../src/lib/chat-realtime.js';
+import { InMemoryChatRealtimeHub, type SocketLike } from '../src/lib/chat-realtime.js';
 import { createTestApp, createUserRecord, InMemoryUserStore } from './helpers.js';
+
+/**
+ * Fake socket that records close() calls and buffers send() payloads so
+ * tests can assert which user received which realtime event AFTER a
+ * block. Mirrors the shape of a real @fastify/websocket socket at the
+ * minimum subset the hub calls (SocketLike).
+ */
+function createFakeSocket(): SocketLike & {
+  closed: boolean;
+  closeCalls: Array<{ code?: number; reason?: string }>;
+  sent: string[];
+} {
+  const sent: string[] = [];
+  const closeCalls: Array<{ code?: number; reason?: string }> = [];
+  let closed = false;
+  const socket: SocketLike & {
+    closed: boolean;
+    closeCalls: Array<{ code?: number; reason?: string }>;
+    sent: string[];
+  } = {
+    readyState: 1,
+    get closed() {
+      return closed;
+    },
+    set closed(value) {
+      closed = value;
+    },
+    closeCalls,
+    sent,
+    send(data: string) {
+      if (closed) {
+        throw new Error('attempted to send on a closed fake socket');
+      }
+      sent.push(data);
+    },
+    close(code?: number, reason?: string) {
+      closed = true;
+      closeCalls.push({ code, reason });
+    },
+    terminate() {
+      closed = true;
+      closeCalls.push({ code: 1006, reason: 'terminate()' });
+    },
+  };
+  return socket;
+}
 
 // Focused coverage for the P0-4 safety fix: when a participant blocks
 // another user, the gateway must disconnect the blocked user's live
@@ -134,5 +180,65 @@ describe('chat-safety routes — P0-4 block disconnects the blocked user', () =>
       userId: recipientId,
     });
     expect(hub.disconnectedUsers[0].reason.length).toBeGreaterThan(0);
+  });
+
+  it('closes the blocked peer socket, leaves the blocker socket open, and fans out conversation.updated only to the blocker', async () => {
+    const { app, chatRealtimeHub, requesterToken } = await createFixture();
+    const hub = chatRealtimeHub as InMemoryChatRealtimeHub;
+
+    // Both participants have a live socket attached to the hub at block
+    // time — the realistic mid-conversation case.
+    const requesterSocket = createFakeSocket();
+    const recipientSocket = createFakeSocket();
+    hub.attachConnection(requesterId, requesterSocket);
+    hub.attachConnection(recipientId, recipientSocket);
+
+    const blockResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/blocks',
+      headers: { authorization: `Bearer ${requesterToken}` },
+      payload: {
+        blocked_user_id: recipientId,
+        conversation_id: conversationId,
+      },
+    });
+    expect(blockResponse.statusCode).toBe(200);
+
+    // The block path must sever the abuser's socket within the same
+    // request tick. close() was called with a policy-violation code
+    // (1008) so the browser surfaces a recoverable error rather than a
+    // protocol error, and the reason string is the human copy.
+    expect(recipientSocket.closed).toBe(true);
+    expect(recipientSocket.closeCalls).toHaveLength(1);
+    expect(recipientSocket.closeCalls[0]).toMatchObject({
+      code: 1008,
+    });
+    expect(recipientSocket.closeCalls[0].reason).toBeTruthy();
+
+    // The blocker's socket stays open — they still need to see the
+    // conversation.updated event that flips status → blocked on their
+    // own inbox. The hub must NOT have called close() on them.
+    expect(requesterSocket.closed).toBe(false);
+    expect(requesterSocket.closeCalls).toHaveLength(0);
+
+    // After the close, the route publishes conversation.updated. Because
+    // the blocked socket is severed + evicted, the fanout must only
+    // reach the blocker. The hub's `publishedEvents` ledger confirms
+    // the user-ids the event was addressed to (both peers, on purpose,
+    // per the route code), but only the blocker's socket actually
+    // received a payload via send().
+    expect(requesterSocket.sent.length).toBeGreaterThan(0);
+    const payloads = requesterSocket.sent.map((raw) => JSON.parse(raw));
+    expect(payloads.some((p) => p.event_type === 'conversation.updated')).toBe(true);
+    const conversationUpdate = payloads.find((p) => p.event_type === 'conversation.updated');
+    expect(conversationUpdate.conversation.status).toBe('blocked');
+
+    // The blocked peer's socket receives ZERO subsequent payloads. The
+    // hub drops any send() attempt to an evicted socket (`connections`
+    // map no longer has a bucket for the blocked user), and even if
+    // the route tried to re-publish manually a second time, the guard
+    // above (`closed === true`) would throw on send() — the test
+    // setup specifically fails loud if a closed fake receives data.
+    expect(recipientSocket.sent).toHaveLength(0);
   });
 });
