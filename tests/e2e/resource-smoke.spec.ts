@@ -203,6 +203,34 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
     });
   });
 
+  // A1 P1-6: persistence strips access_token, so on page reload the
+  // bootstrap hook exchanges the stored refresh_token for a fresh
+  // access_token via POST /v1/auth/refresh. Mock it so the hook doesn't
+  // hang on unmatched routes (which would block the send-code button
+  // from ever enabling). Response shape mirrors anonymous mint: rotated
+  // refresh + fresh access token for the same deterministic user_id.
+  await page.route('**/v1/auth/refresh', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        access_token: 'jwt-refreshed',
+        refresh_token: 'rt_fixture_rotated',
+        user: {
+          user_id: '11111111-1111-4111-8111-111111111111',
+          level: 'anonymous',
+        },
+        issued_via: 'refresh',
+      }),
+    });
+  });
+
   await page.route('**/v1/contact-requests/inbox**', async (route) => {
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: corsHeaders });
