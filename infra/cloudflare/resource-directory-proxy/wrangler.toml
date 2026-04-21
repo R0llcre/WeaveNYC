@@ -1,0 +1,36 @@
+# Cloudflare Worker at resources.weavenyc.org that proxies to the GCP
+# Cloud Run resource-directory service. Exists because:
+#
+# 1. App Runner's VPC egress cannot reach external Cloud Run (need Redis in
+#    ElastiCache-in-VPC, which forces VPC egress), so /v1/resources is
+#    served from the api-gateway monolith path (USE_MONOLITH_RESOURCE_DIRECTORY=1).
+# 2. For vendor-diversification evidence, the microservice path still needs
+#    a live public endpoint. Default Cloud Run URL `*.a.run.app` works but
+#    doesn't match our domain story. A Cloud Run domain-mapping requires
+#    Google Search Console domain verification (browser flow), and a raw
+#    CNAME in Cloudflare to Cloud Run fails SNI/Host checks.
+# 3. This Worker lives at resource-dir.weavenyc.org (not resources.weavenyc.org
+#    — the latter has manually-added DNS records that Workers Custom Domain
+#    cannot override; resource-dir.* is free and descriptive). It proxies to
+#    the raw Cloud Run URL with Host rewrite, and auto-provisions DNS + SSL
+#    via Cloudflare Workers Custom Domain.
+#
+# Operational note: keep this Worker thin. The api-gateway monolith path
+# is authoritative for PWA traffic; this Worker is observability /
+# diversification evidence.
+
+name = "resource-directory-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+
+# Custom Domain binding. Cloudflare auto-creates the A/AAAA records for
+# resource-dir.weavenyc.org pointing at the Workers edge + provisions a
+# managed TLS cert via Cloudflare Universal SSL on weavenyc.org.
+routes = [
+  { pattern = "resource-dir.weavenyc.org", custom_domain = true }
+]
+
+[vars]
+# Cloud Run service URL (no trailing slash). The Worker copies inbound
+# path + query, rewrites Host, and fetches.
+UPSTREAM_ORIGIN = "https://resource-directory-389931990243.us-east1.run.app"
