@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { BottomTabBar, type TabKey } from './BottomTabBar';
 import { PageTransition } from './PageTransition';
@@ -38,6 +39,7 @@ export function AppShell({
   hideTabBar,
   className,
 }: AppShellProps) {
+  const t = useTranslations();
   const classes = ['shell', className].filter(Boolean).join(' ');
   return (
     <div className={classes}>
@@ -60,6 +62,26 @@ export function AppShell({
          * specs and reduced-motion handling.
          */}
         <PageTransition>{children}</PageTransition>
+        {/*
+         * V1-B Task 4 — persistent "How we protect you" footer link.
+         * Visible on every shell-backed screen so trust framing is never
+         * more than one tap away. Routes to a static placeholder
+         * (`/privacy/`) owned by the PWA; fuller copy lands in M9.
+         *
+         * Sits below the motion wrapper so the fade doesn't flicker the
+         * footer on tab changes (PageTransition animates its own
+         * children only). Anchored at the bottom of main content, above
+         * the BottomTabBar.
+         */}
+        <footer className="shell__footer" aria-label={t('shellFooterLabel')}>
+          <a
+            href="/privacy/"
+            className="shell__footer-link"
+            data-testid="shell-privacy-link"
+          >
+            {t('shellFooterPrivacy')}
+          </a>
+        </footer>
       </main>
       {!hideTabBar ? <BottomTabBar activeTab={activeTab} /> : null}
     </div>

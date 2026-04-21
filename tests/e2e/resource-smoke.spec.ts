@@ -248,12 +248,21 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
     });
   });
 
-  await page.goto('/');
+  // V1-B Task 1 — first-visit guard skips the language picker when the
+  // browser locale was auto-detected (all Playwright contexts report a
+  // supported navigator.language), and forwards the user to the
+  // anchor-model trust step instead. We drive the funnel explicitly so
+  // the Spanish picker still exercises the `setLanguage` → destination
+  // path that this smoke asserts on.
+  await page.goto('/onboarding/language/?explicit=1');
 
-  // First-visit guard redirects to /onboarding/language. Pick Spanish via the
-  // stable testid, then fill the ZIP on the location gate and land back home.
   await page.waitForURL((url) => url.pathname.startsWith('/onboarding/language'));
   await page.getByTestId('onboarding-language-es').click();
+  // V1-B Task 5 — after picking a language, the funnel routes through
+  // the anchor-model explainer before the ZIP gate. The "Got it" CTA
+  // advances to /onboarding/location.
+  await page.waitForURL((url) => url.pathname.startsWith('/onboarding/trust'));
+  await page.getByTestId('onboarding-trust-continue').click();
   await page.waitForURL((url) => url.pathname.startsWith('/onboarding/location'));
   await page.getByTestId('onboarding-location-zip-input').fill('11735');
   await page.getByTestId('onboarding-location-submit').click();

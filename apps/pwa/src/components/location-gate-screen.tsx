@@ -8,26 +8,29 @@
  * bypasses the persistent AppShell / TopBar / BottomTabBar, so this component
  * is the only chrome the user sees during step 2/2 of the first-run flow.
  *
- * Design goals (§4 Wave 5B of `docs/30_PWA_Redesign_Plan.md`):
- *   1. Hero: distinctive title + subtitle, no in-line form noise.
- *   2. ZIP input path with inline validation + privacy hint.
- *   3. "Use my device location" secondary affordance — kept honest: we do
- *      not yet run client-side reverse geocoding, so a successful
- *      `getCurrentPosition` surfaces an "unavailable" banner rather than a
- *      deceptive "ok" followed by a silent no-op (W3D UX regression the
- *      previous iteration shipped).
- *   4. Primary CTA validates + commits to Redux + navigates to the safe
- *      post-onboarding destination (see `useOnboardingDestination`).
- *   5. Skip path: marks onboarding complete without a ZIP and lands the
- *      user on `/me` where they can add ZIP via settings later. The guard
- *      in `useOnboardingGuard` is keyed on `onboardingComplete`, so
- *      flipping the flag is enough to unblock the rest of the app even if
- *      ZIP stays empty.
+ * V1-B Task 3 — the "Use my device location" button was removed. The
+ * previous implementation surfaced a warning banner even after a successful
+ * `getCurrentPosition` because no client-side reverse-geocoder existed,
+ * which meant a user who granted permission, returned coords, and wanted
+ * help was told "it didn't work". That was a lie. Until the gateway exposes
+ * a `POST /v1/geocode/reverse` endpoint (tracked as a follow-up) we simply
+ * hide the affordance — ZIP entry is the only honest path.
+ *
+ * V1-B Task 6 — the bare "Skip" button was removed. Previously tapping it
+ * flipped `onboardingComplete=true` with no ZIP, then Home's empty state
+ * said "set your ZIP" with a link back to Settings, stranding the user in
+ * a loop. The replacement CTA seeds ZIP 11368 (Queens — Corona /
+ * Elmhurst — the pilot anchor neighborhood) and lands the user on Home
+ * with a one-liner explaining they can change ZIP later. Honest default,
+ * no dead-end.
  *
  * testid preservation (§7 of the plan):
  *   - `onboarding-location-zip-input`    — ZIP text input (E2E dependency)
  *   - `onboarding-location-submit`       — primary Continue button (E2E dependency)
- *   - `onboarding-location-use-device`   — geolocation secondary button (E2E dependency)
+ *   - `onboarding-location-skip`         — repurposed as "use a sample
+ *     neighborhood" CTA; the testid stays so existing E2E specs keep
+ *     passing, but the dispatched ZIP is now 11368 and onboarding stays
+ *     usable instead of empty-statey.
  * Plus a new alias `confirm-location` on the primary CTA to match the
  * Wave 5B spec without breaking existing E2E callers.
  */
@@ -37,40 +40,23 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { illustrations } from '@/assets/illustrations';
-import { Banner, Button, Field, Icon, PageHeader, Stack } from '@/components/ui';
+import { Button, Field, PageHeader, Stack } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { useOnboardingDestination } from '@/lib/route-guard';
 import { selectPreferences } from '@/lib/selectors';
 import { completeOnboarding, setZipCode } from '@/lib/slices/preferences-slice';
 
-/**
- * DOM id for the pending banner. Referenced via `aria-describedby` on the
- * "Use my device location" button (W5 R2/M3) so screen readers announce the
- * "asking your device…" status string alongside the button itself while the
- * browser prompt is in flight.
- */
-const PENDING_BANNER_ID = 'loc-pending-banner-id';
-
-type LocationErrorKey =
-  | 'onboardingLocationZipInvalid'
-  | 'onboardingLocationDeviceBlocked'
-  | 'onboardingLocationDeviceDenied';
+type LocationErrorKey = 'onboardingLocationZipInvalid';
 
 /**
- * Geolocation state machine.
- *
- * - `idle`        — no device call in flight; nothing to announce.
- * - `pending`     — browser prompt is showing or coordinates are resolving.
- * - `error`       — permission denied or browser blocked; user must type a ZIP.
- * - `unavailable` — `navigator.geolocation` missing OR we resolved coords
- *                   but cannot reverse-geocode client-side. Either way the
- *                   ZIP input is the escape hatch.
+ * V1-B Task 6 — fallback ZIP when the user taps "Use a sample
+ * neighborhood". 11368 covers Corona / Elmhurst in Queens, which is the
+ * pilot anchor neighborhood with the densest resource coverage in the
+ * directory. A user who doesn't know their ZIP immediately sees real,
+ * populated results and the copy on-screen makes the provenance explicit
+ * ("Not your area? Change ZIP anytime in your profile.").
  */
-type GeoState =
-  | { kind: 'idle' }
-  | { kind: 'pending' }
-  | { kind: 'error'; messageKey: LocationErrorKey }
-  | { kind: 'unavailable' };
+const SAMPLE_NEIGHBORHOOD_ZIP = '11368';
 
 export function LocationGateScreen() {
   const t = useTranslations();
@@ -80,7 +66,6 @@ export function LocationGateScreen() {
 
   const [localZip, setLocalZip] = useState(preferences.zipCode);
   const [zipErrorKey, setZipErrorKey] = useState<LocationErrorKey | null>(null);
-  const [geoState, setGeoState] = useState<GeoState>({ kind: 'idle' });
 
   // `useOnboardingDestination` already runs the attacker-controlled
   // `return_to` through `safeReturnTo`, falling back to '/' if the value
@@ -101,105 +86,36 @@ export function LocationGateScreen() {
       return;
     }
     setZipErrorKey(null);
-    setGeoState({ kind: 'idle' });
     dispatch(setZipCode(localZip));
     dispatch(completeOnboarding());
     router.push(destination);
   };
 
-  const handleUseLocation = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGeoState({ kind: 'unavailable' });
-      return;
-    }
-
-    setGeoState({ kind: 'pending' });
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        // We don't run client-side reverse geocoding yet (no `/geocode/zip`
-        // endpoint exists in the gateway — verified via grep). Surface an
-        // "unavailable" banner and fall back to manual ZIP entry instead
-        // of silently succeeding.
-        setGeoState({ kind: 'unavailable' });
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          setGeoState({
-            kind: 'error',
-            messageKey: 'onboardingLocationDeviceDenied',
-          });
-          return;
-        }
-        setGeoState({
-          kind: 'error',
-          messageKey: 'onboardingLocationDeviceBlocked',
-        });
-      },
-      { maximumAge: 60_000, timeout: 8_000 },
-    );
-  };
-
   /**
-   * Skip path — user declines to set a ZIP now. We still need to flip
-   * `onboardingComplete` so the guard stops redirecting back here on every
-   * navigation, and we honour the incoming `return_to` (whitelisted via
-   * `safeReturnTo` inside `useOnboardingDestination`) so deep-link entry
-   * points are preserved. Falls back to `/` when no safe destination exists.
+   * V1-B Task 6 — "Use a sample neighborhood" path replaces the previous
+   * silent-skip flow. We seed ZIP 11368 so Home immediately has real
+   * results to render; the user is told on-screen (`obLocSampleHint`) that
+   * they can swap ZIP later from their profile. Flipping
+   * `onboardingComplete` here stops the guard from bouncing the user back
+   * into the funnel on the next navigation.
    */
-  const handleSkip = () => {
+  const handleUseSample = () => {
+    dispatch(setZipCode(SAMPLE_NEIGHBORHOOD_ZIP));
     dispatch(completeOnboarding());
     router.push(destination);
   };
-
-  // Pending banner gets a stable DOM id so the "use my device" button can
-  // point at it via `aria-describedby` while the browser prompt resolves.
-  const pendingBanner =
-    geoState.kind === 'pending' ? (
-      <div id={PENDING_BANNER_ID}>
-        <Banner tone="info" title={t('onboardingLocationDevicePending')} />
-      </div>
-    ) : null;
-
-  // W5 R2/M1: previously rendered `onboardingLocationZipLabel` as the body,
-  // which read "ZIP code" under the denial title and was a non-sequitur.
-  // `onboardingLocationRecoverHint` is the dedicated recovery copy shared
-  // by both the error and unavailable banners below.
-  const errorBanner =
-    geoState.kind === 'error' ? (
-      <Banner tone="warning" title={t(geoState.messageKey)}>
-        {t('onboardingLocationRecoverHint')}
-      </Banner>
-    ) : null;
-
-  const unavailableBanner =
-    geoState.kind === 'unavailable' ? (
-      // Device location did not resolve to a ZIP on the client. `warning`
-      // (not `danger`) because the user can still recover by typing a ZIP;
-      // not `info` because an affordance the user actively invoked failed.
-      <Banner tone="warning" title={t('onboardingLocationDeviceBlocked')}>
-        {t('onboardingLocationRecoverHint')}
-      </Banner>
-    ) : null;
-
-  const isPending = geoState.kind === 'pending';
 
   return (
     // W5 R2/B1: the onboarding layout renders a plain `<div>` wrapper, so
     // this screen must own the only `<main>` on the page — matching the
     // language picker's `onboarding onboarding--lang` pattern (W5A). Using
     // `shell` here would collide with AppShell's main on routes that DO go
-    // through AppShell and give us a stale hero--home treatment. The class
-    // pair (`onboarding onboarding--location`) also gives the CSS file a
-    // hook to scope per-step art changes without affecting the lang step.
+    // through AppShell and give us a stale hero--home treatment.
     <main
       className="onboarding onboarding--location"
       id="main-content"
       tabIndex={-1}
     >
-      {/* Subtle weave-pattern background, purely decorative. Same treatment
-          as the language picker so the two onboarding steps share an
-          atmospheric thread. aria-hidden because the pattern has no
-          semantic content. */}
       <div
         className="onboarding__pattern"
         aria-hidden="true"
@@ -224,11 +140,6 @@ export function LocationGateScreen() {
               {t('obLocZipLabel')}
             </h2>
 
-            {/* M2: privacy note is surfaced ONLY as the Field hint. The
-                previous implementation duplicated it as a trailing
-                <p class="muted"> below the form, which meant screen
-                readers announced the same string twice — reported by
-                R2 and dropped here. */}
             <Field
               label={t('obLocZipLabel')}
               error={zipErrorKey ? t(zipErrorKey) : undefined}
@@ -248,26 +159,15 @@ export function LocationGateScreen() {
               />
             </Field>
 
-            <Button
-              data-testid="onboarding-location-use-device"
-              variant="ghost"
-              size="md"
-              leadingIcon={<Icon name="transport" size="sm" />}
-              onClick={handleUseLocation}
-              // M3: `loading` both disables the button and sets
-              // `aria-busy=true` via the Button atom's internal wiring,
-              // so we don't need to pass aria-busy ourselves — which
-              // would be overridden by the atom's own spread order
-              // (see Button.tsx line ~161).
-              loading={isPending}
-              aria-describedby={isPending ? PENDING_BANNER_ID : undefined}
-            >
-              {t('obLocUseLocation')}
-            </Button>
-
-            {pendingBanner}
-            {errorBanner}
-            {unavailableBanner}
+            {/* V1-B Task 3 — the "Use my device location" button used to
+                live here. It's been removed until the gateway exposes a
+                real reverse-geocoder (see
+                `services/resource-directory/src/lib/geocoding.ts` for the
+                existing forward geocoder to mirror). The previous code
+                path granted permission, got coordinates, and then told
+                the user "we couldn't use your location" — a lie that
+                eroded trust on the step that most needs it. Tracked as a
+                separate follow-up so this PR ships clean. */}
 
             <div className="action-row">
               <Button
@@ -281,27 +181,31 @@ export function LocationGateScreen() {
                 type="submit"
                 variant="primary"
                 size="lg"
-                // Wave 6C — confirm is a commitment step; a subtle buzz
-                // gives the tap weight on mobile.
                 haptic
               >
                 {t('obLocCta')}
               </Button>
+              {/* V1-B Task 6 — the bare "Skip" affordance was a
+                  dead-end: it flipped onboardingComplete=true with no
+                  ZIP, leaving Home stuck on the "set your ZIP" empty
+                  state with a link back to Settings (a loop). Replaced
+                  with a sample-neighborhood CTA that seeds 11368 and
+                  surfaces `obLocSampleHint` so the provenance is
+                  honest. We keep the `onboarding-location-skip` testid
+                  to preserve existing E2E coverage of the escape
+                  hatch. */}
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={handleSkip}
+                onClick={handleUseSample}
                 data-testid="onboarding-location-skip"
-                // Wave 6C — skip is also a commitment (it finalises
-                // onboarding), so it warrants the same tactile cue as
-                // confirm.
                 haptic
               >
-                {t('obLocSkip')}
+                {t('obLocUseSample')}
               </Button>
               <Button
                 as="a"
-                href="/onboarding/language/"
+                href="/onboarding/language/?explicit=1"
                 variant="ghost"
                 size="lg"
                 data-testid="onboarding-location-back"
@@ -309,6 +213,9 @@ export function LocationGateScreen() {
                 {t('obLocBack')}
               </Button>
             </div>
+            <p className="muted onboarding__footnote">
+              {t('obLocSampleHint')}
+            </p>
           </Stack>
         </form>
       </Stack>

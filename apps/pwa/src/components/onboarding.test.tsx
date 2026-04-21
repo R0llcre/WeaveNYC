@@ -25,8 +25,12 @@ import {
   preferencesReducer,
   setLanguage,
 } from '@/lib/slices/preferences-slice';
+import {
+  dismissTrustBanner,
+} from '@/lib/slices/preferences-slice';
 import { LanguagePickerScreen } from './language-picker-screen';
 import { LocationGateScreen } from './location-gate-screen';
+import { TrustOnboardingScreen } from './trust-onboarding-screen';
 
 // Mock next/navigation so router.push / useSearchParams don't need a full App
 // Router context. We capture push so we can assert the post-submit destination.
@@ -95,13 +99,16 @@ describe('LanguagePickerScreen (/onboarding/language)', () => {
     expect(screen.getByTestId('onboarding-language-zh')).toBeInTheDocument();
   });
 
-  it('persists the selected language in Redux and routes to /onboarding/location by default', () => {
+  it('persists the selected language in Redux and routes to /onboarding/trust by default (V1-B Task 5)', () => {
     const { store } = renderWithProviders(<LanguagePickerScreen />);
 
     fireEvent.click(screen.getByTestId('onboarding-language-es'));
 
     expect(store.getState().preferences.language).toBe('es');
-    expect(pushMock).toHaveBeenCalledWith('/onboarding/location');
+    // V1-B Task 5 — the anchor-model trust step sits between language and
+    // location in the funnel order. `pushMock` is the combined push/replace
+    // spy defined at the top of this file.
+    expect(pushMock).toHaveBeenCalledWith('/onboarding/trust/');
   });
 });
 
@@ -165,34 +172,62 @@ describe('LocationGateScreen (/onboarding/location)', () => {
     });
   });
 
-  it('surfaces the device-unavailable banner when navigator.geolocation is missing', () => {
-    const originalGeo = (globalThis as { navigator?: Navigator }).navigator;
-    Object.defineProperty(globalThis, 'navigator', {
-      configurable: true,
-      writable: true,
-      value: {
-        ...originalGeo,
-        geolocation: undefined,
-      },
-    });
-
+  it('does not render the "use my device location" affordance (V1-B Task 3 — Path B)', () => {
+    // V1-B Task 3: the fake geolocation button lied on success (no
+    // reverse-geocoder existed), so the whole affordance was removed
+    // until the gateway exposes a real `POST /v1/geocode/reverse`
+    // endpoint. The testid `onboarding-location-use-device` must no
+    // longer be present.
     renderWithProviders(<LocationGateScreen />);
-    fireEvent.click(screen.getByTestId('onboarding-location-use-device'));
+    expect(
+      screen.queryByTestId('onboarding-location-use-device'),
+    ).toBeNull();
+  });
 
-    // The screen renders a warning banner when device geolocation is
-    // unavailable — `tone="warning"` surfaces as `role="alert"` per the
-    // Banner atom's contract. Previously this used `tone="info"` /
-    // `role="status"`, but the state is recoverable-but-non-neutral
-    // (the user's device action did not succeed), so warning is the
-    // correct signal. The exact text varies by i18n locale, so we just
-    // assert something with role=alert was rendered.
-    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+  it('replaces the skip dead-end with a sample-neighborhood CTA that seeds ZIP 11368 (V1-B Task 6)', () => {
+    const { store } = renderWithProviders(<LocationGateScreen />);
 
-    Object.defineProperty(globalThis, 'navigator', {
-      configurable: true,
-      writable: true,
-      value: originalGeo,
-    });
+    // The `onboarding-location-skip` testid is preserved for existing
+    // E2E specs but the button now seeds 11368 and marks onboarding
+    // complete with a usable ZIP rather than stranding the user.
+    fireEvent.click(screen.getByTestId('onboarding-location-skip'));
+
+    expect(store.getState().preferences.zipCode).toBe('11368');
+    expect(store.getState().preferences.onboardingComplete).toBe(true);
+  });
+});
+
+describe('TrustOnboardingScreen (V1-B Task 5)', () => {
+  it('renders the three anchor-model bullets and the continue CTA', () => {
+    renderWithProviders(<TrustOnboardingScreen />);
+    expect(screen.getByTestId('trust-bullet-id')).toBeInTheDocument();
+    expect(screen.getByTestId('trust-bullet-nearby')).toBeInTheDocument();
+    expect(screen.getByTestId('trust-bullet-anchors')).toBeInTheDocument();
+    expect(
+      screen.getByTestId('onboarding-trust-continue'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId('onboarding-trust-learn-more'),
+    ).toHaveAttribute('href', '/privacy/');
+  });
+
+  it('advances to /onboarding/location on continue', () => {
+    renderWithProviders(<TrustOnboardingScreen />);
+    fireEvent.click(screen.getByTestId('onboarding-trust-continue'));
+    // pushMock also captures router.replace — see the shared mock above.
+    expect(pushMock).toHaveBeenCalledWith('/onboarding/location/');
+  });
+});
+
+describe('preferences-slice — V1-B trustBannerDismissed', () => {
+  it('dismissTrustBanner flips the persisted flag', () => {
+    const store = buildStore();
+    expect(store.getState().preferences.trustBannerDismissed).toBe(false);
+    store.dispatch(dismissTrustBanner());
+    expect(store.getState().preferences.trustBannerDismissed).toBe(true);
+    // Idempotent — a second dispatch is a no-op.
+    store.dispatch(dismissTrustBanner());
+    expect(store.getState().preferences.trustBannerDismissed).toBe(true);
   });
 });
 

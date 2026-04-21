@@ -137,12 +137,26 @@ export type PreferencesState = {
   locationPrecision: LocationPrecision;
   /**
    * True when the user has explicitly picked a language (via the onboarding
-   * language picker or the settings screen). Remains false when the
-   * Providers bootstrap falls back to `navigator.language`, so subsequent
-   * visits can still pick up a browser locale change without overriding an
-   * explicit choice.
+   * language picker, the settings screen, or the TopBar switcher).
+   * Remains false when the Providers bootstrap falls back to
+   * `navigator.language`, so subsequent visits can still pick up a browser
+   * locale change without overriding an explicit choice.
+   *
+   * V1-B — also gates the "skip picker if auto-detected" route guard:
+   * when `false` AND a supported browser locale was detected, the
+   * `/onboarding/language` takeover is skipped so a first-time user whose
+   * browser already speaks ES / ZH / EN reaches first-value without an
+   * extra tap on a pre-chosen card.
    */
   hasUserChosenLanguage: boolean;
+  /**
+   * V1-B Task 4 — set to `true` the first time the user dismisses the
+   * first-visit trust banner on Home (see `resource-home.tsx`). Persisted
+   * across sessions so the banner stays hidden, and re-used to skip the
+   * anchor-model explainer step on re-onboarding (the user has already
+   * seen the privacy framing once).
+   */
+  trustBannerDismissed: boolean;
   /**
    * Transient flag flipped to `true` by `hydratePreferences` once the async
    * IndexedDB load completes. Never persisted to storage — it only exists

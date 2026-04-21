@@ -30,7 +30,7 @@
  *     to the safe same-origin default.
  */
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect } from 'react';
 
@@ -38,7 +38,7 @@ import { Card, Inline, Stack } from '@/components/ui';
 import { illustrations } from '@/assets/illustrations';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { useOnboardingDestination } from '@/lib/route-guard';
-import { selectPreferencesLanguage } from '@/lib/selectors';
+import { selectPreferences, selectPreferencesLanguage } from '@/lib/selectors';
 import { setLanguage } from '@/lib/slices/preferences-slice';
 import type { SupportedLanguage } from '@/lib/types';
 import { useHaptic } from '@/lib/use-haptic';
@@ -73,20 +73,66 @@ export function LanguagePickerScreen() {
   const t = useTranslations();
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const search = useSearchParams();
   const currentLanguage = useAppSelector(selectPreferencesLanguage);
+  const preferences = useAppSelector(selectPreferences);
   // `useOnboardingDestination` wraps `safeReturnTo` so an attacker-controlled
   // `?return_to=https://evil.com` still resolves to the same-origin fallback.
-  const destination = useOnboardingDestination('/onboarding/location');
+  // V1-B Task 5 — default next step is `/onboarding/trust` (anchor-model
+  // explainer) which itself routes forward to `/onboarding/location`.
+  const destination = useOnboardingDestination('/onboarding/trust/');
   // Wave 6C — language selection is the user's very first tap in the app.
   // A subtle buzz turns the moment from "I clicked some HTML" into "the
   // app acknowledged me".
   const haptic = useHaptic();
+
+  // V1-B Task 1 — auto-skip if the browser locale was already detected AND
+  // the user did not explicitly request the picker. The Providers bootstrap
+  // dispatches `applyDetectedLanguage` on first paint, so by the time this
+  // screen renders the locale is already set to one of en/es/zh. An explicit
+  // arrival (e.g. TopBar switcher, `/me/settings/` link, or a back-nav from
+  // the location step via `obLocBack`) is signalled with `?explicit=1`; in
+  // that case we show the picker normally. A first-time funnel visitor who
+  // lands here from a deep-link onboarding redirect is fast-forwarded to
+  // the trust step without an extra tap on a pre-picked card.
+  const explicitEntry = search.get('explicit') === '1';
 
   // F10: per-route document.title; retained from the previous implementation
   // so the tab label updates even though onboarding skips the AppShell.
   useEffect(() => {
     document.title = `${t('pageTitleOnboardingLanguage')} \u2014 WeaveNYC`;
   }, [t]);
+
+  useEffect(() => {
+    // Gate on `hydrationComplete` so we never fast-forward before Redux has
+    // read the persisted flag — otherwise a returning user who has already
+    // chosen ES could briefly see the picker flip to the default (en) row
+    // before the stored choice lands.
+    if (!preferences.hydrationComplete) {
+      return;
+    }
+    if (explicitEntry) {
+      return;
+    }
+    if (preferences.hasUserChosenLanguage) {
+      // Explicit prior choice — the onboarding guard will redirect elsewhere;
+      // this screen only exists if the user force-navigated here, treat it
+      // as an explicit review.
+      return;
+    }
+    // `preferences.language` is guaranteed to be one of 'en' | 'es' | 'zh'
+    // by the `SupportedLanguage` type + `detectBrowserLanguage` always
+    // returning a supported value (see `providers.tsx`). Any value we see
+    // at this point therefore counts as a successful auto-detection and
+    // we can skip the picker to reduce first-value time.
+    router.replace(destination);
+  }, [
+    destination,
+    explicitEntry,
+    preferences.hasUserChosenLanguage,
+    preferences.hydrationComplete,
+    router,
+  ]);
 
   const handleSelect = (language: SupportedLanguage) => {
     haptic(10);

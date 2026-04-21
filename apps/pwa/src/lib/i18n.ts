@@ -452,6 +452,34 @@ type ChromeMessages = {
   onboardingLocationDevicePending: string;
   onboardingLocationPrivacyNote: string;
   onboardingLocationRecoverHint: string;
+  // V1-B Task 2 — TopBar language switcher
+  topbarLangSwitcherLabel: string;
+  topbarLangSwitchEN: string;
+  topbarLangSwitchES: string;
+  topbarLangSwitchZH: string;
+  // V1-B Task 4 — Home trust banner + shell footer
+  homeTrustBannerTitle: string;
+  homeTrustBannerBody: string;
+  shellFooterLabel: string;
+  shellFooterPrivacy: string;
+  // V1-B Task 4 — /privacy page
+  pageTitlePrivacy: string;
+  privacyEyebrow: string;
+  privacyTitle: string;
+  privacyLede: string;
+  // V1-B Task 5 — Anchor-model onboarding step
+  pageTitleOnboardingTrust: string;
+  onboardingStepTrust: string;
+  obTrustTitle: string;
+  obTrustSubtitle: string;
+  trustBullet1Title: string;
+  trustBullet2Title: string;
+  trustBullet3Title: string;
+  obTrustCta: string;
+  obTrustLearnMore: string;
+  // V1-B Task 6 — location gate "use a sample neighborhood" replacement
+  obLocUseSample: string;
+  obLocSampleHint: string;
   // Errors / empty states / banners
   errorGeneric: string;
   errorNetwork: string;
@@ -1131,6 +1159,36 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     onboardingLocationDevicePending: 'Asking your device for location…',
     onboardingLocationPrivacyNote: 'Your location stays on this device. Only your ZIP is shared when you search.',
     onboardingLocationRecoverHint: 'Type your ZIP to continue.',
+    // V1-B Task 2 — TopBar language switcher
+    topbarLangSwitcherLabel: 'Switch language',
+    topbarLangSwitchEN: 'Switch to English',
+    topbarLangSwitchES: 'Cambiar a español',
+    topbarLangSwitchZH: '\u5207\u6362\u5230\u4e2d\u6587',
+    // V1-B Task 4 — Home trust banner + shell footer
+    homeTrustBannerTitle: "We don\u2019t ask your name, SSN, or status.",
+    homeTrustBannerBody: 'Your ZIP stays on this device unless you tap search.',
+    shellFooterLabel: 'Privacy and trust',
+    shellFooterPrivacy: 'How we protect you',
+    // V1-B Task 4 — /privacy page
+    pageTitlePrivacy: 'How we protect you',
+    privacyEyebrow: 'Trust',
+    privacyTitle: 'How we protect you',
+    privacyLede:
+      "WeaveNYC doesn\u2019t collect your legal name, SSN, or immigration status. Location data stays on your device unless you search. You can delete your account at any time \u2014 30-day undo.",
+    // V1-B Task 5 — anchor-model onboarding step
+    pageTitleOnboardingTrust: 'How WeaveNYC works',
+    onboardingStepTrust: 'How we help',
+    obTrustTitle: 'How WeaveNYC works',
+    obTrustSubtitle: 'Three promises before you go any further.',
+    trustBullet1Title: 'No ID, no SSN \u2014 never',
+    trustBullet2Title: 'Found services near you',
+    trustBullet3Title: 'Neighbors vouch for neighbors',
+    obTrustCta: 'Got it \u2014 find help',
+    obTrustLearnMore: 'Tell me more',
+    // V1-B Task 6 — sample-neighborhood replacement for the skip dead-end
+    obLocUseSample: 'Use a sample neighborhood',
+    obLocSampleHint:
+      'Not your area? Change ZIP anytime in your profile.',
     // Errors / empty states / banners
     errorGeneric: 'Something did not work. Please wait a moment and try again.',
     errorNetwork: "Couldn't connect. Check your Wi-Fi or signal.",
@@ -1797,6 +1855,37 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     onboardingLocationDevicePending: 'Pidiendo ubicación al dispositivo…',
     onboardingLocationPrivacyNote: 'Tu ubicación se queda en este dispositivo. Solo se comparte el ZIP cuando buscas.',
     onboardingLocationRecoverHint: 'Escribe tu ZIP para continuar.',
+    // V1-B Task 2 — TopBar language switcher
+    topbarLangSwitcherLabel: 'Cambiar idioma',
+    topbarLangSwitchEN: 'Switch to English',
+    topbarLangSwitchES: 'Cambiar a espa\u00f1ol',
+    topbarLangSwitchZH: '\u5207\u6362\u5230\u4e2d\u6587',
+    // V1-B Task 4 — Home trust banner + shell footer
+    homeTrustBannerTitle: 'No te pedimos tu nombre, n\u00famero de seguro social, ni estatus.',
+    homeTrustBannerBody:
+      'Tu ZIP se queda en este tel\u00e9fono salvo que lo uses para buscar.',
+    shellFooterLabel: 'Privacidad y confianza',
+    shellFooterPrivacy: 'C\u00f3mo te protegemos',
+    // V1-B Task 4 — /privacy page
+    pageTitlePrivacy: 'C\u00f3mo te protegemos',
+    privacyEyebrow: 'Confianza',
+    privacyTitle: 'C\u00f3mo te protegemos',
+    privacyLede:
+      'WeaveNYC no recoge tu nombre legal, n\u00famero de seguro social ni estatus migratorio. Los datos de ubicaci\u00f3n se quedan en tu dispositivo salvo que busques. Puedes borrar tu cuenta cuando quieras \u2014 deshacer en 30 d\u00edas.',
+    // V1-B Task 5 — anchor-model onboarding step
+    pageTitleOnboardingTrust: 'C\u00f3mo funciona WeaveNYC',
+    onboardingStepTrust: 'C\u00f3mo te ayudamos',
+    obTrustTitle: 'C\u00f3mo funciona WeaveNYC',
+    obTrustSubtitle: 'Tres promesas antes de seguir.',
+    trustBullet1Title: 'Sin ID, sin n\u00famero SSN \u2014 nunca',
+    trustBullet2Title: 'Servicios cerca de ti',
+    trustBullet3Title: 'Vecinos dan fe por vecinos',
+    obTrustCta: 'Entendido \u2014 buscar ayuda',
+    obTrustLearnMore: 'Dime m\u00e1s',
+    // V1-B Task 6 — sample-neighborhood replacement for the skip dead-end
+    obLocUseSample: 'Usar un barrio de ejemplo',
+    obLocSampleHint:
+      '\u00bfNo es tu zona? Puedes cambiar el ZIP despu\u00e9s en tu perfil.',
     // Errors / empty states / banners
     errorGeneric: 'Algo no funcionó. Espera un momento y prueba de nuevo.',
     errorNetwork: 'Sin conexión. Revisa tu Wi-Fi o señal.',
@@ -2459,6 +2548,37 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     onboardingLocationDevicePending: '正在问设备要位置……',
     onboardingLocationPrivacyNote: '你的位置只留在这部手机上。搜索的时候只会用到邮编。',
     onboardingLocationRecoverHint: '填邮编继续。',
+    // V1-B Task 2 — TopBar language switcher
+    topbarLangSwitcherLabel: '\u5207\u6362\u8bed\u8a00',
+    topbarLangSwitchEN: 'Switch to English',
+    topbarLangSwitchES: 'Cambiar a espa\u00f1ol',
+    topbarLangSwitchZH: '\u5207\u6362\u5230\u4e2d\u6587',
+    // V1-B Task 4 — Home trust banner + shell footer
+    homeTrustBannerTitle: '\u6211\u4eec\u4e0d\u95ee\u4f60\u7684\u540d\u5b57\u3001\u793e\u5b89\u53f7\u6216\u8eab\u4efd\u3002',
+    homeTrustBannerBody:
+      '\u9664\u975e\u4f60\u70b9\u641c\u7d22\uff0c\u90ae\u7f16\u4e0d\u4f1a\u79bb\u5f00\u8fd9\u53f0\u624b\u673a\u3002',
+    shellFooterLabel: '\u9690\u79c1\u548c\u4fe1\u4efb',
+    shellFooterPrivacy: '\u6211\u4eec\u5982\u4f55\u4fdd\u62a4\u4f60',
+    // V1-B Task 4 — /privacy page
+    pageTitlePrivacy: '\u6211\u4eec\u5982\u4f55\u4fdd\u62a4\u4f60',
+    privacyEyebrow: '\u4fe1\u4efb',
+    privacyTitle: '\u6211\u4eec\u5982\u4f55\u4fdd\u62a4\u4f60',
+    privacyLede:
+      'WeaveNYC \u4e0d\u6536\u96c6\u4f60\u7684\u6cd5\u5f8b\u59d3\u540d\u3001\u793e\u5b89\u53f7\u6216\u79fb\u6c11\u8eab\u4efd\u3002\u9664\u975e\u4f60\u641c\u7d22\uff0c\u5426\u5219\u4f4d\u7f6e\u4fe1\u606f\u53ea\u7559\u5728\u4f60\u7684\u8bbe\u5907\u4e0a\u3002\u4f60\u968f\u65f6\u80fd\u5220\u9664\u8d26\u53f7\uff0c30 \u5929\u5185\u53ef\u4ee5\u64a4\u9500\u3002',
+    // V1-B Task 5 — anchor-model onboarding step
+    pageTitleOnboardingTrust: 'WeaveNYC \u5982\u4f55\u8fd0\u4f5c',
+    onboardingStepTrust: '\u6211\u4eec\u5982\u4f55\u5e2e\u4f60',
+    obTrustTitle: 'WeaveNYC \u5982\u4f55\u8fd0\u4f5c',
+    obTrustSubtitle: '\u5f00\u59cb\u4e4b\u524d\u7684\u4e09\u4e2a\u627f\u8bfa\u3002',
+    trustBullet1Title: '\u4e0d\u8981\u8bc1\u4ef6\u3001\u4e0d\u8981\u8eab\u4efd\u8bc1\u53f7',
+    trustBullet2Title: '\u627e\u5230\u4f60\u9644\u8fd1\u7684\u5e2e\u52a9',
+    trustBullet3Title: '\u90bb\u5c45\u4e3a\u90bb\u5c45\u4f5c\u4fdd',
+    obTrustCta: '\u660e\u767d\u4e86 \u2014 \u53bb\u627e\u5e2e\u52a9',
+    obTrustLearnMore: '\u8be6\u7ec6\u4e86\u89e3',
+    // V1-B Task 6 — sample-neighborhood replacement for the skip dead-end
+    obLocUseSample: '\u7528\u4e00\u4e2a\u793a\u4f8b\u793e\u533a',
+    obLocSampleHint:
+      '\u4e0d\u5728\u4f60\u90a3\u8fb9\uff1f\u4ee5\u540e\u968f\u65f6\u5728\u6863\u6848\u91cc\u6539\u90ae\u7f16\u3002',
     // 错误 / 空状态 / 横幅
     errorGeneric: '出了点问题。等一下，再试一次。',
     errorNetwork: '连不上。检查一下 Wi-Fi 或手机信号。',

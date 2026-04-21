@@ -14,8 +14,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextIntlClientProvider } from 'next-intl';
 import { cleanup, render, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 
 import { messages } from '@/lib/i18n';
+import { authReducer } from '@/lib/slices/auth-slice';
+import { communityReducer } from '@/lib/slices/community-slice';
+import { postDraftReducer } from '@/lib/slices/post-draft-slice';
+import { preferencesReducer } from '@/lib/slices/preferences-slice';
 import { AppShell } from './AppShell';
 import { BottomTabBar } from './BottomTabBar';
 import { TopBar } from './TopBar';
@@ -58,11 +64,30 @@ vi.mock('next/navigation', () => ({
   usePathname: () => pathnameValue,
 }));
 
+// V1-B Task 2 — the TopBar brand variant now mounts a
+// TopBarLanguageSwitcher that reads Redux via `useAppDispatch` +
+// `useAppSelector`. Every shell test thus needs a real `<Provider>` around
+// it even when the test itself only asserts BottomTabBar behaviour. We
+// build a fresh store per render so cross-test state doesn't leak.
 function renderShell(ui: React.ReactElement) {
+  const store = configureStore({
+    reducer: {
+      auth: authReducer,
+      community: communityReducer,
+      postDraft: postDraftReducer,
+      preferences: preferencesReducer,
+    },
+  });
   return render(
-    <NextIntlClientProvider locale="en" messages={messages.en} timeZone="America/New_York">
-      {ui}
-    </NextIntlClientProvider>,
+    <Provider store={store}>
+      <NextIntlClientProvider
+        locale="en"
+        messages={messages.en}
+        timeZone="America/New_York"
+      >
+        {ui}
+      </NextIntlClientProvider>
+    </Provider>,
   );
 }
 

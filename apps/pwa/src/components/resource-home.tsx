@@ -47,7 +47,7 @@ import { ResourceCard } from '@/components/ui/ResourceCard';
 import { TopBar } from '@/components/shell';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
 import { selectPreferences, selectSession } from '@/lib/selectors';
-import { toggleBookmark } from '@/lib/slices/preferences-slice';
+import { dismissTrustBanner, toggleBookmark } from '@/lib/slices/preferences-slice';
 import type { ResourceFilterType, ResourceSummary } from '@/lib/types';
 import { narrowResourceType } from '@/lib/types';
 import { usePullToRefresh } from '@/lib/use-pull-to-refresh';
@@ -233,6 +233,17 @@ export function ResourceHome() {
     );
   };
 
+  // V1-B Task 4 — first-visit trust banner. Sits ABOVE the hero so the
+  // user's very first impression names the boundaries we never cross
+  // (no name, no SSN, no status). Dismiss is a one-time action; the
+  // `trustBannerDismissed` flag persists via the preferences slice +
+  // IndexedDB so a returning user doesn't see it again. The banner also
+  // doubles as the signal that the user has already read the privacy
+  // framing, so the anchor-model onboarding step skips them on a future
+  // reboot (see `/onboarding/trust/page.tsx`).
+  const shouldShowTrustBanner =
+    preferences.hydrationComplete && !preferences.trustBannerDismissed;
+
   return (
     <>
       <TopBar variant="brand" />
@@ -254,6 +265,18 @@ export function ResourceHome() {
           <span className="ptr-indicator__label">{ptrLabel}</span>
         </div>
         <Stack gap={5}>
+          {shouldShowTrustBanner ? (
+            <Banner
+              tone="info"
+              title={t('homeTrustBannerTitle')}
+              onDismiss={() => dispatch(dismissTrustBanner())}
+              dismissLabel={t('commonDismiss')}
+              data-testid="home-trust-banner"
+            >
+              {t('homeTrustBannerBody')}
+            </Banner>
+          ) : null}
+
           <section className="home__masthead">
             <span className="overline home__kicker">{t('homeHeroEyebrow')}</span>
             <h1 className="home__headline">{t('homeHeroTitle')}</h1>

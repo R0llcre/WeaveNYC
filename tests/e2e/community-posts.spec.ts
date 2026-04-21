@@ -489,13 +489,16 @@ test.skip('join -> request publish -> verify -> offer publish -> my posts smoke 
     }
   });
 
-  await page.goto('/');
-
-  // New-user guard sends the browser to /onboarding/language on first visit.
-  // Walk through the language + ZIP gate so home can mount for the rest of
-  // the smoke scenario.
+  // V1-B Tasks 1 + 5 — first-visit guard skips the language picker when
+  // the browser locale was auto-detected (always true in Playwright) and
+  // now funnels through an anchor-model trust step before the ZIP gate.
+  // We force-mount the picker via `?explicit=1` so the E2E still
+  // exercises the explicit language choice.
+  await page.goto('/onboarding/language/?explicit=1');
   await page.waitForURL((url) => url.pathname.includes('/onboarding/language'));
   await page.getByTestId('onboarding-language-en').click();
+  await page.waitForURL((url) => url.pathname.includes('/onboarding/trust'));
+  await page.getByTestId('onboarding-trust-continue').click();
   await page.waitForURL((url) => url.pathname.includes('/onboarding/location'));
   await page.getByTestId('onboarding-location-zip-input').fill('11735');
   await page.getByTestId('onboarding-location-submit').click();

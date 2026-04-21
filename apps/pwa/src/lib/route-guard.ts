@@ -100,14 +100,20 @@ export function useOnboardingGuard(): void {
       return;
     }
 
-    // If the user hasn't explicitly picked a language yet, send them to
-    // step 1. Note: `preferences.language` defaults to 'en' from the
-    // initial state / browser detection, so it's NOT a reliable "has
-    // picked" signal — `hasUserChosenLanguage` is the authoritative flag
-    // flipped by `setLanguage` on the picker screen.
-    const nextStep = !hasUserChosenLanguage
-      ? '/onboarding/language/'
-      : '/onboarding/location/';
+    // V1-B Task 1 — if the browser locale was auto-detected to a supported
+    // value, we don't make the user re-pick it on first paint. The
+    // `/onboarding/language/` screen itself still fast-forwards when
+    // entered without `?explicit=1`, but we bypass it entirely here so a
+    // user landing on a deep link with ZH browser never sees the picker
+    // flash at all — they go straight to the anchor-model trust step.
+    //
+    // The picker is still the authoritative entry when the user clicks
+    // the TopBar language switcher (which passes `?explicit=1`) or the
+    // Settings → Language action; those paths set `hasUserChosenLanguage`
+    // themselves or arrive with an explicit flag that the picker honours.
+    const nextStep = hasUserChosenLanguage
+      ? '/onboarding/location/'
+      : '/onboarding/trust/';
 
     const returnTo = buildReturnToParam(pathname, search);
     router.replace(`${nextStep}?return_to=${returnTo}`);
