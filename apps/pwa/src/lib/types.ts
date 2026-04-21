@@ -547,6 +547,8 @@ export type MessageSafetyFlag =
   | 'sensitive_phone'
   | 'sensitive_address'
   | 'sensitive_bank_account'
+  | 'hate_speech'
+  | 'harassment'
   | 'keyword_passport'
   | 'keyword_bank'
   | 'keyword_wire'
