@@ -352,11 +352,17 @@ function buildPostTombstoneFromEvent(
   event: CommunitySyncEvent,
   existing: PostSummary | null,
 ): PostSummary {
-  const payload = isRecord(event.payload) ? event.payload : null;
+  // The discriminated-union payload types in `@weavenyc/shared` don't
+  // expose a common parent shape, so we cast through `unknown` for these
+  // generic introspections. The Zod safeParse in the worker guarantees
+  // the payload is one of the known shapes; this function only cares
+  // about whether `p2p_version` is present.
+  const payloadAsRecord = event.payload as unknown as Record<string, unknown> | null | undefined;
+  const payload = isRecord(payloadAsRecord) ? payloadAsRecord : null;
   const payloadPost = isRecord(payload?.post) ? payload.post : payload;
   const payloadVersion =
     readNumber(payloadPost, 'p2p_version', 'p2pVersion') ??
-    readNumber(event.payload, 'p2p_version', 'p2pVersion');
+    readNumber(payloadAsRecord, 'p2p_version', 'p2pVersion');
   const existingVersion = typeof existing?.p2p_version === 'number' ? existing.p2p_version : null;
   const nextVersion =
     payloadVersion !== null
@@ -389,11 +395,12 @@ function buildAnnouncementTombstoneFromEvent(
   event: CommunitySyncEvent,
   existing: CommunityAnnouncement | null,
 ): CommunityAnnouncement {
-  const payload = isRecord(event.payload) ? event.payload : null;
+  const payloadAsRecord = event.payload as unknown as Record<string, unknown> | null | undefined;
+  const payload = isRecord(payloadAsRecord) ? payloadAsRecord : null;
   const payloadAnnouncement = isRecord(payload?.announcement) ? payload.announcement : payload;
   const payloadVersion =
     readNumber(payloadAnnouncement, 'p2p_version', 'p2pVersion') ??
-    readNumber(event.payload, 'p2p_version', 'p2pVersion');
+    readNumber(payloadAsRecord, 'p2p_version', 'p2pVersion');
   const existingVersion = typeof existing?.p2p_version === 'number' ? existing.p2p_version : null;
   const nextVersion =
     payloadVersion !== null
@@ -479,7 +486,8 @@ function applyPostEvent(cache: CachedPostsValue, event: CommunitySyncEvent, upda
     };
   }
 
-  const payload = isRecord(event.payload) ? event.payload : null;
+  const payloadAsRecord = event.payload as unknown as Record<string, unknown> | null | undefined;
+  const payload = isRecord(payloadAsRecord) ? payloadAsRecord : null;
   const post = toPostSummary(payload?.post ?? payload);
 
   if (!post) {
@@ -530,7 +538,8 @@ function applyAnnouncementEvent(
     };
   }
 
-  const payload = isRecord(event.payload) ? event.payload : null;
+  const payloadAsRecord = event.payload as unknown as Record<string, unknown> | null | undefined;
+  const payload = isRecord(payloadAsRecord) ? payloadAsRecord : null;
   const announcement = toAnnouncement(payload?.announcement ?? payload);
 
   if (!announcement) {
@@ -874,7 +883,36 @@ export async function saveP2PEventCursor(value: P2PEventCursor) {
   }
 }
 
-export async function applyCommunitySyncDeltaToCache(delta: CommunitySyncDeltaResponse) {
+/**
+ * Structural subtype of the cache events `applyCommunitySyncDeltaToCache`
+ * replays. The full `CommunitySyncEvent` (Zod-inferred) is a strictly
+ * typed discriminated union; this loosened view lets unit tests construct
+ * events with `payload` as a plain object (e.g. `{ p2p_version: 5 }` for
+ * tombstones) without juggling every payload variant.
+ *
+ * The worker path always passes a safeParsed `CommunitySyncDeltaResponse`
+ * — we widen the function's input to accept the loose shape in tests
+ * without losing production-side guarantees (the Zod safeParse in the
+ * worker is the authoritative wire-format check).
+ */
+type CacheReplayEvent = {
+  sync_event_id: string;
+  community_id: string;
+  event_type: CommunitySyncEvent['event_type'];
+  aggregate_type: CommunitySyncEvent['aggregate_type'];
+  aggregate_id: string;
+  actor_p2p_id?: string | null;
+  cid?: string | null;
+  occurred_at: string;
+  payload?: Record<string, unknown> | null | undefined;
+};
+
+type CacheReplayDelta = {
+  events: ReadonlyArray<CacheReplayEvent>;
+  server_time: string;
+};
+
+export async function applyCommunitySyncDeltaToCache(delta: CacheReplayDelta | CommunitySyncDeltaResponse) {
   try {
     const db = getPwaDb();
     if (!db || delta.events.length === 0) {
@@ -888,7 +926,13 @@ export async function applyCommunitySyncDeltaToCache(delta: CommunitySyncDeltaRe
     // (audit P2.3). Ordering here + the p2p_version guard in
     // `mergeVersionedRecord` + tombstone markers together close the
     // resurrection window.
-    const sortedEvents = sortSyncEventsForReplay(delta.events);
+    //
+    // The loose `CacheReplayEvent` input shape is widened to the
+    // Zod-inferred `CommunitySyncEvent` here — production paths always
+    // feed this through the worker's safeParse, so the cast is safe.
+    const sortedEvents = sortSyncEventsForReplay(
+      delta.events as CommunitySyncEvent[],
+    );
     const communityIds = Array.from(new Set(sortedEvents.map((event) => event.community_id)));
 
     for (const communityId of communityIds) {

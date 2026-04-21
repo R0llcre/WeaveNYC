@@ -1,7 +1,11 @@
 import { Redis } from "ioredis";
 import { Pool } from "pg";
 import { createCommunitySyncEvent, topicsForCommunity, type CreateCommunitySyncEventInput } from "@weavenyc/p2p";
-import { communitySyncEventSchema, type CommunitySyncEvent } from "@weavenyc/shared";
+import {
+  P2P_OVERLAY_PROTOCOL_VERSION,
+  communitySyncEventSchema,
+  type CommunitySyncEvent,
+} from "@weavenyc/shared";
 
 import type { WeaveMetrics } from "./metrics.js";
 
@@ -87,6 +91,12 @@ export type P2PPublishInput = CreateCommunitySyncEventInput & {
 
 export type P2PSyncConnectionReady = {
   frame_type: "ready";
+  /**
+   * Wire-format tag — matches `P2P_OVERLAY_PROTOCOL_VERSION` in
+   * packages/shared. The client worker validates this against its own
+   * constant on frame receipt; mismatch halts the sync loop (P1 finding 4).
+   */
+  protocol_version: typeof P2P_OVERLAY_PROTOCOL_VERSION;
   community_id: string;
   node_id: string;
   peer_count: number;
@@ -338,6 +348,7 @@ export class InMemoryP2PSyncRuntime implements P2PSyncRuntime {
     this.observability.metrics?.p2pActiveConnections.inc({ community_id: communityId });
     return {
       frame_type: "ready",
+      protocol_version: P2P_OVERLAY_PROTOCOL_VERSION,
       community_id: communityId,
       node_id: this.nodeId,
       peer_count: Math.max(sockets.size - 1, 0),
@@ -587,6 +598,7 @@ export class RedisP2PSyncRuntime implements P2PSyncRuntime {
     this.observability.metrics?.p2pActiveConnections.inc({ community_id: communityId });
     return {
       frame_type: "ready",
+      protocol_version: P2P_OVERLAY_PROTOCOL_VERSION,
       community_id: communityId,
       node_id: this.nodeId,
       peer_count: Math.max(sockets.size - 1, 0),
@@ -740,6 +752,13 @@ export class RedisP2PSyncRuntime implements P2PSyncRuntime {
   async publish(input: P2PPublishInput): Promise<P2PPublishResult> {
     await this.ready;
     const event = createEnvelope(input);
+    // TODO(m8.5): wrap in `ON CONFLICT (cid) DO NOTHING RETURNING sync_event_id`
+    // once the 0014 migration lands a unique index on
+    // `(community_id, cid)`. That turns /sync republish into a no-op rather
+    // than a constraint violation, which closes the idempotency gap flagged
+    // by P1 finding 5. Deferred to a separate milestone per the round's
+    // out-of-scope list — the schema change (PK alter or new unique idx)
+    // needs its own migration and backfill plan.
     const insertSql = `
         insert into community_sync_events (
           sync_event_id,

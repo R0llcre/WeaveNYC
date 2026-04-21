@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
 
+import { P2P_OVERLAY_PROTOCOL_VERSION } from "@weavenyc/shared";
+
 import {
   communityBootstrapParamsSchema,
   communityBootstrapResponseSchema,
@@ -55,6 +57,7 @@ type CommunityParams = {
 type SyncQuery = {
   since?: string;
   limit?: number;
+  include_count?: boolean;
 };
 
 type P2PSocketQuery = {
@@ -116,13 +119,30 @@ function resolveWebsocketUrl(
  * raw payload, more than enough for the v1 schema. Capping here prevents an
  * attacker from posting a multi-MB query string to exhaust parser memory
  * before the route handler even runs.
+ *
+ * Format (P2 finding 11):
+ *   - `v1.<base64url>` — the current opaque cursor emitted by encodeSyncCursor
+ *   - `YYYY-MM-DDThh:mm:ss[.sss]Z` — legacy ISO-8601 timestamp accepted for
+ *     clients still holding pre-v1 cursors. The legacy branch in
+ *     `parseCursor` continues to honor these — once the pilot wraps we can
+ *     delete the legacy fork and tighten to `^v1\.[A-Za-z0-9_=-]+$`.
+ *
+ * Any other shape is rejected at the route layer so the cursor parser never
+ * sees an arbitrary string (defence-in-depth vs a broken client).
  */
 const localCommunitySyncQuerySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    since: { type: "string", maxLength: 512 },
+    since: {
+      type: "string",
+      maxLength: 512,
+      pattern: "^(v1\\.[A-Za-z0-9_=-]+|\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z)$",
+    },
     limit: { type: "integer", minimum: 1, maximum: 200 },
+    // Opt-in for the count(*) scan — off by default so the hot path stays
+    // index-only. See P4 finding 3 / B.
+    include_count: { type: "boolean" },
   },
 } as const;
 
@@ -213,6 +233,9 @@ export const p2pSyncRoutes: FastifyPluginAsync = async (app) => {
         const websocketUrl = resolveWebsocketUrl(request, websocketToken);
         const response = {
           community_id: communityId,
+          // Wire-format gate. See P2P_OVERLAY_PROTOCOL_VERSION — client
+          // compares on receipt; mismatch halts the sync loop.
+          protocol_version: P2P_OVERLAY_PROTOCOL_VERSION,
           bootstrap_version: "m6-anchor-sync-v1",
           anchor_node: {
             node_id: app.syncRuntime.nodeId,
@@ -279,13 +302,38 @@ export const p2pSyncRoutes: FastifyPluginAsync = async (app) => {
 
       const limit = request.query.limit ?? 100;
       const since = request.query.since ?? null;
+      const includeCount = request.query.include_count === true;
       try {
         const events = await app.syncRuntime.listEvents(communityId, since, limit);
+        // Hot-path optimization (P4 finding 3 / A): when the delta already
+        // carries the most recent event, compute `latest_snapshot` from it
+        // and SKIP the `getLatestSnapshot` DB round-trip entirely. The only
+        // residual count(*) risk is the empty-delta bootstrap path, which
+        // (P4 finding 3 / B) is now gated behind `?include_count=true`.
+        const lastEvent = events.at(-1);
+        const latestSnapshot =
+          events.length > 0
+            ? {
+                last_event_at: lastEvent?.occurred_at ?? null,
+                // event_count is intentionally omitted on the hot path —
+                // the client treats it as optional. See the schema change.
+                ...(includeCount
+                  ? await app.syncRuntime.getLatestSnapshot(communityId)
+                  : {}),
+              }
+            : includeCount
+              ? await app.syncRuntime.getLatestSnapshot(communityId)
+              : { last_event_at: null };
         return {
+          protocol_version: P2P_OVERLAY_PROTOCOL_VERSION,
           events,
           next_since: encodeSyncCursor(events.at(-1) ?? null) ?? since,
           server_time: new Date().toISOString(),
-          latest_snapshot: await app.syncRuntime.getLatestSnapshot(communityId),
+          latest_snapshot: latestSnapshot,
+          // `events.length === limit` is the server's ground truth for
+          // "there might be more". Client loops on this until it flips
+          // false (P1 finding 6).
+          has_more: events.length === limit,
         };
       } catch (err) {
         // A cursor-parse failure is a 400 (client sent a malformed cursor);

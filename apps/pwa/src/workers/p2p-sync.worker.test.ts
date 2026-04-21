@@ -152,10 +152,16 @@ function httpResponse(status: number, body: unknown, options: { code?: string; r
   );
 }
 
-const COMMUNITY_ID = 'comm_alpha';
+// Must be a valid UUID for Zod's `.uuid()` guard on community_id (the
+// worker now safeParses server payloads). Keeping it as a constant so
+// tests can still check equality without knowing the specific string.
+const COMMUNITY_ID = '44444444-4444-4444-8444-444444444444';
 
 const BOOTSTRAP_OK = {
   community_id: COMMUNITY_ID,
+  // Protocol-version gate — matches `P2P_OVERLAY_PROTOCOL_VERSION` in
+  // @weavenyc/shared. Mismatch halts the sync loop.
+  protocol_version: 'm6-overlay-v1',
   bootstrap_version: '1',
   anchor_node: { node_id: 'anchor_1', websocket_url: 'ws://test/ws' },
   relay_nodes: [],
@@ -166,10 +172,12 @@ const BOOTSTRAP_OK = {
 
 function emptyDelta(serverTime = '2026-04-20T12:00:00.000Z') {
   return {
+    protocol_version: 'm6-overlay-v1',
     events: [],
     next_since: null,
     server_time: serverTime,
     latest_snapshot: { last_event_at: null, event_count: 0 },
+    has_more: false,
   };
 }
 
@@ -265,13 +273,14 @@ describe('p2p sync worker runtime', () => {
       data: JSON.stringify({
         frame_type: 'event',
         event: {
-          sync_event_id: 'stale_evt',
+          sync_event_id: '11111111-1111-4111-8111-111111111001',
           community_id: COMMUNITY_ID,
+          topic: `weavenyc/${COMMUNITY_ID}/posts`,
           event_type: 'post.updated',
           aggregate_type: 'post',
-          aggregate_id: 'post_1',
+          aggregate_id: '22222222-2222-4222-8222-222222222001',
           actor_p2p_id: null,
-          payload: null,
+          payload: { post: { post_id: '22222222-2222-4222-8222-222222222001' } },
           cid: null,
           occurred_at: '2026-04-20T12:00:00.000Z',
         },
@@ -332,13 +341,14 @@ describe('p2p sync worker runtime', () => {
       data: JSON.stringify({
         frame_type: 'event',
         event: {
-          sync_event_id: 'evt1',
+          sync_event_id: '11111111-1111-4111-8111-111111111002',
           community_id: COMMUNITY_ID,
+          topic: `weavenyc/${COMMUNITY_ID}/posts`,
           event_type: 'post.published',
           aggregate_type: 'post',
-          aggregate_id: 'post_1',
+          aggregate_id: '22222222-2222-4222-8222-222222222002',
           actor_p2p_id: null,
-          payload: null,
+          payload: { post: { post_id: '22222222-2222-4222-8222-222222222002' } },
           cid: null,
           occurred_at: '2026-04-20T12:00:00.000Z',
         },
@@ -350,13 +360,14 @@ describe('p2p sync worker runtime', () => {
       data: JSON.stringify({
         frame_type: 'event',
         event: {
-          sync_event_id: 'evt2',
+          sync_event_id: '11111111-1111-4111-8111-111111111003',
           community_id: COMMUNITY_ID,
+          topic: `weavenyc/${COMMUNITY_ID}/posts`,
           event_type: 'post.updated',
           aggregate_type: 'post',
-          aggregate_id: 'post_1',
+          aggregate_id: '22222222-2222-4222-8222-222222222002',
           actor_p2p_id: null,
-          payload: null,
+          payload: { post: { post_id: '22222222-2222-4222-8222-222222222002' } },
           cid: null,
           occurred_at: '2026-04-20T11:00:00.000Z',
         },

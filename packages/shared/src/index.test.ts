@@ -91,6 +91,9 @@ describe("@weavenyc/shared validators", () => {
   it("accepts M6 bootstrap responses", () => {
     const parsed = communityBootstrapResponseSchema.parse({
       community_id: "44444444-4444-4444-8444-444444444444",
+      // Required wire-format tag (P1 finding 4). Matches the
+      // `P2P_OVERLAY_PROTOCOL_VERSION` constant in validators/p2p.ts.
+      protocol_version: "m6-overlay-v1",
       bootstrap_version: "m6-demo-v1",
       anchor_node: {
         node_id: "12D3KooWAnchorPeer",
@@ -116,6 +119,7 @@ describe("@weavenyc/shared validators", () => {
     });
 
     expect(parsed.topics.posts).toContain("posts");
+    expect(parsed.protocol_version).toBe("m6-overlay-v1");
   });
 
   it("accepts post sync envelopes", () => {
