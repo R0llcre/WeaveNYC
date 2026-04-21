@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { loadCfcActiveRecords, cfcActiveSourceUrl } from './adapters/cfc-active.js';
 import { loadIslandHarvestRecords, islandHarvestSourceUrl } from './adapters/island-harvest.js';
 import { NominatimGeocoder, type Geocoder } from './lib/geocoding.js';
-import { ResourceImportRepository } from './lib/repository.js';
+import { ResourceImportRepository, type ImportDatasetOptions } from './lib/repository.js';
 import type { DatasetImportSummary, ImportOptions, NormalizedResourceRecord, ResourceSource } from './types.js';
 
 async function enrichWithGeocodes(records: NormalizedResourceRecord[], geocoder: Geocoder) {
@@ -37,32 +37,38 @@ function buildDatasetVersion(source: ResourceSource, explicitVersion?: string): 
 
 export async function importCfcActiveDataset(
   pool: Pool,
-  options: ImportOptions = {},
+  options: ImportOptions & ImportDatasetOptions = {},
   geocoder: Geocoder = new NominatimGeocoder()
 ): Promise<DatasetImportSummary> {
   const records = await enrichWithGeocodes(await loadCfcActiveRecords(options), geocoder);
   const repo = new ResourceImportRepository(pool);
-  return repo.importDataset({
-    source: 'cfc_active',
-    sourceLabel: 'NYC HRA Community Food Connection',
-    sourceUrl: cfcActiveSourceUrl,
-    datasetVersion: buildDatasetVersion('cfc_active', options.datasetVersion),
-    records
-  });
+  return repo.importDataset(
+    {
+      source: 'cfc_active',
+      sourceLabel: 'NYC HRA Community Food Connection',
+      sourceUrl: cfcActiveSourceUrl,
+      datasetVersion: buildDatasetVersion('cfc_active', options.datasetVersion),
+      records,
+    },
+    { force: options.force, minRecordFraction: options.minRecordFraction },
+  );
 }
 
 export async function importIslandHarvestDataset(
   pool: Pool,
-  options: ImportOptions = {},
+  options: ImportOptions & ImportDatasetOptions = {},
   geocoder: Geocoder = new NominatimGeocoder()
 ): Promise<DatasetImportSummary> {
   const records = await enrichWithGeocodes(await loadIslandHarvestRecords(options), geocoder);
   const repo = new ResourceImportRepository(pool);
-  return repo.importDataset({
-    source: 'island_harvest',
-    sourceLabel: 'Island Harvest Pantry Finder',
-    sourceUrl: islandHarvestSourceUrl,
-    datasetVersion: buildDatasetVersion('island_harvest', options.datasetVersion),
-    records
-  });
+  return repo.importDataset(
+    {
+      source: 'island_harvest',
+      sourceLabel: 'Island Harvest Pantry Finder',
+      sourceUrl: islandHarvestSourceUrl,
+      datasetVersion: buildDatasetVersion('island_harvest', options.datasetVersion),
+      records,
+    },
+    { force: options.force, minRecordFraction: options.minRecordFraction },
+  );
 }

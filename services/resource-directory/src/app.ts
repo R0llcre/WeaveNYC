@@ -5,6 +5,7 @@ import { Pool } from "pg";
 
 import type { ResourceDirectoryConfig } from "./config.js";
 import { loadResourceDirectoryConfig } from "./config.js";
+import { NominatimGeocoder, type Geocoder } from "./lib/geocoding.js";
 import { ResourceImportRepository, ResourceQueryRepository } from "./lib/repository.js";
 import { attachFastifySentry, initSentryNode } from "./lib/sentry.js";
 import type { ResourceListItem, ResourceSearchInput, ResourceSearchResult } from "./types.js";
@@ -101,7 +102,11 @@ function verifyInternalToken(token: string, expectedAudience: string, config: Re
 }
 
 export async function buildResourceDirectoryApp(
-  options: { config?: ResourceDirectoryConfig; logger?: boolean } = {},
+  options: {
+    config?: ResourceDirectoryConfig;
+    logger?: boolean;
+    geocoder?: Geocoder;
+  } = {},
 ): Promise<ResourceDirectoryApp> {
   const config = options.config ?? loadResourceDirectoryConfig();
   const sentry = initSentryNode({
@@ -118,10 +123,28 @@ export async function buildResourceDirectoryApp(
   const pool = new Pool({ connectionString: config.databaseUrl });
   const queryRepository = new ResourceQueryRepository(pool);
   const importRepository = new ResourceImportRepository(pool);
+  // A5 P0.5 — the sidecar used to hard-code `{ lat: null, lng: null }`, which
+  // collapsed the 10-mile radius filter to "zip string exact match" and caused
+  // e.g. a Farmingdale (11735) user to never see a Bethpage (11714) pantry
+  // 2 miles away. We now geocode the caller's ZIP the same way the monolith
+  // path does (see services/api-gateway/src/lib/resource-directory.ts).
+  const geocoder: Geocoder = options.geocoder ?? new NominatimGeocoder();
   const service: ResourceDirectoryService = {
-    searchResources: (input) => queryRepository.searchResources(input, { lat: null, lng: null }),
-    getResourceDetail: (providerId, zip) =>
-      queryRepository.getResourceDetail(providerId, zip ? { lat: null, lng: null } : undefined),
+    searchResources: async (input) => {
+      const zipCenter = await geocoder.geocodeZip(input.zip);
+      const result = await queryRepository.searchResources(input, zipCenter);
+      // A5 P0 bonus — surface the "geocoder could not resolve this ZIP"
+      // signal so the client can render an explicit empty state instead
+      // of a silent empty list.
+      if (zipCenter.lat === null || zipCenter.lng === null) {
+        return { ...result, noResultsInArea: true };
+      }
+      return result;
+    },
+    getResourceDetail: async (providerId, zip) => {
+      const zipCenter = zip ? await geocoder.geocodeZip(zip) : { lat: null, lng: null };
+      return queryRepository.getResourceDetail(providerId, zipCenter);
+    },
     close: async () => {
       await importRepository.close();
     },

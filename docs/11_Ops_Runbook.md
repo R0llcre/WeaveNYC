@@ -620,3 +620,60 @@ As of M8 pilot readiness, the staging/pilot environment does **not** yet run a P
 When a Prometheus deployment lands (tracked as an ops milestone), copy `infra/prometheus/rules/p2p.yaml` into the Prometheus `rule_files` path and reload. Wire the severities to PagerDuty via Alertmanager.
 
 Until then, the rules are documentation: they encode "what we want to be notified about" so the future Prometheus rollout knows what to wire up. They also serve as a guide for on-call to run the equivalent checks manually via `curl /metrics | promtool query instant …`.
+
+---
+
+## Appendix I) Resource data freshness
+
+A5 P0 audit finding: before pilot, pantry data imported once during M1 and never refreshed. A pantry that closed upstream stayed "active" in our directory forever. This appendix covers the scheduled refresh, the safety rails, and the on-call playbook.
+
+### I.1 When imports run
+
+- **Scheduled:** every day at **04:00 UTC** (00:00 EDT / 23:00 EST) via `.github/workflows/refresh-resources.yml`.
+- **Gated:** the workflow only fires when repo secret `ENABLE_RESOURCE_IMPORTS=1`. Until that flag flips the job is a no-op (reports "skipped" in the Actions tab). This keeps accidental merges of the workflow from triggering production imports before on-call sign-off.
+- **Sources refreshed:**
+  - `cfc-active` — NYC HRA Community Food Connection (`services/resource-directory/src/adapters/cfc-active.ts`).
+  - `island-harvest` — Island Harvest Pantry Finder (`services/resource-directory/src/adapters/island-harvest.ts`).
+- **Transaction boundary:** each source runs as its own `ResourceImportRepository.importDataset` call. Failures in one source do not wipe the other.
+
+### I.2 Safety rails
+
+1. **Completeness guard** (`ImportCompletenessError` in `services/resource-directory/src/lib/repository.ts`). If the incoming batch has fewer than **50%** of the previously-active row count for that source, the import refuses. This protects against partial upstream fetches silently inactivating 90% of pantries. A refused import leaves the DB untouched and the workflow red — on-call must investigate.
+2. **Live adapter smoke** (workflow step `Smoke sources before committing`). Runs `pnpm resources:sync --smoke` against the live sources without writing. If CFC Active or Island Harvest are down or return zero records, the job fails before touching the DB.
+3. **Concurrency:** the workflow group `refresh-resources` serializes all runs (scheduled + manually-dispatched). A manually-dispatched run while the scheduled one is in flight waits, not overlaps.
+
+### I.3 Force an ad-hoc refresh
+
+- **Preferred path (GitHub Actions UI):** Actions → Refresh Resource Directory → Run workflow. Requires `ENABLE_RESOURCE_IMPORTS=1` to be already set. Use this when the scheduled run failed and you want to retry without waiting 24h.
+- **Operator box (skips the gate):** from a trusted machine with `DATABASE_URL` set to the production DSN:
+  ```bash
+  pnpm --filter @weavenyc/resource-directory resources:sync
+  # or per-source:
+  pnpm --filter @weavenyc/resource-directory resources:import:cfc
+  pnpm --filter @weavenyc/resource-directory resources:import:island-harvest
+  ```
+- **If the completeness guard legitimately fires** (a source genuinely shrunk — e.g. CFC Active went from 500 to 10 pantries): run the CLI with `--force` to bypass the guard. Only do this after confirming the upstream dataset actually shrunk (spot-check the source URL):
+  ```bash
+  pnpm --filter @weavenyc/resource-directory exec tsx src/cli.ts cfc-active --force
+  ```
+
+### I.4 On-call contact & playbook
+
+- **Primary:** whoever carries the weekly pager for the API Gateway on-call rotation.
+- **Secondary (data-specific):** `maintainers@weavenyc.org` — CC if the issue is "upstream CSV/API format changed" rather than our infra.
+- **When the workflow is red:**
+  1. Check the failure step:
+     - `Smoke sources before committing` red → upstream source is down or changed shape. Open a ticket against the adapter. Do **not** `--force`; you might import garbage.
+     - `Import CFC Active + Island Harvest` red with `ImportCompletenessError` → compare the new record count to the previous active count. If the upstream shrunk for real, run with `--force` as above. If it looks like a partial fetch, leave the DB as-is and re-trigger the workflow later.
+  2. Confirm the live resource API is still serving stale-but-valid data:
+     ```bash
+     curl "https://api.weavenyc.org/v1/resources?zip=11735&type=pantry" | jq '.items | length'
+     ```
+     A non-zero `items.length` means the PWA still has pantries to show; users don't see an outage.
+  3. When the import eventually succeeds, spot-check that at least one well-known pantry appears in both list (search by ZIP) and detail queries.
+
+### I.5 Budget & expectations
+
+- A full refresh geocodes net-new rows via Nominatim (open, unthrottled, occasionally flaky). Expect 3-10 minutes for the full `sync` job.
+- The guard's 50% floor assumes a mature dataset. On the **first** scheduled run after enabling imports, the previous-active-count will already equal the last M1 import's count, so the guard should not fire.
+- Each run writes to `resource_change_logs` so the diff (added / updated / removed) is auditable.

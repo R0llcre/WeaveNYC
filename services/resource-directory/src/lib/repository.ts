@@ -14,6 +14,46 @@ import type {
   ResourceSource
 } from "../types.js";
 
+/**
+ * Thrown when ResourceImportRepository.importDataset refuses to wipe-and-
+ * replace because the new batch is implausibly small relative to the
+ * previously imported batch. See A5 P0.2: a partial fetch (50 records vs
+ * usual 500) used to silently mark 90% of a source inactive. The CLI
+ * `--force` flag bypasses this guard for legitimate shrinks.
+ */
+export class ImportCompletenessError extends Error {
+  constructor(
+    public readonly source: ResourceSource,
+    public readonly incomingCount: number,
+    public readonly previousCount: number,
+    public readonly thresholdFraction: number,
+  ) {
+    super(
+      `Refusing to import ${incomingCount} records for source ${source}: ` +
+        `that is less than ${Math.round(thresholdFraction * 100)}% of the previous ` +
+        `${previousCount} active rows. Pass { force: true } or --force to override.`,
+    );
+    this.name = 'ImportCompletenessError';
+  }
+}
+
+export interface ImportDatasetOptions {
+  /**
+   * Incoming batches with fewer than `minRecordFraction * previousActiveCount`
+   * records are refused. Default: 0.5 (i.e. a new batch must retain at least
+   * half of the previous batch's size). Ignored when `previousActiveCount`
+   * is zero (first import ever).
+   */
+  minRecordFraction?: number;
+  /**
+   * Bypass the completeness guard. Set by CLI `--force` for legitimate
+   * shrinks (e.g. a source genuinely went from 500 pantries to 10).
+   */
+  force?: boolean;
+}
+
+const DEFAULT_MIN_RECORD_FRACTION = 0.5;
+
 export class ResourceImportRepository {
   constructor(private readonly pool: Pool) {}
 
@@ -21,13 +61,48 @@ export class ResourceImportRepository {
     await this.pool.end();
   }
 
-  async importDataset(input: {
-    source: ResourceSource;
-    sourceLabel: string;
-    sourceUrl: string;
-    datasetVersion: string;
-    records: NormalizedResourceRecord[];
-  }): Promise<DatasetImportSummary> {
+  async importDataset(
+    input: {
+      source: ResourceSource;
+      sourceLabel: string;
+      sourceUrl: string;
+      datasetVersion: string;
+      records: NormalizedResourceRecord[];
+    },
+    options: ImportDatasetOptions = {},
+  ): Promise<DatasetImportSummary> {
+    const minRecordFraction = options.minRecordFraction ?? DEFAULT_MIN_RECORD_FRACTION;
+    const force = options.force ?? false;
+
+    // A5 P0.2 — completeness guard. We run the count OUTSIDE the import
+    // transaction on purpose: we want to fail BEFORE we wipe the source,
+    // and we want the count to reflect the current state regardless of
+    // any in-flight write.
+    const previousCountResult = await this.pool.query<{ count: string | number }>(
+      `
+        select count(*)::int as count
+        from resource_providers
+        where source = $1
+          and status = 'active'
+      `,
+      [input.source],
+    );
+    const previousActiveCount = Number(previousCountResult.rows[0]?.count ?? 0);
+    const incomingCount = input.records.length;
+
+    if (
+      !force &&
+      previousActiveCount > 0 &&
+      incomingCount < Math.ceil(previousActiveCount * minRecordFraction)
+    ) {
+      throw new ImportCompletenessError(
+        input.source,
+        incomingCount,
+        previousActiveCount,
+        minRecordFraction,
+      );
+    }
+
     const client = await this.pool.connect();
 
     try {
@@ -338,7 +413,17 @@ export class ResourceQueryRepository {
     input: ResourceSearchInput,
     zipCenter: { lat: number | null; lng: number | null }
   ): Promise<ResourceSearchResult> {
-    const rows = await this.fetchActiveRows();
+    // A5 P0.3 — push ZIP-prefix + type filters into SQL so we don't drag
+    // every active row across the wire on every public request. The
+    // haversine radius still runs in JS (needs geocoded lat/lng, and the
+    // pg stack is only guaranteed to ship PostGIS in the m0 migration
+    // — we don't lean on it in the query path). Pruning by `left(zip, 3)`
+    // is a ~10-mile urban-NYC proxy that keeps the JS step cheap and
+    // lines up with idx_resources_zip3_type_status (migration 0015).
+    const rows = await this.fetchActiveRows({
+      zipPrefix: input.zip.slice(0, 3),
+      type: input.type ?? null,
+    });
     const merged = this.mergeRows(rows, zipCenter);
     const filtered = merged.filter((item) => {
       const matchesZip = item.zip === input.zip;
@@ -398,7 +483,24 @@ export class ResourceQueryRepository {
     lat: number | null;
     lng: number | null;
   }): Promise<ResourceListItem | null> {
-    const rows = await this.fetchActiveRows();
+    // Detail lookups are keyed on providerId (or its alias through the
+    // address-group merge). Without a ZIP hint we fall back to the
+    // original "fetch all active" behavior — but the primary lookup
+    // prunes by the detail row's ZIP first so we don't scan for every
+    // call from the PWA's detail drawer.
+    const detailRow = await this.pool.query<Pick<ResourceRow, "zip">>(
+      `
+        select zip from resource_providers
+        where provider_id = $1
+          and status = 'active'
+        limit 1
+      `,
+      [providerId],
+    );
+    const detailZip = detailRow.rows[0]?.zip ?? null;
+    const rows = detailZip
+      ? await this.fetchActiveRows({ zipPrefix: detailZip.slice(0, 3), type: null })
+      : await this.fetchActiveRows({ zipPrefix: null, type: null });
     const merged = this.mergeRows(rows, zipCenter ?? { lat: null, lng: null });
     const item = merged.find(
       (entry) => entry.providerId === providerId || entry.providerIds.includes(providerId)
@@ -418,7 +520,29 @@ export class ResourceQueryRepository {
         };
   }
 
-  private async fetchActiveRows() {
+  private async fetchActiveRows(filters: {
+    zipPrefix: string | null;
+    type: string | null;
+  } = { zipPrefix: null, type: null }) {
+    // A5 P0.3 — build a parameterized WHERE that collapses to the
+    // hot-path `idx_resources_zip3_type_status` index when a ZIP prefix
+    // is supplied, and degrades to a status-only scan when the caller
+    // is the `getResourceDetail` fallback. The JOIN to dataset_versions
+    // is still a lookup, not a scan — it's keyed on the unique
+    // (source, dataset_version).
+    const clauses: string[] = ["rp.status = 'active'"];
+    const params: unknown[] = [];
+
+    if (filters.zipPrefix) {
+      params.push(filters.zipPrefix);
+      clauses.push(`left(rp.zip, 3) = $${params.length}`);
+    }
+
+    if (filters.type) {
+      params.push(filters.type);
+      clauses.push(`rp.type = $${params.length}`);
+    }
+
     const result = await this.pool.query<ResourceRow>(
       `
         select
@@ -445,8 +569,9 @@ export class ResourceQueryRepository {
         left join dataset_versions dv
           on dv.source = rp.source
          and dv.dataset_version = rp.dataset_version
-        where rp.status = 'active'
-      `
+        where ${clauses.join(" and ")}
+      `,
+      params,
     );
 
     return result.rows;
