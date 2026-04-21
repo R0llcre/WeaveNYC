@@ -78,7 +78,6 @@ export async function fetchWithRetry(
  */
 export function createRateLimiter(opts: { rps: number; burst: number }): () => Promise<void> {
   const { rps, burst } = opts;
-  const intervalMs = 1000 / Math.max(1, rps);
   let tokens = burst;
   let lastRefill = Date.now();
 

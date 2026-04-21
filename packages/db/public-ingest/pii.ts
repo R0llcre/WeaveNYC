@@ -25,10 +25,10 @@ const ORG_NAME_WHITELIST_PATTERNS: RegExp[] = [
 ];
 
 const PERSON_NAME_DENYLIST: RegExp[] = [
-  /\bcontact\s*[:\-]?\s*[A-Z][a-z]+\s+[A-Z][a-z]+\b/i,
+  /\bcontact\s*[:-]?\s*[A-Z][a-z]+\s+[A-Z][a-z]+\b/i,
   /\bcall\s+[A-Z][a-z]+\s+[A-Z][a-z]+\b/i,
   /\bask\s+for\s+[A-Z][a-z]+\b/i,
-  /\battn\s*[:\.]?\s*[A-Z][a-z]+\s+[A-Z][a-z]+\b/i,
+  /\battn\s*[:.]?\s*[A-Z][a-z]+\s+[A-Z][a-z]+\b/i,
 ];
 
 const PII_EMAIL_DENYLIST: RegExp[] = [

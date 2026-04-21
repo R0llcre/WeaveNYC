@@ -262,7 +262,15 @@ export function createWeaveMetrics(): WeaveMetrics {
  * The second parameter (`_fallback`) is kept for call-site compatibility
  * but intentionally ignored — we never want to let a raw URL through.
  */
-export function normalizeRouteLabel(routeOption: string | undefined, _fallback: string): string {
+// The second parameter used to be a caller-provided fallback; the
+// unused-vars lint rejects it even with the leading underscore. Prefix with
+// `_` and tag with an eslint-disable comment to preserve call-site arity
+// without triggering the rule.
+export function normalizeRouteLabel(
+  routeOption: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _fallback: string
+): string {
   if (routeOption && routeOption.length > 0) {
     // Defense-in-depth: even route templates shouldn't contain a `?`, but
     // strip one if it somehow appears so the label stays clean.

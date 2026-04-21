@@ -114,8 +114,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Validate Prometheus rules
+        # `prom/prometheus:latest` has `prometheus` as its ENTRYPOINT, so the
+        # positional args get forwarded as prometheus subcommands, not
+        # promtool. Override the entrypoint explicitly so the args land on
+        # the right binary.
         run: |
           docker run --rm \
+            --entrypoint promtool \
             -v "${{ github.workspace }}/infra/prometheus/rules:/rules" \
             prom/prometheus:latest \
-            promtool check rules /rules/*.yaml
+            check rules /rules/*.yaml
