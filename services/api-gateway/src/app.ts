@@ -6,6 +6,7 @@ import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyWebsocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
+import type { InternalServiceTokenClaims } from './types.js';
 import { DefaultChatService, PgChatRepository, type ChatService } from '@weavenyc/chat';
 import { createMatchService, createPgMatchRepository, type MatchService } from '@weavenyc/match';
 import { createPostsRepository, createPostsService, type PostsService } from '@weavenyc/posts';
@@ -227,6 +228,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       algorithms: ['HS256'],
       allowedIss: `${config.jwt.issuer}:internal`,
     },
+  });
+
+  // @fastify/jwt v9 decorates a namespaced instance at
+  // `app.jwt[namespace]`, NOT `app[namespace]` — the older pre-v9
+  // behaviour was the other way around. Internal callers use
+  // `app.serviceJwt.sign(...)` everywhere (see internal-service-client.ts,
+  // global.d.ts FastifyInstance type). Decorate a shim at the expected
+  // location so existing call sites keep working and the type stays
+  // accurate, while preserving all the plugin-provided behaviour.
+  //
+  // Without this, any call through the sidecar HTTP path (e.g.
+  // /v1/resources when RESOURCE_DIRECTORY_SERVICE_URL is set) crashes
+  // with "Cannot read properties of undefined (reading 'sign')".
+  // Surfaced on 2026-04-21 after PR #53 exercised the path.
+  const namespacedJwt = (
+    app.jwt as unknown as {
+      serviceJwt?: {
+        sign: (payload: InternalServiceTokenClaims) => string;
+        verify: <T extends object = InternalServiceTokenClaims>(token: string) => Promise<T>;
+      };
+    }
+  ).serviceJwt;
+  if (!namespacedJwt?.sign) {
+    throw new Error('serviceJwt namespace did not decorate app.jwt.serviceJwt — fastify-jwt API changed');
+  }
+  app.decorate('serviceJwt', {
+    sign: namespacedJwt.sign.bind(namespacedJwt),
+    verify: namespacedJwt.verify.bind(namespacedJwt),
   });
 
   const internalClientContext = {
