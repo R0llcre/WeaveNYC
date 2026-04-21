@@ -33,8 +33,8 @@
 
 | 应用 | 职责 | 部署 |
 |------|------|------|
-| PWA（用户端） | 互助发布/搜索/匹配/聊天 | Vercel Edge |
-| Anchor Admin Console | 管理后台（审核/公告/规则） | Vercel Edge |
+| PWA（用户端） | 互助发布/搜索/匹配/聊天 | Cloudflare Pages（`weavenyc-pwa` 项目） |
+| Anchor Admin Console | 管理后台（审核/公告/规则） | Cloudflare Pages（`weavenyc-anchor-admin` 项目） |
 
 ## 2) 当前可执行 staging truth
 
@@ -485,14 +485,60 @@ psql -h staging-db -U weavenyc -d weavenyc_staging -c "
 6. 无异常 → 扩大到 100%
 7. 异常 → 立即 rollback（`git revert` + 重新部署）
 
-### 9.3 Rollback 命令
-```bash
-# 快速回滚到上一个版本
-git revert HEAD --no-edit && git push origin main
+### 9.3 Rollback 命令（per-surface，不再使用假想的 `npm run deploy`）
 
-# 或直接部署指定 tag
-npm run deploy -- --tag v1.2.3
+真实回滚路径按部署表面分开执行。每条命令都已在 [`docs/29_M8_Pilot_Readiness.md §3`](./29_M8_Pilot_Readiness.md) 的 rollback SOP 中验证过；本节是 §3 的速查卡片版本。
+
+**Cloudflare Pages — PWA (`weavenyc.org`)**
+```bash
+# 列出部署
+wrangler pages deployment list --project-name weavenyc-pwa
+# 回滚到指定 deployment-id
+wrangler pages deployment rollback <deployment-id> --project-name weavenyc-pwa
 ```
+或 Cloudflare 控制台 → Workers & Pages → `weavenyc-pwa` → Deployments → "Rollback to this deployment"。
+
+**Cloudflare Pages — Anchor Admin (`admin.weavenyc.org`)**
+```bash
+wrangler pages deployment list --project-name weavenyc-anchor-admin
+wrangler pages deployment rollback <deployment-id> --project-name weavenyc-anchor-admin
+```
+
+**AWS App Runner — API Gateway (`api.weavenyc.org`)**
+```bash
+# 推荐：仓库内脚本封装（会校验 ECR tag 存在、live SourceConfiguration 切换、轮询到 RUNNING）
+scripts/ops/reset-to-last-good-image.sh <ecr-tag>
+
+# 或手工（参考 29_M8_Pilot_Readiness §3.4）
+aws apprunner update-service \
+  --service-arn "$APPRUNNER_SERVICE_ARN" \
+  --source-configuration "ImageRepository={ImageIdentifier=<previous-tag>,ImageRepositoryType=ECR}"
+```
+
+**GCP Cloud Run — Resource Directory (`resources.weavenyc.org`)**
+```bash
+gcloud run services update-traffic weavenyc-resource-directory \
+  --region us-east1 \
+  --to-revisions "<previous-revision>=100"
+```
+
+**Azure Container Apps — Notifications (`notify.weavenyc.org`)**
+
+（实际部署名：Container App `notifications`，Resource Group `weavenyc-pilot` —
+见 `infra/azure/README.md`。）
+```bash
+az containerapp revision set-mode \
+  --name notifications \
+  --resource-group weavenyc-pilot \
+  --mode single --revision <previous-revision>
+# 或若需要明确切流量：
+az containerapp ingress traffic set \
+  --name notifications \
+  --resource-group weavenyc-pilot \
+  --revision-weight <previous-revision>=100
+```
+
+**数据库**：如果坏版本带了 migration，见 [`29_M8_Pilot_Readiness §3.7`](./29_M8_Pilot_Readiness.md) — 优先找配对的 `*.rollback.sql` down 文件，没有就走 pg_dump 恢复。**不要**跑 `git revert`；迁移是单向的，回滚代码不会撤回 schema 变更。
 
 ### 9.4 Feature Flags（推荐）
 对高风险功能使用 feature flag 控制灰度：

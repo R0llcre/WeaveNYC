@@ -328,6 +328,25 @@ Restores a soft-deleted account using the single-use recovery token from §1.9.2
 
 ---
 
+## 1.10) Idempotency (Idempotency-Key header)
+
+Critical POST writes accept a request header `Idempotency-Key: <any stable token, up to 255 chars>` to make client retries safe. Semantics mirror Stripe:
+
+- **Affected endpoints** (all POST):
+  - `POST /v1/posts` (route `posts.create`) — see [§3.1](#31-create-post-request-or-offer).
+  - `POST /v1/conversations/{conversation_id}/messages` (route `conversations.sendMessage`) — see [§5.4](#54-send-message).
+  - `POST /v1/chat-safety/report` (route `chatSafety.createReport`) — see [§6.1](#61-create-report).
+- **Key composition**: the server composes the storage key as `{userId}:{routeName}:{clientKey}`. Salting with `userId` prevents one user from colliding against another user's chosen key.
+- **First call**: the handler runs normally; the response status code + body are persisted alongside the composite key.
+- **Replay (same key, same user, within TTL)**: the server returns the stored status + body **verbatim**, plus header `Idempotent-Replay: true`. This means a retry will observe the same result even when the original handler committed the side effect (the post / message / report already exists). If two retries race in-flight, the second response is returned with header `Idempotent-Replay: concurrent`.
+- **Key absent**: request falls through to the handler unchanged — existing clients that do not yet send the header keep working.
+- **TTL**: **24 hours**. Expired rows are swept by the `api-gateway` purge job that runs hourly in pilot/production.
+- **Database-layer defence-in-depth**: even when the cache is cold, `uq_messages_client_dedup` (conversations.sendMessage) and `uq_contact_requests_active_pair` (contact requests) prevent duplicate rows at the DB layer. HTTP idempotency is a fast-path retry guard; database constraints are the correctness backstop.
+
+Implementation reference: `services/api-gateway/src/lib/idempotency.ts` (contract docstring), storage table `idempotency_keys` (migration `0014_idempotency_keys.sql`). Server-side enforcement shipped in PR #49. Client integration: `apps/pwa/src/lib/api.ts` generates a fresh key per publish / send / report tap; callers (including the PWA offline outbox — see [`offline-outbox.md`](./offline-outbox.md)) may thread a stable `client_id` through `idempotencyKey` so retries of the same draft collapse to a single server-side post.
+
+---
+
 ## 2) Official Resources
 
 ### 2.1 Search Resources

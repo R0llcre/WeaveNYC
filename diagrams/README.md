@@ -9,7 +9,7 @@
 | 1 | `01_as_is_flow.mermaid` | Flowchart | 现状：居民如何找资源/互助 | [06_Blueprints §1.1](../docs/06_Blueprints.md) |
 | 2 | `02_to_be_conceptual.mermaid` | Flowchart | To-Be 概念层：参与者与交互 | [06_Blueprints §2.1](../docs/06_Blueprints.md) |
 | 3 | `03_to_be_logical.mermaid` | Flowchart | To-Be 逻辑层：服务与数据流 | [06_Blueprints §2.2](../docs/06_Blueprints.md) |
-| 4 | `04_physical_deployment.mermaid` | Flowchart | 多云部署拓扑（AWS/GCP/Azure/Vercel） | [06_Blueprints §2.3](../docs/06_Blueprints.md) + [19_Deployment_Guide §2](../docs/19_Deployment_Guide.md) |
+| 4 | `04_physical_deployment.mermaid` | Flowchart | 多云部署拓扑（AWS/GCP/Azure/Cloudflare Pages） | [06_Blueprints §2.3](../docs/06_Blueprints.md) + [19_Deployment_Guide §2](../docs/19_Deployment_Guide.md) |
 | 5 | `05_p2p_event_flow.mermaid` | Sequence | P2P 事件流：发帖到匹配 | [07_P2P_Node_Design §4](../docs/07_P2P_Node_Design.md) |
 | 6 | `06_report_flow.mermaid` | Sequence | 举报与处置流程 | [10_Security §4](../docs/10_Security_Privacy_Threat_Model.md) |
 | 7 | `07_user_journey_first_open.mermaid` | Flowchart | 用户旅程：首次打开到获取价值 | [02_PRD §4](../docs/02_PRD.md) + [03_User_Flows](../docs/03_User_Flows_And_Screens.md) |

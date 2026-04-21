@@ -170,7 +170,7 @@ flowchart TB
 | **AWS** | Lambda + ECS Fargate + RDS (PostgreSQL) + S3 | Serverless/容器 + 托管 DB | API Gateway + Match Engine + Posts + Chat(Fargate) + 目录存储 + 备份 |
 | **GCP** | Cloud Run + Cloud Storage | 容器化 | Resource Directory Ingestion/Parser |
 | **Azure** | Functions + Azure Blob | Serverless | Notification Service + Speech Gateway |
-| **Vercel** | Edge Network | CDN + SSR | PWA 前端 + Anchor Admin Console |
+| **Cloudflare** | Pages（`weavenyc-pwa`、`weavenyc-anchor-admin` 项目） | CDN + 静态/边缘渲染 | PWA 前端 + Anchor Admin Console |
 
 **P2P 网络拓扑**
 

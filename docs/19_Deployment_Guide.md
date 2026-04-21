@@ -118,8 +118,8 @@ curl -sS https://api.weavenyc.org/readyz    # 200 {"status":"ok", ...}
 | **Chat Service** | AWS | ECS Fargate | WebSocket 长连接不适合 Lambda |
 | **Notification** | Azure | Functions | 课程要求 + 地理服务对接 |
 | **Speech Gateway** | Azure | Functions | 课程要求 + Azure Speech 集成 |
-| **PWA (前端)** | Vercel | Edge Network | Next.js 原生支持、全球 CDN |
-| **Anchor Admin** | Vercel | Edge Network | 同 PWA |
+| **PWA (前端)** | Cloudflare | Cloudflare Pages（`weavenyc-pwa` 项目） | Next.js/静态导出原生支持、Worker/KV 生态、全球 CDN |
+| **Anchor Admin** | Cloudflare | Cloudflare Pages（`weavenyc-anchor-admin` 项目） | 同 PWA |
 
 ### 2.2 数据存储
 
@@ -434,8 +434,8 @@ MVP 阶段使用蓝绿部署（全量切换）；Phase 2 引入金丝雀发布�
 
 | 组件 | 回滚方式 | 时间目标 |
 |------|----------|----------|
-| 前端 (Vercel) | Vercel Instant Rollback | < 1 分钟 |
-| AWS Lambda | 回退到上一版本的 Lambda alias | < 2 分钟 |
-| GCP Cloud Run | Traffic split 切回旧 revision | < 2 分钟 |
-| Azure Functions | Deployment slot swap | < 2 分钟 |
-| 数据库 | Migration rollback / 备份恢复 | 5-30 分钟 |
+| 前端（Cloudflare Pages） | `wrangler pages deployment rollback --project-name weavenyc-pwa --deployment-id <id>`（Admin 项目同理换 `weavenyc-anchor-admin`），或 Cloudflare 控制台"Rollback to this deployment" | < 1 分钟 |
+| API Gateway（AWS App Runner） | `scripts/ops/reset-to-last-good-image.sh <ecr-tag>` / `aws apprunner update-service` 指回上一个 ECR tag | < 2 分钟 |
+| Resource Directory（GCP Cloud Run） | `gcloud run services update-traffic weavenyc-resource-directory --region us-east1 --to-revisions <prev>=100` | < 2 分钟 |
+| Notifications（Azure Container Apps） | `az containerapp revision set-mode --mode single --revision <prev>` | < 2 分钟 |
+| 数据库 | Migration rollback / 备份恢复，详见 [`29_M8_Pilot_Readiness §3.7`](./29_M8_Pilot_Readiness.md) | 5-30 分钟 |

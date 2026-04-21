@@ -23,6 +23,7 @@ All twelve items must be checked (green) before inviting real pilot users. If **
 - [ ] **GCP resource-directory deployed** — `resources.weavenyc.org` returns 200 and `/resources?zip=11735` returns a non-empty result
 - [ ] **Azure notifications deployed** — `notify.weavenyc.org` internal health returns 200; one test SMS + one test email successfully delivered end-to-end
 - [ ] **3 community anchors have signed MOU** — Farmingdale (11735), Queens Corona (11368), Bronx Hunts Point (10474); PDFs stored in the shared team drive with both signatures
+- [ ] **Per-community `contacts_to_confirm` resolved** — each of [`pilot-checklists/farmingdale.md`](./pilot-checklists/farmingdale.md), [`pilot-checklists/queens.md`](./pilot-checklists/queens.md), [`pilot-checklists/bronx.md`](./pilot-checklists/bronx.md) has a `contacts_to_confirm` block at the top. Every row must be filled with real, confirmed values (not placeholders, not `TBD`). Farmingdale-specific blockers: `ministry@stkilianparish.org` is a guessed address and the Day-0 launch date is `TBD` — both must be confirmed before Farmingdale go-live.
 - [ ] **3 anchors have activated TOTP in production** — `anchor_activated` event exists in `analytics_events` for each of the three communities, and `anchors.status = 'active'` for each
 - [ ] **Sentry SDK wired and DSN provisioned (downgraded)** — each of api-gateway, posts-service, match-service, chat-service, resource-directory, notifications-service has the Sentry SDK imported and a DSN available in Secrets Manager / Secret Manager / Key Vault. The stricter gate ("Sentry receiving events from all 5 services") has been downgraded for go-live (A8 P0-3): a real DSN was not yet provisioned in pilot secrets as of 2026-04-20. Acceptance: first Sentry event captured within **48 hours of go-live** via an artificial 4xx trigger per service; documented in the deploy log.
 - [ ] **`/metrics` endpoint live and verified by curl (downgraded)** — each runtime exposes `/metrics` (Prometheus text) and a manual `curl` from a maintainer laptop returns >= 10 non-empty lines. The stricter gate ("Prometheus scraping `/metrics`") has been downgraded for go-live (A8 P0-3): no Prometheus server is provisioned in the pilot environment. Scraper deployment is deferred to the **first week of pilot** (tracked under W4D); on-call uses manual `curl /metrics | promtool query instant` as the interim check per `docs/11_Ops_Runbook.md §H.2`.
@@ -76,7 +77,7 @@ Before touching anything:
 Two paths.
 
 **Path A — Dashboard (preferred when you want to see history):**
-1. https://dash.cloudflare.com → Workers & Pages → `weavenyc-pwa` (or `weavenyc-admin`)
+1. https://dash.cloudflare.com → Workers & Pages → `weavenyc-pwa` (or `weavenyc-anchor-admin`)
 2. Deployments tab → locate the last known-good deployment (previous commit hash) → "..." menu → **Rollback to this deployment**.
 3. Cloudflare promotes that deployment to production within seconds. Verify by opening an incognito window and checking the commit hash in the footer.
 
@@ -89,8 +90,8 @@ wrangler pages deployment list --project-name weavenyc-pwa
 wrangler pages deployment rollback <deployment-id> --project-name weavenyc-pwa
 
 # Do the same for admin.weavenyc.org
-wrangler pages deployment list --project-name weavenyc-admin
-wrangler pages deployment rollback <deployment-id> --project-name weavenyc-admin
+wrangler pages deployment list --project-name weavenyc-anchor-admin
+wrangler pages deployment rollback <deployment-id> --project-name weavenyc-anchor-admin
 ```
 
 Verify: `curl -sSfL https://weavenyc.org | grep -o 'data-commit="[a-f0-9]\{7\}"'` returns the rolled-back hash.

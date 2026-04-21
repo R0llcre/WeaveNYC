@@ -2,6 +2,12 @@ name: Backup Restore Rehearsal
 
 on:
   workflow_dispatch:
+  schedule:
+    # Weekly unattended rehearsal — Monday 07:00 UTC (03:00 ET / 00:00 PT).
+    # F4-E: previously workflow_dispatch-only, so it never ran unless
+    # someone clicked the button. Pilot SLO wants at least one rehearsal
+    # per week with an automatic alert on failure.
+    - cron: '0 7 * * 1'
 
 permissions:
   contents: read
@@ -90,3 +96,27 @@ jobs:
       - name: Stop local infrastructure
         if: always()
         run: docker compose down -v
+
+      - name: Notify #ops-critical on failure
+        # F4-E: post to Slack when the weekly rehearsal fails so ops doesn't
+        # discover a broken restore path during a real incident. The webhook
+        # is a secret (repo-level): `SLACK_OPS_WEBHOOK_URL`. When the secret
+        # is unset (e.g. fork PRs) the step is a no-op rather than failing.
+        if: ${{ failure() }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_OPS_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "SLACK_OPS_WEBHOOK_URL not set; skipping Slack notification"
+            exit 0
+          fi
+          PAYLOAD=$(cat <<JSON
+          {
+            "channel": "#ops-critical",
+            "text": ":rotating_light: WeaveNYC backup-restore rehearsal FAILED — ${RUN_URL}"
+          }
+          JSON
+          )
+          curl -sS -X POST -H 'Content-Type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"

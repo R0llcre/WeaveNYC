@@ -114,11 +114,17 @@ the outbox was meant to prevent.
 - Cross-tab sync — a second tab opening won't see the queue until its own
   drain fires on mount. Acceptable for the MVP since the drain is
   idempotent per entry and the user-facing list is polled on visibility.
-- Server-side idempotency key — if a 5xx response arrives after the
-  server already committed the write, the next drain pass will produce a
-  duplicate post. Audit A7 will flag this if it causes user complaints;
-  the server-side `Idempotency-Key` header is the fix and is a follow-up
-  change.
+- Server-side idempotency key — **shipped in PR #49** (server) and PR #55
+  (PWA client). The api-gateway accepts `Idempotency-Key` on `POST /v1/posts`,
+  `POST /v1/conversations/{id}/messages`, and `POST /v1/chat-safety/report`;
+  see [`09_API_Spec.md §1.10`](./09_API_Spec.md). The PWA `createPost()` / chat send
+  / report paths all set the header. The remaining outbox follow-up is
+  to thread the stable `client_id` of each pending entry through to
+  `createPost()` as the `idempotencyKey`, so that a retry for the same
+  queued draft dedupes on the server within the 24h TTL. Today, each
+  retry generates a fresh key, so a 5xx-after-commit can still surface
+  as a duplicate post — tracked as a small follow-up, no longer a
+  server-side gap.
 - User-configurable retry cadence / TTL.
 
 ## Files
