@@ -380,7 +380,7 @@ export function VerifyScreen() {
                         variant="primary"
                         size="md"
                         data-testid="send-code"
-                        disabled={!session || otpStart.isPending}
+                        disabled={!session?.access_token || otpStart.isPending}
                         loading={otpStart.isPending}
                         onClick={() => otpStart.mutate({ phone })}
                         // Wave 6C — sending the OTP fires a server request;
@@ -410,7 +410,7 @@ export function VerifyScreen() {
                       <Button
                         variant="primary"
                         size="md"
-                        disabled={!session || magicLinkStart.isPending}
+                        disabled={!session?.access_token || magicLinkStart.isPending}
                         loading={magicLinkStart.isPending}
                         onClick={() => magicLinkStart.mutate({ email })}
                       >
@@ -466,7 +466,7 @@ export function VerifyScreen() {
                         variant="primary"
                         size="md"
                         data-testid="verify-code"
-                        disabled={!session || otpVerify.isPending || !otpStart.data}
+                        disabled={!session?.access_token || otpVerify.isPending || !otpStart.data}
                         loading={otpVerify.isPending}
                         onClick={() =>
                           otpVerify.mutate(

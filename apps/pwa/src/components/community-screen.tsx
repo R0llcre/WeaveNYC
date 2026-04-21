@@ -589,7 +589,7 @@ export function CommunityScreen() {
                 <Button
                   variant="secondary"
                   size="md"
-                  disabled={!session || !p2pSync.status.enabled}
+                  disabled={!session?.access_token || !p2pSync.status.enabled}
                   onClick={() => p2pSync.syncNow()}
                 >
                   {t('p2pSyncNowAction')}

@@ -872,7 +872,7 @@ export function SettingsScreen() {
                     variant="danger"
                     size="lg"
                     loading={deleteState.kind === 'requesting'}
-                    disabled={!session || deleteState.kind === 'requesting'}
+                    disabled={!session?.access_token || deleteState.kind === 'requesting'}
                     onClick={handleStartDeletion}
                   >
                     {deleteState.kind === 'requesting'
