@@ -80,6 +80,14 @@ const P2P_ERROR_I18N_KEY: Record<P2PSyncErrorCategory, string> = {
   auth: 'p2pError_auth',
   network: 'p2pError_network',
   server: 'p2pError_server',
+  // `schema` is emitted by the worker when a server frame fails Zod
+  // validation (added alongside runtime validation in the protocol-version
+  // PR). For now we map it to the generic unknown-error copy so the
+  // existing 3-locale i18n coverage applies. A dedicated `p2pError_schema`
+  // key can land in a UX follow-up — the worker already tags Sentry with
+  // `errorCategory: 'schema'` so on-call can distinguish it from a true
+  // unknown.
+  schema: 'p2pError_unknown',
   unknown: 'p2pError_unknown',
 };
 
