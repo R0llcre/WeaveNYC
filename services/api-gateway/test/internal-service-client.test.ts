@@ -37,7 +37,8 @@ function createConfig(): AppConfig {
     },
     purgeJob: {
       enabled: false,
-      schedule: '0 0 * * *'
+      schedule: '0 0 * * *',
+      retainAnalyticsDays: 180
     },
     sentry: {
       dsn: null,

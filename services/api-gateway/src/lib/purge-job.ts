@@ -7,7 +7,11 @@ import type { Pool, PoolClient } from "pg";
 export interface PurgeJob {
   start(): void;
   stop(): Promise<void>;
-  runOnce(): Promise<{ deletedUsers: number; deletedIdempotencyKeys: number }>;
+  runOnce(): Promise<{
+    deletedUsers: number;
+    deletedIdempotencyKeys: number;
+    deletedAnalyticsEvents: number;
+  }>;
 }
 
 export interface PurgeJobConfig {
@@ -22,10 +26,18 @@ export interface PurgeJobConfig {
    * `actor_user_id_hash` values cannot be reversed.
    */
   actorHashPepper?: string;
+  /**
+   * F4-B fix #8 — analytics_events retention window in days. Rows older
+   * than this are deleted during each purge tick (single batched DELETE,
+   * not per-user). Defaults to 180 days to match the Pilot privacy
+   * posture. Set to 0 or a negative number to disable retention sweep.
+   */
+  retainAnalyticsDays?: number;
   logger?: FastifyBaseLogger;
 }
 
 const DEFAULT_SCHEDULE = "0 0 * * *";
+const DEFAULT_ANALYTICS_RETENTION_DAYS = 180;
 
 function hashActorUserId(userId: string, pepper?: string): string {
   return createHash("sha256")
@@ -46,6 +58,8 @@ function hashActorUserId(userId: string, pepper?: string): string {
  *   5. conversations linked to the user's contact_requests
  *   6. contact_requests involving the user
  *   7. match_suggestions whose request_post_id belongs to the user
+ *   7b. match_suggestions whose candidate_id points at one of the user's
+ *       posts (candidate_type='post'; polymorphic so there's no FK)
  *   8. posts created by the user
  *   9. community_members rows for the user
  *  10. nullable FK fan-out (moderation_actions, announcements, community_rulesets,
@@ -61,16 +75,26 @@ function hashActorUserId(userId: string, pepper?: string): string {
 export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
   const schedule = config.schedule ?? DEFAULT_SCHEDULE;
   const logger = config.logger;
+  const retainAnalyticsDays =
+    config.retainAnalyticsDays ?? DEFAULT_ANALYTICS_RETENTION_DAYS;
 
   if (!nodeCron.validate(schedule)) {
     throw new Error(`Invalid cron schedule for purge-job: ${schedule}`);
   }
 
   let scheduled: ReturnType<typeof nodeCron.schedule> | null = null;
-  let runInFlight: Promise<{ deletedUsers: number; deletedIdempotencyKeys: number }> | null = null;
+  let runInFlight: Promise<{
+    deletedUsers: number;
+    deletedIdempotencyKeys: number;
+    deletedAnalyticsEvents: number;
+  }> | null = null;
   let stopping = false;
 
-  async function runOnce(): Promise<{ deletedUsers: number; deletedIdempotencyKeys: number }> {
+  async function runOnce(): Promise<{
+    deletedUsers: number;
+    deletedIdempotencyKeys: number;
+    deletedAnalyticsEvents: number;
+  }> {
     if (runInFlight) {
       return runInFlight;
     }
@@ -80,9 +104,15 @@ export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
       try {
         const purge = await executePurge(client, logger, config.actorHashPepper);
         const idempotency = await executeIdempotencyReaper(client, logger);
+        const analytics = await executeAnalyticsRetentionSweep(
+          client,
+          logger,
+          retainAnalyticsDays,
+        );
         return {
           deletedUsers: purge.deletedUsers,
           deletedIdempotencyKeys: idempotency.deleted,
+          deletedAnalyticsEvents: analytics.deleted,
         };
       } finally {
         client.release();
@@ -113,17 +143,26 @@ export function createPurgeJob(config: PurgeJobConfig): PurgeJob {
         }
         try {
           const result = await runOnce();
-          if (result.deletedUsers > 0 || result.deletedIdempotencyKeys > 0) {
+          if (
+            result.deletedUsers > 0 ||
+            result.deletedIdempotencyKeys > 0 ||
+            result.deletedAnalyticsEvents > 0
+          ) {
             logger?.info(
               {
                 deletedUsers: result.deletedUsers,
                 deletedIdempotencyKeys: result.deletedIdempotencyKeys,
+                deletedAnalyticsEvents: result.deletedAnalyticsEvents,
               },
               "purge-job deleted expired rows",
             );
           } else {
             logger?.debug?.(
-              { deletedUsers: 0, deletedIdempotencyKeys: 0 },
+              {
+                deletedUsers: 0,
+                deletedIdempotencyKeys: 0,
+                deletedAnalyticsEvents: 0,
+              },
               "purge-job found nothing to purge",
             );
           }
@@ -188,6 +227,46 @@ async function executeIdempotencyReaper(
     logger?.warn(
       { err: error },
       "purge-job failed to sweep expired idempotency_keys rows",
+    );
+    return { deleted: 0 };
+  }
+}
+
+/**
+ * F4-B fix #8 — analytics_events retention sweep.
+ *
+ * Deletes analytics rows older than `retainDays` days. The idx_analytics
+ * _events_type_occurred_at index supports the scan. Uses a single batched
+ * DELETE rather than a per-user cascade because analytics rows are not
+ * owned by a specific user post-purge (actor_user_id_hash is already
+ * pseudonymized) — they're just aged-out event data.
+ *
+ * Returns `{ deleted: 0 }` without erroring if retainDays <= 0 (explicit
+ * opt-out) or if the DELETE fails (logged warn, swallowed — analytics
+ * retention is best-effort, never a blocker for the user-purge path).
+ */
+async function executeAnalyticsRetentionSweep(
+  client: PoolClient,
+  logger: FastifyBaseLogger | undefined,
+  retainDays: number,
+): Promise<{ deleted: number }> {
+  if (!Number.isFinite(retainDays) || retainDays <= 0) {
+    return { deleted: 0 };
+  }
+
+  try {
+    const result = await client.query(
+      `
+        delete from analytics_events
+        where occurred_at < now() - make_interval(days => $1::int)
+      `,
+      [Math.floor(retainDays)],
+    );
+    return { deleted: result.rowCount ?? 0 };
+  } catch (error) {
+    logger?.warn(
+      { err: error, retainDays },
+      "purge-job failed to sweep aged analytics_events rows",
     );
     return { deleted: 0 };
   }
@@ -321,6 +400,28 @@ async function executePurge(
           where request_post_id in (
             select post_id from posts where created_by = $1
           )
+        `,
+        [userId],
+      );
+
+      // 7b. match_suggestions where the user's post is the CANDIDATE (F4-B fix #3).
+      // candidate_id has no FK (it's polymorphic across candidate_type), so
+      // rows pointing AT the user's post would survive the FK-driven delete
+      // above. Leaving them stranded means the inbox API could surface a
+      // dangling suggestion whose candidate post was purged. Index support
+      // from idx_match_suggestions_candidate (migration 0016) keeps this
+      // sweep index-scan instead of seq-scan.
+      //
+      // Sequencing matters: must run BEFORE step 8 (posts delete) because
+      // the subquery filters by posts.created_by, which disappears when
+      // those rows go away.
+      await client.query(
+        `
+          delete from match_suggestions
+          where candidate_type = 'post'
+            and candidate_id in (
+              select post_id from posts where created_by = $1
+            )
         `,
         [userId],
       );

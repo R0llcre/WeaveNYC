@@ -20,6 +20,22 @@ const databaseReadyRetryableMessages = [
   /could not connect/i
 ];
 
+/**
+ * Reserved migration filename prefixes (F4-B fix #2).
+ *
+ * The migration history has gaps (0010 → 0013) because early M8 work
+ * squashed 0011 and 0012 into 0010. The tracking table keys by filename
+ * verbatim, so renaming applied rows is unsafe on prod. Instead we refuse
+ * to apply any NEW migration whose filename starts with one of these
+ * reserved prefixes — this stops a feature branch from silently landing
+ * `0011_my_new_thing.sql` between 0010 and 0013 and reordering
+ * dependencies.
+ *
+ * See packages/db/migrations/README.md for the full explanation and
+ * instructions for recycling a reserved slot if it ever becomes necessary.
+ */
+const RESERVED_MIGRATION_PREFIXES = ["0011", "0012"] as const;
+
 export async function runMigrations(): Promise<void> {
   const pool = new Pool({
     connectionString: getDbEnv().databaseUrl
@@ -41,6 +57,22 @@ export async function runMigrations(): Promise<void> {
       // Those run via scripts/rollback.ts only.
       .filter((entry) => entry.endsWith(".sql") && !entry.endsWith(".rollback.sql"))
       .sort((left, right) => left.localeCompare(right));
+
+    // Reserved-prefix guard (F4-B fix #2). Refuse to apply any migration
+    // whose 4-digit prefix is in RESERVED_MIGRATION_PREFIXES. This prevents
+    // a feature branch from silently dropping 0011/0012 into the lexical
+    // order between 0010 and 0013. Fails loud so the conflict is surfaced
+    // at migrate-time, not at cascade-failure time weeks later.
+    const reservedOffenders = files.filter((filename) =>
+      RESERVED_MIGRATION_PREFIXES.some((prefix) => filename.startsWith(`${prefix}_`))
+    );
+    if (reservedOffenders.length > 0) {
+      throw new Error(
+        `Reserved migration prefix in use: ${reservedOffenders.join(", ")}. ` +
+          `Prefixes ${RESERVED_MIGRATION_PREFIXES.join(", ")} are reserved — ` +
+          `see packages/db/migrations/README.md.`
+      );
+    }
 
     for (const filename of files) {
       const absolutePath = path.join(migrationsDir, filename);

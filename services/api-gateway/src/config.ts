@@ -107,6 +107,12 @@ const envSchema = z.object({
   NOTIFICATIONS_SERVICE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   ENABLE_PURGE_JOB: z.preprocess(emptyStringToUndefined, z.enum(['0', '1']).optional()),
   PURGE_JOB_CRON: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
+  // F4-B fix #8 — analytics_events retention in days. Default 180 matches
+  // the Pilot privacy posture. 0 or negative disables the sweep.
+  ANALYTICS_RETENTION_DAYS: z.preprocess(
+    emptyStringToUndefined,
+    z.coerce.number().int().optional(),
+  ),
   SENTRY_DSN: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   SENTRY_TRACES_SAMPLE_RATE: z.preprocess(emptyStringToUndefined, z.coerce.number().min(0).max(1).optional()),
   [authIdentityHashPepperEnvVar]: z.preprocess(emptyStringToUndefined, z.string().min(1).optional()),
@@ -147,6 +153,7 @@ export interface AppConfig {
   purgeJob: {
     enabled: boolean;
     schedule: string;
+    retainAnalyticsDays: number;
   };
   sentry: {
     dsn: string | null;
@@ -294,6 +301,7 @@ export async function loadConfig(source: NodeJS.ProcessEnv = process.env): Promi
           ? false
           : strictRuntime,
       schedule: env.PURGE_JOB_CRON ?? '0 0 * * *',
+      retainAnalyticsDays: env.ANALYTICS_RETENTION_DAYS ?? 180,
     },
     sentry: {
       dsn: env.SENTRY_DSN ?? null,

@@ -311,6 +311,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         enabled: config.purgeJob.enabled,
         schedule: config.purgeJob.schedule,
         actorHashPepper: config.identityHashPepper,
+        retainAnalyticsDays: config.purgeJob.retainAnalyticsDays,
         logger: app.log,
       });
     })();

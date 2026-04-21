@@ -1448,6 +1448,7 @@ export function createTestConfig(): AppConfig {
     purgeJob: {
       enabled: false,
       schedule: '0 0 * * *',
+      retainAnalyticsDays: 180,
     },
     sentry: {
       dsn: null,
@@ -1465,7 +1466,11 @@ export function createNoopPurgeJob(): PurgeJob {
     start() {},
     async stop() {},
     async runOnce() {
-      return { deletedUsers: 0, deletedIdempotencyKeys: 0 };
+      return {
+        deletedUsers: 0,
+        deletedIdempotencyKeys: 0,
+        deletedAnalyticsEvents: 0,
+      };
     },
   };
 }
