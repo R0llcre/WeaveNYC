@@ -1392,7 +1392,12 @@ async function main() {
     'Expected delete/confirm to return undelete_recovery_token',
   );
 
-  // Step 5 — undelete with a bad token returns 400.
+  // Step 5 — undelete with a bad token returns 404 with an opaque
+  // "recovery_not_available" message. Per A1 P1-11 (F1-α), every non-
+  // success branch — missing user, wrong state, past purge, bad token —
+  // now collapses to the same 404 to neutralize user-existence +
+  // account-state enumeration. The actual distinction is server-side
+  // logged only.
   const undeleteBad = await fetchJson<{ message?: string }>('/v1/account/undelete', {
     method: 'POST',
     body: JSON.stringify({
@@ -1401,8 +1406,8 @@ async function main() {
     }),
   });
   assert(
-    undeleteBad.response.status === 400,
-    `Expected undelete with bad token to return 400, got ${undeleteBad.response.status}`,
+    undeleteBad.response.status === 404,
+    `Expected undelete with bad token to return 404, got ${undeleteBad.response.status}`,
   );
 
   // Step 6 — undelete with the real recovery token restores the account.
@@ -1636,7 +1641,7 @@ async function main() {
           'POST /v1/account/delete/request (200 happy)',
           'POST /v1/account/delete/confirm (400 bad code)',
           'POST /v1/account/delete/confirm (202 scheduled)',
-          'POST /v1/account/undelete (400 bad token)',
+          'POST /v1/account/undelete (404 recovery_not_available)',
           'POST /v1/account/undelete (200 restored)',
           'POST /v1/account/delete/request (429 rate limit)',
           'POST /v1/auth/anchor/session/recovery (400 invalid code)',

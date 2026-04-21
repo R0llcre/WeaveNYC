@@ -768,3 +768,207 @@ describe('POST /v1/auth/anchor/session/recovery', () => {
     ).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ────────────────────────────────────────────────────────────────
+// A4 P0-2 — anchor invite activate rate-limit regression
+// ────────────────────────────────────────────────────────────────
+
+describe('POST /v1/auth/anchor/activate rate limit (A4 P0-2)', () => {
+  const apps: Array<{ close: () => Promise<unknown> }> = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((entry) => entry.close()));
+  });
+
+  it('returns 429 when the per-user bucket is exhausted before looking up the invite', async () => {
+    const authAbuseStore = new InMemoryAuthAbuseStore();
+    const userStore = new InMemoryUserStore();
+    const verifiedUserId = '22222222-2222-4222-8222-222222222222';
+    authAbuseStore.anchorActivateDecisions.set(verifiedUserId, {
+      allowed: false,
+      retryAfterSeconds: 42,
+      remaining: 0,
+    });
+
+    userStore.users.set(
+      verifiedUserId,
+      createUserRecord({
+        userId: verifiedUserId,
+        level: 'verified',
+        communityIds: [],
+      }),
+    );
+
+    const { app } = await createTestApp({ authAbuseStore, userStore });
+    apps.push(app);
+
+    const accessToken = app.jwt.sign(
+      {
+        sub: verifiedUserId,
+        level: 'verified',
+        role: 'user',
+        community_ids: [],
+      },
+      {
+        algorithm: 'RS256',
+        iss: app.config.jwt.issuer,
+        expiresIn: app.config.jwt.accessTokenTtl,
+      },
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anchor/activate',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { invite_code: 'WEAVE-ANCHOR-GRINDER' },
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('42');
+    expect(authAbuseStore.seenAnchorActivateKeys).toContain(verifiedUserId);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// A1 P1-7 — server-side logout endpoint
+// ────────────────────────────────────────────────────────────────
+
+describe('POST /v1/auth/logout (A1 P1-7)', () => {
+  const apps: Array<{ close: () => Promise<unknown> }> = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((entry) => entry.close()));
+  });
+
+  it('revokes every refresh-token family for the caller and returns 204', async () => {
+    const refreshTokenStore = new InMemoryRefreshTokenStore();
+    const { app } = await createTestApp({ refreshTokenStore });
+    apps.push(app);
+
+    const anonResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/anonymous',
+      payload: { device_id: randomUUID() },
+    });
+    const anon = anonResponse.json();
+
+    const logoutResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/logout',
+      headers: { authorization: `Bearer ${anon.access_token}` },
+      payload: { revoke_all_devices: false },
+    });
+
+    expect(logoutResponse.statusCode).toBe(204);
+
+    // The stored refresh-token family must now be revoked — any future
+    // /v1/auth/refresh call with that token must fail.
+    const stored = refreshTokenStore.sessions.get(anon.refresh_token);
+    expect(stored).toBeDefined();
+    expect(refreshTokenStore.revokedFamilies.has(stored!.familyId)).toBe(true);
+
+    const refreshAttempt = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/refresh',
+      payload: { refresh_token: anon.refresh_token },
+    });
+    expect(refreshAttempt.statusCode).toBe(401);
+  });
+
+  it('rejects unauthenticated calls with 401', async () => {
+    const { app } = await createTestApp();
+    apps.push(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/logout',
+      payload: {},
+    });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// A4 P0-3 — requireFreshAnchorMfa regressions
+// ────────────────────────────────────────────────────────────────
+
+describe('requireFreshAnchorMfa preHandler (A4 P0-3)', () => {
+  const apps: Array<{ close: () => Promise<unknown> }> = [];
+  const communityId = '44444444-4444-4444-8444-444444444444';
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((entry) => entry.close()));
+  });
+
+  it('returns 401 mfa_step_up_required when the JWT claim is older than the 15-minute step-up window', async () => {
+    // Regression: `app.authenticate` previously trusted the JWT's
+    // `mfa_verified_at` claim wholesale. A stolen access token could
+    // carry an old claim (up to the 4h anchor idle window!) and keep
+    // issuing destructive writes. Now every destructive route runs
+    // `requireFreshAnchorMfa`, which demands a claim no older than 15m
+    // AND cross-references the DB `anchors.last_mfa_at`.
+    const userStore = new InMemoryUserStore();
+    const staleMfaAt = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const anchorUser = createUserRecord({
+      userId: '33333333-3333-4333-8333-333333333333',
+      level: 'anchor',
+      role: 'anchor',
+      communityIds: [communityId],
+      anchorCommunityId: communityId,
+      mfaVerifiedAt: staleMfaAt,
+    });
+    userStore.users.set(anchorUser.userId, anchorUser);
+    userStore.anchors.set(communityId, {
+      anchorId: randomUUID(),
+      userId: anchorUser.userId,
+      communityId,
+      orgName: 'Test Anchor',
+      status: 'active',
+      totpSecretCiphertext: null,
+      recoveryCodesHashes: [],
+      activatedAt: staleMfaAt,
+      lastMfaAt: staleMfaAt,
+    });
+
+    const { app } = await createTestApp({ userStore });
+    apps.push(app);
+
+    const staleAccessToken = app.jwt.sign(
+      {
+        sub: anchorUser.userId,
+        level: 'anchor',
+        role: 'anchor',
+        community_ids: [communityId],
+        anchor_community_id: communityId,
+        mfa_verified_at: staleMfaAt,
+      },
+      {
+        algorithm: 'RS256',
+        iss: app.config.jwt.issuer,
+        expiresIn: app.config.jwt.accessTokenTtl,
+      },
+    );
+
+    // Hit a destructive anchor route. Any one of:
+    //   POST /v1/admin/review_queue/:post_id/decision
+    //   POST /v1/admin/report_queue/:report_id/decision
+    //   POST /v1/admin/communities/:id/announcements
+    //   PUT  /v1/admin/communities/:id/rules
+    // should reject on stale MFA. We use review_queue decision — the
+    // POST needs only a post_id param which the preHandler rejects
+    // before ever reading the body.
+    const response = await app.inject({
+      method: 'POST',
+      url: `/v1/admin/review_queue/${randomUUID()}/decision`,
+      headers: { authorization: `Bearer ${staleAccessToken}` },
+      payload: { decision: 'approve' },
+    });
+
+    expect(response.statusCode).toBe(401);
+    // Body shape matches the rest of the gateway's error responses:
+    // `{ message: 'mfa_step_up_required' }` — downstream clients
+    // (PWA / anchor-admin) branch on this message to trigger a TOTP
+    // step-up modal and retry the call.
+    expect(response.json()).toEqual({ message: 'mfa_step_up_required' });
+  });
+});

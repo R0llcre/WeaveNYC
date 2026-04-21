@@ -29,6 +29,7 @@ import {
   selectSession,
 } from '@/lib/selectors';
 import { clearSession, setSession } from '@/lib/slices/auth-slice';
+import { useSignOut } from '@/lib/use-sign-out';
 import {
   setDefaultPostVisibility,
   setLanguage,
@@ -281,9 +282,20 @@ function mapDeleteError(error: unknown): TranslationKey {
 export function SettingsScreen() {
   const t = useTranslations();
   const dispatch = useAppDispatch();
+  const signOut = useSignOut();
   const preferences = useAppSelector(selectPreferences);
   const session = useAppSelector(selectSession);
   const communityState = useAppSelector(selectCommunity);
+
+  const handleSignOutAllDevices = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm(t('meSignOutAllDevicesConfirm'));
+      if (!confirmed) {
+        return;
+      }
+    }
+    void signOut({ revokeAllDevices: true });
+  }, [signOut, t]);
 
   // P6 UX — surface current-community P2P sync controls inside Settings
   // so users can enable/disable community sync from this screen (parity
@@ -781,6 +793,25 @@ export function SettingsScreen() {
               </div>
             ) : null}
           </dl>
+
+          {/* A1 P1-7 — "Clear all devices" revokes EVERY session family
+              for this user on the gateway, not just the current tab. A
+              user who suspects their refresh token has been copied uses
+              this to force re-auth everywhere. `meSignOutHint` still
+              documents the "this device only" default (/me screen);
+              this action is the nuclear option. */}
+          {session ? (
+            <div className="action-row">
+              <Button
+                variant="secondary"
+                size="md"
+                data-testid="settings-sign-out-all-devices"
+                onClick={handleSignOutAllDevices}
+              >
+                {t('meSignOutAllDevicesAction')}
+              </Button>
+            </div>
+          ) : null}
 
           <details
             className="danger-zone"

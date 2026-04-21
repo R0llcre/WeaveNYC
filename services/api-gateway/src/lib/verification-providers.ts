@@ -11,30 +11,39 @@ export interface EmailLinkDeliveryResult {
   demoUrl?: string;
 }
 
+/**
+ * OTP / magic-link sendOtp and sendMagicLink inputs are union types:
+ *
+ *   - `{ phone, code, challengeId }` — used by `/v1/auth/otp/start` where
+ *     the caller supplies the phone number (new enrollment flow).
+ *   - `{ userId, code, challengeId }` — used by the account-delete flow
+ *     where the API gateway MUST NOT synthesize a raw phone placeholder
+ *     (A1 P0-14). The notification service resolves `userId → phone` on
+ *     its own side; the gateway only passes the user id through.
+ *
+ * Stub providers accept either shape and fall back to the demo code.
+ */
+export type SmsSendOtpInput =
+  | { phone: string; code: string; challengeId: string }
+  | { userId: string; code: string; challengeId: string };
+
+export type EmailSendMagicLinkInput =
+  | { email: string; challengeId: string; token: string }
+  | { userId: string; challengeId: string; token: string };
+
 export interface SmsProvider {
-  sendOtp(input: {
-    phone: string;
-    code: string;
-    challengeId: string;
-  }): Promise<SmsDeliveryResult>;
+  sendOtp(input: SmsSendOtpInput): Promise<SmsDeliveryResult>;
 }
 
 export interface EmailLinkProvider {
-  sendMagicLink(input: {
-    email: string;
-    challengeId: string;
-    token: string;
-  }): Promise<EmailLinkDeliveryResult>;
+  sendMagicLink(input: EmailSendMagicLinkInput): Promise<EmailLinkDeliveryResult>;
 }
 
 export class StubSmsProvider implements SmsProvider {
-  async sendOtp(input: {
-    phone: string;
-    code: string;
-    challengeId: string;
-  }): Promise<SmsDeliveryResult> {
+  async sendOtp(input: SmsSendOtpInput): Promise<SmsDeliveryResult> {
+    const destination = 'phone' in input ? input.phone : `user:${input.userId}`;
     console.info("[stub-sms]", {
-      phone: input.phone,
+      destination,
       code: input.code,
       challengeId: input.challengeId
     });
@@ -49,15 +58,12 @@ export class StubSmsProvider implements SmsProvider {
 export class StubEmailLinkProvider implements EmailLinkProvider {
   constructor(private readonly baseUrl: string) {}
 
-  async sendMagicLink(input: {
-    email: string;
-    challengeId: string;
-    token: string;
-  }): Promise<EmailLinkDeliveryResult> {
+  async sendMagicLink(input: EmailSendMagicLinkInput): Promise<EmailLinkDeliveryResult> {
     const demoUrl = `${this.baseUrl.replace(/\/$/, "")}/verify?challenge_id=${input.challengeId}&token=${input.token}`;
+    const destination = 'email' in input ? input.email : `user:${input.userId}`;
 
     console.info("[stub-email-link]", {
-      email: input.email,
+      destination,
       challengeId: input.challengeId,
       token: input.token,
       demoUrl

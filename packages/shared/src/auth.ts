@@ -50,6 +50,33 @@ export const accountDeleteWindowSeconds = 60 * 60;
 export const accountDeleteBurstLimit = 3;
 export const recoveryCodeWindowSeconds = 60 * 60;
 export const recoveryCodeBurstLimit = 5;
+/**
+ * Anchor activation brute-force guard (A4 P0-2). 5 attempts per hour per
+ * authenticated user; invite-code entropy now comes from the fixture
+ * generator (random base32), but this rate limit is defence-in-depth so
+ * a compromised access token can't grind through a candidate list.
+ */
+export const anchorActivateWindowSeconds = 60 * 60;
+export const anchorActivateBurstLimit = 5;
+/**
+ * Undelete endpoint IP bucket (A1 P1-11). Keyed on caller IP (hashed),
+ * NOT the body `user_id` — the previous keying was trivially bypassed by
+ * submitting a different `user_id` on each attempt. 20/hour/IP is
+ * generous enough for a legitimate user mis-typing their token a few
+ * times on multiple devices but blocks grind-through attacks.
+ */
+export const undeleteRequestWindowSeconds = 60 * 60;
+export const undeleteRequestBurstLimit = 20;
+/**
+ * Anchor MFA step-up freshness window for destructive writes (A4 P0-3).
+ * Access tokens live 15 min; anchor sessions can live 4 h (idle TTL).
+ * Destructive writes (post approve, report decide, announcement
+ * publish/delete, rules overwrite, user suspend, anchor revoke) require
+ * a TOTP re-verification newer than this window — the primary JWT
+ * `mfa_verified_at` claim is NOT trusted by itself; we cross-check DB
+ * `anchors.last_mfa_at`.
+ */
+export const anchorMfaStepUpMaxAgeSeconds = 15 * 60;
 export const authIdentityHashPepperEnvVar = "IDENTITY_HASH_PEPPER";
 export const anchorTotpEncryptionKeyEnvVar = "ANCHOR_TOTP_ENCRYPTION_KEY";
 

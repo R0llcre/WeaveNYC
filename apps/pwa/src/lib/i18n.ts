@@ -624,6 +624,9 @@ type ChromeMessages = {
   resourceDetailShareCopied: string;
   // M7 closeout — auth verb + UX copy consolidation
   meSignOutHint: string;
+  // M8 A1-hardening — "Clear all devices" / revoke-all-sessions action
+  meSignOutAllDevicesAction: string;
+  meSignOutAllDevicesConfirm: string;
   composePublishing: string;
   deleteRateLimitError: string;
   joinSuccessToast: string;
@@ -1241,6 +1244,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     composePublishing: 'Posting…',
     // Category 2 — clear-this-device hint
     meSignOutHint: 'Your posts and messages stay. Just this phone forgets you.',
+    // Category 2b — "Clear all devices" (server-side revoke every session family)
+    meSignOutAllDevicesAction: 'Sign out of every device',
+    meSignOutAllDevicesConfirm: 'This will sign you out on every phone and browser you\u2019ve used. Continue?',
     // Category 11 — delete rate-limit copy
     deleteRateLimitError: "You've asked to delete 3 times in the last hour. Try again in a bit, or email help@weavenyc.org for urgent removal.",
     // Category 13 — community join toast
@@ -1874,6 +1880,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     composePublishing: 'Publicando…',
     // Category 2 — clear-this-device hint
     meSignOutHint: 'Tus publicaciones y mensajes se quedan. Solo este teléfono te olvida.',
+    // Category 2b — "Clear all devices"
+    meSignOutAllDevicesAction: 'Cerrar sesión en todos los dispositivos',
+    meSignOutAllDevicesConfirm: 'Esto cerrará tu sesión en todos los teléfonos y navegadores que has usado. ¿Continuar?',
     // Category 11 — delete rate-limit copy
     deleteRateLimitError: 'Pediste eliminar 3 veces en la última hora. Intenta en un rato, o escribe a help@weavenyc.org si es urgente.',
     // Category 13 — community join toast
@@ -2504,6 +2513,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     composePublishing: '发帖中……',
     // Category 2 — clear-this-device hint
     meSignOutHint: '帖子和消息都留着，只是这台手机忘记你。',
+    // Category 2b — "Clear all devices"
+    meSignOutAllDevicesAction: '登出所有设备',
+    meSignOutAllDevicesConfirm: '这会在你用过的每台手机和浏览器上都退出登录。要继续吗？',
     // Category 11 — delete rate-limit copy
     deleteRateLimitError: '最近一小时已经请求了 3 次删除。过一会儿再试，急事可以发邮件到 help@weavenyc.org。',
     // Category 13 — community join toast

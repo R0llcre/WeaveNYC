@@ -153,7 +153,25 @@ function ClientBootstrap({ children, initialLanguage }: ProvidersProps) {
 
     void loadSession().then((storedSession) => {
       if (cancelled) return;
-      dispatch(hydrateSession(storedSession));
+      // Persisted session never contains access_token (A1 P1-6): we
+      // hydrate with an empty access_token string, and useSessionBootstrap
+      // will exchange the refresh_token for a fresh access_token on the
+      // first mount of a protected screen. Keeping the slice shape
+      // identical avoids churn on every consumer; the `access_token`
+      // field stays a string (empty → loading) rather than optional.
+      if (!storedSession) {
+        dispatch(hydrateSession(null));
+      } else {
+        dispatch(
+          hydrateSession({
+            access_token: '',
+            refresh_token: storedSession.refresh_token,
+            user: storedSession.user,
+            issued_via: storedSession.issued_via,
+            fallback: storedSession.fallback,
+          }),
+        );
+      }
       setSessionHydrated(true);
     });
 

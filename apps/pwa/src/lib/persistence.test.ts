@@ -11,6 +11,7 @@ import {
   loadP2PEventCursor,
   loadP2PKeyMaterial,
   loadP2PSyncState,
+  loadSession,
   markPendingPostAttempt,
   removePendingPost,
   saveCachedAnnouncements,
@@ -18,6 +19,7 @@ import {
   saveP2PEventCursor,
   saveP2PKeyMaterial,
   saveP2PSyncState,
+  saveSession,
   type PendingPostEntry,
 } from './persistence';
 
@@ -65,6 +67,9 @@ vi.mock('@/lib/db', () => ({
       get: vi.fn(async (key: string) => kvStore.get(key)),
       put: vi.fn(async (value: { key: string; value: unknown }) => {
         kvStore.set(value.key, value);
+      }),
+      delete: vi.fn(async (key: string) => {
+        kvStore.delete(key);
       }),
     },
     // Dexie-Table-shaped stub for the `pendingPosts` store. The
@@ -598,7 +603,7 @@ describe('pwa persistence helpers', () => {
   });
 
   /* ---------------------------------------------------------------- */
-  /* Offline write outbox — pendingPosts table.                       */
+  /* Offline write outbox — pendingPosts table (F1-β).               */
   /* ---------------------------------------------------------------- */
 
   function buildPending(overrides: Partial<PendingPostEntry> = {}): PendingPostEntry {
@@ -688,6 +693,68 @@ describe('pwa persistence helpers', () => {
 
     await removePendingPost('pending-z');
     expect(await listPendingPosts()).toEqual([]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* Session access_token hygiene (F1-α).                            */
+  /* ---------------------------------------------------------------- */
+
+  // A1 P1-6 — access_token must never land in IndexedDB. The persisted
+  // row carries only the long-lived refresh_token + user; the bootstrap
+  // hook exchanges that for a fresh access_token on first mount so the
+  // memory-only access_token invariant (docs/18 §4.3) is preserved.
+  it('saveSession strips access_token before persisting and loadSession never returns it', async () => {
+    await saveSession({
+      access_token: 'at_this_must_never_be_written',
+      refresh_token: 'rt_abcdef',
+      user: { user_id: 'user_1', level: 'verified' },
+      issued_via: 'otp',
+      fallback: false,
+    });
+
+    const storedEntry = kvStore.get('auth-session') as
+      | { value: Record<string, unknown> }
+      | undefined;
+    expect(storedEntry).toBeDefined();
+    expect(storedEntry?.value).not.toHaveProperty('access_token');
+    expect(storedEntry?.value).toMatchObject({
+      refresh_token: 'rt_abcdef',
+      user: { user_id: 'user_1', level: 'verified' },
+    });
+
+    const loaded = await loadSession();
+    expect(loaded).not.toBeNull();
+    expect(loaded).not.toHaveProperty('access_token');
+    expect(loaded?.refresh_token).toBe('rt_abcdef');
+    expect(loaded?.user.user_id).toBe('user_1');
+  });
+
+  it('loadSession strips access_token from legacy rows that still carry it', async () => {
+    // A previous build wrote the whole session (including access_token)
+    // to IndexedDB. On upgrade we must never surface that token to
+    // consumers — loadSession drops it.
+    kvStore.set('auth-session', {
+      key: 'auth-session',
+      value: {
+        access_token: 'at_legacy_row',
+        refresh_token: 'rt_legacy',
+        user: { user_id: 'user_legacy', level: 'anonymous' },
+      },
+    });
+
+    const loaded = await loadSession();
+    expect(loaded).not.toBeNull();
+    expect(loaded).not.toHaveProperty('access_token');
+    expect(loaded?.refresh_token).toBe('rt_legacy');
+  });
+
+  it('saveSession(null) deletes the persisted row', async () => {
+    kvStore.set('auth-session', {
+      key: 'auth-session',
+      value: { refresh_token: 'rt_will_be_deleted', user: { user_id: 'u', level: 'anonymous' } },
+    });
+    await saveSession(null);
+    expect(kvStore.has('auth-session')).toBe(false);
   });
 
   it('filterVisibleAnnouncements drops tombstoned announcements', () => {

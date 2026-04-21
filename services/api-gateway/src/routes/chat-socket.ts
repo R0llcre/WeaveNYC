@@ -16,11 +16,24 @@ export const chatSocketRoutes: FastifyPluginAsync = async (app) => {
       }
 
       let userId: string;
+      let tokenScope: string | undefined;
       try {
-        const claims = await app.jwt.verify<{ sub: string }>(token);
+        const claims = await app.jwt.verify<{ sub: string; scope?: string }>(token);
         userId = claims.sub;
+        tokenScope = claims.scope;
       } catch {
         socket.close(1008, "Invalid token");
+        return;
+      }
+
+      // A1 P1-3 scope guard: this socket accepts the primary access
+      // token (no `scope` claim), but MUST reject tokens minted for a
+      // different scope (e.g. the short-lived `scope: "p2p_ws"` JWT
+      // that /v1/communities/:id/bootstrap issues for /v1/ws/p2p). A
+      // stolen p2p_ws token leaking via an access log must not unlock
+      // the full chat socket.
+      if (tokenScope !== undefined && tokenScope !== "chat_ws") {
+        socket.close(1008, "Invalid token scope");
         return;
       }
 

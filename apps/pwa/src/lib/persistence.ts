@@ -602,7 +602,17 @@ export async function savePreferences(preferences: PreferencesState) {
   }
 }
 
-export async function loadSession(): Promise<AuthSession | null> {
+/**
+ * The persisted session intentionally omits the access_token (A1 P1-6).
+ * On hydrate the bootstrap hook exchanges the refresh_token for a fresh
+ * access_token via POST /v1/auth/refresh before the first protected
+ * request. Older rows written before this split may still carry an
+ * access_token; we drop it here on read so downstream code never
+ * surfaces a stale 15-minute bearer.
+ */
+export type PersistedAuthSession = Omit<AuthSession, 'access_token'>;
+
+export async function loadSession(): Promise<PersistedAuthSession | null> {
   try {
     const db = getPwaDb();
     if (!db) {
@@ -610,7 +620,15 @@ export async function loadSession(): Promise<AuthSession | null> {
     }
 
     const row = await db.kv.get(AUTH_SESSION_STORAGE_KEY);
-    return (row?.value as AuthSession | undefined) ?? null;
+    const raw = (row?.value as Partial<AuthSession> | undefined) ?? null;
+    if (!raw || typeof raw.refresh_token !== 'string' || !raw.user) {
+      return null;
+    }
+    // Strip any legacy access_token that may still be in pre-split
+    // IndexedDB rows; we never want to surface it to callers.
+    const { access_token: _discarded, ...persisted } = raw;
+    void _discarded;
+    return persisted as PersistedAuthSession;
   } catch {
     return null;
   }
@@ -628,9 +646,19 @@ export async function saveSession(session: AuthSession | null) {
       return;
     }
 
+    // SECURITY (A1 P1-6, docs/18 §4.3): the access_token is a
+    // memory-only credential. Persist ONLY the long-lived refresh token
+    // and the user shape; on the next bootstrap we exchange the stored
+    // refresh token for a fresh access_token via /v1/auth/refresh.
+    // Writing the access_token to IndexedDB would leak a 15-minute
+    // bearer that survives a tab close, violates the design contract,
+    // and enlarges the XSS blast radius.
+    const { access_token: _discardedAccessToken, ...persistable } = session;
+    void _discardedAccessToken;
+
     await db.kv.put({
       key: AUTH_SESSION_STORAGE_KEY,
-      value: session,
+      value: persistable,
     });
   } catch {
     return;

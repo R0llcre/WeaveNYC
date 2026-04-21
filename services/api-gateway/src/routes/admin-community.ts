@@ -20,7 +20,11 @@ import {
   errorResponseSchema,
 } from "../contracts.js";
 import { fanoutSyncEvents, publishAnnouncementEvent } from "../lib/p2p-events.js";
-import { isAnchorForCommunity, loadCurrentActor } from "../lib/require-anchor.js";
+import {
+  isAnchorForCommunity,
+  loadCurrentActor,
+  requireFreshAnchorMfa
+} from "../lib/require-anchor.js";
 
 type CommunityParams = {
   community_id: string;
@@ -127,10 +131,11 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
         response: {
           200: communityRulesResponseSchema,
           400: errorResponseSchema,
+          401: errorResponseSchema,
           403: errorResponseSchema,
         },
       },
-      preHandler: [app.authenticate],
+      preHandler: [app.authenticate, requireFreshAnchorMfa(app)],
     },
     async (request, reply) => {
       try {
@@ -216,10 +221,11 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
         response: {
           200: announcementSchema,
           400: errorResponseSchema,
+          401: errorResponseSchema,
           403: errorResponseSchema,
         },
       },
-      preHandler: [app.authenticate],
+      preHandler: [app.authenticate, requireFreshAnchorMfa(app)],
     },
     async (request, reply) => {
       try {
@@ -274,11 +280,12 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
         response: {
           200: announcementSchema,
           400: errorResponseSchema,
+          401: errorResponseSchema,
           403: errorResponseSchema,
           404: errorResponseSchema,
         },
       },
-      preHandler: [app.authenticate],
+      preHandler: [app.authenticate, requireFreshAnchorMfa(app)],
     },
     async (request, reply) => {
       try {
@@ -332,11 +339,12 @@ export const adminCommunityRoutes: FastifyPluginAsync = async (app) => {
         params: announcementParamsSchema,
         response: {
           200: announcementSchema,
+          401: errorResponseSchema,
           403: errorResponseSchema,
           404: errorResponseSchema,
         },
       },
-      preHandler: [app.authenticate],
+      preHandler: [app.authenticate, requireFreshAnchorMfa(app)],
     },
     async (request, reply) => {
       try {

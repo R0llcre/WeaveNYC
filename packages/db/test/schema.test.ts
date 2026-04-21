@@ -71,7 +71,9 @@ describe("@weavenyc/db migration contract", () => {
     expect(seedIds.anchorInviteId).toBe("5a5a5a5a-5a5a-455a-855a-5a5a5a5a5a5a");
     expect(seedIds.rulesetId).toBe("58585858-5858-4585-8585-585858585858");
     expect(seedIds.announcementId).toBe("59595959-5959-4595-8595-595959595959");
-    expect(seedValues.anchorInviteCode).toBe("WEAVE-ANCHOR-11735");
+    // Anchor invite codes are now random base32 per seed run (A4 P0-2)
+    // — assert shape (prefix + 8 base32 chars) not a fixed value.
+    expect(seedValues.anchorInviteCode).toMatch(/^WEAVE-ANCHOR-[A-Z2-7]{8}$/);
     expect(seedValues.datasetVersion).toBe("cfc_active_2026-04-04");
   });
 

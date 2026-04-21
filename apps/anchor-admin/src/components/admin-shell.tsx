@@ -38,6 +38,7 @@ export function AdminShell({
     selectedCommunityId,
     selectCommunity,
     signOut,
+    accessToken,
     sessionLabel,
     status,
   } = useAuth();
@@ -65,6 +66,43 @@ export function AdminShell({
 
   const handleCommunityApply = () => {
     selectCommunity(communityDraft.trim());
+  };
+
+  // A1 P1-7 — "Clear all devices" revokes every refresh-token family
+  // belonging to this user on the gateway, forcing re-auth on every
+  // browser the anchor has logged in from. Used if the anchor suspects
+  // their laptop was stolen / shared session persists on a kiosk.
+  const handleSignOutAllDevices = async () => {
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        "This will sign you out on every browser you have used. Continue?",
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    // Best-effort POST to /v1/auth/logout with revoke_all_devices=true
+    // before the local signOut clears tokens. If the network call fails
+    // we still clear locally so the user is never stranded.
+    try {
+      if (accessToken) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"}/v1/auth/logout`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ revoke_all_devices: true }),
+            cache: "no-store",
+          },
+        );
+      }
+    } catch {
+      // best-effort
+    }
+    signOut({ redirectToLogin: true, reason: "manual_all_devices" });
   };
 
   return (
@@ -140,6 +178,16 @@ export function AdminShell({
                   type="button"
                 >
                   Sign out
+                </button>
+                <button
+                  className="button ghost"
+                  onClick={() => {
+                    void handleSignOutAllDevices();
+                  }}
+                  type="button"
+                  data-testid="admin-shell-sign-out-all-devices"
+                >
+                  Clear all devices
                 </button>
               </div>
             </div>
