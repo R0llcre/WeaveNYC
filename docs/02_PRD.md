@@ -294,7 +294,7 @@ D. **安全 & 治理（MVP 级）**
 **MVP 支持语言**：英语 (en)、西班牙语 (es)、简体中文 (zh)
 
 **技术方案**：
-- 框架：[next-intl](https://next-intl-docs.vercel.app/)（配合 Next.js App Router，支持 SSR/SSG + Server Component 原生支持 + 类型安全）
+- 框架：[next-intl](https://next-intl-docs.vercel.app/)（外部文档链接；WeaveNYC 本身不使用 Vercel 作为部署平台 — PWA/Admin 部署在 Cloudflare Pages。历史参考，2026-04-21 核对。配合 Next.js App Router，支持 SSR/SSG + Server Component 原生支持 + 类型安全）
 - 翻译文件结构：
   ```
   apps/pwa/src/locales/

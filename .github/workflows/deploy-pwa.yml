@@ -21,6 +21,10 @@ on:
       - 'scripts/staging/post-deploy-smoke.ts'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-pwa
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -29,6 +33,14 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@v4
+      - name: Reject unfilled on-call placeholders (prod-only gate)
+        # F4-E guard — see deploy-api.yml for context. Only runs on push
+        # to main + workflow_dispatch, so it's implicitly production-only.
+        run: |
+          if grep -nE '^\| .*<primary>|^\| .*<secondary>|^\| .*<escalation>' docs/11_Ops_Runbook.md; then
+            echo "::error::docs/11_Ops_Runbook.md still has on-call placeholders — fill before prod deploy"
+            exit 1
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.0

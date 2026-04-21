@@ -6,6 +6,24 @@ See the general playbook in [`05_Partner_Playbook.md`](../05_Partner_Playbook.md
 
 ---
 
+## contacts_to_confirm
+
+Before Hunts Point go-live the operator MUST replace every placeholder below with real, confirmed values. **Go/no-go blocker for the Hunts Point rollout** (see [`../29_M8_Pilot_Readiness.md`](../29_M8_Pilot_Readiness.md) go/no-go matrix).
+
+| Field | Placeholder in this checklist | Where | Confirm by |
+|---|---|---|---|
+| Primary anchor contact | THE POINT CDC via web contact form | §1 Initial email draft | Phone call to THE POINT CDC reception confirming the right program director and a direct email. |
+| Bright Temple A.M.E. pastor | "look up current pastor" | §1 Initial email draft | 311 / charity-directory lookup + phone confirmation before emailing. Never cold-email a generic church alias. |
+| Prodigal Center / NSHOPP fallbacks | Unconfirmed | §1 Target organizations | Direct phone contact to validate pantry schedule and coordinator name. |
+| Hunts Point community_id | Assigned by W5A seed; not yet in production | §2 Step 1 | W5A merged + seed run in production; copy the real UUID before inserting the invite. |
+| Pilot target date | Unassigned | §3 Soft-launch Day-0 | Aligned to a Bright Temple Friday pantry 10:00-12:00 if possible. |
+| ES-speaker on-call | Unassigned in §3 | §3 Staffed standby | Named in Slack `#ops-critical` ≥ 48h before launch. |
+| MOU countersignature | Pending | — | Anchor org signs before invite is minted. |
+
+Do not mint a production invite if any row above is unresolved.
+
+---
+
 ## 1) Anchor candidate identification
 
 ### Target organizations (ranked)

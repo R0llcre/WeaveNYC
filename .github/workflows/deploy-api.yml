@@ -42,6 +42,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Reject unfilled on-call placeholders (prod-only gate)
+        # F4-E guard: PR #56 introduced `<primary>/<secondary>/<escalation>`
+        # placeholders in docs/11_Ops_Runbook.md on-call section. We must not
+        # deploy to prod with placeholders still present. PRs are not gated
+        # (this workflow only runs on push to main + workflow_dispatch), so
+        # this step is implicitly production-only.
+        run: |
+          if grep -nE '^\| .*<primary>|^\| .*<secondary>|^\| .*<escalation>' docs/11_Ops_Runbook.md; then
+            echo "::error::docs/11_Ops_Runbook.md still has on-call placeholders — fill before prod deploy"
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:

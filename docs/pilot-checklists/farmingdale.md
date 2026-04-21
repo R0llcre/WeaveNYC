@@ -6,6 +6,22 @@ See the general playbook in [`05_Partner_Playbook.md`](../05_Partner_Playbook.md
 
 ---
 
+## contacts_to_confirm
+
+Before Farmingdale go-live the operator MUST replace every placeholder below with real, confirmed values. **Go/no-go blocker for the Farmingdale rollout** (see [`../29_M8_Pilot_Readiness.md`](../29_M8_Pilot_Readiness.md) go/no-go matrix).
+
+| Field | Placeholder in this checklist | Where | Confirm by |
+|---|---|---|---|
+| Primary anchor email | `ministry@stkilianparish.org` (guessed from parish website) | §1 Initial email draft | Verified phone call to St. Kilian Parish Social Ministry; ideally the pastor's office confirms the current ministry alias. |
+| Backup anchor email | none documented | §1 Target organizations | Obtain from Hope for the Future and St. Martin of Tours via a direct phone call. |
+| Pilot target date | `TBD` | §3 Soft-launch Day-0 | Set jointly with the anchor after Step 4 of the recruiting SOP; must be a day the anchor is physically on-site. |
+| On-call engineer + project lead names | Unassigned in §3 Pre-dawn | §3 Pre-dawn | Assigned ≥ 48h before launch and pinned in Slack `#ops-critical`. |
+| Legal/MOU countersignature | Pending | — | Anchor org signs [`mou-template-en.md`](./mou-template-en.md) or [`mou-template-zh.md`](./mou-template-zh.md) before the seed invite is revoked. |
+
+Do not proceed past §2 Step 3 in production if any row above is unresolved.
+
+---
+
 ## 1) Anchor candidate identification
 
 ### Target organizations (ranked)
@@ -125,13 +141,46 @@ WHERE community_id = '44444444-4444-4444-8444-444444444444'
 ```
 
 ### Step 4 — Walk the anchor through activation (live, on a call)
-1. Anchor opens `admin.weavenyc.org/anchor/activate`.
-2. Anchor pastes `$INVITE_CODE`. API hits `POST /v1/auth/anchor/invite/redeem` → returns a TOTP secret + activation_id.
-3. Anchor adds the secret to their authenticator app (Google Authenticator / 1Password / Authy).
-4. Anchor enters the 6-digit code → `POST /v1/auth/anchor/session/activate` (implemented in `services/api-gateway/src/routes/auth.ts`).
-5. Anchor writes down the 3 recovery codes on paper (do not photograph).
-6. Anchor's row in `anchors` flips to `status = 'active'`, `activated_at` is set.
-7. Team verifies: `SELECT event_type, occurred_at FROM analytics_events WHERE event_type = 'anchor_activated' AND community_id = '44444444-...' ORDER BY occurred_at DESC LIMIT 1;` — must return one row, timestamp within the last five minutes.
+
+Prerequisite: the anchor must already hold a **verified** (Level 2) session — phone OTP or email magic-link completed on the admin login page. Activation endpoints all require `verified` auth; the server returns `403` otherwise.
+
+1. Anchor opens `admin.weavenyc.org/anchor/activate` and enters `$INVITE_CODE`. The admin UI posts:
+   ```
+   POST /v1/auth/anchor/activate
+   Authorization: Bearer <verified access_token>
+   { "invite_code": "$INVITE_CODE" }
+   ```
+   Response (200) contains `activation_id` (UUID), `community` (id/name/center_zip/join_policy), `otpauth_uri` (shown in the UI as a QR code), and 3 `recovery_codes` shown **once**. The server generates the TOTP secret — clients do not supply one.
+2. Anchor scans the QR code (or copies the otpauth URI) into their authenticator app (Google Authenticator / 1Password / Authy). They must also copy or write down the 3 recovery codes now — the server never shows them again.
+3. Anchor reads the current 6-digit TOTP code from the authenticator and submits:
+   ```
+   POST /v1/auth/anchor/activate/confirm
+   Authorization: Bearer <same verified access_token>
+   { "activation_id": "<uuid>", "totp_code": "123456" }
+   ```
+   On success the server persists the encrypted TOTP secret and the recovery-code hashes, revokes the anchor's prior non-anchor sessions, records the `anchor_activated` analytics event, and returns a fresh anchor-elevated session bundle (`access_token` + `refresh_token` with `level: "anchor"`).
+4. Anchor's row in `anchors` flips to `status = 'active'` and `activated_at` is set. Recovery codes remain written on paper — never photographed, never pasted into Slack or email.
+5. **Subsequent sessions** (every time the anchor signs back into admin after this activation): the admin UI re-runs the verified first factor (OTP / magic-link) and then performs the TOTP step-up:
+   ```
+   POST /v1/auth/anchor/session/start
+   { "community_id": "<farmingdale community_id>" }
+   → { "challenge_id": "<uuid>", "expires_in_seconds": ... }
+
+   POST /v1/auth/anchor/session/verify
+   { "challenge_id": "<uuid>", "totp_code": "654321" }
+   → anchor-elevated session bundle (access_token, refresh_token)
+   ```
+6. Team verifies: `SELECT event_type, occurred_at FROM analytics_events WHERE event_type = 'anchor_activated' AND community_id = '44444444-4444-4444-8444-444444444444' ORDER BY occurred_at DESC LIMIT 1;` — must return one row, timestamp within the last five minutes.
+
+> Endpoint reference (line ranges in `services/api-gateway/src/routes/auth.ts` at the time of writing):
+> - `POST /v1/auth/anchor/activate` — registration at line 513
+> - `POST /v1/auth/anchor/activate/confirm` — registration at line 606
+> - `POST /v1/auth/anchor/session/start` — registration at line 695
+> - `POST /v1/auth/anchor/session/verify` — registration at line 746
+>
+> (Line numbers drift as the file evolves — the handler names are stable; grep for `"/v1/auth/anchor/` in `auth.ts` if the line numbers stop matching.)
+>
+> Request / response schemas live in `services/api-gateway/src/contracts.ts` (`anchorActivate*` and `anchorSession*`). High-level flow documented in [`../18_Auth_Design.md §3.4`](../18_Auth_Design.md).
 
 ### Step 5 — Smoke test
 Have the anchor publish one test announcement, then delete it. The team confirms both operations landed via `announcements` and the dashboard shows the count back at zero.

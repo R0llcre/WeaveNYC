@@ -32,9 +32,9 @@ flowchart LR
     SPEECH[Functions<br/>Speech Gateway]
   end
 
-  subgraph Vercel ["Vercel"]
-    PWA[Edge CDN<br/>PWA Frontend]
-    ADMV[Edge CDN<br/>Admin Console]
+  subgraph CFPages ["Cloudflare Pages"]
+    PWA[weavenyc-pwa<br/>PWA Frontend]
+    ADMV[weavenyc-anchor-admin<br/>Admin Console]
   end
 
   U1 <-->|"WebRTC P2P"| U2

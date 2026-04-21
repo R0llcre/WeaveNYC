@@ -6,6 +6,23 @@ See the general playbook in [`05_Partner_Playbook.md`](../05_Partner_Playbook.md
 
 ---
 
+## contacts_to_confirm
+
+Before Corona go-live the operator MUST replace every placeholder below with real, confirmed values. **Go/no-go blocker for the Corona rollout** (see [`../29_M8_Pilot_Readiness.md`](../29_M8_Pilot_Readiness.md) go/no-go matrix).
+
+| Field | Placeholder in this checklist | Where | Confirm by |
+|---|---|---|---|
+| Primary anchor email | `togetherwecanrc@gmail.com` (public address) | §1 Initial email draft | Phone follow-up with Together We Can to confirm this alias still routes to their coordinator. |
+| Backup anchors | La Jornada / New Life CDC / Centro Corona | §1 Target organizations | Direct phone calls — email addresses not yet confirmed. |
+| Queens community_id | Assigned by W5A seed; not yet in production | §2 Step 1 | W5A merged + seed run in production; copy the real UUID into Step 2/3 before inserting the invite. |
+| Pilot target date | Unassigned | §3 Soft-launch Day-0 | Set jointly with the anchor; align with Together We Can pantry day if possible. |
+| ES-speaker + ZH-speaker on-call | Unassigned in §3 | §3 Staffed standby | Named in Slack `#ops-critical` ≥ 48h before launch. |
+| MOU countersignature | Pending | — | Anchor org signs before invite is minted. |
+
+Do not mint a production invite if any row above is unresolved.
+
+---
+
 ## 1) Anchor candidate identification
 
 ### Target organizations (ranked)
