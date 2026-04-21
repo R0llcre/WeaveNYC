@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
 import { and, eq, ne, sql } from "drizzle-orm";
 
 import type { Database } from "../src/client";
@@ -23,6 +26,11 @@ import {
   verificationLogs
 } from "../src/schema";
 import { seedDemoPersonas } from "./demo-personas";
+import { dedupe } from "../public-ingest/dedup";
+import type {
+  IngestResult,
+  ResourceProviderSeed
+} from "../public-ingest/types";
 import { seedIds, seedValues } from "./fixtures";
 
 export async function seedDatabase(db: Database) {
@@ -675,6 +683,13 @@ export async function seedDatabase(db: Database) {
     await seedDemoPersonas(db);
   }
 
+  // Public-source ingest (B2/B3/B4) — gated on SEED_PUBLIC_SOURCES=1 so
+  // the default dev seed doesn't pull the 43-row public snapshot. Ships
+  // Food Help NYC + USDA SNAP + DFTA + HRSA with attribution baked in.
+  if (process.env.SEED_PUBLIC_SOURCES === "1") {
+    await seedPublicSources(db);
+  }
+
   const seededUser = await db.query.users.findFirst({
     where: eq(users.userId, seedIds.anonymousUserId)
   });
@@ -682,6 +697,130 @@ export async function seedDatabase(db: Database) {
   return {
     ok: Boolean(seededUser)
   };
+}
+
+/**
+ * Load the latest public-ingest snapshot (or a live-run output if present)
+ * and upsert rows into `resource_providers`. Curated fixtures always win in
+ * `dedupe`, so this pass NEVER overwrites the hand-curated pilot providers.
+ * A per-source `dataset_versions` row is emitted so M1 read paths can surface
+ * attribution correctly.
+ *
+ * Gated on `SEED_PUBLIC_SOURCES === "1"` — keep the default seed behavior
+ * fast and deterministic for CI.
+ */
+async function seedPublicSources(db: Database): Promise<void> {
+  const seedGeneratedDir = path.resolve(__dirname, "generated");
+  const candidates = [
+    path.join(seedGeneratedDir, "public-resources.json"),
+    path.join(seedGeneratedDir, "public-resources.snapshot.json")
+  ];
+  const existingPath = candidates.find((candidate) => existsSync(candidate));
+  if (!existingPath) {
+    process.stdout.write(
+      "[seed] SEED_PUBLIC_SOURCES=1 but no public-resources.{json,snapshot.json} found — skipping public ingest step.\n"
+    );
+    return;
+  }
+
+  const payload = JSON.parse(readFileSync(existingPath, "utf8")) as IngestResult;
+  if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) {
+    return;
+  }
+
+  // Merge public rows with the curated fixture sources so curated rows win
+  // any name/zip/phone collision.
+  const curatedProxy: ResourceProviderSeed[] = [];
+  const merged = dedupe([...curatedProxy, ...payload.rows]);
+
+  const bySource = merged.reduce<Record<string, ResourceProviderSeed[]>>((acc, row) => {
+    (acc[row.source] ??= []).push(row);
+    return acc;
+  }, {});
+
+  for (const summary of payload.sources) {
+    const rowsForSource = bySource[summary.sourceId] ?? [];
+    await db
+      .insert(datasetVersions)
+      .values({
+        source: summary.sourceId,
+        datasetVersion: summary.datasetVersion,
+        sourceLabel: summary.sourceLabel,
+        sourceUrl: summary.sourceUrl,
+        recordCount: rowsForSource.length,
+        activeRecordCount: rowsForSource.length,
+        status: "active",
+        importStartedAt: new Date(payload.generatedAt),
+        importCompletedAt: new Date()
+      })
+      .onConflictDoUpdate({
+        target: [datasetVersions.source, datasetVersions.datasetVersion],
+        set: {
+          sourceLabel: sql`excluded.source_label`,
+          sourceUrl: sql`excluded.source_url`,
+          recordCount: sql`excluded.record_count`,
+          activeRecordCount: sql`excluded.active_record_count`,
+          status: sql`excluded.status`,
+          importCompletedAt: sql`excluded.import_completed_at`,
+          updatedAt: new Date()
+        }
+      });
+
+    for (const row of rowsForSource) {
+      await db
+        .insert(resourceProviders)
+        .values({
+          source: row.source,
+          sourceRef: row.sourceRef,
+          name: row.name,
+          type: row.type,
+          addressText: row.addressText,
+          city: row.city ?? null,
+          state: row.state ?? "NY",
+          zip: row.zip,
+          phone: row.phone ?? null,
+          hoursJson: row.hoursJson ?? null,
+          languages: row.languages ?? null,
+          eligibilityNotes: row.eligibilityNotes ?? null,
+          lat: row.lat ?? null,
+          lng: row.lng ?? null,
+          geoPrecision: row.geoPrecision,
+          contentHash: row.contentHash,
+          datasetVersion: row.datasetVersion,
+          status: "active",
+          lastSeenAt: new Date(payload.generatedAt)
+        })
+        .onConflictDoUpdate({
+          target: [
+            resourceProviders.source,
+            resourceProviders.sourceRef,
+            resourceProviders.datasetVersion
+          ],
+          set: {
+            name: sql`excluded.name`,
+            type: sql`excluded.type`,
+            addressText: sql`excluded.address_text`,
+            city: sql`excluded.city`,
+            state: sql`excluded.state`,
+            zip: sql`excluded.zip`,
+            phone: sql`excluded.phone`,
+            hoursJson: sql`excluded.hours_json`,
+            languages: sql`excluded.languages`,
+            eligibilityNotes: sql`excluded.eligibility_notes`,
+            lat: sql`excluded.lat`,
+            lng: sql`excluded.lng`,
+            geoPrecision: sql`excluded.geo_precision`,
+            contentHash: sql`excluded.content_hash`,
+            status: "active",
+            lastSeenAt: sql`excluded.last_seen_at`,
+            updatedAt: new Date()
+          }
+        });
+    }
+    process.stdout.write(
+      `[seed] public-ingest :: ${summary.sourceId} upserted ${rowsForSource.length} rows\n`
+    );
+  }
 }
 
 type PilotProviderSeed = {

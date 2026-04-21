@@ -17,3 +17,6 @@ test-results
 
 # Static export build artifacts
 apps/*/out/
+
+# Public-ingest live-run output (the *.snapshot.json file IS committed)
+packages/db/seed/generated/public-resources.json

@@ -24,6 +24,8 @@
     "db:migrate": "pnpm --filter @weavenyc/db db:migrate",
     "db:migrate:rollback": "pnpm --filter @weavenyc/db db:migrate:rollback",
     "db:seed": "pnpm --filter @weavenyc/db db:seed",
+    "db:seed:public": "pnpm --filter @weavenyc/db db:seed:public",
+    "db:seed:public:snapshot": "pnpm --filter @weavenyc/db db:seed:public:snapshot",
     "resources:import:cfc": "pnpm --filter @weavenyc/resource-directory resources:import:cfc",
     "resources:import:island-harvest": "pnpm --filter @weavenyc/resource-directory resources:import:island-harvest",
     "resources:sync": "pnpm --filter @weavenyc/resource-directory resources:sync",
