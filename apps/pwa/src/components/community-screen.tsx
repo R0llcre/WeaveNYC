@@ -23,7 +23,7 @@ import { TopBar } from '@/components/shell';
 import { createAnonymousSession } from '@/lib/api';
 import { isP2PDevDemoVisible } from '@/lib/p2p-env';
 import { useAppDispatch, useAppSelector, useCommunityP2PSync, usePosts } from '@/lib/hooks';
-import { loadCachedPosts, saveCachedPosts } from '@/lib/persistence';
+import { filterVisiblePostsForScope, loadCachedPosts, saveCachedPosts } from '@/lib/persistence';
 import {
   selectCommunity,
   selectPreferences,
@@ -31,7 +31,38 @@ import {
 } from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
 import { setCurrentCommunity } from '@/lib/slices/community-slice';
-import type { CachedPostsValue } from '@/lib/types';
+import type { CachedPostsValue, P2PSyncPhase } from '@/lib/types';
+import type { TagTone } from '@/components/ui/Tag';
+
+/**
+ * Maps the P2P sync phase → a Tag tone. Previously `ready` rendered verified
+ * and everything else rendered neutral, which made "weak signal" (degraded)
+ * and "offline" visually identical (audit P6 finding 11). This mapping gives
+ * each phase its own colour + also covers the new `auth_required` / `forbidden`
+ * terminal states.
+ */
+const P2P_PHASE_TONE: Record<P2PSyncPhase, TagTone> = {
+  ready: 'verified',
+  connecting: 'neutral',
+  degraded: 'warning',
+  offline: 'danger',
+  disabled: 'muted',
+  auth_required: 'danger',
+  forbidden: 'danger',
+};
+
+/**
+ * The audit (P6 finding 2) flagged that sync state transitions weren't
+ * announced to screen readers. `assertive` for terminal / destructive phases
+ * so assistive tech interrupts with the message; `polite` for the steady-state
+ * ready/connecting transitions so we don't spam the SR user.
+ */
+const ASSERTIVE_PHASES: ReadonlySet<P2PSyncPhase> = new Set<P2PSyncPhase>([
+  'offline',
+  'degraded',
+  'auth_required',
+  'forbidden',
+]);
 
 /**
  * CommunityScreen — /community.
@@ -152,14 +183,21 @@ export function CommunityScreen() {
     void saveCachedPosts(nextCache);
   }, [currentCommunity, p2pSync.status.enabled, posts.data, tab]);
 
+  // Tombstones live in the cache for version comparison but must never reach
+  // the user feed (see persistence.ts `filterVisiblePostsForScope`). Network
+  // responses are already tombstone-free server-side.
+  const cachedVisiblePosts = useMemo(
+    () => filterVisiblePostsForScope(cachedPosts?.items, tab),
+    [cachedPosts?.items, tab],
+  );
   const usingCachedPosts = Boolean(
     p2pSync.status.enabled &&
       currentCommunity &&
       cachedPosts &&
-      cachedPosts.items.length > 0 &&
+      cachedVisiblePosts.length > 0 &&
       (!isOnline || posts.isError),
   );
-  const visiblePosts = usingCachedPosts ? cachedPosts?.items ?? [] : posts.data?.items ?? [];
+  const visiblePosts = usingCachedPosts ? cachedVisiblePosts : posts.data?.items ?? [];
 
   const handleCreateSession = async () => {
     setCreatingSession(true);
@@ -341,9 +379,26 @@ export function CommunityScreen() {
                     {t('p2pSyncCopy', { communityName: currentCommunity.name })}
                   </p>
                 </Stack>
-                <Tag tone={p2pSync.status.phase === 'ready' ? 'verified' : 'neutral'}>
-                  {t(`p2pPhase_${p2pSync.status.phase}`)}
-                </Tag>
+                {/* Phase chip lives inside a live region so screen readers
+                    announce state transitions. `assertive` for
+                    offline/degraded/auth_required/forbidden (the user needs
+                    to act), `polite` for the connecting→ready path. */}
+                <div
+                  role="status"
+                  aria-live={ASSERTIVE_PHASES.has(p2pSync.status.phase) ? 'assertive' : 'polite'}
+                  aria-atomic="true"
+                >
+                  <Tag tone={P2P_PHASE_TONE[p2pSync.status.phase] ?? 'neutral'}>
+                    {/* TODO(ux-pr): add localised strings for
+                        p2pPhase_auth_required / p2pPhase_forbidden — for now
+                        we fall back to the generic offline label so there's
+                        no missing-key runtime warning. Gated on the UX PR
+                        adding new i18n keys. */}
+                    {p2pSync.status.phase === 'auth_required' || p2pSync.status.phase === 'forbidden'
+                      ? t('p2pPhase_offline')
+                      : t(`p2pPhase_${p2pSync.status.phase}`)}
+                  </Tag>
+                </div>
               </Inline>
 
               {/* W3 review M2: semantic <dl> so label/value pairs carry the
@@ -379,13 +434,22 @@ export function CommunityScreen() {
                 </div>
               </dl>
 
-              {p2pSync.status.lastError ? (
-                <Banner tone="danger" title={t('resourceLoadError')}>
-                  {p2pSync.status.lastError}
-                </Banner>
-              ) : null}
+              {/* Error banner paired with the phase chip above under the same
+                  live region semantics so SR users hear the error when the
+                  phase flips. */}
+              <div
+                role="status"
+                aria-live={ASSERTIVE_PHASES.has(p2pSync.status.phase) ? 'assertive' : 'polite'}
+                aria-atomic="true"
+              >
+                {p2pSync.status.lastError ? (
+                  <Banner tone="danger" title={t('resourceLoadError')}>
+                    {p2pSync.status.lastError}
+                  </Banner>
+                ) : null}
 
-              {!isOnline ? <Banner tone="warning" title={t('p2pOfflineMode')} /> : null}
+                {!isOnline ? <Banner tone="warning" title={t('p2pOfflineMode')} /> : null}
+              </div>
 
               <Inline gap={3} wrap>
                 <Button

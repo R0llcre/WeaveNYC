@@ -2681,6 +2681,27 @@ section.danger-zone {
   color: var(--color-verified-strong);
 }
 
+/* Warning / danger / muted tones added for the P2P sync status chip — the
+   audit called out that degraded (weak signal) and offline rendered with
+   the same neutral chip, making the states indistinguishable to colour-blind
+   users. `warning` reuses the urgent palette (amber), `danger` uses the
+   deep-red token, `muted` drops saturation for the disabled state. */
+.tag--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-urgent-strong);
+}
+
+.tag--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+}
+
+.tag--muted {
+  background: rgba(26, 31, 36, 0.04);
+  color: var(--color-ink-muted, var(--color-ink-secondary));
+  opacity: 0.75;
+}
+
 /* ============================================================================
    Atoms — ResourceCard (apps/pwa/src/components/ui/ResourceCard.tsx)
    ----------------------------------------------------------------------------

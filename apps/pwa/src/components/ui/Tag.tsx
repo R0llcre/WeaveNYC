@@ -2,7 +2,15 @@
 
 import { forwardRef } from 'react';
 
-export type TagTone = 'community' | 'urgent' | 'verified' | 'neutral' | 'accent';
+export type TagTone =
+  | 'community'
+  | 'urgent'
+  | 'verified'
+  | 'neutral'
+  | 'accent'
+  | 'warning'
+  | 'danger'
+  | 'muted';
 
 export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: TagTone;

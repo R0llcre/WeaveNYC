@@ -83,6 +83,17 @@ vi.mock('@/lib/persistence', () => ({
   saveCachedPosts: vi.fn(async () => undefined),
   loadCachedAnnouncements: vi.fn(async () => null),
   saveCachedAnnouncements: vi.fn(async () => undefined),
+  // Visibility filters are pure — stub them to just drop tombstones via
+  // status check, same contract as the real implementation. We do it here
+  // inline rather than importing to keep this mock fully self-contained.
+  filterVisiblePostsForScope: (items: Array<{ status?: string; privacy?: string }> | undefined, scope: 'community' | 'public') =>
+    (items ?? []).filter((item) => {
+      if (item.status !== 'active') return false;
+      if (scope === 'community') return item.privacy !== 'anchor_mediated';
+      return item.privacy === 'public';
+    }),
+  filterVisibleAnnouncements: (items: Array<{ status?: string }> | undefined) =>
+    (items ?? []).filter((item) => item.status !== 'removed' && item.status !== 'deleted' && item.status !== 'tombstoned'),
   loadP2PSyncState: vi.fn(async () => null),
   loadP2PKeyMaterial: vi.fn(async () => null),
   loadP2PEventCursor: vi.fn(async () => null),

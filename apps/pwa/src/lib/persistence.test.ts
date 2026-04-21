@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   applyCommunitySyncDeltaToCache,
+  filterVisibleAnnouncements,
+  filterVisiblePostsForScope,
   loadCachedAnnouncements,
   loadCachedPosts,
   loadP2PEventCursor,
@@ -63,6 +65,15 @@ vi.mock('@/lib/db', () => ({
 }));
 
 describe('pwa persistence helpers', () => {
+  // Pin "now" to a date 3 days after the test fixture timestamps so the 7-day
+  // tombstone retention window is well within range. Without this pin, a
+  // system clock running ahead of the fixtures would cause the pruning pass
+  // to drop tombstones mid-test.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-16T00:00:00.000Z'));
+  });
+
   afterEach(() => {
     postCacheStore.clear();
     announcementCacheStore.clear();
@@ -70,6 +81,7 @@ describe('pwa persistence helpers', () => {
     p2pSyncStateStore.clear();
     p2pEventCursorStore.clear();
     kvStore.clear();
+    vi.useRealTimers();
   });
 
   it('stores and loads cached community posts', async () => {
@@ -303,7 +315,7 @@ describe('pwa persistence helpers', () => {
     });
   });
 
-  it('removes tombstoned posts from offline caches', async () => {
+  it('keeps tombstone markers in cache (status=removed + p2p_version) after post.tombstoned', async () => {
     await saveCachedPosts({
       communityId: 'comm_1',
       scope: 'community',
@@ -324,6 +336,7 @@ describe('pwa persistence helpers', () => {
           updated_at: '2026-04-13T12:10:00.000Z',
           expires_at: '2026-04-20T12:10:00.000Z',
           is_owner: false,
+          p2p_version: 2,
         },
       ],
       next_cursor: null,
@@ -342,7 +355,7 @@ describe('pwa persistence helpers', () => {
           actor_p2p_id: 'edge_1',
           cid: 'cid_post_2',
           occurred_at: '2026-04-13T12:12:00.000Z',
-          payload: null,
+          payload: { p2p_version: 5 },
         },
       ],
       next_since: '2026-04-13T12:12:00.000Z',
@@ -353,9 +366,229 @@ describe('pwa persistence helpers', () => {
       },
     });
 
-    await expect(loadCachedPosts('comm_1', 'community')).resolves.toMatchObject({
-      items: [],
-      source: 'cache',
+    // Tombstone stays in cache as a marker carrying the latest p2p_version
+    // so stale updates cannot resurrect it (see mergeVersionedRecord). But
+    // it's excluded from the feed-visible list by filterVisiblePostsForScope.
+    const cached = await loadCachedPosts('comm_1', 'community');
+    expect(cached?.items).toEqual([
+      expect.objectContaining({
+        post_id: 'post_1',
+        status: 'removed',
+        p2p_version: 5,
+      }),
+    ]);
+    expect(filterVisiblePostsForScope(cached?.items, 'community')).toEqual([]);
+  });
+
+  it('post.updated with older p2p_version does not resurrect tombstoned post', async () => {
+    // First write: a live post at p2p_version=3.
+    await saveCachedPosts({
+      communityId: 'comm_1',
+      scope: 'community',
+      items: [
+        {
+          post_id: 'post_1',
+          community_id: 'comm_1',
+          post_type: 'request',
+          category: 'food',
+          title: 'Need pantry pickup',
+          body: 'Can someone help on Tuesday?',
+          language: 'en',
+          location_zip: '11735',
+          privacy: 'community_only',
+          status: 'active',
+          risk_level: 'low',
+          created_at: '2026-04-13T12:09:00.000Z',
+          updated_at: '2026-04-13T12:10:00.000Z',
+          expires_at: '2026-04-20T12:10:00.000Z',
+          is_owner: false,
+          p2p_version: 3,
+        },
+      ],
+      next_cursor: null,
+      updatedAt: '2026-04-13T12:10:00.000Z',
+      source: 'network',
     });
+
+    // Tombstone lands at p2p_version=10.
+    await applyCommunitySyncDeltaToCache({
+      events: [
+        {
+          sync_event_id: 'evt_tomb',
+          community_id: 'comm_1',
+          event_type: 'post.tombstoned',
+          aggregate_type: 'post',
+          aggregate_id: 'post_1',
+          actor_p2p_id: 'edge_1',
+          cid: 'cid_tomb',
+          occurred_at: '2026-04-13T12:12:00.000Z',
+          payload: { p2p_version: 10 },
+        },
+      ],
+      next_since: '2026-04-13T12:12:00.000Z',
+      server_time: '2026-04-13T12:12:01.000Z',
+      latest_snapshot: {
+        last_event_at: '2026-04-13T12:12:00.000Z',
+        event_count: 3,
+      },
+    });
+
+    // A straggler `post.updated` arrives with p2p_version=4 — older than the
+    // tombstone's 10. The tombstone must win; the post must NOT resurrect.
+    await applyCommunitySyncDeltaToCache({
+      events: [
+        {
+          sync_event_id: 'evt_stale_update',
+          community_id: 'comm_1',
+          event_type: 'post.updated',
+          aggregate_type: 'post',
+          aggregate_id: 'post_1',
+          actor_p2p_id: 'edge_1',
+          cid: 'cid_stale',
+          occurred_at: '2026-04-13T12:13:00.000Z',
+          payload: {
+            post: {
+              post_id: 'post_1',
+              community_id: 'comm_1',
+              p2p_version: 4,
+              post_type: 'request',
+              category: 'food',
+              title: 'Resurrected title',
+              body: 'Resurrected body',
+              language: 'en',
+              location_zip: '11735',
+              privacy: 'community_only',
+              status: 'active',
+              risk_level: 'low',
+              created_at: '2026-04-13T12:09:00.000Z',
+              updated_at: '2026-04-13T12:13:00.000Z',
+              expires_at: '2026-04-20T12:10:00.000Z',
+              is_owner: false,
+            },
+          },
+        },
+      ],
+      next_since: '2026-04-13T12:13:00.000Z',
+      server_time: '2026-04-13T12:13:01.000Z',
+      latest_snapshot: {
+        last_event_at: '2026-04-13T12:13:00.000Z',
+        event_count: 4,
+      },
+    });
+
+    const cached = await loadCachedPosts('comm_1', 'community');
+    // The cache still carries the tombstone marker at version=10 (not the
+    // stale update at version=4).
+    expect(cached?.items).toEqual([
+      expect.objectContaining({ post_id: 'post_1', status: 'removed', p2p_version: 10 }),
+    ]);
+    // The feed-visible list stays empty.
+    expect(filterVisiblePostsForScope(cached?.items, 'community')).toEqual([]);
+  });
+
+  it('applies events in occurred_at order even when the server delivers them out of order', async () => {
+    // Server delivers updated(v=3) BEFORE the chronologically earlier
+    // updated(v=2). If we applied in arrival order the final cache would be
+    // at v=2. Correct replay order (by occurred_at, sync_event_id) means
+    // v=3 wins.
+    await applyCommunitySyncDeltaToCache({
+      events: [
+        {
+          sync_event_id: 'evt_b',
+          community_id: 'comm_1',
+          event_type: 'post.updated',
+          aggregate_type: 'post',
+          aggregate_id: 'post_1',
+          actor_p2p_id: 'edge_1',
+          cid: 'cid_b',
+          occurred_at: '2026-04-13T12:11:00.000Z',
+          payload: {
+            post: {
+              post_id: 'post_1',
+              community_id: 'comm_1',
+              p2p_version: 3,
+              post_type: 'request',
+              category: 'food',
+              title: 'Latest title',
+              body: 'Latest body',
+              language: 'en',
+              location_zip: '11735',
+              privacy: 'community_only',
+              status: 'active',
+              risk_level: 'low',
+              created_at: '2026-04-13T12:09:00.000Z',
+              updated_at: '2026-04-13T12:11:00.000Z',
+              expires_at: '2026-04-20T12:10:00.000Z',
+              is_owner: false,
+            },
+          },
+        },
+        {
+          sync_event_id: 'evt_a',
+          community_id: 'comm_1',
+          event_type: 'post.updated',
+          aggregate_type: 'post',
+          aggregate_id: 'post_1',
+          actor_p2p_id: 'edge_1',
+          cid: 'cid_a',
+          occurred_at: '2026-04-13T12:10:00.000Z',
+          payload: {
+            post: {
+              post_id: 'post_1',
+              community_id: 'comm_1',
+              p2p_version: 2,
+              post_type: 'request',
+              category: 'food',
+              title: 'Earlier title',
+              body: 'Earlier body',
+              language: 'en',
+              location_zip: '11735',
+              privacy: 'community_only',
+              status: 'active',
+              risk_level: 'low',
+              created_at: '2026-04-13T12:09:00.000Z',
+              updated_at: '2026-04-13T12:10:00.000Z',
+              expires_at: '2026-04-20T12:10:00.000Z',
+              is_owner: false,
+            },
+          },
+        },
+      ],
+      next_since: '2026-04-13T12:11:00.000Z',
+      server_time: '2026-04-13T12:11:01.000Z',
+      latest_snapshot: {
+        last_event_at: '2026-04-13T12:11:00.000Z',
+        event_count: 2,
+      },
+    });
+
+    await expect(loadCachedPosts('comm_1', 'community')).resolves.toMatchObject({
+      items: [expect.objectContaining({ title: 'Latest title', p2p_version: 3 })],
+    });
+  });
+
+  it('filterVisibleAnnouncements drops tombstoned announcements', () => {
+    const items = [
+      {
+        announcement_id: 'ann_live',
+        community_id: 'comm_1',
+        title: 'Live',
+        body: 'live',
+        is_pinned: false,
+        status: 'active',
+      },
+      {
+        announcement_id: 'ann_tomb',
+        community_id: 'comm_1',
+        title: '',
+        body: '',
+        is_pinned: false,
+        status: 'deleted' as const,
+      },
+    ];
+
+    expect(filterVisibleAnnouncements(items)).toEqual([
+      expect.objectContaining({ announcement_id: 'ann_live' }),
+    ]);
   });
 });
