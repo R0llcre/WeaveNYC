@@ -532,7 +532,10 @@ export type P2PTopicMap = {
 
 export type CommunityLatestSnapshot = {
   last_event_at: string | null;
-  event_count: number;
+  // `event_count` is optional on the wire now — the `/sync` hot path omits
+  // it to avoid a count(*) scan per request (P4 finding 3 / B). Bootstrap
+  // still populates it.
+  event_count?: number;
 };
 
 export type CommunityBootstrapNode = {
@@ -543,6 +546,7 @@ export type CommunityBootstrapNode = {
 
 export type CommunityBootstrapResponse = {
   community_id: string;
+  protocol_version: "m6-overlay-v1";
   bootstrap_version: string;
   anchor_node: CommunityBootstrapNode | null;
   relay_nodes: CommunityBootstrapNode[];
@@ -662,10 +666,12 @@ export type P2PEventEnvelope =
 export type CommunitySyncEvent = P2PEventEnvelope;
 
 export type CommunitySyncDeltaResponse = {
+  protocol_version: "m6-overlay-v1";
   events: CommunitySyncEvent[];
   next_since: string | null;
   server_time: string;
   latest_snapshot: CommunityLatestSnapshot;
+  has_more: boolean;
 };
 
 export type P2PSyncStatus = {

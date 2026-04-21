@@ -615,7 +615,10 @@ export const p2pTopicMapSchema = {
 export const p2pSnapshotSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["last_event_at", "event_count"],
+  // `event_count` is populated on bootstrap but OMITTED from the /sync hot
+  // path when derivable from the delta (P4 finding 3 / B). Keeping it
+  // optional on the wire lets the server skip a count(*) scan per request.
+  required: ["last_event_at"],
   properties: {
     last_event_at: { type: ["string", "null"], format: "date-time" },
     event_count: { type: "integer", minimum: 0 },
@@ -814,6 +817,7 @@ export const communityBootstrapResponseSchema = {
   additionalProperties: false,
   required: [
     "community_id",
+    "protocol_version",
     "bootstrap_version",
     "anchor_node",
     "relay_nodes",
@@ -823,6 +827,10 @@ export const communityBootstrapResponseSchema = {
   ],
   properties: {
     community_id: { type: "string", format: "uuid" },
+    // Wire-format tag. See `P2P_OVERLAY_PROTOCOL_VERSION` in
+    // packages/shared/src/validators/p2p.ts — client compares on receipt
+    // and halts the loop on mismatch (P1 finding 4).
+    protocol_version: { type: "string", enum: ["m6-overlay-v1"] },
     bootstrap_version: { type: "string" },
     anchor_node: p2pNodeSchema,
     relay_nodes: {
@@ -838,8 +846,16 @@ export const communityBootstrapResponseSchema = {
 export const communitySyncDeltaResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["events", "next_since", "server_time", "latest_snapshot"],
+  required: [
+    "protocol_version",
+    "events",
+    "next_since",
+    "server_time",
+    "latest_snapshot",
+    "has_more",
+  ],
   properties: {
+    protocol_version: { type: "string", enum: ["m6-overlay-v1"] },
     events: {
       type: "array",
       items: p2pEventSchema,
@@ -847,6 +863,10 @@ export const communitySyncDeltaResponseSchema = {
     next_since: { type: ["string", "null"] },
     server_time: { type: "string", format: "date-time" },
     latest_snapshot: p2pSnapshotSchema,
+    // Explicit end-of-stream signal for the client's catch-up loop.
+    // Server computes `events.length === limit` — the client loops until
+    // this is false (P1 finding 6 / P2 finding 2).
+    has_more: { type: "boolean" },
   },
 } as const;
 

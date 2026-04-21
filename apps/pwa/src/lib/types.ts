@@ -206,6 +206,8 @@ export type CommunityAnnouncementsResponse = {
   next_cursor: string | null;
 };
 
+import type { CommunityLatestSnapshot } from '@weavenyc/shared';
+
 export type P2PTransportLabel = 'bootstrap' | 'mdns-demo';
 export type P2PSyncPhase =
   | 'disabled'
@@ -215,64 +217,35 @@ export type P2PSyncPhase =
   | 'offline'
   | 'auth_required'
   | 'forbidden';
-export type P2PSyncErrorCategory = 'auth' | 'network' | 'server' | 'unknown';
+/**
+ * Coarse classification of the most recent sync failure. Adds `'schema'`
+ * (Zod safeParse rejection / protocol_version mismatch) vs the existing
+ * auth/network/server/unknown split so the UI + Sentry can distinguish a
+ * wire-format drift from a transport outage (P1 finding 2 / 4).
+ */
+export type P2PSyncErrorCategory = 'auth' | 'network' | 'server' | 'schema' | 'unknown';
 export type P2PSyncSource = 'network' | 'cache';
-export type CommunitySyncEventType =
-  | 'post.published'
-  | 'post.updated'
-  | 'post.tombstoned'
-  | 'announcement.published'
-  | 'announcement.updated'
-  | 'announcement.deleted'
-  | 'report.created'
-  | 'moderation.decision';
-export type CommunitySyncAggregateType = 'post' | 'announcement' | 'report' | 'moderation';
 
-export type CommunityBootstrapNode = {
-  node_id: string;
-  websocket_url: string;
-  last_published_at?: string | null;
-};
-
-export type CommunitySnapshot = {
-  last_event_at: string | null;
-  event_count: number;
-};
-
-export type P2PTopicMap = {
-  posts: string;
-  announcements: string;
-  reports: string;
-};
-
-export type CommunityBootstrapResponse = {
-  community_id: string;
-  bootstrap_version: string;
-  anchor_node: CommunityBootstrapNode | null;
-  relay_nodes: CommunityBootstrapNode[];
-  topics: P2PTopicMap;
-  latest_snapshot: CommunitySnapshot | null;
-  mdns_demo_enabled: boolean;
-};
-
-export type CommunitySyncEvent = {
-  sync_event_id: string;
-  community_id: string;
-  event_type: CommunitySyncEventType;
-  aggregate_type: CommunitySyncAggregateType;
-  aggregate_id: string;
-  actor_p2p_id: string | null;
-  payload: Record<string, unknown> | null;
-  cid: string | null;
-  occurred_at: string;
-};
-
-export type CommunitySyncDeltaResponse = {
-  events: CommunitySyncEvent[];
-  next_since: string | null;
-  server_time: string;
-  latest_snapshot: CommunitySnapshot | null;
-};
+// The P2P-overlay wire types are defined ONCE in `@weavenyc/shared`
+// (packages/shared/src/validators/p2p.ts) so the PWA and the api-gateway
+// reference the same source of truth. Previously we hand-maintained
+// parallel copies here (P1 finding 2 — schema drift can silently poison
+// the cache). The re-exports below keep every local import stable while
+// the underlying type is the Zod-inferred shape from the shared schema.
+//
+// Any field added to the server-side schema automatically propagates to
+// the client via these `z.infer` types. Tests exercise the Zod safeParse
+// path end-to-end; see `p2p-wire-compat.test.ts` in the shared package.
+export type {
+  CommunitySyncEvent,
+  CommunitySyncDeltaResponse,
+  CommunityBootstrapResponse,
+  CommunityBootstrapNode,
+  CommunityLatestSnapshot as CommunitySnapshot,
+  P2PTopicMap,
+  P2PEventType as CommunitySyncEventType,
+  P2PAggregateType as CommunitySyncAggregateType,
+} from '@weavenyc/shared';
 
 export type P2PKeyMaterial = {
   communityId: string;
@@ -312,7 +285,7 @@ export type P2PSyncStatus = {
   peerCount: number;
   transportLabel: P2PTransportLabel;
   lastSyncAt: string | null;
-  latestSnapshot: CommunitySnapshot | null;
+  latestSnapshot: CommunityLatestSnapshot | null;
   lastError: string | null;
   /**
    * Coarse categorization of the most recent sync failure. Drives UI

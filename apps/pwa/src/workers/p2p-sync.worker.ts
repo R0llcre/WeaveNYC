@@ -23,6 +23,12 @@
  */
 
 import { getCommunitySyncWebSocketUrl } from '@/lib/api';
+import {
+  P2P_OVERLAY_PROTOCOL_VERSION,
+  communityBootstrapResponseSchema,
+  communitySyncDeltaResponseSchema,
+  p2pSyncFrameSchema,
+} from '@weavenyc/shared';
 import type {
   CommunityBootstrapResponse,
   CommunitySyncEvent,
@@ -78,25 +84,11 @@ function categorizeError(error: unknown): P2PSyncErrorCategory {
 }
 
 // --- Types shared with the main-thread client ------------------------------
-
-type ReadyFrame = {
-  frame_type: 'ready';
-  peer_count?: number;
-  latest_snapshot?: CommunitySyncDeltaResponse['latest_snapshot'];
-  transport?: P2PTransportLabel;
-};
-
-type HeartbeatFrame = {
-  frame_type: 'heartbeat';
-  occurred_at?: string;
-};
-
-type EventFrame = {
-  frame_type: 'event';
-  event?: CommunitySyncEvent;
-};
-
-type WorkerFrame = ReadyFrame | HeartbeatFrame | EventFrame;
+//
+// Frame shapes are defined on the server side as `p2pSyncFrameSchema` in
+// `@weavenyc/shared`. Every inbound frame goes through Zod `safeParse`
+// below so a server-side schema change fails loudly on the client instead
+// of silently poisoning the cache (P1 finding 2).
 
 type StartCommand = {
   type: 'start';
@@ -155,7 +147,10 @@ type WorkerState = {
   shuttingDown: boolean;
   peerCount: number;
   websocketUrl: string | null;
-  latestSnapshot: CommunitySyncDeltaResponse['latest_snapshot'];
+  // Nullable here even though the server-side response schema makes
+  // `latest_snapshot` non-null, because on first boot we have no snapshot
+  // to show (fresh community, or before bootstrap completes).
+  latestSnapshot: CommunitySyncDeltaResponse['latest_snapshot'] | null;
   // Backoff state for the WS reconnect loop — see `scheduleReconnect`.
   reconnectAttempts: number;
   // In-flight guard for `runSyncOnly` so timer ticks don't stack.
@@ -172,12 +167,18 @@ const POLL_INTERVAL_MS = 30_000;
 const CATCHUP_MAX_PAGES = 50;
 const CURSOR_EXPIRED_CODE = 'cursor_expired';
 
+/**
+ * Module-scoped counter bumped by `safeParse` rejection paths. Attached to
+ * the next `error` message so Sentry picks up the spike — a sustained
+ * non-zero value means the server has drifted its wire format. The
+ * protocol_version check (which halts the loop) is the first line of
+ * defence; this counter catches the "one field changed" drift that slips
+ * past the version tag.
+ */
+let schemaDriftCount = 0;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function isWorkerFrame(value: unknown): value is WorkerFrame {
-  return isRecord(value) && typeof value.frame_type === 'string';
 }
 
 function createDefaultState(): WorkerState {
@@ -271,15 +272,20 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
    * Emit an error status to the main thread. `error` gets stringified for the
    * existing `lastError` slot, and we include an `errorCategory` so the main
    * thread can choose how to surface it (toast, reauth prompt, etc).
+   *
+   * `categoryOverride` lets the schema-drift path bypass the default
+   * `SyncHttpError`-based categorization and flag `'schema'` instead so the
+   * UI shows "server wire format changed" rather than "server 5xx".
    */
   function postError(
     error: unknown,
     phaseHint?: P2PSyncPhase,
     extra: Partial<P2PSyncStatus> = {},
+    categoryOverride?: P2PSyncErrorCategory,
   ) {
     const message =
       error instanceof Error ? error.message : typeof error === 'string' ? error : 'P2P sync failed';
-    const category = categorizeError(error);
+    const category = categoryOverride ?? categorizeError(error);
     const requestId = state.requestId;
     const phase = phaseHint ?? offlinePhase();
 
@@ -295,6 +301,9 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
       requestId: requestId ?? undefined,
       errorCategory: category,
       status_code: error instanceof SyncHttpError ? error.status : undefined,
+      // Sentry listens for this — a non-zero schemaDriftCount after a
+      // successful start means the server has drifted.
+      schemaDriftCount,
     });
   }
 
@@ -428,6 +437,18 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
     return (await response.json()) as T;
   }
 
+  /**
+   * Raised when `safeParse` rejects an inbound delta / bootstrap payload.
+   * Caught at the bootstrap / poll sites so we surface a structured
+   * "schema_drift" error rather than a generic parse exception.
+   */
+  class SchemaDriftError extends Error {
+    constructor(stage: string, issues: string) {
+      super(`schema_drift at ${stage}: ${issues}`);
+      this.name = 'SchemaDriftError';
+    }
+  }
+
   async function fetchSyncDeltaPage(): Promise<CommunitySyncDeltaResponse> {
     const params = new URLSearchParams();
     if (state.since) {
@@ -436,10 +457,36 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
     params.set('limit', String(state.limit));
 
     const suffix = params.toString() ? `?${params.toString()}` : '';
-    const delta = await fetchJson<CommunitySyncDeltaResponse>(
+    const rawDelta = await fetchJson<unknown>(
       `/v1/communities/${state.communityId}/sync${suffix}`,
     );
 
+    // Zod safeParse: drop the payload on rejection rather than letting the
+    // cache swallow an incompatible shape (P1 finding 2). Bump the drift
+    // counter so Sentry can see the spike.
+    const parsed = communitySyncDeltaResponseSchema.safeParse(rawDelta);
+    if (!parsed.success) {
+      schemaDriftCount += 1;
+      throw new SchemaDriftError(
+        'sync delta',
+        parsed.error.issues
+          .slice(0, 3)
+          .map((i) => `${i.path.join('.')}: ${i.message}`)
+          .join(', '),
+      );
+    }
+
+    // Version gate: a mismatch means the server is speaking a different
+    // protocol than we compiled against. Halt the loop — retrying would
+    // just poison the cache with incompatible data.
+    if (parsed.data.protocol_version !== P2P_OVERLAY_PROTOCOL_VERSION) {
+      throw new SchemaDriftError(
+        'sync delta',
+        `protocol_version_mismatch: got ${parsed.data.protocol_version}, expected ${P2P_OVERLAY_PROTOCOL_VERSION}`,
+      );
+    }
+
+    const delta = parsed.data;
     updateSince(delta.next_since);
     state.latestSnapshot = delta.latest_snapshot;
     return delta;
@@ -451,6 +498,10 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
    * offline for more than `limit` events would miss the tail until the next
    * 30s poll tick (audit P5.6 / P2.2). We cap at `CATCHUP_MAX_PAGES` to defend
    * against a pathological server that never advances `next_since`.
+   *
+   * Exhaustion is driven by the server's explicit `has_more` flag (P1
+   * finding 6 / P2 finding 2) — the prior heuristic (`events.length < limit`)
+   * races the server's cursor semantics under concurrent writes.
    */
   async function fetchAllCatchupPages(): Promise<CommunitySyncDeltaResponse | null> {
     let lastDelta: CommunitySyncDeltaResponse | null = null;
@@ -463,9 +514,10 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
       lastDelta = delta;
 
       // Stop when:
-      //   1. Server returned fewer events than the requested limit (drained).
-      //   2. Cursor didn't advance — belt-and-suspenders against a broken server.
-      if (delta.events.length < state.limit) {
+      //   1. Server signaled end-of-stream (`has_more === false`).
+      //   2. Cursor didn't advance — belt-and-suspenders against a broken
+      //      server that keeps emitting the same window.
+      if (!delta.has_more) {
         break;
       }
       if (state.since === previousSince) {
@@ -493,9 +545,41 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
     postStatus('connecting');
 
     try {
-      const bootstrap = await fetchJson<CommunityBootstrapResponse>(
+      const rawBootstrap = await fetchJson<unknown>(
         `/v1/communities/${state.communityId}/bootstrap`,
       );
+
+      // Runtime validation (P1 finding 2). Prior to this the raw JSON was
+      // cast straight to `CommunityBootstrapResponse` with zero guard
+      // against drift.
+      const parsed = communityBootstrapResponseSchema.safeParse(rawBootstrap);
+      if (!parsed.success) {
+        schemaDriftCount += 1;
+        throw new SchemaDriftError(
+          'bootstrap',
+          parsed.error.issues
+            .slice(0, 3)
+            .map((i) => `${i.path.join('.')}: ${i.message}`)
+            .join(', '),
+        );
+      }
+
+      // Version gate — see comment on `fetchSyncDeltaPage`.
+      if (parsed.data.protocol_version !== P2P_OVERLAY_PROTOCOL_VERSION) {
+        // Loud devtools warning so operators debugging the pilot can see
+        // the mismatch without waiting for Sentry.
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn(
+            `[p2p-sync] protocol_version_mismatch: got ${parsed.data.protocol_version}, expected ${P2P_OVERLAY_PROTOCOL_VERSION}. Halting sync loop.`,
+          );
+        }
+        throw new SchemaDriftError(
+          'bootstrap',
+          `protocol_version_mismatch: got ${parsed.data.protocol_version}, expected ${P2P_OVERLAY_PROTOCOL_VERSION}`,
+        );
+      }
+
+      const bootstrap: CommunityBootstrapResponse = parsed.data;
 
       state.latestSnapshot = bootstrap.latest_snapshot;
       state.peerCount = 0;
@@ -505,6 +589,21 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
       await fetchAllCatchupPages();
       connectSocket();
     } catch (error) {
+      if (error instanceof SchemaDriftError) {
+        // Schema drift / protocol_version mismatch — the server is on an
+        // incompatible wire revision. Retrying would just re-poison
+        // the cache. Halt the loop and surface a `'schema'` category to
+        // the main thread so the UI can show the right message.
+        postError(
+          error,
+          'degraded',
+          { lastError: 'protocol_version_mismatch' },
+          'schema',
+        );
+        clearReconnectTimer();
+        clearPollTimer();
+        return;
+      }
       if (error instanceof SyncHttpError) {
         if (error.status === 401) {
           // User must reauth via Verify flow before the worker can resume.
@@ -558,6 +657,19 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
       const delta = await fetchSyncDeltaPage();
       postSync(delta);
     } catch (error) {
+      if (error instanceof SchemaDriftError) {
+        // Schema drift during the poll loop: halt poll + reconnect so we
+        // don't keep re-fetching incompatible payloads.
+        postError(
+          error,
+          'degraded',
+          { lastError: 'protocol_version_mismatch' },
+          'schema',
+        );
+        clearPollTimer();
+        clearReconnectTimer();
+        return;
+      }
       if (error instanceof SyncHttpError) {
         if (error.status === 401) {
           postError(error, 'auth_required');
@@ -682,20 +794,65 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
 
       const data = (event as MessageEvent).data;
 
-      let frame: unknown;
+      let raw: unknown;
       try {
-        frame = JSON.parse(String(data));
+        raw = JSON.parse(String(data));
       } catch {
         return;
       }
 
-      if (!isWorkerFrame(frame)) {
+      // safeParse the frame — a drift (e.g. a new aggregate_type the
+      // shared enum doesn't cover yet) is dropped and counted. The
+      // connection itself stays open so heartbeat / valid frames still
+      // flow. See P1 finding 2.
+      const parsed = p2pSyncFrameSchema.safeParse(raw);
+      if (!parsed.success) {
+        schemaDriftCount += 1;
+        deps.post({
+          type: 'error',
+          error: 'schema_drift',
+          errorCategory: 'schema',
+          schemaDriftCount,
+          status_code: undefined,
+          requestId: state.requestId ?? undefined,
+          status: buildStatus({
+            phase: state.socket ? 'ready' : offlinePhase(),
+            lastError: 'schema_drift',
+            errorCategory: 'schema',
+          }),
+        });
         return;
       }
 
+      const frame = parsed.data;
+
       if (frame.frame_type === 'ready') {
-        state.peerCount = typeof frame.peer_count === 'number' ? frame.peer_count : state.peerCount;
-        state.latestSnapshot = frame.latest_snapshot ?? state.latestSnapshot;
+        // Version gate on the ready frame too — catches the case where a
+        // mid-session server upgrade drifts the wire format.
+        if (frame.protocol_version !== P2P_OVERLAY_PROTOCOL_VERSION) {
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn(
+              `[p2p-sync] protocol_version_mismatch on WS ready frame: got ${frame.protocol_version}, expected ${P2P_OVERLAY_PROTOCOL_VERSION}. Halting sync loop.`,
+            );
+          }
+          postError(
+            new Error('protocol_version_mismatch'),
+            'degraded',
+            { lastError: 'protocol_version_mismatch' },
+            'schema',
+          );
+          clearReconnectTimer();
+          clearPollTimer();
+          try {
+            socket.close();
+          } catch {
+            // ignore
+          }
+          return;
+        }
+
+        state.peerCount = frame.peer_count;
+        state.latestSnapshot = frame.latest_snapshot;
         postStatus('ready', {
           peerCount: state.peerCount,
           lastSyncAt: new Date(deps.now()).toISOString(),
@@ -709,7 +866,7 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
 
       if (frame.frame_type === 'heartbeat') {
         postStatus('ready', {
-          lastSyncAt: frame.occurred_at ?? new Date(deps.now()).toISOString(),
+          lastSyncAt: frame.occurred_at,
           latestSnapshot: state.latestSnapshot,
           lastError: null,
           errorCategory: null,
@@ -717,16 +874,15 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
         return;
       }
 
-      if (!frame.event) {
-        return;
-      }
-
+      // frame_type === 'event'
       bumpSnapshot(frame.event);
       postSync({
+        protocol_version: P2P_OVERLAY_PROTOCOL_VERSION,
         events: [frame.event],
         next_since: state.since,
         server_time: frame.event.occurred_at,
-        latest_snapshot: state.latestSnapshot,
+        latest_snapshot: state.latestSnapshot ?? { last_event_at: null },
+        has_more: false,
       });
     });
 
@@ -771,6 +927,9 @@ export function createP2PSyncRuntime(deps: P2PSyncRuntimeDeps) {
       clearReconnectTimer();
       closeSocket();
       state = createDefaultState();
+      // Reset the schema-drift counter so the next session's Sentry
+      // datapoint starts at zero.
+      schemaDriftCount = 0;
       postStatus('disabled', {
         enabled: false,
         communityId: '',

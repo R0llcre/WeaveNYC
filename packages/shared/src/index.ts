@@ -176,6 +176,7 @@ export {
   reviewPriorityLabelSchema,
 } from "./validators/admin";
 export {
+  P2P_OVERLAY_PROTOCOL_VERSION,
   announcementSummaryDagSchema,
   announcementSyncEventPayloadSchema,
   communityBootstrapNodeSchema,
@@ -186,7 +187,12 @@ export {
   moderationDecisionEventPayloadSchema,
   p2pAggregateTypeSchema,
   p2pEventEnvelopeSchema,
+  p2pEventFrameSchema,
   p2pEventTypeSchema,
+  p2pHeartbeatFrameSchema,
+  p2pProtocolVersionSchema,
+  p2pReadyFrameSchema,
+  p2pSyncFrameSchema,
   p2pSyncStatusSchema,
   p2pSyncTransportSchema,
   p2pTopicMapSchema,

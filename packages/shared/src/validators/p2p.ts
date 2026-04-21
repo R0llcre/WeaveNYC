@@ -8,6 +8,29 @@ import {
 import { announcementSchema } from "./admin";
 import { postSummarySchema } from "./posts";
 
+/**
+ * Single-source-of-truth tag for the M6 overlay wire format.
+ *
+ * Shared between the API gateway (emitted on bootstrap + on the WebSocket
+ * `ready` frame + on every `/sync` response) and the PWA worker (compared on
+ * receipt). A mismatch means the client + server are speaking incompatible
+ * protocol revisions — the worker stops its loop and posts a
+ * `protocol_version_mismatch` error rather than silently poisoning caches.
+ *
+ * Bump this constant only when making a breaking wire change (e.g. a required
+ * field added, a discriminator enum widened, etc). When bumped, the value
+ * MUST change in lockstep with any supporting schema edits so that old
+ * clients fail loudly rather than accept half-compatible payloads.
+ */
+export const P2P_OVERLAY_PROTOCOL_VERSION = "m6-overlay-v1" as const;
+
+/**
+ * Zod schema for the protocol_version literal. Using the constant keeps the
+ * literal + the exported value in lockstep — there is no way for the server
+ * to emit a stale string while the shared constant advances.
+ */
+export const p2pProtocolVersionSchema = z.literal(P2P_OVERLAY_PROTOCOL_VERSION);
+
 export const p2pAggregateTypeSchema = z.enum(p2pAggregateTypes);
 export const p2pEventTypeSchema = z.enum(p2pEventTypes);
 export const p2pSyncTransportSchema = z.enum(p2pSyncTransports);
@@ -20,7 +43,10 @@ export const p2pTopicMapSchema = z.object({
 
 export const communityLatestSnapshotSchema = z.object({
   last_event_at: z.string().datetime().nullable(),
-  event_count: z.number().int().min(0),
+  // `event_count` is only populated on the explicit bootstrap path today.
+  // The `/sync` hot path can omit it when derivable from the delta's last
+  // event, avoiding a `count(*)` scan per request. See P4 finding 3 / B.
+  event_count: z.number().int().min(0).optional(),
 });
 
 export const communityBootstrapNodeSchema = z.object({
@@ -31,6 +57,7 @@ export const communityBootstrapNodeSchema = z.object({
 
 export const communityBootstrapResponseSchema = z.object({
   community_id: z.string().uuid(),
+  protocol_version: p2pProtocolVersionSchema,
   bootstrap_version: z.string().min(1),
   anchor_node: communityBootstrapNodeSchema.nullable(),
   relay_nodes: z.array(communityBootstrapNodeSchema),
@@ -155,11 +182,49 @@ export const p2pEventEnvelopeSchema = z.discriminatedUnion("event_type", [
 export const communitySyncEventSchema = p2pEventEnvelopeSchema;
 
 export const communitySyncDeltaResponseSchema = z.object({
+  protocol_version: p2pProtocolVersionSchema,
   events: z.array(communitySyncEventSchema),
   next_since: z.string().min(1).nullable(),
   server_time: z.string().datetime(),
   latest_snapshot: communityLatestSnapshotSchema,
+  // `has_more` is the explicit end-of-stream signal the client loops on.
+  // Previously we inferred exhaustion from `events.length < limit`, which
+  // races the server's cursor semantics (P1 finding 6). Server-side:
+  // `has_more = events.length === limit`.
+  has_more: z.boolean(),
 });
+
+/**
+ * WebSocket frames the p2p sync channel emits. The client runs `safeParse`
+ * on every inbound frame so a server-side drift fails loudly instead of
+ * silently poisoning the cache (P1 finding 2).
+ */
+export const p2pReadyFrameSchema = z.object({
+  frame_type: z.literal("ready"),
+  protocol_version: p2pProtocolVersionSchema,
+  community_id: z.string().uuid(),
+  node_id: z.string().min(1),
+  peer_count: z.number().int().min(0),
+  latest_snapshot: communityLatestSnapshotSchema,
+  topics: p2pTopicMapSchema,
+  transport: p2pSyncTransportSchema,
+});
+
+export const p2pHeartbeatFrameSchema = z.object({
+  frame_type: z.literal("heartbeat"),
+  occurred_at: z.string().datetime(),
+});
+
+export const p2pEventFrameSchema = z.object({
+  frame_type: z.literal("event"),
+  event: communitySyncEventSchema,
+});
+
+export const p2pSyncFrameSchema = z.discriminatedUnion("frame_type", [
+  p2pReadyFrameSchema,
+  p2pHeartbeatFrameSchema,
+  p2pEventFrameSchema,
+]);
 
 export const p2pSyncStatusSchema = z.object({
   enabled: z.boolean(),
