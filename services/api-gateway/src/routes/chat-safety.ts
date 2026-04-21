@@ -11,6 +11,7 @@ import {
   reportCreateRequestSchema,
   reportCreateResponseSchema,
 } from "../contracts.js";
+import { withIdempotency } from "../lib/idempotency.js";
 import {
   fanoutSyncEvents,
   publishModerationDecisionEvent,
@@ -153,81 +154,95 @@ export const chatSafetyRoutes: FastifyPluginAsync = async (app) => {
           return;
         }
 
-        const body = reportCreateBodyValidator.parse(request.body);
-        const targetUser =
-          body.target_type === "user" && !body.conversation_id
-            ? await loadCurrentActor(app, body.target_id)
-            : null;
+        // A7 P0-3: report submit is idempotent at the HTTP layer. Below the
+        // gateway, the new partial unique index `uq_reports_reporter_target_active`
+        // (migration 0014) enforces the same invariant at the database
+        // layer so the same user cannot stack multiple 'new' reports
+        // against the same target.
+        return await withIdempotency({
+          app,
+          request,
+          reply,
+          routeName: "chatSafety.createReport",
+          userId: actor.userId,
+          handler: async () => {
+            const body = reportCreateBodyValidator.parse(request.body);
+            const targetUser =
+              body.target_type === "user" && !body.conversation_id
+                ? await loadCurrentActor(app, body.target_id)
+                : null;
 
-        if (body.target_type === "user" && !body.conversation_id && !targetUser) {
-          reply.code(404);
-          return {
-            message: "Report target is not valid for this community",
-          };
-        }
+            if (body.target_type === "user" && !body.conversation_id && !targetUser) {
+              reply.code(404);
+              return {
+                message: "Report target is not valid for this community",
+              };
+            }
 
-        const submission = await app.chatService.submitReport({
-          actor: {
-            userId: actor.userId,
-            level: actor.level,
-            communityIds: actor.communityIds,
-          },
-          conversationId: body.conversation_id,
-          targetType: body.target_type,
-          targetId: body.target_id,
-          reason: body.reason,
-          detailText: body.evidence_description ?? null,
-          targetCommunityIds: targetUser?.communityIds,
-        });
-
-        if (submission.syncEvents !== undefined) {
-          await fanoutSyncEvents(app, submission.syncEvents, {
-            reportId: submission.report.report_id,
-          });
-        } else {
-          await publishReportCreatedEvent(app, {
-            communityId: submission.communityId,
-            actorUserId: actor.userId,
-            report: submission.report,
-          });
-        }
-        if (submission.syncEvents === undefined && submission.autoHiddenPostId) {
-          const decidedAt = new Date().toISOString();
-          for (const reportId of submission.autoHiddenReportIds) {
-            await publishModerationDecisionEvent(app, {
-              communityId: submission.communityId,
-              aggregateId: submission.autoHiddenModerationActionIds[reportId] ?? reportId,
-              actorUserId: submission.autoHiddenActorUserId,
-              reportId,
-              targetType: "post",
-              targetId: submission.autoHiddenPostId,
-              reportTargetType: "post",
-              reportTargetId: submission.autoHiddenPostId,
-              resolution: "remove_post",
-              status: "resolved",
-              decidedAt,
-              affectedUserId: null,
-              conversationId: null,
+            const submission = await app.chatService.submitReport({
+              actor: {
+                userId: actor.userId,
+                level: actor.level,
+                communityIds: actor.communityIds,
+              },
+              conversationId: body.conversation_id,
+              targetType: body.target_type,
+              targetId: body.target_id,
+              reason: body.reason,
+              detailText: body.evidence_description ?? null,
+              targetCommunityIds: targetUser?.communityIds,
             });
-          }
-          await publishPostEvent(app, {
-            eventType: "post.tombstoned",
-            actorUserId: submission.autoHiddenActorUserId,
-            post: {
-              post_id: submission.autoHiddenPostId,
-              community_id: submission.communityId,
-              status: "removed",
-              updated_at: decidedAt,
-            },
-            reason: "auto_hide_report_threshold",
-          });
-        }
 
-        return {
-          report_id: submission.report.report_id,
-          status: "new",
-          created_at: submission.report.created_at,
-        };
+            if (submission.syncEvents !== undefined) {
+              await fanoutSyncEvents(app, submission.syncEvents, {
+                reportId: submission.report.report_id,
+              });
+            } else {
+              await publishReportCreatedEvent(app, {
+                communityId: submission.communityId,
+                actorUserId: actor.userId,
+                report: submission.report,
+              });
+            }
+            if (submission.syncEvents === undefined && submission.autoHiddenPostId) {
+              const decidedAt = new Date().toISOString();
+              for (const reportId of submission.autoHiddenReportIds) {
+                await publishModerationDecisionEvent(app, {
+                  communityId: submission.communityId,
+                  aggregateId: submission.autoHiddenModerationActionIds[reportId] ?? reportId,
+                  actorUserId: submission.autoHiddenActorUserId,
+                  reportId,
+                  targetType: "post",
+                  targetId: submission.autoHiddenPostId,
+                  reportTargetType: "post",
+                  reportTargetId: submission.autoHiddenPostId,
+                  resolution: "remove_post",
+                  status: "resolved",
+                  decidedAt,
+                  affectedUserId: null,
+                  conversationId: null,
+                });
+              }
+              await publishPostEvent(app, {
+                eventType: "post.tombstoned",
+                actorUserId: submission.autoHiddenActorUserId,
+                post: {
+                  post_id: submission.autoHiddenPostId,
+                  community_id: submission.communityId,
+                  status: "removed",
+                  updated_at: decidedAt,
+                },
+                reason: "auto_hide_report_threshold",
+              });
+            }
+
+            return {
+              report_id: submission.report.report_id,
+              status: "new" as const,
+              created_at: submission.report.created_at,
+            };
+          },
+        });
       } catch (error) {
         return replyWithChatError(reply, error);
       }

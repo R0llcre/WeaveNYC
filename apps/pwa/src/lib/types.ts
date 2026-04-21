@@ -313,6 +313,13 @@ export type CreatePostInput = {
   privacy: PostPrivacy;
   expiresAt: string;
   contactPref?: ContactPreference;
+  /**
+   * Optional caller-provided `Idempotency-Key`. When the PWA tracks the
+   * draft in its offline outbox (PR #47), pass the outbox row's `client_id`
+   * so retries of the same draft collapse into a single server-side post.
+   * Omit to let the API client generate a fresh UUID per call.
+   */
+  idempotencyKey?: string;
 };
 
 export type UpdatePostInput = Partial<Omit<CreatePostInput, 'communityId' | 'postType'>>;
@@ -603,6 +610,15 @@ export type ConversationMessagesResponse = {
 export type SendConversationMessageInput = {
   conversationId: string;
   body: string;
+  /**
+   * Stable per-submission identifier. When present, the server persists it
+   * on the `messages` row and relies on `uq_messages_client_dedup` to
+   * collapse duplicate submissions. When omitted, the API client
+   * generates a fresh UUID at call time.
+   */
+  clientMessageId?: string;
+  /** Optional HTTP `Idempotency-Key` header override. Defaults to `clientMessageId`. */
+  idempotencyKey?: string;
 };
 
 export type SendConversationMessageResult = {
@@ -634,6 +650,8 @@ export type ReportCreateInput = {
   reason: ReportReason;
   conversationId?: string;
   evidenceDescription?: string;
+  /** Optional `Idempotency-Key`. Defaults to a fresh UUID per call. */
+  idempotencyKey?: string;
 };
 
 export type ReportCreateResult = {

@@ -94,6 +94,13 @@ export type SendMessageInput = {
   actor: ChatActor;
   conversationId: string;
   body: string;
+  /**
+   * Optional client-generated dedup key. When set, the repository stores it
+   * on the `messages` row and relies on the partial unique index
+   * `uq_messages_client_dedup (sender_user_id, client_message_id)` to
+   * collapse duplicate submissions (ON CONFLICT returns the original row).
+   */
+  clientMessageId?: string;
 };
 
 export type SendMessageResult = {
@@ -283,6 +290,7 @@ export interface ChatRepository {
     body: string;
     safetyFlags: ChatSafetyFlag[];
     sentAt: string;
+    clientMessageId?: string;
   }): Promise<ChatRepositoryMessageRecord>;
   markConversationRead(input: {
     conversationId: string;
@@ -332,6 +340,16 @@ export interface ChatRepository {
     postId: string;
   }): Promise<(AutoHidePostResult & { syncEvents?: CommunitySyncEvent[] }) | null>;
   getMessage(messageId: string, conversationId: string): Promise<ChatMessage | null>;
+  /**
+   * Resolve a previously-stored message by `(sender_user_id, client_message_id)`.
+   * Powers idempotent retries at the chat service layer when the HTTP
+   * `Idempotency-Key` cache has been evicted but the client still submits
+   * the same `client_message_id`.
+   */
+  findMessageByClientId(input: {
+    senderUserId: string;
+    clientMessageId: string;
+  }): Promise<ChatMessage | null>;
   getMessageContext(messageId: string): Promise<{
     message: ChatMessage;
     participantUserIds: [string, string];

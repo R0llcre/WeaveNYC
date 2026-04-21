@@ -172,6 +172,13 @@ export type ContactRequestDecisionResponse = {
   status: "accepted" | "rejected";
   responded_at: string;
   conversation_id?: string;
+  /**
+   * True when this call transitioned the request from `pending` → `accepted`.
+   * Re-accepting an already-accepted request (idempotent replay) returns
+   * false so downstream metric/analytics counters only fire on the fresh
+   * transition. Undefined on `rejected` responses (not meaningful there).
+   */
+  is_new_accept?: boolean;
 };
 
 export type ConversationParticipantPreview = {

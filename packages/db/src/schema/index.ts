@@ -541,6 +541,7 @@ export const messages = pgTable(
       .references(() => users.userId),
     body: text("body").notNull(),
     safetyFlags: text("safety_flags").array(),
+    clientMessageId: text("client_message_id"),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
@@ -548,7 +549,28 @@ export const messages = pgTable(
       table.conversationId,
       table.sentAt
     ),
-    senderSentAtIdx: index("idx_messages_sender_sent_at").on(table.senderUserId, table.sentAt)
+    senderSentAtIdx: index("idx_messages_sender_sent_at").on(table.senderUserId, table.sentAt),
+    clientDedupUq: uniqueIndex("uq_messages_client_dedup")
+      .on(table.senderUserId, table.clientMessageId)
+      .where(sql`${table.clientMessageId} is not null`)
+  })
+);
+
+export const idempotencyKeys = pgTable(
+  "idempotency_keys",
+  {
+    key: text("key").primaryKey(),
+    routeName: text("route_name").notNull(),
+    userId: uuid("user_id").notNull(),
+    clientKey: text("client_key").notNull(),
+    statusCode: integer("status_code").notNull(),
+    responseBody: jsonb("response_body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull()
+  },
+  (table) => ({
+    expiresAtIdx: index("idx_idempotency_keys_expires_at").on(table.expiresAt),
+    userRouteIdx: index("idx_idempotency_keys_user_route").on(table.userId, table.routeName)
   })
 );
 
@@ -612,7 +634,10 @@ export const reports = pgTable("reports", {
   resolvedAt: timestamp("resolved_at", { withTimezone: true })
 }, (table) => ({
   communityCreatedIdx: index("idx_reports_community_created_at").on(table.communityId, table.createdAt),
-  communityStatusCreatedIdx: index("idx_reports_community_status_created_at").on(table.communityId, table.status, table.createdAt)
+  communityStatusCreatedIdx: index("idx_reports_community_status_created_at").on(table.communityId, table.status, table.createdAt),
+  reporterTargetActiveUq: uniqueIndex("uq_reports_reporter_target_active")
+    .on(table.targetType, table.targetId, table.reporterUserId)
+    .where(sql`${table.status} = 'new'`)
 }));
 
 export const moderationActions = pgTable("moderation_actions", {
@@ -700,5 +725,6 @@ export const schema = {
   reports,
   moderationActions,
   communitySyncEvents,
-  analyticsEvents
+  analyticsEvents,
+  idempotencyKeys
 };

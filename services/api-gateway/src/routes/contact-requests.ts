@@ -98,7 +98,17 @@ export const contactRequestRoutes: FastifyPluginAsync = async (app) => {
           contactRequestId: params.contact_request_id,
         });
 
-        if (decision.status === "accepted" && decision.conversation_id) {
+        // A3 P0-1: only fire analytics + increment the Prometheus counter
+        // when the call transitioned the request from pending → accepted.
+        // Re-accepting an already-accepted request returns the same payload
+        // but with `is_new_accept: false`, and must NOT double-count the
+        // match. Legacy builds that don't emit the flag default to `true`
+        // so behaviour is preserved for in-flight clients.
+        if (
+          decision.status === "accepted" &&
+          decision.conversation_id &&
+          decision.is_new_accept !== false
+        ) {
           try {
             const conversation = await app.matchService.getAcceptedConversation({
               actor: {
@@ -147,7 +157,13 @@ export const contactRequestRoutes: FastifyPluginAsync = async (app) => {
           }
         }
 
-        return decision;
+        // Don't leak the internal is_new_accept flag to the HTTP response.
+        // The shared validator makes it optional so legacy clients that
+        // ignore it stay compatible; omitting from the HTTP payload keeps
+        // the wire format unchanged.
+        const { is_new_accept: _isNewAccept, ...responsePayload } = decision;
+        void _isNewAccept;
+        return responsePayload;
       } catch (error) {
         return replyWithMatchError(reply, error);
       }

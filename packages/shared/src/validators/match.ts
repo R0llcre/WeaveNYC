@@ -88,6 +88,12 @@ export const contactRequestDecisionResponseSchema = z.object({
   status: z.enum(["accepted", "rejected"]),
   responded_at: z.string().datetime(),
   conversation_id: z.string().uuid().optional(),
+  // True iff the service transitioned the request from `pending` → `accepted`
+  // on this call; false when the recipient re-accepts an already-accepted
+  // request (idempotent replay). The gateway route uses this flag to avoid
+  // incrementing `verified_matches_total` and re-emitting analytics on
+  // replays. Optional so legacy consumers that ignore it keep working.
+  is_new_accept: z.boolean().optional(),
 });
 
 export const conversationParamsSchema = z.object({

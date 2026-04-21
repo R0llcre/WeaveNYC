@@ -674,6 +674,7 @@ export function createHttpChatService(context: InternalClientContext): ChatServi
           body: {
             conversation_id: input.conversationId,
             body: input.body,
+            client_message_id: input.clientMessageId,
           },
         });
       } catch (error) {

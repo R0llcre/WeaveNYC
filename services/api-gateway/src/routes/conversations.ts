@@ -25,6 +25,7 @@ import {
   sendConversationMessageRequestSchema,
   sendConversationMessageResponseSchema,
 } from "../contracts.js";
+import { withIdempotency } from "../lib/idempotency.js";
 import { loadCurrentActor } from "../lib/require-anchor.js";
 
 type ConversationParams = {
@@ -38,6 +39,7 @@ type ConversationsQuery = {
 
 type ConversationMessageBody = {
   body: string;
+  client_message_id?: string;
 };
 
 export const conversationRoutes: FastifyPluginAsync = async (app) => {
@@ -203,55 +205,72 @@ export const conversationRoutes: FastifyPluginAsync = async (app) => {
 
         const params = conversationParamsValidator.parse(request.params);
         const body = sendConversationMessageBodyValidator.parse(request.body);
-        const result = await app.chatService.sendMessage({
-          actor: {
-            userId: actor.userId,
-            level: actor.level,
-          },
-          conversationId: params.conversation_id,
-          body: body.body,
-        });
 
-        const participantIds = result.conversation.participant_preview.map((participant) => participant.user_id);
-        const participantConversations = await Promise.all(
-          participantIds.map(async (participantId) => {
-            const participantConversation = await loadConversationForParticipant(app, participantId, params.conversation_id);
-            if (!participantConversation) {
-              return null;
-            }
+        // A7 P0-4 + A2 P0-4: message send is idempotent at the HTTP layer.
+        // Clients generate `Idempotency-Key` per tap; if the request retries
+        // (network flap, user-double-tap), the same response + message_id
+        // come back. `client_message_id` serves as a redundant dedup key at
+        // the database layer via `uq_messages_client_dedup`, so the server
+        // remains safe even if the HTTP idempotency cache has been purged.
+        return await withIdempotency({
+          app,
+          request,
+          reply,
+          routeName: "conversations.sendMessage",
+          userId: actor.userId,
+          handler: async () => {
+            const result = await app.chatService.sendMessage({
+              actor: {
+                userId: actor.userId,
+                level: actor.level,
+              },
+              conversationId: params.conversation_id,
+              body: body.body,
+              clientMessageId: body.client_message_id,
+            });
+
+            const participantIds = result.conversation.participant_preview.map((participant) => participant.user_id);
+            const participantConversations = await Promise.all(
+              participantIds.map(async (participantId) => {
+                const participantConversation = await loadConversationForParticipant(app, participantId, params.conversation_id);
+                if (!participantConversation) {
+                  return null;
+                }
+
+                return {
+                  participantId,
+                  conversation: participantConversation,
+                };
+              }),
+            );
+            const realtimeTargets = participantConversations.filter(
+              (entry): entry is { participantId: string; conversation: DomainConversationDetail } => Boolean(entry),
+            );
+            const senderMessage = mapConversationMessage(result.message, result.conversation, actor.userId);
+            await Promise.all([
+              ...realtimeTargets.map(({ participantId, conversation }) =>
+                app.chatRealtimeHub.publishToUsers([participantId], {
+                  event_type: "message.created",
+                  occurred_at: senderMessage.sent_at,
+                  conversation_id: params.conversation_id,
+                  message: mapConversationMessage(result.message, conversation, participantId),
+                }),
+              ),
+              ...realtimeTargets.map(({ participantId, conversation }) =>
+                app.chatRealtimeHub.publishToUsers([participantId], {
+                  event_type: "conversation.updated",
+                  occurred_at: conversation.last_activity_at,
+                  conversation: mapConversationSummary(conversation),
+                }),
+              ),
+            ]);
 
             return {
-              participantId,
-              conversation: participantConversation,
-            };
-          }),
-        );
-        const realtimeTargets = participantConversations.filter(
-          (entry): entry is { participantId: string; conversation: DomainConversationDetail } => Boolean(entry),
-        );
-        const senderMessage = mapConversationMessage(result.message, result.conversation, actor.userId);
-        await Promise.all([
-          ...realtimeTargets.map(({ participantId, conversation }) =>
-            app.chatRealtimeHub.publishToUsers([participantId], {
-              event_type: "message.created",
-              occurred_at: senderMessage.sent_at,
               conversation_id: params.conversation_id,
-              message: mapConversationMessage(result.message, conversation, participantId),
-            }),
-          ),
-          ...realtimeTargets.map(({ participantId, conversation }) =>
-            app.chatRealtimeHub.publishToUsers([participantId], {
-              event_type: "conversation.updated",
-              occurred_at: conversation.last_activity_at,
-              conversation: mapConversationSummary(conversation),
-            }),
-          ),
-        ]);
-
-        return {
-          conversation_id: params.conversation_id,
-          message: senderMessage,
-        };
+              message: senderMessage,
+            };
+          },
+        });
       } catch (error) {
         return replyWithChatError(reply, error);
       }

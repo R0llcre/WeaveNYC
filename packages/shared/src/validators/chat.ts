@@ -81,6 +81,14 @@ export const conversationMessagesResponseSchema = z.object({
 
 export const sendConversationMessageRequestSchema = z.object({
   body: z.string().trim().min(1).max(2000),
+  // Optional opaque client-side identifier (typically a UUID). When present,
+  // the server stores it on the `messages` row behind the partial-unique
+  // index `uq_messages_client_dedup (sender_user_id, client_message_id)`.
+  // Duplicate submissions (network retry) then collapse to the original row
+  // via ON CONFLICT semantics. Legacy clients that omit the field keep
+  // working unchanged. Bound to 128 chars to match Stripe-style UUID +
+  // prefix conventions without allowing unbounded header bloat.
+  client_message_id: z.string().min(1).max(128).optional(),
 });
 
 export const sendConversationMessageResponseSchema = z.object({

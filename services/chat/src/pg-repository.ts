@@ -62,6 +62,7 @@ type MessageRow = {
   body: string;
   safety_flags: string[] | null;
   sent_at: string;
+  client_message_id?: string | null;
 };
 
 type BlockRow = {
@@ -452,14 +453,29 @@ export class PgChatRepository implements ChatRepository {
     body: string;
     safetyFlags: ChatMessage["safety_flags"];
     sentAt: string;
+    clientMessageId?: string;
   }): Promise<ChatMessage> {
-    // Atomic check-and-insert: the WHERE EXISTS predicate resolves the
-    // conversation status AND the blocks table in the same snapshot as the
-    // INSERT. This closes the TOCTOU window in service.sendMessage between the
-    // initial getConversation/findBlockBetweenUsers checks and the DB write —
-    // if a peer blocks during that window, the INSERT returns zero rows and
-    // the caller raises conversation_blocked without emitting any realtime
-    // fanout.
+    // Atomic check-and-insert (F1-γ) + client-id idempotency (F1-β).
+    //
+    // 1. The WHERE EXISTS predicate resolves conversation status AND the
+    //    blocks table in the same snapshot as the INSERT. Closes the TOCTOU
+    //    window between getConversation/findBlockBetweenUsers and the write:
+    //    a block landing mid-flight forces the INSERT to return 0 rows, and
+    //    service raises conversation_blocked without emitting any fanout.
+    //
+    // 2. When `client_message_id` is provided and a row with the same
+    //    (sender_user_id, client_message_id) already exists, the partial
+    //    unique index `uq_messages_client_dedup` trips ON CONFLICT — we
+    //    re-read the original row and return it. This gives repository-level
+    //    idempotency even when the HTTP `Idempotency-Key` cache has been
+    //    purged.
+    //
+    // The ON CONFLICT path runs inside the same predicate-gated INSERT, so
+    // a dedup'd retry still respects the block/closed state: if a peer
+    // blocked after the original insert committed, we'll still surface the
+    // original persisted row (the block doesn't retroactively invalidate
+    // it). If the predicate fails on the retry, we fall into the diagnostic
+    // branch below just like a fresh send.
     return this.withTransaction(async (client) => {
       const insertResult = await client.query<MessageRow>(
         `
@@ -468,9 +484,10 @@ export class PgChatRepository implements ChatRepository {
             sender_user_id,
             body,
             safety_flags,
+            client_message_id,
             sent_at
           )
-          select $1::uuid, $2::uuid, $3, $4::text[], $5::timestamptz
+          select $1::uuid, $2::uuid, $3, $4::text[], $6, $5::timestamptz
           where exists (
             select 1 from conversations c
             where c.conversation_id = $1::uuid
@@ -484,9 +501,19 @@ export class PgChatRepository implements ChatRepository {
                 )
               )
           )
-          returning message_id, conversation_id, sender_user_id, body, safety_flags, sent_at
+          on conflict (sender_user_id, client_message_id)
+            where client_message_id is not null
+            do update set client_message_id = excluded.client_message_id
+          returning message_id, conversation_id, sender_user_id, body, safety_flags, client_message_id, sent_at
         `,
-        [input.conversationId, input.senderUserId, input.body, input.safetyFlags, input.sentAt],
+        [
+          input.conversationId,
+          input.senderUserId,
+          input.body,
+          input.safetyFlags,
+          input.sentAt,
+          input.clientMessageId ?? null,
+        ],
       );
 
       if (insertResult.rows.length === 0) {
@@ -551,6 +578,25 @@ export class PgChatRepository implements ChatRepository {
 
       return mapMessage(insertResult.rows[0]!);
     });
+  }
+
+  async findMessageByClientId(input: {
+    senderUserId: string;
+    clientMessageId: string;
+  }): Promise<ChatMessage | null> {
+    const result = await this.pool.query<MessageRow>(
+      `
+        select message_id, conversation_id, sender_user_id, body, safety_flags, client_message_id, sent_at
+        from messages
+        where sender_user_id = $1
+          and client_message_id = $2
+        limit 1
+      `,
+      [input.senderUserId, input.clientMessageId],
+    );
+
+    const row = result.rows[0];
+    return row ? mapMessage(row) : null;
   }
 
   async markConversationRead(input: {
@@ -670,7 +716,12 @@ export class PgChatRepository implements ChatRepository {
     createdAt: string;
   }) {
     return this.withTransaction(async (client) => {
-      const result = await client.query<ReportRow>(
+      // `uq_reports_reporter_target_active` (migration 0014) prevents the
+      // same user from stacking multiple 'new' reports against the same
+      // target. On conflict we return the existing row instead of erroring:
+      // from the reporter's perspective the action was already recorded, so
+      // re-submitting should be a no-op rather than a 4xx surprise.
+      const insertResult = await client.query<ReportRow>(
         `
           insert into reports (
             community_id,
@@ -685,6 +736,9 @@ export class PgChatRepository implements ChatRepository {
             created_at
           )
           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz)
+          on conflict (target_type, target_id, reporter_user_id)
+            where status = 'new'
+            do nothing
           returning
             report_id,
             community_id,
@@ -712,6 +766,36 @@ export class PgChatRepository implements ChatRepository {
           input.createdAt,
         ],
       );
+      let result = insertResult;
+      if ((result.rowCount ?? result.rows.length) === 0) {
+        // Conflict: the same reporter already has an open 'new' report for
+        // this target. Return the existing row so the caller's flow
+        // (autoHidePostIfThresholdReached + sync events) stays consistent.
+        result = await client.query<ReportRow>(
+          `
+            select
+              report_id,
+              community_id,
+              target_type,
+              target_id,
+              reason,
+              detail_text,
+              conversation_id,
+              reporter_user_id,
+              status,
+              resolution,
+              created_at,
+              resolved_at
+            from reports
+            where target_type = $1
+              and target_id = $2
+              and reporter_user_id = $3
+              and status = 'new'
+            limit 1
+          `,
+          [input.targetType, input.targetId, input.reporterUserId],
+        );
+      }
       const report = mapReport(result.rows[0]!);
       const syncEvents =
         report.target_type === "post"
@@ -1074,9 +1158,16 @@ export class PgChatRepository implements ChatRepository {
       );
       const threshold = thresholdResult.rows[0]?.threshold ?? 3;
 
-      const countResult = await client.query<{ report_count: number }>(
+      // A2 P1-7: count distinct reporters, not distinct rows. Previously a
+      // single user could tap Report three times in a row and trip the
+      // 3-reporter auto-hide threshold alone — a griefing vector that made
+      // auto-moderation hostile to the posting user. `uq_reports_reporter_target_active`
+      // added in migration 0014 also enforces at-most-one 'new' row per
+      // (target, reporter), so counting distinct reporters here is now the
+      // correct semantics for "how many different users flagged this".
+      const countResult = await client.query<{ reporter_count: number }>(
         `
-          select count(*)::int as report_count
+          select count(distinct reporter_user_id)::int as reporter_count
           from reports
           where community_id = $1
             and target_type = 'post'
@@ -1086,7 +1177,7 @@ export class PgChatRepository implements ChatRepository {
         [input.communityId, input.postId],
       );
 
-      if ((countResult.rows[0]?.report_count ?? 0) < threshold) {
+      if ((countResult.rows[0]?.reporter_count ?? 0) < threshold) {
         return null;
       }
 
