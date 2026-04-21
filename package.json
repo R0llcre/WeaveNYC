@@ -28,7 +28,8 @@
     "resources:import:island-harvest": "pnpm --filter @weavenyc/resource-directory resources:import:island-harvest",
     "resources:sync": "pnpm --filter @weavenyc/resource-directory resources:sync",
     "demo:preflight": "tsx scripts/demo/preflight.ts",
-    "demo:local": "tsx scripts/demo/local.ts"
+    "demo:local": "tsx scripts/demo/local.ts",
+    "demo:multicloud": "bash scripts/demo/multicloud.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
