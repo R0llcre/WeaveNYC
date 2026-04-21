@@ -4,6 +4,18 @@ name: Deploy Notifications (Azure Container Apps)
 # (weavenycpilot.azurecr.io) and rolls the weavenyc-pilot/notifications
 # Container App onto the new tag. See infra/azure/README.md for the one-time
 # OIDC federation setup.
+#
+# Freshness invariant (A8 P0-6, extending the api-gateway fix from PR #45):
+# Every run of this workflow MUST explicitly update the Container App's
+# image to the SHA-tagged image we just pushed, and then assert the
+# newly-active revision is FRESH (`uptime_seconds < 300` via
+# scripts/staging/post-deploy-smoke.ts). `containerapp update --image`
+# already rolls a new revision when the image identifier changes; we also
+# verify `properties.template.containers[0].image` ends with the SHA we
+# expect before running the smoke. This closes the silent-no-op hole that
+# previously existed (pushing a new image but landing on a stale revision
+# because the update-service call used `:latest` which was already pointed
+# at the prior build).
 
 on:
   push:
@@ -12,6 +24,7 @@ on:
       - 'services/notifications/**'
       - 'packages/shared/**'
       - '.github/workflows/deploy-notify.yml'
+      - 'scripts/staging/post-deploy-smoke.ts'
   workflow_dispatch:
 
 concurrency:
@@ -37,11 +50,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Compute image tag
         id: tag
         run: |
-          echo "tag=v0.1.0-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "full=${AZURE_ACR_LOGIN_SERVER}/${IMAGE_NAME}:v0.1.0-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="v0.1.0-${SHORT_SHA}"
+          FULL="${AZURE_ACR_LOGIN_SERVER}/${IMAGE_NAME}:${TAG}"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "full=${FULL}" >> "$GITHUB_OUTPUT"
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -69,27 +100,66 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Container App image
+      - name: Update Container App image to the SHA-tagged build
+        # CRITICAL (A8 P0-6): use the SHA-tagged image, not `:latest`, so the
+        # Container App explicitly rolls when the identifier changes. The
+        # original command used the SHA tag via ${{ steps.tag.outputs.full }}
+        # — we keep that but echo the resolved value so the workflow log
+        # records the exact image the revision is pointed at.
         run: |
+          echo "Pinning Container App image to ${{ steps.tag.outputs.full }}"
           az containerapp update \
             --name "${AZURE_CONTAINER_APP}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --image "${{ steps.tag.outputs.full }}"
 
-      - name: Wait for revision ready
+      - name: Verify active revision image matches the SHA tag
+        # Guard against `update` silently landing on a prior active revision
+        # (e.g. if traffic split wasn't updated). The active revision's
+        # container image must end with the tag we just built.
         run: |
-          az containerapp revision list \
+          EXPECTED="${{ steps.tag.outputs.full }}"
+          ACTUAL=$(az containerapp revision list \
             --name "${AZURE_CONTAINER_APP}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --query "[?properties.active].{name:name,healthy:properties.healthState,image:properties.template.containers[0].image}" \
-            -o table
+            --query "[?properties.active].properties.template.containers[0].image | [0]" \
+            -o tsv)
+          echo "expected image: ${EXPECTED}"
+          echo "active image:   ${ACTUAL}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::active revision image ($ACTUAL) does not match the SHA tag ($EXPECTED) — deploy may be a silent no-op"
+            exit 1
+          fi
 
-      - name: Smoke test /healthz
+      - name: Wait for revision ready
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            HEALTH=$(az containerapp revision list \
+              --name "${AZURE_CONTAINER_APP}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --query "[?properties.active].properties.healthState | [0]" \
+              -o tsv || echo "")
+            echo "attempt ${attempt}: health=${HEALTH}"
+            if [ "$HEALTH" = "Healthy" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::active revision never reported Healthy"
+          exit 1
+
+      - name: Resolve Container App FQDN
+        id: fqdn
         run: |
           FQDN=$(az containerapp show \
             --name "${AZURE_CONTAINER_APP}" \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --query properties.configuration.ingress.fqdn -o tsv)
+          echo "fqdn=${FQDN}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test /healthz
+        run: |
+          FQDN="${{ steps.fqdn.outputs.fqdn }}"
           for attempt in 1 2 3 4 5; do
             if curl -fsS "https://${FQDN}/healthz"; then
               echo ""
@@ -101,3 +171,17 @@ jobs:
           done
           echo "Healthcheck never returned 200"
           exit 1
+
+      - name: Post-deploy smoke — assert FRESH container
+        # A8 P0-6 freshness gate: uptime_seconds must be < 5min. If the
+        # Container App silently kept serving the prior revision, uptime
+        # will be much higher and this step fails the workflow loudly.
+        # notifications does not expose p2p_* counters, so we disable that
+        # assertion here.
+        env:
+          MODE: uptime
+          TARGET_URL: https://${{ steps.fqdn.outputs.fqdn }}
+          MAX_UPTIME_SECONDS: "300"
+          REQUIRE_P2P_METRICS: "false"
+        run: |
+          pnpm exec tsx scripts/staging/post-deploy-smoke.ts

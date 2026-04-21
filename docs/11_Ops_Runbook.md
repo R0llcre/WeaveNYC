@@ -474,24 +474,31 @@ npm run deploy -- --tag v1.2.3
 ### G.3 Playbook: verify a new api-gateway deploy landed
 
 ```bash
-# 1. uptime — should be within 5 minutes of the workflow's "Wait for
+# 1. readyz — stricter than healthz. Must show all checks as "ok",
+#    including redis (A8 P0-7). If redis is "degraded" the REDIS_URL
+#    still points at localhost; see §G.5.
+curl -s https://api.weavenyc.org/readyz | jq .checks
+
+# 2. uptime — should be within 5 minutes of the workflow's "Wait for
 #    App Runner deployment" step completion.
 curl -s https://api.weavenyc.org/metrics.json | jq .uptime_seconds
 
-# 2. /metrics text must include the P2P counters from PR #39.
+# 3. /metrics text must include the P2P counters from PR #39.
 curl -s https://api.weavenyc.org/metrics | grep -E '^# HELP (p2p_sync_events_total|p2p_sync_errors_total|p2p_active_connections)'
 
-# 3. AWS console: App Runner > weavenyc-api-gateway > Configuration >
+# 4. AWS console: App Runner > weavenyc-api-gateway > Configuration >
 #    ImageIdentifier should end with the 12-char SHA prefix of the most
 #    recently merged PR touching services/api-gateway/**.
 
-# 4. Or run the smoke script end-to-end:
-pnpm exec tsx scripts/staging/post-deploy-smoke.ts
+# 5. Or run the smoke script end-to-end (defaults to uptime mode +
+#    api-gateway target):
+MODE=uptime TARGET_URL=https://api.weavenyc.org \
+  pnpm exec tsx scripts/staging/post-deploy-smoke.ts
 ```
 
-### G.4 Force a redeploy (manual)
+### G.4 Force a redeploy / roll back to a known-good image
 
-When the workflow looks stuck or you need to redeploy the current main:
+**Soft redeploy** (re-pulls whatever tag the service is currently pinned to):
 
 ```bash
 SERVICE_ARN=$(aws apprunner list-services \
@@ -502,7 +509,93 @@ SERVICE_ARN=$(aws apprunner list-services \
 aws apprunner start-deployment --service-arn "$SERVICE_ARN" --region us-east-1
 ```
 
-This re-pulls whatever tag the service is currently configured for. Only use this after confirming the workflow-produced `:latest` tag is in ECR and the service is configured to use it (both now enforced by G.1).
+Only use this after confirming the workflow-produced `:latest` tag is in
+ECR and the service is configured to use it (both enforced by G.1).
+
+**Roll back to a specific known-good tag** (A8 P0-4):
+
+```bash
+# Accepts a bare tag (v0.1.3), a short SHA (abc123def456), or a
+# <repo>-<sha> identifier. Prompts before mutating unless
+# WEAVENYC_NO_CONFIRM=1.
+scripts/ops/reset-to-last-good-image.sh v0.1.3
+```
+
+The script verifies the tag exists in ECR, splices it into the live
+`SourceConfiguration`, and polls until the service returns to `RUNNING`.
+Source: `scripts/ops/reset-to-last-good-image.sh`. See
+[`docs/29_M8_Pilot_Readiness.md §3.7.1`](./29_M8_Pilot_Readiness.md#371-app-runner-image-rollback-a8-p0-4)
+for the rollback SOP context.
+
+### G.5 Redis URL rotation (Upstash)
+
+**Why this exists.** A8 P0-7: until 2026-04-20, `REDIS_URL` in the
+App Runner service's `RuntimeEnvironmentVariables` pointed at
+`redis://localhost:6379`. `/readyz` returned 503 continuously; chat
+realtime, refresh-token store, rate limits, and P2P fanout were all
+degraded. Redis now lives on Upstash Redis (TLS endpoint), with the URL
+stored in AWS Secrets Manager entry `weavenyc/pilot/redis-url-jJCCYP`
+and referenced by App Runner at deploy time.
+
+#### G.5.1 Provisioning Upstash (one-time)
+
+Manual step — Upstash does not have a pre-built self-serve API token in
+this repo's CI. A maintainer with an Upstash account must:
+
+1. Log in to https://console.upstash.com (or create a free account;
+   free tier handles the pilot's volume comfortably).
+2. **Create Database** → pick `Regional`, region `us-east-1` (same AZ
+   family as App Runner) → `Redis 7.x` → name
+   `weavenyc-pilot-redis`.
+3. In the resulting database's **REST** / **Details** page, copy the
+   TLS-enabled connection string. It looks like
+   `rediss://default:<password>@global-xxxxxx.upstash.io:6379`.
+   The leading `rediss://` (two `s`) is required — plain `redis://`
+   is rejected by ioredis against Upstash's TLS-only listener.
+4. Record the password separately (not committed anywhere) and
+   continue with §G.5.2.
+
+#### G.5.2 Updating the AWS secret and redeploying
+
+```bash
+# 1. Rotate the secret value (preserves the ARN / entry id, so App
+#    Runner's Secrets Manager binding does not need to be rewired).
+aws secretsmanager update-secret \
+  --region us-east-1 \
+  --secret-id weavenyc/pilot/redis-url-jJCCYP \
+  --secret-string 'rediss://default:<password>@global-xxxxxx.upstash.io:6379'
+
+# 2. Confirm the new value is readable (value redacted in CloudTrail
+#    but returned via get-secret-value when authed as the deployer).
+aws secretsmanager get-secret-value \
+  --region us-east-1 \
+  --secret-id weavenyc/pilot/redis-url-jJCCYP \
+  --query 'SecretString' --output text | head -c 20
+# expected prefix: rediss://default:
+
+# 3. Trigger a Deploy API Gateway workflow run so the next container
+#    picks up the rotated secret. workflow_dispatch is the lightest
+#    trigger:
+gh workflow run deploy-api.yml --ref main
+
+# 4. Wait for the deploy to land (smoke script asserts freshness),
+#    then verify redis is healthy in /readyz:
+curl -s https://api.weavenyc.org/readyz | jq '.checks[] | select(.name=="redis")'
+# expected: {"name":"redis","status":"ok"}
+```
+
+#### G.5.3 Env checklist — what must exist before this workflow succeeds
+
+| Location | Key | Value shape | Managed by |
+|---|---|---|---|
+| AWS Secrets Manager | `weavenyc/pilot/redis-url-jJCCYP` | `rediss://default:<password>@<host>.upstash.io:6379` | Maintainer (manual rotate) |
+| App Runner service env | `REDIS_URL` | Secrets Manager binding to the entry above (not a plaintext value) | Deploy workflow |
+| Upstash console | Database `weavenyc-pilot-redis` | `Regional`, `us-east-1`, TLS on | Maintainer |
+
+If any row is missing, `/readyz` will show `redis: degraded` and the
+pilot go/no-go gate for API health (see
+[`docs/29_M8_Pilot_Readiness.md §1`](./29_M8_Pilot_Readiness.md#1-gono-go-checklist))
+cannot be checked green.
 
 ---
 

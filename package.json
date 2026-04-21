@@ -22,6 +22,7 @@
     "dev:mint-anchor-token": "tsx scripts/mint-dev-anchor-token.ts",
     "ops:incident-snapshot": "tsx scripts/ops/incident-snapshot.ts",
     "db:migrate": "pnpm --filter @weavenyc/db db:migrate",
+    "db:migrate:rollback": "pnpm --filter @weavenyc/db db:migrate:rollback",
     "db:seed": "pnpm --filter @weavenyc/db db:seed",
     "resources:import:cfc": "pnpm --filter @weavenyc/resource-directory resources:import:cfc",
     "resources:import:island-harvest": "pnpm --filter @weavenyc/resource-directory resources:import:island-harvest",

@@ -1,5 +1,14 @@
 name: Deploy PWA
 
+# A8 P0-6 freshness invariant for Cloudflare Pages:
+# Every run asserts post-deploy that the `weavenyc-pwa` CF Pages
+# project's latest production deployment (a) was `created_on` within
+# 5 minutes, and (b) its `deployment_trigger.metadata.commit_hash` starts
+# with the GitHub SHA that just ran. If either fails, the workflow errors
+# out — closing the silent-no-op hole where `wrangler pages deploy`
+# reports success but CF actually rolled the build to a preview branch or
+# kept production pointed at the prior commit.
+
 on:
   push:
     branches: [main]
@@ -9,6 +18,7 @@ on:
       - 'packages/db/**'
       - 'packages/test-utils/**'
       - '.github/workflows/deploy-pwa.yml'
+      - 'scripts/staging/post-deploy-smoke.ts'
   workflow_dispatch:
 
 jobs:
@@ -40,3 +50,16 @@ jobs:
         run: |
           pnpm exec wrangler pages deploy apps/pwa/out \
             --project-name=weavenyc-pwa --branch=main --commit-dirty=true
+      - name: Post-deploy smoke — assert FRESH CF Pages publish
+        # A8 P0-6 freshness gate for Cloudflare Pages. See script header
+        # for the exact assertions; both the age (< 5min) and the commit
+        # hash (prefix match on GITHUB_SHA) must pass.
+        env:
+          MODE: cf-pages
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_PROJECT_NAME: weavenyc-pwa
+          EXPECTED_COMMIT_SHA: ${{ github.sha }}
+          MAX_AGE_SECONDS: "300"
+        run: |
+          pnpm exec tsx scripts/staging/post-deploy-smoke.ts

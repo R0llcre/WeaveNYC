@@ -49,7 +49,7 @@ During the pilot term, the Anchor agrees to:
 During the pilot term, WeaveNYC agrees to:
 
 1. **Technical support.** Maintain the WeaveNYC platform in working order, including the anchor admin dashboard, resource directory, and resident-facing app.
-2. **Incident response.** Provide on-call coverage with a target acknowledgment of 15 minutes for P0 incidents (service outage, data leak, safety emergency) on a 24/7 basis, and 2 business hours for P1 incidents.
+2. **Incident response.** Provide best-effort on-call coverage by a single engineer during the pilot, with target acknowledgement of 15 minutes for P0 incidents (service outage, data leak, safety emergency) during business hours (Mon-Fri, 09:00-19:00 ET), and 30 minutes off-hours. P1 incidents are acknowledged within 2 business hours. If the target cannot be met, the Anchor is notified by email at `oncall@weavenyc.org` within the next business day. This is a best-effort commitment, not a 24/7 SLA; the full arrangement is documented in [`docs/pilot-checklists/on-call.md`](./on-call.md).
 3. **Training.** Provide a one-hour training session before the Anchor goes live, plus written documentation in the Anchor's preferred language (English, Spanish, or Simplified Chinese).
 4. **Credentialing.** Provision the Anchor account, issue the invite code through a confidential channel, and assist with TOTP activation and recovery-code storage.
 5. **Analytics.** Share a monthly impact summary (aggregate resident matches, post volume, moderation workload, response times) specific to the Anchor's community.
