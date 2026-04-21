@@ -25,7 +25,15 @@ export class PgResourceDirectoryService implements ResourceDirectoryService {
 
   async searchResources(input: ResourceSearchInput): Promise<ResourceSearchResult> {
     const zipCenter = await this.geocoder.geocodeZip(input.zip);
-    return this.repository.searchResources(input, zipCenter);
+    const result = await this.repository.searchResources(input, zipCenter);
+    // A5 P0 bonus — when the ZIP parsed but the geocoder couldn't resolve
+    // it (e.g. a valid 5-digit code with no Nominatim entry), the radius
+    // filter collapses to "zip string exact match". Surface that so the
+    // PWA can render a distinct empty state.
+    if (zipCenter.lat === null || zipCenter.lng === null) {
+      return { ...result, noResultsInArea: true };
+    }
+    return result;
   }
 
   async getResourceDetail(providerId: string, zip?: string): Promise<ResourceListItem | null> {

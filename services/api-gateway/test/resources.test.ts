@@ -37,6 +37,99 @@ describe("GET /v1/resources", () => {
     expect(response.statusCode).toBeGreaterThanOrEqual(400);
   });
 
+  // A5 P0.4 — /v1/resources and /v1/resources/:id are un-authenticated.
+  // Rate-limit keys on request.ip so unauthenticated scrapers can't
+  // siphon the full directory without drawing attention. 60/min is the
+  // contract; we assert the limit kicks in (429) after that many
+  // requests from a single IP, and that x-ratelimit-* headers surface
+  // so legitimate clients can self-throttle.
+  it("surfaces x-ratelimit-* headers and enforces 60/min on search", async () => {
+    const { app } = await createTestApp();
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/resources?zip=11735&limit=1",
+      remoteAddress: "198.51.100.7",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["x-ratelimit-limit"]).toBeDefined();
+    expect(Number(response.headers["x-ratelimit-limit"])).toBe(60);
+    expect(response.headers["x-ratelimit-remaining"]).toBeDefined();
+  });
+
+  it("returns 429 once the per-IP search budget is exhausted", async () => {
+    const { app } = await createTestApp();
+    apps.push(app);
+
+    const ip = "198.51.100.8";
+    // Fire 61 requests — the 61st must be blocked.
+    let lastStatus = 200;
+    for (let i = 0; i < 61; i += 1) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/v1/resources?zip=11735&limit=1",
+        remoteAddress: ip,
+      });
+      lastStatus = response.statusCode;
+      if (lastStatus === 429) {
+        break;
+      }
+    }
+    expect(lastStatus).toBe(429);
+  });
+
+  // A5 P0 bonus — when the sidecar can't geocode the ZIP, it surfaces
+  // `noResultsInArea: true` so the gateway can include
+  // `no_results_in_area: true` in the response. The PWA renders a
+  // distinct empty state from this signal (vs. silently showing an
+  // empty list).
+  it("surfaces no_results_in_area when the sidecar reports an unresolved ZIP", async () => {
+    const resourceDirectory: ResourceDirectoryService = {
+      async searchResources() {
+        return {
+          items: [],
+          nextCursor: null,
+          sourceMode: "api",
+          noResultsInArea: true,
+        };
+      },
+      async getResourceDetail() {
+        return null;
+      },
+      async close() {},
+    };
+
+    const { app } = await createTestApp({ resourceDirectory });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/resources?zip=99999",
+      remoteAddress: "198.51.100.10",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.items).toHaveLength(0);
+    expect(body.no_results_in_area).toBe(true);
+  });
+
+  it("omits no_results_in_area on happy-path responses (payload compatibility)", async () => {
+    const { app } = await createTestApp();
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/resources?zip=11735&limit=1",
+      remoteAddress: "198.51.100.11",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.no_results_in_area).toBeUndefined();
+  });
+
   it("rejects tampered cursors", async () => {
     const resourceDirectory: ResourceDirectoryService = {
       async searchResources() {

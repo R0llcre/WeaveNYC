@@ -1,0 +1,113 @@
+name: Refresh Resource Directory
+
+# A5 P0.1 — scheduled resource-directory data refresh.
+# Runs `pnpm resources:sync` daily at 04:00 UTC (00:00 EDT / 23:00 EST),
+# which wraps `importCfcActiveDataset` + `importIslandHarvestDataset`.
+# Both adapters fetch the live source, geocode net-new rows, and commit
+# via ResourceImportRepository.importDataset — which enforces the A5 P0.2
+# completeness guard before wiping active rows.
+#
+# Safety rails (listed in priority order):
+#
+#   1. The job only fires when the repository secret `ENABLE_RESOURCE_IMPORTS`
+#      is literally "1". Until we flip that switch, scheduled runs short-
+#      circuit out before touching the database. Accidental merges of this
+#      workflow never trigger a production import.
+#
+#   2. The completeness guard (see services/resource-directory/src/lib/
+#      repository.ts `ImportCompletenessError`) refuses to wipe-and-replace
+#      when the incoming batch has < 50% of the previously-active row
+#      count. A transient upstream failure surfaces as a loud CI red, not
+#      silently inactivated pantries.
+#
+#   3. `concurrency: refresh-resources` serializes runs. A manually
+#      dispatched run while the scheduled run is in flight waits rather
+#      than overlapping and double-wiping the active set.
+#
+# Ad-hoc refresh: use the "workflow_dispatch" trigger in the GitHub UI
+# (requires `ENABLE_RESOURCE_IMPORTS=1` set as a repo secret). If a
+# source legitimately shrunk and the guard fires, run
+# `pnpm resources:sync --force` manually from a trusted operator box
+# and let this workflow pick up again the next morning.
+#
+# Required secrets:
+#   ENABLE_RESOURCE_IMPORTS           must equal "1" for the job to run
+#   WEAVENYC_RESOURCE_DATABASE_URL    Postgres DSN for the resource DB
+#                                     (reuse the Cloud Run secret or AWS
+#                                     RDS connection string that powers
+#                                     resource-directory in production)
+#   WEAVENYC_INTERNAL_SERVICE_JWT_SECRET  kept consistent with the
+#                                         resource-directory runtime so
+#                                         downstream services can verify
+
+on:
+  schedule:
+    # 04:00 UTC daily — late night EST / early morning EDT, well before
+    # the PWA's peak usage window.
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-resources
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NODE_ENV: production
+      # DATABASE_URL is the env var `services/resource-directory/src/cli.ts`
+      # reads via `process.env.DATABASE_URL`.
+      DATABASE_URL: ${{ secrets.WEAVENYC_RESOURCE_DATABASE_URL }}
+      INTERNAL_SERVICE_JWT_SECRET: ${{ secrets.WEAVENYC_INTERNAL_SERVICE_JWT_SECRET }}
+
+    steps:
+      - name: Short-circuit when imports are not yet enabled
+        id: gate
+        run: |
+          if [ "${{ secrets.ENABLE_RESOURCE_IMPORTS }}" != "1" ]; then
+            echo "ENABLE_RESOURCE_IMPORTS != 1 — skipping import."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        if: steps.gate.outputs.enabled == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Smoke sources before committing (live adapters, no writes)
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm --filter @weavenyc/resource-directory exec tsx src/cli.ts sync --smoke
+
+      - name: Import CFC Active + Island Harvest
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm --filter @weavenyc/resource-directory resources:sync
+
+      - name: Report skipped run
+        if: steps.gate.outputs.enabled == 'false'
+        run: |
+          echo "Resource import was NOT run because ENABLE_RESOURCE_IMPORTS is not set to '1'."
+          echo "Set the repo secret to enable scheduled refreshes."

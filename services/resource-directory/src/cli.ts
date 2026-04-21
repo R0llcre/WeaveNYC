@@ -19,6 +19,13 @@ function isSmoke(argv: string[]): boolean {
   return argv.includes('--smoke');
 }
 
+// A5 P0.2 — `--force` bypasses the import completeness guard in
+// ResourceImportRepository.importDataset. Used when a source legitimately
+// shrinks (e.g. from 500 pantries to 10) so we don't get wedged.
+function isForce(argv: string[]): boolean {
+  return argv.includes('--force');
+}
+
 async function runSmoke(command: string, mode: 'live' | 'fixture') {
   if (command === 'cfc-active') {
     const result = await inspectCfcActiveRecords({ mode });
@@ -73,6 +80,7 @@ async function runSmoke(command: string, mode: 'live' | 'fixture') {
 async function main() {
   const [, , command, ...rest] = process.argv;
   const mode = getMode(rest);
+  const force = isForce(rest);
 
   if (isSmoke(rest)) {
     await runSmoke(command ?? '', mode);
@@ -85,18 +93,18 @@ async function main() {
 
   try {
     if (command === 'cfc-active') {
-      console.log(await importCfcActiveDataset(pool, { mode }));
+      console.log(await importCfcActiveDataset(pool, { mode, force }));
       return;
     }
 
     if (command === 'island-harvest') {
-      console.log(await importIslandHarvestDataset(pool, { mode }));
+      console.log(await importIslandHarvestDataset(pool, { mode, force }));
       return;
     }
 
     if (command === 'sync') {
-      console.log(await importCfcActiveDataset(pool, { mode }));
-      console.log(await importIslandHarvestDataset(pool, { mode }));
+      console.log(await importCfcActiveDataset(pool, { mode, force }));
+      console.log(await importIslandHarvestDataset(pool, { mode, force }));
       return;
     }
 

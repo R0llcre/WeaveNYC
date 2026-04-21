@@ -231,4 +231,62 @@ describe('ResourceQueryRepository', () => {
       name: 'InvalidCursorError',
     });
   });
+
+  // A5 P0.3 — SQL filter push-down regression. The repository used to run
+  // `select ... where status = 'active'` and filter in JavaScript, which
+  // scanned the full table on every public request. The fetch query now
+  // prunes by `left(zip, 3)` + optional `type` so the hot path can ride
+  // idx_resources_zip3_type_status (migration 0015).
+  it('pushes ZIP-prefix and type filters into the fetch query', async () => {
+    const captured: Array<{ sql: string; params: unknown[] }> = [];
+    const repository = new ResourceQueryRepository({
+      query: async (sql: string, params: unknown[] = []) => {
+        captured.push({ sql, params });
+        return { rows: [] };
+      },
+    } as never);
+
+    await repository.searchResources(
+      {
+        zip: '11735',
+        type: 'pantry',
+      },
+      {
+        lat: 40.7326,
+        lng: -73.4454,
+      },
+    );
+
+    expect(captured).toHaveLength(1);
+    const firstCall = captured[0]!;
+    expect(firstCall.sql).toMatch(/left\(rp\.zip,\s*3\)\s*=\s*\$1/);
+    expect(firstCall.sql).toMatch(/rp\.type\s*=\s*\$2/);
+    expect(firstCall.params).toEqual(['117', 'pantry']);
+  });
+
+  it('omits optional filters from the fetch query when the caller did not set them', async () => {
+    const captured: Array<{ sql: string; params: unknown[] }> = [];
+    const repository = new ResourceQueryRepository({
+      query: async (sql: string, params: unknown[] = []) => {
+        captured.push({ sql, params });
+        return { rows: [] };
+      },
+    } as never);
+
+    await repository.searchResources(
+      {
+        zip: '11735',
+      },
+      {
+        lat: 40.7326,
+        lng: -73.4454,
+      },
+    );
+
+    expect(captured).toHaveLength(1);
+    const firstCall = captured[0]!;
+    // zipPrefix is always passed; `type` is optional and must be absent.
+    expect(firstCall.params).toEqual(['117']);
+    expect(firstCall.sql).not.toMatch(/rp\.type\s*=\s*\$2/);
+  });
 });

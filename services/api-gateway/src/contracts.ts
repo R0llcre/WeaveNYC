@@ -567,7 +567,13 @@ export const resourceListResponseSchema = {
       items: resourceSummarySchema
     },
     next_cursor: { type: ["string", "null"] },
-    source_mode: { type: "string", enum: ["api", "fixture"] }
+    source_mode: { type: "string", enum: ["api", "fixture"] },
+    // A5 P0 bonus — when the caller's ZIP passes format validation but the
+    // geocoder can't resolve it (unknown municipality, rural / new ZIP,
+    // upstream Nominatim timeout), the sidecar returns an explicit hint so
+    // the PWA can show a "no pantries in this area" empty state instead of
+    // leaving the user staring at a blank list with no explanation.
+    no_results_in_area: { type: "boolean" }
   }
 } as const;
 

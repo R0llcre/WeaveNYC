@@ -39,7 +39,21 @@ export const resourceRoutes: FastifyPluginAsync = async (app) => {
           200: resourceListResponseSchema,
           400: errorResponseSchema
         }
-      }
+      },
+      config: {
+        // A5 P0.4 — the /v1/resources search path is un-authenticated by
+        // design (anon PWA users must be able to find a pantry) so the only
+        // abuse deterrent is IP-based throttling. 60/min/IP = one request
+        // per second, which is well above what the PWA does (~1-5 per
+        // session) and well below what's useful for scraping a full
+        // directory. `@fastify/rate-limit` surfaces x-ratelimit-* headers so
+        // legitimate clients can self-throttle.
+        rateLimit: {
+          max: 60,
+          timeWindow: "1 minute",
+          keyGenerator: (request) => request.ip,
+        },
+      },
     },
     async (request, reply) => {
       try {
@@ -52,11 +66,23 @@ export const resourceRoutes: FastifyPluginAsync = async (app) => {
           cursor: request.query.cursor ?? null
         });
 
-        return {
+        // A5 P0 bonus — only surface the hint when the sidecar / monolith
+        // actually set it. Keeping it out of the payload by default
+        // preserves the existing response shape for happy-path callers.
+        const body: {
+          items: ReturnType<typeof toResourceSummary>[];
+          next_cursor: string | null;
+          source_mode: typeof result.sourceMode;
+          no_results_in_area?: boolean;
+        } = {
           items: result.items.map((item) => toResourceSummary(item)),
           next_cursor: result.nextCursor,
-          source_mode: result.sourceMode
+          source_mode: result.sourceMode,
         };
+        if (result.noResultsInArea) {
+          body.no_results_in_area = true;
+        }
+        return body;
       } catch (error) {
         if (error instanceof Error && error.name === "InvalidCursorError") {
           reply.code(400);
@@ -81,7 +107,17 @@ export const resourceRoutes: FastifyPluginAsync = async (app) => {
           200: resourceDetailSchema,
           404: errorResponseSchema
         }
-      }
+      },
+      config: {
+        // Detail lookup is 2x the search limit — a user opening a few
+        // detail cards per search is expected, and the downstream DB cost
+        // is smaller than a list scan.
+        rateLimit: {
+          max: 120,
+          timeWindow: "1 minute",
+          keyGenerator: (request) => request.ip,
+        },
+      },
     },
     async (request, reply) => {
       const item = await app.resourceDirectory.getResourceDetail(

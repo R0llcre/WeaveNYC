@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ResourceImportRepository } from "../src/lib/repository.js";
+import { ImportCompletenessError, ResourceImportRepository } from "../src/lib/repository.js";
 import type { NormalizedResourceRecord } from "../src/types.js";
 
 type ActiveRow = {
@@ -8,11 +8,11 @@ type ActiveRow = {
   source_ref: string;
   content_hash: string | null;
   source: string;
+  status: "active" | "inactive";
 };
 
 class FakeImportClient {
-  readonly activeRows = new Map<string, ActiveRow>();
-  readonly datasetVersions = new Map<string, { source: string; datasetVersion: string }>();
+  constructor(private readonly pool: FakeImportPool) {}
 
   async query(sql: string, params: unknown[] = []) {
     if (
@@ -21,14 +21,29 @@ class FakeImportClient {
     ) {
       const source = String(params[0]);
       return {
-        rows: Array.from(this.activeRows.values()).filter((row) => row.source === source)
+        rows: Array.from(this.pool.activeRows.values()).filter(
+          (row) => row.source === source && row.status === "active",
+        ),
       };
+    }
+
+    if (
+      sql.includes("update resource_providers") &&
+      sql.includes("set status = 'inactive'")
+    ) {
+      const source = String(params[0]);
+      for (const [key, row] of this.pool.activeRows.entries()) {
+        if (row.source === source && row.status === "active") {
+          this.pool.activeRows.set(key, { ...row, status: "inactive" });
+        }
+      }
+      return { rows: [] };
     }
 
     if (sql.includes("insert into dataset_versions")) {
       const source = String(params[1]);
       const datasetVersion = String(params[2]);
-      this.datasetVersions.set(`${source}:${datasetVersion}`, {
+      this.pool.datasetVersions.set(`${source}:${datasetVersion}`, {
         source,
         datasetVersion
       });
@@ -41,11 +56,12 @@ class FakeImportClient {
       const sourceRef = String(params[2]);
       const contentHash = String(params[16] ?? "");
 
-      this.activeRows.set(`${source}:${sourceRef}`, {
+      this.pool.activeRows.set(`${source}:${sourceRef}`, {
         provider_id: providerId,
         source_ref: sourceRef,
         content_hash: contentHash,
-        source
+        source,
+        status: "active",
       });
 
       return { rows: [] };
@@ -58,7 +74,27 @@ class FakeImportClient {
 }
 
 class FakeImportPool {
-  readonly client = new FakeImportClient();
+  readonly activeRows = new Map<string, ActiveRow>();
+  readonly datasetVersions = new Map<string, { source: string; datasetVersion: string }>();
+  readonly client = new FakeImportClient(this);
+
+  async query(sql: string, params: unknown[] = []) {
+    // Top-level `pool.query(...)` is called by the completeness guard before
+    // the transaction opens. Routes the same way as the client so tests share
+    // a single source-of-truth for what "active rows exist for source X" means.
+    if (
+      sql.includes("select count(*)") &&
+      sql.includes("from resource_providers")
+    ) {
+      const source = String(params[0]);
+      const count = Array.from(this.activeRows.values()).filter(
+        (row) => row.source === source && row.status === "active",
+      ).length;
+      return { rows: [{ count }] };
+    }
+
+    return this.client.query(sql, params);
+  }
 
   async connect() {
     return this.client;
@@ -101,7 +137,7 @@ describe("ResourceImportRepository", () => {
       records: [baseRecord]
     });
 
-    const firstProviderId = pool.client.activeRows.get("cfc_active:cfc_active:stable-provider")?.provider_id;
+    const firstProviderId = pool.activeRows.get("cfc_active:cfc_active:stable-provider")?.provider_id;
 
     await repository.importDataset({
       source: "cfc_active",
@@ -116,7 +152,7 @@ describe("ResourceImportRepository", () => {
       ]
     });
 
-    const secondProviderId = pool.client.activeRows.get("cfc_active:cfc_active:stable-provider")?.provider_id;
+    const secondProviderId = pool.activeRows.get("cfc_active:cfc_active:stable-provider")?.provider_id;
 
     expect(firstProviderId).toBeDefined();
     expect(secondProviderId).toBe(firstProviderId);
@@ -149,7 +185,112 @@ describe("ResourceImportRepository", () => {
       ]
     });
 
-    expect(pool.client.datasetVersions.has("cfc_active:shared-version")).toBe(true);
-    expect(pool.client.datasetVersions.has("island_harvest:shared-version")).toBe(true);
+    expect(pool.datasetVersions.has("cfc_active:shared-version")).toBe(true);
+    expect(pool.datasetVersions.has("island_harvest:shared-version")).toBe(true);
+  });
+
+  // A5 P0.2 — completeness guard regression suite. See ImportCompletenessError
+  // for the pilot-blocker this locks in: a partial fetch (e.g. upstream timed
+  // out mid-page) used to silently mark 90% of rows inactive.
+  it("refuses an import batch that shrinks to < 50% of the previous active count", async () => {
+    const pool = new FakeImportPool();
+    const repository = new ResourceImportRepository(pool as never);
+
+    const records100: NormalizedResourceRecord[] = Array.from({ length: 100 }, (_, index) => ({
+      ...baseRecord,
+      sourceRef: `cfc_active:stable-${index}`,
+    }));
+
+    await repository.importDataset({
+      source: "cfc_active",
+      sourceLabel: "CFC",
+      sourceUrl: "https://example.com/cfc",
+      datasetVersion: "cfc_active_v1",
+      records: records100,
+    });
+
+    const activeAfterFirst = Array.from(pool.activeRows.values()).filter(
+      (row) => row.status === "active",
+    ).length;
+    expect(activeAfterFirst).toBe(100);
+
+    const records10: NormalizedResourceRecord[] = Array.from({ length: 10 }, (_, index) => ({
+      ...baseRecord,
+      sourceRef: `cfc_active:stable-${index}`,
+    }));
+
+    await expect(
+      repository.importDataset({
+        source: "cfc_active",
+        sourceLabel: "CFC",
+        sourceUrl: "https://example.com/cfc",
+        datasetVersion: "cfc_active_v2",
+        records: records10,
+      }),
+    ).rejects.toBeInstanceOf(ImportCompletenessError);
+
+    // DB state unchanged: 100 active rows still visible, none marked
+    // inactive by a partial transaction — the guard fires BEFORE the
+    // wipe-and-replace path touches the table.
+    const activeAfterRefusal = Array.from(pool.activeRows.values()).filter(
+      (row) => row.status === "active",
+    ).length;
+    expect(activeAfterRefusal).toBe(100);
+  });
+
+  it("allows the same 10-record batch through when force: true is passed", async () => {
+    const pool = new FakeImportPool();
+    const repository = new ResourceImportRepository(pool as never);
+
+    const records100: NormalizedResourceRecord[] = Array.from({ length: 100 }, (_, index) => ({
+      ...baseRecord,
+      sourceRef: `cfc_active:stable-${index}`,
+    }));
+
+    await repository.importDataset({
+      source: "cfc_active",
+      sourceLabel: "CFC",
+      sourceUrl: "https://example.com/cfc",
+      datasetVersion: "cfc_active_v1",
+      records: records100,
+    });
+
+    const records10: NormalizedResourceRecord[] = Array.from({ length: 10 }, (_, index) => ({
+      ...baseRecord,
+      sourceRef: `cfc_active:stable-${index}`,
+    }));
+
+    const summary = await repository.importDataset(
+      {
+        source: "cfc_active",
+        sourceLabel: "CFC",
+        sourceUrl: "https://example.com/cfc",
+        datasetVersion: "cfc_active_v2",
+        records: records10,
+      },
+      { force: true },
+    );
+
+    expect(summary.recordCount).toBe(10);
+    const activeAfter = Array.from(pool.activeRows.values()).filter(
+      (row) => row.status === "active",
+    ).length;
+    expect(activeAfter).toBe(10);
+  });
+
+  it("does not trigger the guard on the first import when no prior rows exist", async () => {
+    const pool = new FakeImportPool();
+    const repository = new ResourceImportRepository(pool as never);
+
+    const summary = await repository.importDataset({
+      source: "cfc_active",
+      sourceLabel: "CFC",
+      sourceUrl: "https://example.com/cfc",
+      datasetVersion: "cfc_active_v1",
+      records: [baseRecord],
+    });
+
+    expect(summary.recordCount).toBe(1);
+    expect(Array.from(pool.activeRows.values()).filter((row) => row.status === "active")).toHaveLength(1);
   });
 });

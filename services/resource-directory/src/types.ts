@@ -103,4 +103,13 @@ export interface ResourceSearchResult {
   items: ResourceListItem[];
   nextCursor: string | null;
   sourceMode: "api" | "fixture";
+  /**
+   * A5 P0 bonus — set to `true` when the caller's ZIP passed format
+   * validation but the geocoder could not resolve it to a lat/lng centroid,
+   * so any empty `items` array is a "no pantries in this area" empty state
+   * rather than a bug. The PWA uses this to render a distinct message. Left
+   * undefined on normal (resolvable-ZIP) responses for payload-shape
+   * backwards compatibility.
+   */
+  noResultsInArea?: boolean;
 }
