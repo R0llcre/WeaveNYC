@@ -40,7 +40,6 @@ type ChromeMessages = {
   directions: string;
   bookmarked: string;
   save: string;
-  sessionIdChip: string;
   zipChip: string;
   /** DEPRECATED: duplicate of resourceCardDistanceMiles; migrate consumers then remove. */
   distanceMiles: string;
@@ -521,6 +520,13 @@ type ChromeMessages = {
   homeNoResultsTitle: string;
   homeNoResultsSubtitle: string;
   homeNoResultsCta: string;
+  // V1-A UX fix — dedicated error branch on Home: real 500s no longer
+  // masquerade as "Nothing nearby". `retry` is a generic CTA label reused
+  // by the error EmptyState. `homeRefreshSrLabel` is the sr-only label on
+  // the legacy `create-session` refetch shim (kept for smoke coverage).
+  homeErrorSubtitle: string;
+  retry: string;
+  homeRefreshSrLabel: string;
   homeLoadingLabel: string;
   homeFilterAll: string;
   homeFilterFood: string;
@@ -724,7 +730,6 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     directions: 'Directions',
     bookmarked: 'Saved',
     save: 'Save',
-    sessionIdChip: 'User ID: {userId}',
     zipChip: 'ZIP: {zip}',
     distanceMiles: '{distance} mi',
     anonymousSessionError: "Couldn't start. Check your connection.",
@@ -1191,9 +1196,17 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeNoZipTitle: 'Set your ZIP',
     homeNoZipSubtitle: "We'll show help within walking distance.",
     homeNoZipCta: 'Add ZIP',
-    homeNoResultsTitle: 'Nothing nearby',
-    homeNoResultsSubtitle: 'Try a different filter or ZIP.',
+    // V1-A UX fix — blame-free empty-state copy that names the ZIP we
+    // searched and offers a clear next action instead of a curt "Nothing
+    // nearby". Interpolates {zip} from `preferences.zipCode`.
+    homeNoResultsTitle: "We couldn't find services near {zip}",
+    homeNoResultsSubtitle:
+      'That ZIP may be outside our NYC coverage. Want to widen the search or try a different ZIP?',
     homeNoResultsCta: 'Change ZIP',
+    homeErrorSubtitle:
+      "This isn't about your ZIP — we hit a problem on our side. Try again in a moment.",
+    retry: 'Try again',
+    homeRefreshSrLabel: 'Refresh nearby results',
     homeLoadingLabel: 'Finding places…',
     homeFilterAll: 'All',
     homeFilterFood: 'Food',
@@ -1387,7 +1400,6 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     directions: 'Cómo llegar',
     bookmarked: 'Guardado',
     save: 'Guardar',
-    sessionIdChip: 'ID de usuario: {userId}',
     zipChip: 'ZIP: {zip}',
     distanceMiles: '{distance} mi',
     anonymousSessionError: 'No se pudo empezar. Revisa tu conexión.',
@@ -1857,9 +1869,14 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeNoZipTitle: 'Agrega tu ZIP',
     homeNoZipSubtitle: 'Te mostraremos ayuda cerca.',
     homeNoZipCta: 'Agregar ZIP',
-    homeNoResultsTitle: 'Nada cerca',
-    homeNoResultsSubtitle: 'Prueba otro filtro o ZIP.',
+    homeNoResultsTitle: 'No encontramos servicios cerca de {zip}',
+    homeNoResultsSubtitle:
+      'Ese ZIP puede estar fuera de la zona de Nueva York que cubrimos. ¿Quieres ampliar la búsqueda o probar otro ZIP?',
     homeNoResultsCta: 'Cambiar ZIP',
+    homeErrorSubtitle:
+      'Esto no es por tu ZIP: tuvimos un problema de nuestro lado. Intenta de nuevo en un momento.',
+    retry: 'Reintentar',
+    homeRefreshSrLabel: 'Actualizar resultados cercanos',
     homeLoadingLabel: 'Buscando lugares…',
     homeFilterAll: 'Todo',
     homeFilterFood: 'Comida',
@@ -2052,7 +2069,6 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     directions: '导航',
     bookmarked: '已收藏',
     save: '收藏',
-    sessionIdChip: '用户 ID：{userId}',
     zipChip: 'ZIP：{zip}',
     distanceMiles: '{distance} 英里',
     anonymousSessionError: '没能开始。检查一下网络。',
@@ -2519,9 +2535,13 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeNoZipTitle: '填一下邮编',
     homeNoZipSubtitle: '我们会显示走几步就能到的帮助。',
     homeNoZipCta: '填邮编',
-    homeNoResultsTitle: '附近没有',
-    homeNoResultsSubtitle: '试试别的筛选或邮编。',
-    homeNoResultsCta: '换邮编',
+    homeNoResultsTitle: '在 {zip} 附近没找到服务',
+    homeNoResultsSubtitle:
+      '这个邮编可能不在我们覆盖的纽约地区。要不要扩大搜索或换个邮编？',
+    homeNoResultsCta: '换个邮编',
+    homeErrorSubtitle: '不是邮编的问题——是我们这边出了点小状况。请稍后再试。',
+    retry: '重试',
+    homeRefreshSrLabel: '刷新附近结果',
     homeLoadingLabel: '正在查找……',
     homeFilterAll: '全部',
     homeFilterFood: '食物',

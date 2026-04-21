@@ -144,7 +144,10 @@
   /* Type scale — editorial, generous. Shorthand uses
      "weight size/line-height family" so utility `.text-*` classes can
      apply in one line. */
-  --type-display: 600 clamp(2.5rem, 4.5vw + 1rem, 4.25rem) / 1.05 var(--font-family-display);
+  /* V1-A UX fix — shrink the display clamp. The old ceiling (4.25rem) ate
+     ~57% of an iPhone viewport on first paint; the new scale tops out at
+     2rem so the hero stays a headline, not a wall. */
+  --type-display: 500 clamp(1.5rem, 3vw + 0.75rem, 2rem) / 1.2 var(--font-family-display);
   --type-h1: 600 clamp(2rem, 2vw + 1.25rem, 2.5rem) / 1.15 var(--font-family-display);
   --type-h2: 500 1.625rem / 1.25 var(--font-family-display);
   --type-h3: 600 1.25rem / 1.4 var(--font-family-display);
@@ -1001,8 +1004,16 @@ main[id="main-content"]:focus {
   line-height: 1.6;
 }
 
+/*
+ * V1-A UX fix — `.muted` on paper-cream measured ~4.52:1 with
+ * `--color-ink-muted`, which fails WCAG AA for normal body text by a hair.
+ * `--color-ink-secondary` measures ~7.8:1 on the same surface, so switch to
+ * it for any class consumer that binds to `.muted` (empty-state subtitles,
+ * result counts, etc.). Specialty "muted" tokens (`.text-micro`,
+ * `.ink-muted`, button/icon muted tones) stay on the lighter value.
+ */
 .muted {
-  color: var(--color-ink-muted);
+  color: var(--color-ink-secondary);
   line-height: 1.6;
 }
 
@@ -3846,17 +3857,25 @@ section.danger-zone {
 }
 
 /* ============================================================================
-   Home — Editorial masthead (朱砂)
+   Home — Utility masthead
    ----------------------------------------------------------------------------
-   No card, no gradient, no pattern — just a kicker in vermillion, a big
-   serif headline, an editorial deck, and a 48px vermillion rule beneath.
-   Meta chips (session id, ZIP, change-ZIP link, refresh CTA) sit on one
-   row below the rule, like a newspaper byline.
+   No card, no gradient, no pattern — just a kicker in vermillion, a compact
+   serif headline, and a meta row (ZIP tag + change-ZIP link) below. V1-A
+   UX surgery stripped the editorial deck, the vermillion rule, and the
+   misleading "Ready to go" primary button from the hero: the refresh path
+   is pull-to-refresh, and the user_id readout is sr-only for E2E coverage.
    ============================================================================ */
+/*
+ * V1-A UX fix — masthead is utility-first now. The deck subtitle and
+ * decorative `.home__rule` are gone (the hook markup is too), and the
+ * vertical gap tightens from `--space-3` to `--space-1` so the eyebrow +
+ * headline sit as one compact unit above the ZIP/session meta row. Total
+ * mobile viewport footprint of the hero drops from ~57% to ~25%.
+ */
 .home__masthead {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-1);
   padding-block: var(--space-4) var(--space-5);
 }
 
@@ -3869,23 +3888,6 @@ section.danger-zone {
   margin: 0;
   max-width: 22ch;
   color: var(--color-ink-primary);
-}
-
-.home__deck {
-  font-family: var(--font-family-base);
-  font-size: 1.125rem;
-  line-height: 1.55;
-  color: var(--color-ink-secondary);
-  margin: 0;
-  max-width: 50ch;
-}
-
-.home__rule {
-  display: block;
-  height: 2px;
-  width: 48px;
-  background: var(--color-accent);
-  margin-top: var(--space-2);
 }
 
 .home__meta {
