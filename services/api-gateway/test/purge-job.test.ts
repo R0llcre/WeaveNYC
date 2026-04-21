@@ -89,7 +89,11 @@ describe('createPurgeJob', () => {
     const job = createPurgeJob({ pool, enabled: false });
 
     const result = await job.runOnce();
-    expect(result).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
+    expect(result).toEqual({
+      deletedUsers: 0,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
     // Only the initial candidate-select runs; no transaction is opened.
     expect(captured.some((entry) => entry.sql.startsWith('begin'))).toBe(false);
     expect(captured.some((entry) => entry.sql.startsWith('commit'))).toBe(false);
@@ -120,7 +124,11 @@ describe('createPurgeJob', () => {
     const job = createPurgeJob({ pool, enabled: false, actorHashPepper: 'test-pepper' });
     const result = await job.runOnce();
 
-    expect(result).toEqual({ deletedUsers: 1, deletedIdempotencyKeys: 0 });
+    expect(result).toEqual({
+      deletedUsers: 1,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
 
     const sequence = captured.map((entry) => entry.sql);
 
@@ -187,8 +195,16 @@ describe('createPurgeJob', () => {
 
     const first = await job.runOnce();
     const second = await job.runOnce();
-    expect(first).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
-    expect(second).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
+    expect(first).toEqual({
+      deletedUsers: 0,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
+    expect(second).toEqual({
+      deletedUsers: 0,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
   });
 
   it('runOnce sweeps expired idempotency_keys rows', async () => {
@@ -227,7 +243,11 @@ describe('createPurgeJob', () => {
 
     const job = createPurgeJob({ pool, enabled: false });
     const result = await job.runOnce();
-    expect(result).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 5 });
+    expect(result).toEqual({
+      deletedUsers: 0,
+      deletedIdempotencyKeys: 5,
+      deletedAnalyticsEvents: 0,
+    });
     expect(
       captured.some(
         (entry) =>
@@ -294,7 +314,11 @@ describe('createPurgeJob', () => {
 
     const job = createPurgeJob({ pool, enabled: false, logger });
     const result = await job.runOnce();
-    expect(result).toEqual({ deletedUsers: 0, deletedIdempotencyKeys: 0 });
+    expect(result).toEqual({
+      deletedUsers: 0,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
     const sequence = captured.map((c) => c.sql);
     expect(sequence.filter((s) => s === 'begin').length).toBe(1);
     expect(sequence.filter((s) => s === 'rollback').length).toBe(1);
@@ -348,7 +372,11 @@ describe('createPurgeJob', () => {
 
       const job = createPurgeJob({ pool, enabled: false, actorHashPepper: 'test-pepper' });
       const result = await job.runOnce();
-      expect(result).toEqual({ deletedUsers: 1, deletedIdempotencyKeys: 0 });
+      expect(result).toEqual({
+      deletedUsers: 1,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
 
       // Find the payload tombstone + actor_p2p_id scrub statement.
       const tombstoneUpdate = captured.find(
@@ -454,7 +482,168 @@ describe('createPurgeJob', () => {
     resumer();
     const result = await runPromise;
     await stopPromise;
-    expect(result).toEqual({ deletedUsers: 1, deletedIdempotencyKeys: 0 });
+    expect(result).toEqual({
+      deletedUsers: 1,
+      deletedIdempotencyKeys: 0,
+      deletedAnalyticsEvents: 0,
+    });
     expect(sawCommit).toBe(true);
   });
+
+  it(
+    'runOnce deletes orphan match_suggestions where candidate_id points ' +
+      "at the purged user's posts (F4-B fix #3)",
+    async () => {
+      const userId = '00000000-0000-4000-8000-0000000000a1';
+      const deletedAt = new Date(Date.now() - 31 * 86_400_000);
+      const purgeAt = new Date(Date.now() - 1 * 86_400_000);
+
+      let candidateCalls = 0;
+      const { pool, captured } = createPoolFake({
+        onSelect: (sql) => {
+          if (sql.startsWith('select user_id, deleted_at, purge_at')) {
+            candidateCalls += 1;
+            if (candidateCalls === 1) {
+              return [{ user_id: userId, deleted_at: deletedAt, purge_at: purgeAt }];
+            }
+            return [];
+          }
+          return [];
+        },
+      });
+
+      const job = createPurgeJob({ pool, enabled: false, actorHashPepper: 'test-pepper' });
+      const result = await job.runOnce();
+      expect(result).toEqual({
+        deletedUsers: 1,
+        deletedIdempotencyKeys: 0,
+        deletedAnalyticsEvents: 0,
+      });
+
+      // Two distinct match_suggestions DELETEs exist: (1) request_post_id
+      // cascade and (2) the candidate_id orphan sweep added in F4-B.
+      const matchDeletes = captured.filter((entry) =>
+        entry.sql.includes('delete from match_suggestions'),
+      );
+      expect(matchDeletes.length).toBe(2);
+
+      const candidateOrphanDelete = matchDeletes.find((entry) =>
+        entry.sql.includes("candidate_type = 'post'") &&
+        entry.sql.includes('candidate_id in'),
+      );
+      expect(candidateOrphanDelete).toBeDefined();
+      expect(candidateOrphanDelete?.params[0]).toBe(userId);
+
+      // Candidate-orphan sweep MUST run BEFORE `delete from posts` so the
+      // subquery can still resolve created_by = $1.
+      const candidateIdx = captured.findIndex(
+        (entry) => entry === candidateOrphanDelete,
+      );
+      const postsDeleteIdx = captured.findIndex((entry) =>
+        entry.sql.includes('delete from posts\n') ||
+        entry.sql.startsWith('delete from posts'),
+      );
+      expect(candidateIdx).toBeGreaterThan(-1);
+      expect(postsDeleteIdx).toBeGreaterThan(-1);
+      expect(candidateIdx).toBeLessThan(postsDeleteIdx);
+
+      // And inside the per-user transaction (between begin and commit).
+      const beginIdx = captured.findIndex((entry) => entry.sql === 'begin');
+      const commitIdx = captured.findIndex((entry) => entry.sql === 'commit');
+      expect(beginIdx).toBeGreaterThan(-1);
+      expect(commitIdx).toBeGreaterThan(-1);
+      expect(beginIdx).toBeLessThan(candidateIdx);
+      expect(candidateIdx).toBeLessThan(commitIdx);
+    },
+  );
+
+  it(
+    'runOnce sweeps analytics_events older than retainAnalyticsDays (F4-B fix #8)',
+    async () => {
+      // Tests that when the retention sweep is configured, a DELETE against
+      // analytics_events is issued with the configured day interval and the
+      // rowCount bubbles up into the result. Five ages are seeded in the
+      // comment (30/100/179/181/365d) so rows older than 180d go away; the
+      // fake returns rowCount=2 to simulate the 181d + 365d rows being
+      // deleted, matching the unit-test spec in the F4-B fix description.
+      const deletedAnalytics = 2;
+      const captured: CapturedQuery[] = [];
+      const client = {
+        async query(sql: string, params: unknown[] = []) {
+          const normalized = sql.trim().toLowerCase();
+          captured.push({ sql: normalized, params });
+          if (normalized.startsWith('select user_id, deleted_at, purge_at')) {
+            return { rows: [], rowCount: 0 };
+          }
+          if (
+            normalized.startsWith('delete from analytics_events') &&
+            normalized.includes('make_interval')
+          ) {
+            return { rows: [], rowCount: deletedAnalytics };
+          }
+          return { rows: [], rowCount: 0 };
+        },
+        release() {},
+      };
+      const pool = {
+        async connect() {
+          return client;
+        },
+      } as unknown as Pool;
+
+      const job = createPurgeJob({
+        pool,
+        enabled: false,
+        retainAnalyticsDays: 180,
+      });
+      const result = await job.runOnce();
+      expect(result).toEqual({
+        deletedUsers: 0,
+        deletedIdempotencyKeys: 0,
+        deletedAnalyticsEvents: deletedAnalytics,
+      });
+      const retentionDelete = captured.find((entry) =>
+        entry.sql.startsWith('delete from analytics_events') &&
+        entry.sql.includes('make_interval'),
+      );
+      expect(retentionDelete).toBeDefined();
+      expect(retentionDelete?.params[0]).toBe(180);
+    },
+  );
+
+  it(
+    'runOnce skips the analytics retention sweep when retainAnalyticsDays <= 0 (F4-B fix #8)',
+    async () => {
+      const captured: CapturedQuery[] = [];
+      const client = {
+        async query(sql: string, params: unknown[] = []) {
+          const normalized = sql.trim().toLowerCase();
+          captured.push({ sql: normalized, params });
+          if (normalized.startsWith('select user_id, deleted_at, purge_at')) {
+            return { rows: [], rowCount: 0 };
+          }
+          return { rows: [], rowCount: 0 };
+        },
+        release() {},
+      };
+      const pool = {
+        async connect() {
+          return client;
+        },
+      } as unknown as Pool;
+
+      const job = createPurgeJob({
+        pool,
+        enabled: false,
+        retainAnalyticsDays: 0,
+      });
+      const result = await job.runOnce();
+      expect(result.deletedAnalyticsEvents).toBe(0);
+      expect(
+        captured.some((entry) =>
+          entry.sql.startsWith('delete from analytics_events'),
+        ),
+      ).toBe(false);
+    },
+  );
 });
