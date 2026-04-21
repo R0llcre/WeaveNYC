@@ -257,15 +257,17 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
 
   await page.goto('/me/verify');
   await expect(page.getByTestId('verify-title')).toBeVisible();
-  // F1-α (A1 P1-6) splits session hydration into hydrate-from-IDB +
-  // bootstrap-fresh-access-token, which adds a small async cascade
-  // before the send-code button settles into an enabled state.
-  // Wait for the button to be actionable before clicking, then give
-  // the demo-code render a longer window (was 5s default).
+  // F1-α (A1 P1-6) split session hydration (IDB → refresh → memory)
+  // adds a small async cascade. Wait for send-code to settle to
+  // enabled before clicking; wait for the OTP code input to render
+  // (its visibility = proof otp/start succeeded) instead of the
+  // demo_code text which is a nice-to-have devaid that can race
+  // React Query's state ticks.
   await expect(page.getByTestId('send-code')).toBeEnabled({ timeout: 15_000 });
   await page.getByTestId('send-code').click();
-  await expect(page.getByText('246810')).toBeVisible({ timeout: 15_000 });
-  await page.getByLabel('Código de 6 dígitos').fill('246810');
+  const codeInput = page.getByLabel('Código de 6 dígitos');
+  await expect(codeInput).toBeVisible({ timeout: 15_000 });
+  await codeInput.fill('246810');
   await page.getByTestId('verify-code').click();
   await page.waitForURL('**/inbox/**');
   // inboxTitle (es) was renamed to "Bandeja" per the W4 i18n E2E contract
