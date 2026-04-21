@@ -28,6 +28,7 @@ import {
   useSpeechTranscribe,
 } from '@/lib/hooks';
 import { getCategoryLabel, getPostPrivacyLabel } from '@/lib/i18n';
+import { enqueuePendingPost, removePendingPost } from '@/lib/persistence';
 import {
   selectCommunity,
   selectPostDraft,
@@ -37,7 +38,7 @@ import {
 import { listenOnceWithBrowserSpeech, supportsBrowserSpeechRecognition } from '@/lib/speech';
 import { setSession } from '@/lib/slices/auth-slice';
 import { mergePostDraft, resetPostDraft, setDraftStep } from '@/lib/slices/post-draft-slice';
-import type { PostCategory, PostDraftState } from '@/lib/types';
+import type { CreatePostInput, PostCategory, PostDraftState } from '@/lib/types';
 
 /**
  * W4A — Post Composer.
@@ -255,7 +256,7 @@ export function PostComposerScreen() {
     }
     setValidationIssues([]);
 
-    const created = await createPostMutation.mutateAsync({
+    const payload: CreatePostInput = {
       communityId: currentCommunity.community_id,
       postType: draft.postType,
       category: draft.category,
@@ -271,20 +272,72 @@ export function PostComposerScreen() {
         text: draft.contactPref.text,
         notes: draft.contactPref.notes || undefined,
       },
+    };
+
+    // === Subway-safe publish (P5 finding 5 / offline write outbox) ========
+    // Write the full payload to IndexedDB BEFORE the HTTP call fires. This
+    // guarantees that a crash, tab close, or network blip between this line
+    // and the network response never loses the user's draft body. The
+    // `useOutboxDrain` hook (mounted in ShellFrame) will replay the entry
+    // on the next `online` / visibilitychange / mount.
+    const clientId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `pending-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    await enqueuePendingPost({
+      client_id: clientId,
+      created_at: new Date().toISOString(),
+      attempt_count: 0,
+      last_attempt_at: null,
+      last_error: null,
+      last_failure_permanent: false,
+      payload,
+      community_id: currentCommunity.community_id,
     });
 
+    // Reset the draft BEFORE the HTTP call so the compose screen clears
+    // either way (success OR queued-for-retry). A user who pulls a
+    // half-drafted post from the outbox does so via the pending-posts UI
+    // on /posts/mine, not by re-entering the composer.
     dispatch(resetPostDraft());
+
     // Fire a success toast so the user sees the confirmation even if the
     // route transition is instant. `toastSent` ("Sent" / "Enviado" / "已发送")
     // is the closest existing generic success key — no new key is invented.
     setPublishSuccessToast(t('toastSent'));
-    // Both request and offer posts land on the post detail page so the
-    // author sees their post went live. The UX audit suggested requests
-    // should jump to a matches feed immediately, but the existing
-    // `/posts/matches/` route is a global matches inbox, not post-scoped,
-    // so the detail page is a cleaner home for the confirmation moment.
-    // Revisit if/when a `/posts/{id}/matches/` route ships.
-    router.push(`/posts/${created.post_id}/`);
+
+    // Offline at tap-time? Skip the HTTP attempt entirely and route the
+    // user straight to /posts/mine/ so they can see the pending entry
+    // they just created. The drain hook will take over when the network
+    // returns.
+    const isOnline =
+      typeof navigator === 'undefined' || navigator.onLine !== false;
+    if (!isOnline) {
+      router.push('/posts/mine/');
+      return;
+    }
+
+    try {
+      const created = await createPostMutation.mutateAsync(payload);
+      // Success path — drop the pending entry and route the user to the
+      // detail page so they see their post went live.
+      await removePendingPost(clientId);
+      // Both request and offer posts land on the post detail page so the
+      // author sees their post went live. The UX audit suggested requests
+      // should jump to a matches feed immediately, but the existing
+      // `/posts/matches/` route is a global matches inbox, not post-scoped,
+      // so the detail page is a cleaner home for the confirmation moment.
+      // Revisit if/when a `/posts/{id}/matches/` route ships.
+      router.push(`/posts/${created.post_id}/`);
+    } catch {
+      // Transient network failure at publish-time — leave the entry in
+      // IDB for the drain hook to retry. Route to /posts/mine/ so the
+      // user sees the pending state instead of a scary error banner.
+      // 4xx / 5xx distinction is handled inside `useOutboxDrain`; at
+      // the compose-time we treat both the same: the draft is safe on
+      // device and we don't want to block the user on the composer.
+      router.push('/posts/mine/');
+    }
   };
 
   const stepOrder: Array<'type' | 'compose' | 'preview'> = ['type', 'compose', 'preview'];

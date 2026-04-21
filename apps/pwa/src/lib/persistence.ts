@@ -14,7 +14,9 @@ import type {
   PreferencesState,
 } from "@/lib/types";
 
-import { getPwaDb } from "@/lib/db";
+import { getPwaDb, type PendingPostEntry } from "@/lib/db";
+
+export type { PendingPostEntry } from "@/lib/db";
 
 /**
  * Tombstone retention window — tombstoned aggregates remain in the offline
@@ -1032,6 +1034,115 @@ export async function applyCommunitySyncDeltaToCache(delta: CacheReplayDelta | C
         });
       }
     }
+  } catch {
+    return;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Offline write outbox — `pendingPosts` Dexie table.                        */
+/*                                                                           */
+/* The outbox backs the PWA's "subway-safe publish" guarantee: when the user */
+/* taps Publish, we enqueue the full `CreatePostInput` into IDB BEFORE the   */
+/* HTTP call fires, so a network drop or hard-reload preserves the draft.    */
+/* The `useOutboxDrain` hook walks this table on `online` / visibility /     */
+/* mount and retries each entry. 4xx failures are flagged permanent so we    */
+/* don't thrash the server — they surface to the user on the pending list.   */
+/*                                                                           */
+/* Retention: entries stay in IDB until either successfully sent or          */
+/* explicitly discarded by the user. No TTL. See `docs/offline-outbox.md`.   */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Store a new pending post entry in IDB. Idempotent per `client_id` — a
+ * replay with the same id overwrites rather than duplicating (needed because
+ * the compose screen calls this exactly once per publish but the drain hook
+ * may race a second enqueue from a different tab in the future).
+ */
+export async function enqueuePendingPost(entry: PendingPostEntry): Promise<void> {
+  try {
+    const db = getPwaDb();
+    if (!db) {
+      return;
+    }
+
+    await db.pendingPosts.put(entry);
+  } catch {
+    return;
+  }
+}
+
+/**
+ * List pending entries, optionally filtered by community. Ordered by
+ * `created_at` ascending so the drain pass processes oldest-first — this
+ * matches the user's mental model of "first in, first out" and means a long
+ * backlog eventually reaches 4xx surfacing rather than spinning on the
+ * newest entry forever.
+ */
+export async function listPendingPosts(communityId?: string): Promise<PendingPostEntry[]> {
+  try {
+    const db = getPwaDb();
+    if (!db) {
+      return [];
+    }
+
+    const all = communityId
+      ? await db.pendingPosts.where('community_id').equals(communityId).toArray()
+      : await db.pendingPosts.toArray();
+
+    return all.sort((left, right) => left.created_at.localeCompare(right.created_at));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Record an attempt on a pending entry — bumps `attempt_count`, stamps
+ * `last_attempt_at`, writes `last_error`. `permanent` marks the failure as a
+ * 4xx semantic rejection (so the drain skips it until the user manually
+ * retries). Silent no-op when the entry is already gone (removed by a
+ * successful concurrent attempt).
+ */
+export async function markPendingPostAttempt(
+  clientId: string,
+  error: string | null,
+  options: { permanent?: boolean } = {},
+): Promise<void> {
+  try {
+    const db = getPwaDb();
+    if (!db) {
+      return;
+    }
+
+    const existing = await db.pendingPosts.get(clientId);
+    if (!existing) {
+      return;
+    }
+
+    await db.pendingPosts.put({
+      ...existing,
+      attempt_count: existing.attempt_count + 1,
+      last_attempt_at: new Date().toISOString(),
+      last_error: error,
+      last_failure_permanent: options.permanent === true,
+    });
+  } catch {
+    return;
+  }
+}
+
+/**
+ * Remove a pending entry — called on successful publish and on explicit
+ * user discard. No-op when the entry doesn't exist.
+ */
+export async function removePendingPost(clientId: string): Promise<void> {
+  try {
+    const db = getPwaDb();
+    if (!db) {
+      return;
+    }
+
+    await db.pendingPosts.delete(clientId);
   } catch {
     return;
   }

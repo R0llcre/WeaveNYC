@@ -44,12 +44,17 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/posts/new',
 }));
 
+// Typed mock factories — `vi.fn<Fn>()` keeps the call signature intact so
+// TS doesn't complain about "expected 0 arguments, got N" when the
+// mocked function is invoked through its real interface.
+const createPostMock = vi.fn<(accessToken: string, input: unknown) => Promise<{ post_id: string }>>();
+
 vi.mock('@/lib/api', async () => {
   const actual = await vi.importActual<typeof import('@/lib/api')>('@/lib/api');
   return {
     ...actual,
     createAnonymousSession: vi.fn(),
-    createPost: vi.fn(async () => ({ post_id: 'created' })),
+    createPost: (accessToken: string, input: unknown) => createPostMock(accessToken, input),
     transcribeSpeech: vi.fn(async () => ({
       transcript: 'demo',
       language: 'en',
@@ -62,6 +67,24 @@ vi.mock('@/lib/speech', () => ({
   listenOnceWithBrowserSpeech: vi.fn(async () => 'demo'),
   supportsBrowserSpeechRecognition: () => true,
 }));
+
+// W8 subway-safe publish — the compose screen now enqueues into IDB before
+// attempting the HTTP call. Under jsdom there is no IndexedDB, so we mock
+// the persistence helpers directly and verify they were called in the
+// expected order (enqueue → createPost → remove on success, enqueue only on
+// offline skip).
+const enqueuePendingPostMock = vi.fn<(entry: unknown) => Promise<void>>();
+const removePendingPostMock = vi.fn<(clientId: string) => Promise<void>>();
+vi.mock('@/lib/persistence', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/persistence')>(
+    '@/lib/persistence',
+  );
+  return {
+    ...actual,
+    enqueuePendingPost: (entry: unknown) => enqueuePendingPostMock(entry),
+    removePendingPost: (clientId: string) => removePendingPostMock(clientId),
+  };
+});
 
 type Store = EnhancedStore<{
   auth: ReturnType<typeof authReducer>;
@@ -133,6 +156,12 @@ function renderComposer(options: {
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  createPostMock.mockReset();
+  createPostMock.mockResolvedValue({ post_id: 'created' });
+  enqueuePendingPostMock.mockReset();
+  enqueuePendingPostMock.mockResolvedValue(undefined);
+  removePendingPostMock.mockReset();
+  removePendingPostMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -214,6 +243,78 @@ describe('PostComposerScreen (/posts/new)', () => {
     renderComposer({ withSession: false, withCommunity: false, store });
     const publish = screen.getByTestId('publish-post') as HTMLButtonElement;
     expect(publish.disabled).toBe(true);
+  });
+
+  it('offline publish enqueues into IDB and skips the HTTP attempt', async () => {
+    // Pin navigator.onLine=false to simulate the subway tap-time case.
+    // The composer should call `enqueuePendingPost` but NOT `createPost`.
+    const originalOnLine = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      'onLine',
+    );
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      get: () => false,
+    });
+    try {
+      const store = buildStore();
+      store.dispatch(setSession(seedSession()));
+      store.dispatch(
+        upsertJoinedCommunity({
+          community: {
+            community_id: 'community-11735',
+            name: 'Farmingdale Demo',
+            center_zip: '11735',
+            join_policy: 'invite_only',
+          },
+          joinedAt: new Date().toISOString(),
+        }),
+      );
+      store.dispatch(setCurrentCommunity('community-11735'));
+      store.dispatch(
+        mergePostDraft({
+          step: 'preview',
+          postType: 'request',
+          title: 'Need groceries tonight',
+          body: 'I ran out of canned food, pickup near 11735 welcome.',
+          locationZip: '11735',
+          category: 'food',
+          expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        }),
+      );
+      renderComposer({ withSession: false, withCommunity: false, store });
+
+      // Tap publish — draft is valid so the handler should proceed.
+      fireEvent.click(screen.getByTestId('publish-post'));
+
+      // Wait a microtask for the async handler to dispatch the enqueue.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Subway-safe contract: the draft is persisted to IDB before the
+      // HTTP call would fire, and — because the user is offline — the
+      // HTTP call is skipped entirely.
+      expect(enqueuePendingPostMock).toHaveBeenCalledTimes(1);
+      expect(createPostMock).not.toHaveBeenCalled();
+
+      // The enqueued payload carries the full user-typed body so a
+      // crash/reload preserves it.
+      const call = enqueuePendingPostMock.mock.calls[0]?.[0] as unknown as {
+        client_id: string;
+        payload: { body: string; title: string };
+      };
+      expect(call.client_id).toBeTruthy();
+      expect(call.payload.body).toContain('canned food');
+      expect(call.payload.title).toBe('Need groceries tonight');
+    } finally {
+      if (originalOnLine) {
+        Object.defineProperty(window.navigator, 'onLine', originalOnLine);
+      } else {
+        Object.defineProperty(window.navigator, 'onLine', {
+          configurable: true,
+          value: true,
+        });
+      }
+    }
   });
 
   it('publish-post becomes enabled once title + body + zip are valid', () => {

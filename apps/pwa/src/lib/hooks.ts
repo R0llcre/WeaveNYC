@@ -40,13 +40,17 @@ import {
 import { createBrowserP2PWorkerClient, type BrowserP2PWorkerClient } from '@/lib/p2p-worker-client';
 import {
   applyCommunitySyncDeltaToCache,
+  listPendingPosts,
   loadP2PEventCursor,
   loadP2PKeyMaterial,
   loadP2PSyncState,
+  markPendingPostAttempt,
+  removePendingPost,
   saveP2PEventCursor,
   saveP2PKeyMaterial,
   saveP2PSyncState,
 } from '@/lib/persistence';
+import { selectSession } from '@/lib/selectors';
 import type {
   BlockUserInput,
   CommunityAccessResolveInput,
@@ -813,4 +817,173 @@ export function useCommunityP2PSync(accessToken: string | null | undefined, comm
       workerRef.current?.sync();
     },
   };
+}
+
+/* ------------------------------------------------------------------------- */
+/* useOutboxDrain — offline-publish drain loop.                              */
+/*                                                                           */
+/* Mounts once near the top of the tree (see `ShellFrame`) so it runs        */
+/* regardless of which screen is visible. On `online`, on visibility         */
+/* returning to `'visible'`, and on initial mount, it walks the pendingPosts */
+/* table and replays each entry against `createPost`. Success removes the    */
+/* entry and invalidates post caches. Network / 5xx failure leaves the       */
+/* entry in place with an incremented `attempt_count` so the NEXT trigger    */
+/* (online event, tab focus, user retry) picks it up — the exponential       */
+/* backoff is implicit in the trigger cadence, not a timer. 4xx is marked    */
+/* permanent so the pending-posts UI can show a distinct "failed" state and  */
+/* we avoid thrashing the server.                                            */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Parse the HTTP status from an error thrown by `requestJson`. The helper
+ * throws `new Error(\`${path} failed: HTTP ${response.status} ${message}\`)`;
+ * this reader extracts the status so the drain loop can tell a 4xx semantic
+ * rejection from a 5xx/network transient. Returns `null` on parse failure —
+ * an unknown shape is treated as a transient (safer to retry than to
+ * permanent-fail).
+ */
+function readHttpStatusFromError(error: unknown): number | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+  const message = (error as { message?: unknown }).message;
+  if (typeof message !== 'string') {
+    return null;
+  }
+  const match = /HTTP\s+(\d{3})/.exec(message);
+  if (!match) {
+    return null;
+  }
+  const status = Number.parseInt(match[1], 10);
+  return Number.isFinite(status) ? status : null;
+}
+
+function isPermanentFailure(status: number | null): boolean {
+  // 4xx (excluding 408 Request Timeout and 429 Too Many Requests which are
+  // transient) is a semantic rejection we should not auto-retry.
+  if (status === null) {
+    return false;
+  }
+  if (status === 408 || status === 429) {
+    return false;
+  }
+  return status >= 400 && status < 500;
+}
+
+/**
+ * Drain the offline write outbox. Returns a stable object so callers in
+ * tests can introspect state without triggering re-drains.
+ *
+ * Callers: mount exactly once near the shell root. Multiple mounts would
+ * each install their own listeners and cause redundant drains. The drain
+ * itself is idempotent per-entry (a 2xx response removes the entry; a
+ * concurrent enqueue of the same `client_id` overwrites rather than
+ * duplicates), so duplicate listeners are not correctness-critical — just
+ * wasteful.
+ */
+export function useOutboxDrain() {
+  const queryClient = useQueryClient();
+  const session = useAppSelector(selectSession);
+  const accessToken = session?.access_token ?? null;
+  // Guard so a slow fetch response arriving after unmount doesn't mutate
+  // IDB. The listener effects also short-circuit on cancelled.
+  const drainingRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let cancelled = false;
+
+    const runDrain = async () => {
+      // Hard guards: no session → no Authorization header → every call
+      // 401s. Skip entirely and wait for the session effect to re-fire
+      // this hook via the `accessToken` dependency.
+      if (!accessToken) {
+        return;
+      }
+      // Re-entrance guard: don't start a second pass while the first is
+      // still walking the queue. This prevents e.g. a visibilitychange
+      // firing mid-`online` drain from kicking off a parallel pass that
+      // would race the IDB writes.
+      if (drainingRef.current) {
+        return;
+      }
+      drainingRef.current = true;
+
+      try {
+        const pending = await listPendingPosts();
+        for (const entry of pending) {
+          if (cancelled) {
+            return;
+          }
+          // Skip 4xx-marked entries — they're semantic failures that need
+          // user action. A manual "Retry now" on the pending-posts screen
+          // clears `last_failure_permanent` by calling `enqueuePendingPost`
+          // with the same `client_id`, which overwrites the row.
+          if (entry.last_failure_permanent) {
+            continue;
+          }
+          try {
+            const result = await createPost(accessToken, entry.payload);
+            if (cancelled) {
+              return;
+            }
+            await removePendingPost(entry.client_id);
+            // Nudge the post caches — both "all posts" lists and the
+            // user's own posts list may now need to reflect the newly
+            // published post. We don't navigate (the user might be
+            // anywhere in the app); just freshen the data.
+            void queryClient.invalidateQueries({ queryKey: ['posts'] });
+            // Also drop the post-detail cache so a subsequent visit to
+            // `/posts/{id}` reloads from the server rather than from a
+            // stale cache key.
+            void queryClient.invalidateQueries({ queryKey: ['post', result.post_id] });
+          } catch (error) {
+            const status = readHttpStatusFromError(error);
+            const permanent = isPermanentFailure(status);
+            const message = error instanceof Error ? error.message : String(error);
+            await markPendingPostAttempt(entry.client_id, message, {
+              permanent,
+            });
+            // On transient failure we stop the current pass (exponential
+            // backoff = wait for the next trigger). On permanent failure
+            // we continue the walk because other entries may still send.
+            if (!permanent) {
+              return;
+            }
+          }
+        }
+      } finally {
+        drainingRef.current = false;
+      }
+    };
+
+    // Run once on mount — picks up anything queued while the user was
+    // offline in a previous session.
+    void runDrain();
+
+    const handleOnline = () => {
+      void runDrain();
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void runDrain();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+    // `accessToken` is a stable string-or-null for a given session; the
+    // hook reruns the setup when the user signs in/out, which is the
+    // correct moment to re-check the queue anyway.
+  }, [accessToken, queryClient]);
 }

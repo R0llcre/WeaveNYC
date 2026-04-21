@@ -2,18 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   applyCommunitySyncDeltaToCache,
+  enqueuePendingPost,
   filterVisibleAnnouncements,
   filterVisiblePostsForScope,
+  listPendingPosts,
   loadCachedAnnouncements,
   loadCachedPosts,
   loadP2PEventCursor,
   loadP2PKeyMaterial,
   loadP2PSyncState,
+  markPendingPostAttempt,
+  removePendingPost,
   saveCachedAnnouncements,
   saveCachedPosts,
   saveP2PEventCursor,
   saveP2PKeyMaterial,
   saveP2PSyncState,
+  type PendingPostEntry,
 } from './persistence';
 
 const postCacheStore = new Map<string, unknown>();
@@ -22,6 +27,7 @@ const p2pKeyStore = new Map<string, unknown>();
 const p2pSyncStateStore = new Map<string, unknown>();
 const p2pEventCursorStore = new Map<string, unknown>();
 const kvStore = new Map<string, unknown>();
+const pendingPostsStore = new Map<string, PendingPostEntry>();
 
 vi.mock('@/lib/db', () => ({
   getPwaDb: () => ({
@@ -61,6 +67,29 @@ vi.mock('@/lib/db', () => ({
         kvStore.set(value.key, value);
       }),
     },
+    // Dexie-Table-shaped stub for the `pendingPosts` store. The
+    // `where(field).equals(value).toArray()` chain mirrors the Dexie query
+    // API used by `listPendingPosts` when scoped by community. `delete` and
+    // `get` round out the surface used by enqueue / remove / markAttempt.
+    pendingPosts: {
+      get: vi.fn(async (clientId: string) => pendingPostsStore.get(clientId)),
+      put: vi.fn(async (value: PendingPostEntry) => {
+        pendingPostsStore.set(value.client_id, value);
+      }),
+      delete: vi.fn(async (clientId: string) => {
+        pendingPostsStore.delete(clientId);
+      }),
+      toArray: vi.fn(async () => Array.from(pendingPostsStore.values())),
+      where: vi.fn((field: string) => ({
+        equals: (needle: unknown) => ({
+          toArray: async () =>
+            Array.from(pendingPostsStore.values()).filter((entry) => {
+              const record = entry as unknown as Record<string, unknown>;
+              return record[field] === needle;
+            }),
+        }),
+      })),
+    },
   }),
 }));
 
@@ -81,6 +110,7 @@ describe('pwa persistence helpers', () => {
     p2pSyncStateStore.clear();
     p2pEventCursorStore.clear();
     kvStore.clear();
+    pendingPostsStore.clear();
     vi.useRealTimers();
   });
 
@@ -565,6 +595,99 @@ describe('pwa persistence helpers', () => {
     await expect(loadCachedPosts('comm_1', 'community')).resolves.toMatchObject({
       items: [expect.objectContaining({ title: 'Latest title', p2p_version: 3 })],
     });
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* Offline write outbox — pendingPosts table.                       */
+  /* ---------------------------------------------------------------- */
+
+  function buildPending(overrides: Partial<PendingPostEntry> = {}): PendingPostEntry {
+    return {
+      client_id: 'pending-1',
+      created_at: '2026-04-13T12:00:00.000Z',
+      attempt_count: 0,
+      last_attempt_at: null,
+      last_error: null,
+      last_failure_permanent: false,
+      community_id: 'comm_1',
+      payload: {
+        communityId: 'comm_1',
+        postType: 'request',
+        category: 'food',
+        title: 'Need groceries',
+        body: 'Can someone bring a bag by tonight?',
+        language: 'en',
+        locationZip: '11735',
+        privacy: 'community_only',
+        expiresAt: '2026-04-20T12:00:00.000Z',
+      },
+      ...overrides,
+    };
+  }
+
+  it('enqueuePendingPost + listPendingPosts round-trip a queued publish', async () => {
+    await enqueuePendingPost(buildPending({ client_id: 'pending-a' }));
+    await enqueuePendingPost(
+      buildPending({
+        client_id: 'pending-b',
+        created_at: '2026-04-13T12:05:00.000Z',
+        payload: {
+          ...buildPending().payload,
+          title: 'Ride to clinic',
+        },
+      }),
+    );
+
+    const entries = await listPendingPosts();
+    expect(entries.map((entry) => entry.client_id)).toEqual(['pending-a', 'pending-b']);
+  });
+
+  it('listPendingPosts scoped by community returns only that scope', async () => {
+    await enqueuePendingPost(buildPending({ client_id: 'pending-a', community_id: 'comm_1' }));
+    await enqueuePendingPost(
+      buildPending({ client_id: 'pending-b', community_id: 'comm_2' }),
+    );
+
+    const scoped = await listPendingPosts('comm_1');
+    expect(scoped).toHaveLength(1);
+    expect(scoped[0]?.client_id).toBe('pending-a');
+  });
+
+  it('markPendingPostAttempt increments count and stamps error + permanent flag', async () => {
+    await enqueuePendingPost(buildPending({ client_id: 'pending-x' }));
+
+    // Transient failure — not permanent.
+    await markPendingPostAttempt('pending-x', 'network down');
+    let entries = await listPendingPosts();
+    expect(entries[0]).toMatchObject({
+      attempt_count: 1,
+      last_error: 'network down',
+      last_failure_permanent: false,
+    });
+    expect(entries[0]?.last_attempt_at).not.toBeNull();
+
+    // Second attempt, this time marked permanent (4xx).
+    await markPendingPostAttempt('pending-x', 'HTTP 400 bad request', { permanent: true });
+    entries = await listPendingPosts();
+    expect(entries[0]).toMatchObject({
+      attempt_count: 2,
+      last_error: 'HTTP 400 bad request',
+      last_failure_permanent: true,
+    });
+  });
+
+  it('markPendingPostAttempt on a missing client_id is a silent no-op', async () => {
+    // Ghost id — no row. Must not throw.
+    await expect(markPendingPostAttempt('does-not-exist', 'ignored')).resolves.toBeUndefined();
+    expect(await listPendingPosts()).toEqual([]);
+  });
+
+  it('removePendingPost drops the row', async () => {
+    await enqueuePendingPost(buildPending({ client_id: 'pending-z' }));
+    expect(await listPendingPosts()).toHaveLength(1);
+
+    await removePendingPost('pending-z');
+    expect(await listPendingPosts()).toEqual([]);
   });
 
   it('filterVisibleAnnouncements drops tombstoned announcements', () => {
