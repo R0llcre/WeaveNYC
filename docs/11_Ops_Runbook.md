@@ -153,7 +153,29 @@ loki-cli query '{} |= "sha256:7f3a"' --since=7d
 
 ---
 
-## Appendix A.3) Future Alerting
+## Appendix A.3) Alerting
+
+### A.3.0 Current alerting rules
+
+Live Prometheus rule files shipped with the repo (load any file matching
+`infra/prometheus/rules/*.yaml` via `rule_files` in `prometheus.yml`):
+
+| File | Surface | Coverage |
+|---|---|---|
+| `infra/prometheus/rules/api-gateway.yaml` | API Gateway, DB, moderation, auth | 5xx rate, p95 latency, DB error rate, review-queue backlog, auth-challenge floor |
+| `infra/prometheus/rules/p2p.yaml` | P2P overlay | Sync error rate, Redis fanout, stall detection, bootstrap denial rate, sync lag p95 |
+
+Example `rule_files` glob for Prometheus config:
+
+```yaml
+rule_files:
+  - /etc/prometheus/rules/*.yaml   # mounts infra/prometheus/rules/
+```
+
+Severity labels are `page` (paging-grade, maps to PagerDuty P0/P1) and
+`warning` (notify-only, maps to Slack `#ops-alerts`). See
+`scripts/staging/post-deploy-smoke.ts` for the manual equivalents used
+until the Prometheus server is wired (see §Appendix H.2).
 
 ### 5.1 告警分级
 
@@ -218,7 +240,35 @@ groups:
 
 ---
 
-## Appendix B) Future On-Call
+## On-Call
+
+> **Pilot go-live action required.** The placeholders `<primary>`,
+> `<secondary>`, `<escalation>` below MUST be replaced with real names,
+> phone numbers, and Slack handles before pilot go-live. Do not ship the
+> pilot with placeholder values in this section.
+
+### 6.0 Current rotation (pilot)
+
+| Role | Responsibility | Current holder |
+|---|---|---|
+| Primary on-call | First responder; acknowledges within 15 min | `<primary>` (name + phone + Slack) |
+| Secondary on-call | Backup; covers when primary is unreachable or overloaded | `<secondary>` (name + phone + Slack) |
+| Escalation / project lead | Final call on go/no-go, incident comms, postmortem owner | `<escalation>` (name + phone + Slack) |
+
+**Rotation schedule template** (fill in dates before go-live):
+
+| Week | Start (Mon 00:00 ET) | End (Sun 23:59 ET) | Primary | Secondary |
+|---|---|---|---|---|
+| W1 | YYYY-MM-DD | YYYY-MM-DD | `<primary>` | `<secondary>` |
+| W2 | YYYY-MM-DD | YYYY-MM-DD | `<secondary>` | `<primary>` |
+| W3 | YYYY-MM-DD | YYYY-MM-DD | `<primary>` | `<secondary>` |
+
+**PagerDuty schedule:** `<pagerduty-schedule-url>` — WeaveNYC workspace,
+schedule name `weavenyc-pilot-primary`. Rotations in the table above
+mirror the PagerDuty schedule; the schedule is the source of truth and
+the table is documentation. To page the current on-call without looking
+at PagerDuty, send `/pd trigger weavenyc-pilot-primary "<summary>"` in
+Slack `#ops-critical`.
 
 ### 6.1 轮换策略
 - **周轮换**：每人每周轮值一次（2 人团队则每人隔周一次）
@@ -251,7 +301,14 @@ groups:
 
 ---
 
-## Appendix C) Future Playbooks
+## Incident Playbooks
+
+> **First-touch diagnostics.** When an alert fires, run
+> `pnpm exec tsx scripts/staging/incident-snapshot.ts` first. It
+> captures a point-in-time snapshot of `/healthz`, `/readyz`, `/metrics`,
+> and recent error counts so you can attach it to the incident channel
+> before you start mutating state. Each playbook below assumes the
+> snapshot has already been taken.
 
 ### 7.1 官方资源查询挂了
 **Symptoms**:
@@ -349,7 +406,22 @@ groups:
 
 ---
 
-## Appendix D) Future Backup / Restore
+## Backup & Restore
+
+**Pilot RPO/RTO targets (explicit, committed):**
+- **RPO = 24h** — worst-case data loss bounded by the daily PostgreSQL
+  `pg_dump` cadence. Resource-directory imports have RPO = 0 (each
+  import is versioned in S3).
+- **RTO = 4h** — worst-case time to restore a healthy API from a cold
+  backup. Measured from "declare incident" to "smoke tests green."
+
+**Rehearsal evidence.** Restore is exercised automatically on a
+schedule via
+[`.github/workflows/backup-restore-rehearsal.yml`](../.github/workflows/backup-restore-rehearsal.yml).
+Every run records timestamps and RTO; a red run is itself an incident
+(see §Incident Playbooks). The rehearsal is the authoritative proof
+that the restore path works — if it hasn't passed in 30 days, treat
+the backup as unvalidated and block pilot go-live until it does.
 
 ### 8.1 备份范围
 

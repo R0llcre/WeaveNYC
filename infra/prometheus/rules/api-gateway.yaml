@@ -1,0 +1,120 @@
+# Prometheus alert rules for the WeaveNYC API Gateway and core platform.
+#
+# Target metrics (exposed at https://api.weavenyc.org/metrics):
+#   - http_requests_total{status, route}        (counter)
+#   - http_request_duration_seconds_bucket{le}  (histogram)
+#   - db_errors_total                           (counter)
+#   - review_queue_pending                      (gauge)
+#   - auth_challenges_total{outcome}            (counter; outcome=success|failure|...)
+#
+# Severity convention:
+#   - page     paging-grade; on-call must respond within the P0/P1 window
+#              defined in docs/11_Ops_Runbook §Alerting
+#   - warning  notify-only; investigate but do not auto-page
+#
+# Companion file: `p2p.yaml` (P2P overlay). Both files are loaded by any
+# Prometheus server/Grafana Agent that mounts `infra/prometheus/rules/`
+# into its `rule_files` glob. No per-file wiring needed — the runbook
+# §Appendix A.3 documents the expected glob.
+
+groups:
+  - name: api-gateway-http
+    interval: 30s
+    rules:
+      # Sustained 5xx rate above 2% over 5 minutes means the gateway is
+      # materially degraded — pages the on-call. 2% is conservative for
+      # pilot volume; at 10 req/s this is 1 failure / 5s.
+      - alert: HighHttpErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) /
+          clamp_min(sum(rate(http_requests_total[5m])), 1) > 0.02
+        for: 5m
+        labels:
+          severity: page
+          surface: api-gateway
+        annotations:
+          summary: "API 5xx rate >2% for 5 minutes"
+          description: |
+            {{ $value | humanizePercentage }} of HTTP responses are 5xx.
+            See docs/11_Ops_Runbook §Incident Playbooks for triage.
+
+      # p95 request latency above 1.5s sustained for 5 minutes indicates
+      # a saturated backend (DB, Redis, downstream split runtime). Warning
+      # rather than page — user impact is degradation, not outage.
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          surface: api-gateway
+        annotations:
+          summary: "API p95 latency >1.5s for 5 minutes"
+          description: |
+            p95 request latency is {{ $value }}s. Typical causes: DB slow
+            queries, Redis saturation, downstream service backpressure.
+
+  - name: api-gateway-db
+    interval: 30s
+    rules:
+      # DB errors are a leading indicator of data-layer failure. 0.5/s
+      # (30/min) is well above baseline noise; sustained for 2m pages
+      # on-call because persisted writes may be dropping.
+      - alert: DatabaseErrors
+        expr: sum(rate(db_errors_total[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: page
+          surface: database
+        annotations:
+          summary: "Database error rate >0.5/s for 2 minutes"
+          description: |
+            Sustained DB error rate of {{ $value }} errors/sec. Check
+            pg_stat_activity for long-running queries, connection-pool
+            exhaustion, or replica lag. See §Incident Playbooks "数据库
+            连接池耗尽" for triage steps.
+
+  - name: api-gateway-review-queue
+    interval: 60s
+    rules:
+      # Anchor review queue backlog >200 for 15 minutes means moderation
+      # is falling behind and harmful content may linger. Warning — the
+      # fix is community-side (staffing), not infrastructure.
+      - alert: ReviewQueueBacklog
+        expr: review_queue_pending > 200
+        for: 15m
+        labels:
+          severity: warning
+          surface: moderation
+        annotations:
+          summary: "Anchor review queue >200 pending for 15 minutes"
+          description: |
+            {{ $value }} posts awaiting anchor review. Page the community
+            lead if this persists — may indicate an anchor outage or a
+            spam/abuse spike (see §Incident Playbooks "诈骗/骚扰突然暴增").
+
+  - name: api-gateway-auth
+    interval: 30s
+    rules:
+      # Auth-challenge floor: if over 30 minutes there ARE challenges
+      # being attempted but ZERO succeed, something is broken in the
+      # auth path (JWT verifier, session store, TOTP provider). Warning
+      # because signup/login is user-initiated — outage is contained,
+      # but it blocks all new sessions so on-call should treat urgently.
+      - alert: AuthChallengeFloor
+        expr: |
+          rate(auth_challenges_total{outcome="success"}[30m]) == 0
+          and rate(auth_challenges_total[30m]) > 0
+        for: 30m
+        labels:
+          severity: warning
+          surface: auth
+        annotations:
+          summary: "Zero successful auth challenges in 30 minutes despite traffic"
+          description: |
+            {{ $labels.surface }} saw auth attempts but none succeeded in
+            the last 30 minutes. Likely causes: JWT keypair rotation
+            without rollout, Redis session store down, TOTP clock skew.
