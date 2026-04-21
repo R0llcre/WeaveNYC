@@ -99,9 +99,31 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
   // Prometheus server (staging) and the Cloud Run sidecar (future).
   // prom-client emits `text/plain; version=0.0.4` which is the canonical
   // content-type for Prometheus exposition format 0.0.4.
-  app.get('/metrics', async (_request, reply) => {
-    reply.header('content-type', app.metrics.register.contentType);
-    return app.metrics.register.metrics();
+  //
+  // Defensive guard: production was observed returning a 500 here with
+  // "Cannot read properties of undefined (reading 'register')" even though
+  // `app.decorate('metrics', metrics)` runs cleanly in tests. Rather than
+  // continue panicking the endpoint, we log what's actually attached to
+  // the app instance at request time and return 503 — the standard
+  // "backend not ready" response a Prometheus scraper understands and
+  // retries cleanly. Once the root cause is pinned, we can reassert the
+  // invariant with a non-optional access.
+  app.get('/metrics', async (request, reply) => {
+    const registry = app.metrics?.register;
+    if (!registry) {
+      request.log.error(
+        {
+          hasMetrics: Boolean(app.metrics),
+          decoratorKeys: app.metrics ? Object.keys(app.metrics) : [],
+        },
+        '/metrics: registry unavailable — metrics decorator missing at request time',
+      );
+      reply.code(503);
+      reply.header('content-type', 'text/plain; charset=utf-8');
+      return 'metrics registry unavailable';
+    }
+    reply.header('content-type', registry.contentType);
+    return registry.metrics();
   });
 
   // Legacy JSON metrics kept at `/metrics.json` for backward-compat with
