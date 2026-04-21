@@ -162,9 +162,18 @@ export function ChatInboxScreen({ initialView = 'all' }: ChatInboxScreenProps) {
     void inboxRequestsQuery.refetch();
   });
 
+  // P0-2: after a disconnect/reconnect cycle the server does not replay
+  // buffered events, so we backfill by refetching the same inbox queries
+  // the socket normally invalidates on message arrival.
+  const handleSocketReconnect = useEffectEvent(() => {
+    void conversationsQuery.refetch();
+    void inboxRequestsQuery.refetch();
+  });
+
   useChatWebSocket(session?.access_token, handleSocketMessage, {
     enabled: isVerified && Boolean(session?.access_token),
     onStateChange: setWsState,
+    onReconnect: handleSocketReconnect,
   });
 
   // Per-route document.title (F10 contract) — set on the client after

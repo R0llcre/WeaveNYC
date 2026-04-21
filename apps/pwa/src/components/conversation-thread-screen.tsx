@@ -244,9 +244,20 @@ export function ConversationThreadScreen({
     }
   });
 
+  // P0-2: after a reconnect we don't know which message.created or
+  // conversation.updated events were published while the socket was down;
+  // the server does not backfill automatically. Refetch the messages +
+  // conversation detail so the user sees anything that landed while they
+  // were on the train.
+  const handleSocketReconnect = useEffectEvent(() => {
+    void messagesQuery.refetch();
+    void conversationQuery.refetch();
+  });
+
   useChatWebSocket(session?.access_token, handleSocketMessage, {
     enabled: Boolean(session?.access_token) && !accessDenied,
     onStateChange: setWsState,
+    onReconnect: handleSocketReconnect,
   });
 
   // Autoscroll the message list to the bottom whenever it grows. Using a

@@ -90,6 +90,16 @@ export const chatSafetyRoutes: FastifyPluginAsync = async (app) => {
           blockedUserId: body.blocked_user_id,
         });
 
+        // P0-4: the blocked user's live socket must go with the block.
+        // Previously we only published `conversation.updated`, which the
+        // abuser's client could ignore — their socket kept authorizing
+        // reads + `message.created` fan-out for conversations they
+        // haven't yet been removed from (the chat service prunes them
+        // lazily on next read). Severing the socket forces a reconnect
+        // attempt which re-runs the auth + scope check and observes the
+        // block.
+        app.chatRealtimeHub.disconnectUser(body.blocked_user_id, "Blocked by participant");
+
         for (const affectedConversation of result.affectedConversations) {
           const updatedConversation = {
             ...affectedConversation,

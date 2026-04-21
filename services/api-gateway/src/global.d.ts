@@ -45,6 +45,15 @@ declare module 'fastify' {
       sign: (payload: InternalServiceTokenClaims) => string;
       verify: <T extends object = InternalServiceTokenClaims>(token: string) => Promise<T>;
     };
+    // P0-3 test hooks: the chat-socket plugin exposes these so tests can
+    // drive the stale-socket sweeper deterministically (instead of
+    // waiting 30s on a real setInterval). They are no-ops in production
+    // paths — nothing outside of tests calls them. The optional `now`
+    // arg overrides the sweeper's clock for that single invocation so
+    // tests can jump past the 90s stale threshold without stalling
+    // wall time.
+    chatSocketSweepForTest: (now?: number) => void;
+    chatSocketLiveCountForTest: () => number;
   }
 }
 
