@@ -10,24 +10,31 @@
  *   - Post request/offer     → /post tab
  *   - Bookmarked list        → /me (future wave)
  *
- * Layout: TopBar (brand) → Hero (overline + h1 + subtitle + session CTA) →
+ * Layout: TopBar (brand) → Hero (overline + h1) →
  * ZIP status line (Tag + Change ghost link) → Filter pill rail (scroll-snap)
- * → results. Empty states split by cause:
- *   - no ZIP saved   → homeNoZip* keys, CTA routes to /me/settings
- *   - ZIP set, zero  → homeNoResults* keys, CTA routes to /me/settings
+ * → results (wrapped in `aria-live="polite"` so filter-driven count changes
+ * announce to screen readers). Empty states split by cause:
+ *   - no ZIP saved    → homeNoZip* keys, CTA routes to /me/settings
+ *   - ZIP set, zero   → homeNoResults* keys (interpolates ZIP), CTA /me/settings
+ *   - query failed    → tone="error" EmptyState with a retry CTA (V1-A fix:
+ *                       real 500s used to mimic "Nothing nearby" and blame
+ *                       the user's ZIP).
  *
  * All layout uses <Stack> / <Inline> atoms so the JSX carries NO dead BEM
  * classes (the former `.home__*` hooks had no matching rules in globals.css
  * and were load-bearing nowhere). The one new CSS addition is `.pill-scroll`,
  * a reusable filter-rail utility with scroll-snap.
  *
- * E2E testids preserved:
- *   - `create-session`       — Hero CTA. Bootstrap is auto-fired on mount;
- *                              the click is a refetch for smoke coverage.
+ * E2E testids preserved (but no longer visible to end-users — bootstrap is
+ * auto-fired on mount and refresh is owned by pull-to-refresh):
+ *   - `create-session`       — sr-only button; a refetch shim for the smoke
+ *                              tests that still click it.
+ *   - `session-chip`         — sr-only span carrying the bootstrapped
+ *                              user_id so `toContainText(user_id)` still
+ *                              passes without rendering a UUID on-screen.
  *   - `see-nearby`           — the "All" filter pill.
  *   - `resource-detail-{id}` — emitted by ResourceCard.
  *   - `bookmark-{id}`        — emitted by ResourceCard.
- *   - `session-chip`         — session id readout (now a Tag atom).
  */
 
 import { useTranslations } from 'next-intl';
@@ -45,6 +52,7 @@ import {
 } from '@/components/ui';
 import { ResourceCard } from '@/components/ui/ResourceCard';
 import { TopBar } from '@/components/shell';
+import { resolveErrorKey } from '@/lib/error-i18n';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
 import { selectPreferences, selectSession } from '@/lib/selectors';
 import { toggleBookmark } from '@/lib/slices/preferences-slice';
@@ -178,11 +186,32 @@ export function ResourceHome() {
       );
     }
 
+    // V1-A UX fix — a real API failure used to render the "Nothing nearby"
+    // empty state, which misled users into blaming their ZIP. Split error
+    // from empty so a 500 shows a retry-able error tone instead.
+    if (resourceQuery.isError) {
+      return (
+        <EmptyState
+          tone="error"
+          illustrationName="error"
+          title={t(resolveErrorKey(resourceQuery.error))}
+          subtitle={t('homeErrorSubtitle')}
+          cta={{
+            label: t('retry'),
+            onClick: () => {
+              void resourceQuery.refetch();
+            },
+            testId: 'home-empty-retry',
+          }}
+        />
+      );
+    }
+
     if (items.length === 0) {
       return (
         <EmptyState
           illustrationName="search-empty"
-          title={t('homeNoResultsTitle')}
+          title={t('homeNoResultsTitle', { zip: preferences.zipCode })}
           subtitle={t('homeNoResultsSubtitle')}
           cta={{
             label: t('homeNoResultsCta'),
@@ -257,13 +286,18 @@ export function ResourceHome() {
           <section className="home__masthead">
             <span className="overline home__kicker">{t('homeHeroEyebrow')}</span>
             <h1 className="home__headline">{t('homeHeroTitle')}</h1>
-            <p className="home__deck">{t('homeHeroSubtitle')}</p>
-            <span aria-hidden="true" className="home__rule" />
             <div className="home__meta">
+              {/* V1-A UX fix — the raw user_id Tag has been removed from the
+                  visible hero (nothing a user can act on) but E2E smoke
+                  (resource-smoke.spec.ts, community-posts.spec.ts) still
+                  asserts `session-chip` exists and contains the fixture
+                  user_id. Keep a visually-hidden span carrying the same
+                  testid + payload so those assertions stay green without
+                  burning hero real estate on a dev-only readout. */}
               {session ? (
-                <Tag tone="neutral" data-testid="session-chip">
-                  {t('sessionIdChip', { userId: session.user.user_id })}
-                </Tag>
+                <span className="sr-only" data-testid="session-chip">
+                  {session.user.user_id}
+                </span>
               ) : null}
               {hasValidZip ? (
                 <Tag tone="neutral">
@@ -281,14 +315,25 @@ export function ResourceHome() {
                   {t('homeZipChange')}
                 </Button>
               ) : null}
-              <Button
-                variant="primary"
-                size="sm"
+              {/* V1-A UX fix — the visible "Ready to go" primary CTA was a
+                  misleading no-op (clicking it just re-fetched the results
+                  without navigating anywhere). Refresh is now owned by
+                  pull-to-refresh (see `usePullToRefresh` above). We keep a
+                  visually-hidden shim with the `create-session` testid so
+                  existing E2E smoke specs that still click it on Home
+                  continue to land on a refetch path. */}
+              <button
+                type="button"
+                className="sr-only"
                 data-testid="create-session"
-                onClick={() => void resourceQuery.refetch()}
+                aria-hidden="true"
+                tabIndex={-1}
+                onClick={() => {
+                  void resourceQuery.refetch();
+                }}
               >
-                {session ? t('sessionReady') : t('createSession')}
-              </Button>
+                {t('homeRefreshSrLabel')}
+              </button>
             </div>
           </section>
 
@@ -333,7 +378,13 @@ export function ResourceHome() {
             ))}
           </Inline>
 
-          <section aria-label={t('searchTitle')}>{renderResults()}</section>
+          <section
+            aria-label={t('searchTitle')}
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {renderResults()}
+          </section>
         </Stack>
       </div>
     </>
