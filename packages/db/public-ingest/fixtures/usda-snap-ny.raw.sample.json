@@ -1,0 +1,147 @@
+{
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 1001,
+        "Store_Name": "C-Town Supermarket",
+        "Address": "4010 103rd Street",
+        "City": "Corona",
+        "State": "NY",
+        "Zip5": "11368",
+        "Latitude": 40.7499,
+        "Longitude": -73.8639
+      },
+      "geometry": { "x": -73.8639, "y": 40.7499 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1002,
+        "Store_Name": "Key Food Corona",
+        "Address": "104-18 Roosevelt Avenue",
+        "City": "Corona",
+        "State": "NY",
+        "Zip5": "11368",
+        "Latitude": 40.7471,
+        "Longitude": -73.8611
+      },
+      "geometry": { "x": -73.8611, "y": 40.7471 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1003,
+        "Store_Name": "Bravo Supermarket",
+        "Address": "838 Hunts Point Avenue",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10474",
+        "Latitude": 40.8126,
+        "Longitude": -73.8861
+      },
+      "geometry": { "x": -73.8861, "y": 40.8126 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1004,
+        "Store_Name": "Fine Fare Supermarket",
+        "Address": "900 Southern Boulevard",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10459",
+        "Latitude": 40.8255,
+        "Longitude": -73.8894
+      },
+      "geometry": { "x": -73.8894, "y": 40.8255 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1005,
+        "Store_Name": "Associated Supermarket",
+        "Address": "2032 Third Avenue",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10029",
+        "Latitude": 40.7945,
+        "Longitude": -73.9446
+      },
+      "geometry": { "x": -73.9446, "y": 40.7945 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1006,
+        "Store_Name": "Western Beef",
+        "Address": "3034 Northern Boulevard",
+        "City": "Long Island City",
+        "State": "NY",
+        "Zip5": "11101",
+        "Latitude": 40.7557,
+        "Longitude": -73.9271
+      },
+      "geometry": { "x": -73.9271, "y": 40.7557 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1007,
+        "Store_Name": "Foodtown",
+        "Address": "1325 Fulton Street",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11216",
+        "Latitude": 40.6805,
+        "Longitude": -73.9511
+      },
+      "geometry": { "x": -73.9511, "y": 40.6805 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1008,
+        "Store_Name": "Met Food Supermarket",
+        "Address": "5811 Fort Hamilton Parkway",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11219",
+        "Latitude": 40.6362,
+        "Longitude": -73.9942
+      },
+      "geometry": { "x": -73.9942, "y": 40.6362 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1009,
+        "Store_Name": "Top Tomato Super Store",
+        "Address": "1780 Forest Avenue",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10302",
+        "Latitude": 40.6367,
+        "Longitude": -74.1439
+      },
+      "geometry": { "x": -74.1439, "y": 40.6367 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1010,
+        "Store_Name": "Food Dynasty Supermarket",
+        "Address": "3350 Park Avenue",
+        "City": "Wantagh",
+        "State": "NY",
+        "Zip5": "11793",
+        "Latitude": 40.6770,
+        "Longitude": -73.5099
+      },
+      "geometry": { "x": -73.5099, "y": 40.6770 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1011,
+        "Store_Name": "Farmingdale Kosher Market",
+        "Address": "180 Main Street",
+        "City": "Farmingdale",
+        "State": "NY",
+        "Zip5": "11735",
+        "Latitude": 40.7327,
+        "Longitude": -73.4454
+      },
+      "geometry": { "x": -73.4454, "y": 40.7327 }
+    }
+  ]
+}

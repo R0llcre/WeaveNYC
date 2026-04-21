@@ -1,0 +1,202 @@
+{
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 5001,
+        "Site_ID": "BPHC-NY-0001",
+        "Site_Name": "Urban Health Plan Inc - Bella Vista Health Center",
+        "Site_Address": "890 Garrison Avenue",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10474",
+        "Site_Telephone_Number": "(718) 589-2440",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "55",
+        "Latitude": 40.8144,
+        "Longitude": -73.8920
+      },
+      "geometry": { "x": -73.8920, "y": 40.8144 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5002,
+        "Site_ID": "BPHC-NY-0002",
+        "Site_Name": "Morris Heights Health Center",
+        "Site_Address": "85 West Burnside Avenue",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10453",
+        "Site_Telephone_Number": "(718) 716-4400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "60",
+        "Latitude": 40.8524,
+        "Longitude": -73.9108
+      },
+      "geometry": { "x": -73.9108, "y": 40.8524 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5003,
+        "Site_ID": "BPHC-NY-0003",
+        "Site_Name": "Charles B. Wang Community Health Center - Flushing",
+        "Site_Address": "136-26 37th Avenue",
+        "Site_City": "Flushing",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11354",
+        "Site_Telephone_Number": "(212) 379-6988",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "55",
+        "Latitude": 40.7590,
+        "Longitude": -73.8306
+      },
+      "geometry": { "x": -73.8306, "y": 40.7590 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5004,
+        "Site_ID": "BPHC-NY-0004",
+        "Site_Name": "Community Healthcare Network - Queens Health Center",
+        "Site_Address": "90-04 161st Street",
+        "Site_City": "Jamaica",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11432",
+        "Site_Telephone_Number": "(212) 545-2400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "45",
+        "Latitude": 40.7054,
+        "Longitude": -73.7998
+      },
+      "geometry": { "x": -73.7998, "y": 40.7054 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5005,
+        "Site_ID": "BPHC-NY-0005",
+        "Site_Name": "William F. Ryan Community Health Center",
+        "Site_Address": "110 West 97th Street",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10025",
+        "Site_Telephone_Number": "(212) 749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "55",
+        "Latitude": 40.7944,
+        "Longitude": -73.9678
+      },
+      "geometry": { "x": -73.9678, "y": 40.7944 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5006,
+        "Site_ID": "BPHC-NY-0006",
+        "Site_Name": "Brownsville Multi-Service Family Health Center",
+        "Site_Address": "592 Rockaway Avenue",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11212",
+        "Site_Telephone_Number": "(718) 345-5000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "50",
+        "Latitude": 40.6646,
+        "Longitude": -73.9085
+      },
+      "geometry": { "x": -73.9085, "y": 40.6646 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5007,
+        "Site_ID": "BPHC-NY-0007",
+        "Site_Name": "ODA Primary Health Care Center",
+        "Site_Address": "14 Heyward Street",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11249",
+        "Site_Telephone_Number": "(718) 260-4600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "45",
+        "Latitude": 40.7083,
+        "Longitude": -73.9620
+      },
+      "geometry": { "x": -73.9620, "y": 40.7083 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5008,
+        "Site_ID": "BPHC-NY-0008",
+        "Site_Name": "Community Healthcare Network - Bronx Health Center",
+        "Site_Address": "975 Westchester Avenue",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10459",
+        "Site_Telephone_Number": "(212) 545-2400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "50",
+        "Latitude": 40.8252,
+        "Longitude": -73.8887
+      },
+      "geometry": { "x": -73.8887, "y": 40.8252 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5009,
+        "Site_ID": "BPHC-NY-0009",
+        "Site_Name": "Community Health Center of Richmond",
+        "Site_Address": "235 Port Richmond Avenue",
+        "Site_City": "Staten Island",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10302",
+        "Site_Telephone_Number": "(718) 876-1732",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "50",
+        "Latitude": 40.6389,
+        "Longitude": -74.1389
+      },
+      "geometry": { "x": -74.1389, "y": 40.6389 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5010,
+        "Site_ID": "BPHC-NY-0010",
+        "Site_Name": "Callen-Lorde Community Health Center",
+        "Site_Address": "356 West 18th Street",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10011",
+        "Site_Telephone_Number": "(212) 271-7200",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "55",
+        "Latitude": 40.7414,
+        "Longitude": -74.0024
+      },
+      "geometry": { "x": -74.0024, "y": 40.7414 }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5011,
+        "Site_ID": "BPHC-NY-0011",
+        "Site_Name": "La Clinica Del Barrio",
+        "Site_Address": "413 East 120th Street",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10035",
+        "Site_Telephone_Number": "(212) 860-8420",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
+        "Site_Operating_Hours_per_Week": "40",
+        "Latitude": 40.8012,
+        "Longitude": -73.9334
+      },
+      "geometry": { "x": -73.9334, "y": 40.8012 }
+    }
+  ]
+}
