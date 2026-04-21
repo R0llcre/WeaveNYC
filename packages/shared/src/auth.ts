@@ -68,6 +68,18 @@ export const anchorActivateBurstLimit = 5;
 export const undeleteRequestWindowSeconds = 60 * 60;
 export const undeleteRequestBurstLimit = 20;
 /**
+ * Community-access resolve bucket (F4-A Fix #2). `/v1/community-access/resolve`
+ * lets a caller turn an invite code or QR token into a join preview — without
+ * this bucket the sibling anchor-activate path had `checkAnchorActivateAttempt`
+ * but resolve had nothing, so an anonymous-auth token could grind through
+ * invite codes uncapped. 10/hour keyed on the (userId, ipHash) pair matches
+ * the grain of `checkUndeleteRequest` — a user rotating IPs can still be
+ * throttled per-user, and an attacker rotating userIds from a single IP is
+ * still capped by the IP component.
+ */
+export const communityAccessResolveWindowSeconds = 60 * 60;
+export const communityAccessResolveBurstLimit = 10;
+/**
  * Anchor MFA step-up freshness window for destructive writes (A4 P0-3).
  * Access tokens live 15 min; anchor sessions can live 4 h (idle TTL).
  * Destructive writes (post approve, report decide, announcement

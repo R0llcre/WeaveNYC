@@ -1060,4 +1060,164 @@ describe("DefaultMatchService", () => {
     });
     expect((await repository.getContactRequest(expiredPending.contactRequestId))?.status).toBe("pending");
   });
+
+  // F4-A Fix #1: block enforcement on /v1/match/contact + /v1/contact-requests/inbox.
+  // The match service must call `isBlockedBetween` — mirroring chat's
+  // bidirectional `findBlockBetweenUsers` predicate — before persisting a
+  // contact request, and must filter pre-block pending rows out of the
+  // recipient's inbox so the blocker can't keep seeing the abuser.
+  describe("block enforcement", () => {
+    const blockRequestPostId = "e0000000-0000-4000-8000-000000000001";
+    const blockOfferPostId = "e0000000-0000-4000-8000-000000000002";
+    const blockCommunityId = "11111111-1111-4111-8111-111111111111";
+    const blockRequesterUserId = "e1000000-0000-4000-8000-000000000001";
+    const blockRecipientUserId = "e2000000-0000-4000-8000-000000000002";
+
+    function buildBlockFixture() {
+      const requestPost = createMatchablePost({
+        post_id: blockRequestPostId,
+        community_id: blockCommunityId,
+        post_type: "request",
+        category: "food",
+        title: "Need groceries",
+        body: "Need groceries.",
+        language: "en",
+        location_zip: "11735",
+        created_by: blockRequesterUserId,
+        author_alias: "Requester",
+        author_level: "verified",
+        expires_at: "2026-04-08T12:00:00.000Z",
+      });
+      const offerPost = createMatchablePost({
+        post_id: blockOfferPostId,
+        community_id: blockCommunityId,
+        post_type: "offer",
+        category: "food",
+        title: "Can share groceries",
+        body: "Available after 6pm.",
+        language: "en",
+        location_zip: "11735",
+        created_by: blockRecipientUserId,
+        author_alias: "Helper",
+        author_level: "verified",
+        anchor_reviewed: true,
+        distance_miles: 0.5,
+        expires_at: "2026-04-08T18:00:00.000Z",
+      });
+      const resource = createResourceSummary({
+        provider_id: "e3000000-0000-4000-8000-000000000001",
+        name: "Pantry",
+        type: "pantry",
+        address: "1 Main St",
+        zip: "11735",
+        source: "cfc_active",
+        directions_url: "https://maps.example/resource",
+      });
+      return { requestPost, offerPost, resource };
+    }
+
+    it("rejects createContactRequest when the recipient has already blocked the requester", async () => {
+      const { requestPost, offerPost, resource } = buildBlockFixture();
+      const { service, repository } = createInMemoryMatchService({
+        posts: [requestPost, offerPost],
+        resources: [resource],
+      });
+
+      // Recipient blocked the requester before the contact request. The
+      // match service should mirror chat's bidirectional predicate and
+      // reject the insert with `forbidden` (mapped to HTTP 403 at the
+      // gateway layer).
+      repository.blocks.add(`${blockRecipientUserId}:${blockRequesterUserId}`);
+
+      const requester = createMatchActor({
+        userId: requestPost.created_by,
+        alias: "Requester",
+        level: "verified",
+        communityIds: [requestPost.community_id],
+      });
+
+      await expect(
+        service.createContactRequest(requester, {
+          from_post_id: requestPost.post_id,
+          to_post_id: offerPost.post_id,
+        }),
+      ).rejects.toMatchObject({
+        code: "forbidden",
+      });
+
+      // Nothing persisted — the blocker never sees a pending row.
+      const persisted = await repository.findContactRequestByPair(
+        requestPost.post_id,
+        offerPost.post_id,
+      );
+      expect(persisted).toBeNull();
+    });
+
+    it("rejects createContactRequest when the requester blocked the recipient (bidirectional)", async () => {
+      const { requestPost, offerPost, resource } = buildBlockFixture();
+      const { service, repository } = createInMemoryMatchService({
+        posts: [requestPost, offerPost],
+        resources: [resource],
+      });
+
+      // Requester blocked the recipient. Chat treats blocks as symmetric
+      // (`findBlockBetweenUsers` checks both directions) — the match
+      // service must too, otherwise the blocker could keep sending fresh
+      // contact rows even though they can never receive a reply.
+      repository.blocks.add(`${blockRequesterUserId}:${blockRecipientUserId}`);
+
+      const requester = createMatchActor({
+        userId: requestPost.created_by,
+        alias: "Requester",
+        level: "verified",
+        communityIds: [requestPost.community_id],
+      });
+
+      await expect(
+        service.createContactRequest(requester, {
+          from_post_id: requestPost.post_id,
+          to_post_id: offerPost.post_id,
+        }),
+      ).rejects.toMatchObject({
+        code: "forbidden",
+      });
+    });
+
+    it("hides pre-block pending rows from listInbox", async () => {
+      const { requestPost, offerPost } = buildBlockFixture();
+      const preBlockPending = createContactRequestRecord({
+        contactRequestId: "e4000000-0000-4000-8000-000000000001",
+        fromPostId: requestPost.post_id,
+        toPostId: offerPost.post_id,
+        requesterUserId: blockRequesterUserId,
+        recipientUserId: blockRecipientUserId,
+        requesterAlias: "Requester",
+        createdAt: "2026-04-07T11:00:00.000Z",
+        expiresAt: "2026-04-10T11:00:00.000Z",
+      });
+      const { service, repository } = createInMemoryMatchService({
+        posts: [requestPost, offerPost],
+        contactRequests: [preBlockPending],
+      });
+
+      // Inbox before block: the pending row is visible.
+      const recipient = createMatchActor({
+        userId: blockRecipientUserId,
+        alias: "Helper",
+        level: "verified",
+        communityIds: [blockCommunityId],
+      });
+
+      const inboxBefore = await service.listInbox({ actor: recipient });
+      expect(inboxBefore.items).toHaveLength(1);
+
+      // Recipient then blocks the requester. The inbox must stop showing
+      // the pre-block row — without this filter the blocker keeps re-seeing
+      // the abuser's alias/metadata on every fetch (F4-A Fix #1).
+      repository.blocks.add(`${blockRecipientUserId}:${blockRequesterUserId}`);
+
+      const inboxAfter = await service.listInbox({ actor: recipient });
+      expect(inboxAfter.items).toHaveLength(0);
+    });
+  });
 });

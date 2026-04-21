@@ -46,6 +46,13 @@ export class InMemoryMatchRepository implements MatchRepository {
   readonly suggestionBatches = new Map<string, MatchSuggestionBatch[]>();
   readonly contactRequests = new Map<string, ContactRequestRecord>();
   readonly conversations = new Map<string, AcceptedConversationRecord>();
+  /**
+   * Test-time mirror of the chat service's `blocks` table. Keyed by the
+   * ordered pair `blocker:blocked` so tests can simulate a unilateral block
+   * (F4-A Fix #1). Bidirectional lookup in `isBlockedBetween` keeps the
+   * semantics identical to chat's `findBlockBetweenUsers`.
+   */
+  readonly blocks = new Set<string>();
 
   async close(): Promise<void> {}
 
@@ -97,6 +104,10 @@ export class InMemoryMatchRepository implements MatchRepository {
       (batch) => !batchNumbers.includes(batch.batchNumber),
     );
     this.suggestionBatches.set(requestPostId, existing);
+  }
+
+  async isBlockedBetween(userA: string, userB: string): Promise<boolean> {
+    return this.blocks.has(`${userA}:${userB}`) || this.blocks.has(`${userB}:${userA}`);
   }
 
   async findContactRequestByPair(fromPostId: string, toPostId: string): Promise<ContactRequestRecord | null> {

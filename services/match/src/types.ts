@@ -242,6 +242,15 @@ export interface MatchRepository {
   listSuggestionBatches(requestPostId: string): Promise<MatchSuggestionBatch[]>;
   saveSuggestionBatch(batch: MatchSuggestionBatch): Promise<void>;
   deleteSuggestionBatches(requestPostId: string, batchNumbers?: number[]): Promise<void>;
+  /**
+   * True if `userA` has blocked `userB`, OR `userB` has blocked `userA`.
+   * Mirrors the chat-service predicate (pg-repository `findBlockBetweenUsers`,
+   * testing.ts block-pair lookup) so the match service enforces the exact
+   * same bidirectional block semantics chat uses — a blocker never receives
+   * a contact request from a user they've blocked, and pre-block pending
+   * rows never surface in the inbox after the block lands (F4-A Fix #1).
+   */
+  isBlockedBetween(userA: string, userB: string): Promise<boolean>;
   findContactRequestByPair(fromPostId: string, toPostId: string): Promise<ContactRequestRecord | null>;
   getContactRequest(contactRequestId: string): Promise<ContactRequestRecord | null>;
   saveContactRequest(record: ContactRequestRecord): Promise<ContactRequestRecord>;

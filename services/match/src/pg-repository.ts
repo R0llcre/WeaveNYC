@@ -419,6 +419,27 @@ export class PgMatchRepository implements MatchRepository {
     );
   }
 
+  async isBlockedBetween(userA: string, userB: string): Promise<boolean> {
+    // Bidirectional block lookup against the shared `blocks` table —
+    // matches chat's `PgChatRepository.findBlockBetweenUsers` predicate so
+    // /v1/match/contact enforces the exact same semantics as chat's send
+    // path (F4-A Fix #1). Bidirectional because once either side blocks
+    // the other, no further contact should flow — the Match service would
+    // otherwise let a blocked requester keep spamming the blocker via
+    // fresh contact requests.
+    const result = await this.pool.query<{ one: number }>(
+      `
+        select 1 as one
+        from blocks
+        where (blocker_user_id = $1 and blocked_user_id = $2)
+           or (blocker_user_id = $2 and blocked_user_id = $1)
+        limit 1
+      `,
+      [userA, userB],
+    );
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
   async findContactRequestByPair(fromPostId: string, toPostId: string): Promise<ContactRequestRecord | null> {
     const result = await this.pool.query<ContactRequestRow>(
       `

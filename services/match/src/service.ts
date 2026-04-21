@@ -242,6 +242,25 @@ export class DefaultMatchService implements MatchService {
       throw new MatchServiceError("You cannot contact your own post", "forbidden");
     }
 
+    // F4-A Fix #1: enforce the same bidirectional block predicate chat uses.
+    // Without this, a blocker would receive a fresh contact request from a
+    // user they've already blocked — the chat send path rejects the
+    // downstream message but the contact row still lands in the blocker's
+    // inbox, giving the abuser a side-channel to reappear. `isBlockedBetween`
+    // mirrors `PgChatRepository.findBlockBetweenUsers` (lookup on the
+    // `blocks` table in both directions) so the check is semantically
+    // identical across services.
+    const blockedBeforeInsert = await this.repository.isBlockedBetween(
+      fromPost.created_by,
+      toPost.created_by,
+    );
+    if (blockedBeforeInsert) {
+      throw new MatchServiceError(
+        "Contact is not available for this user",
+        "forbidden",
+      );
+    }
+
     const created = await this.repository.saveContactRequest({
       contactRequestId: randomUUID(),
       fromPostId: fromPost.post_id,
@@ -295,6 +314,23 @@ export class DefaultMatchService implements MatchService {
         if (normalized.status !== "pending") {
           continue;
         }
+
+        // F4-A Fix #1: hide pre-block pending rows. A contact request that
+        // landed before the recipient blocked the requester would otherwise
+        // keep surfacing in the recipient's inbox — every fetch re-exposes
+        // them to the blocked user's alias/metadata. Suppressing here
+        // mirrors the chat service's "blocked conversations disappear"
+        // semantics. Bidirectional `isBlockedBetween` also covers the rare
+        // case where the requester blocked the recipient after sending
+        // (they shouldn't keep the inbox entry alive either).
+        const blocked = await this.repository.isBlockedBetween(
+          item.requesterUserId,
+          item.recipientUserId,
+        );
+        if (blocked) {
+          continue;
+        }
+
         freshItems.push(normalized);
       }
 

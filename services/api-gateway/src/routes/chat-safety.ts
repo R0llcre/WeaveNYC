@@ -107,8 +107,23 @@ export const chatSafetyRoutes: FastifyPluginAsync = async (app) => {
             last_activity_at: result.block.created_at,
             unread_count: 0,
           };
+          // F4-A Fix #4: scrub the blocked user out of the fanout list.
+          // Spec is that a block is unilateral from B's perspective — B
+          // must NOT learn in real time that they were blocked (vs. simply
+          // losing socket access). Previously every participant, including
+          // the blocked user, received `conversation.updated` with
+          // `status: 'blocked'`, giving B an instant side-channel signal.
+          // `disconnectUser(B)` above already severs B's socket; we pair
+          // that by restricting this publish to everyone else on the
+          // conversation (in the 1:1 case, just the blocker).
+          const recipientUserIds = affectedConversation.participant_preview
+            .map((participant) => participant.user_id)
+            .filter((userId) => userId !== body.blocked_user_id);
+          if (recipientUserIds.length === 0) {
+            continue;
+          }
           await app.chatRealtimeHub.publishToUsers(
-            affectedConversation.participant_preview.map((participant) => participant.user_id),
+            recipientUserIds,
             {
               event_type: "conversation.updated",
               occurred_at: result.block.created_at,
