@@ -135,8 +135,12 @@ export async function buildResourceDirectoryApp(
       const result = await queryRepository.searchResources(input, zipCenter);
       // A5 P0 bonus — surface the "geocoder could not resolve this ZIP"
       // signal so the client can render an explicit empty state instead
-      // of a silent empty list.
-      if (zipCenter.lat === null || zipCenter.lng === null) {
+      // of a silent empty list. 2026-04-21 fix: only do so when the
+      // zip-exact-match fallback also returned zero rows. If rows were
+      // found via fallback, the client should render them instead of
+      // treating the response as empty (previously a Nominatim hiccup
+      // masked valid results for any single-ZIP lookup).
+      if ((zipCenter.lat === null || zipCenter.lng === null) && result.items.length === 0) {
         return { ...result, noResultsInArea: true };
       }
       return result;

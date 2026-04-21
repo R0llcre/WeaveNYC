@@ -1,6 +1,25 @@
 import { z } from "zod";
 
-export const resourceTypeSchema = z.enum(["pantry", "kitchen", "market", "benefits", "other"]);
+// Keep this enum in sync with services/api-gateway/src/contracts.ts resourceSummary.type
+// and with packages/db/public-ingest/sources/* normalize outputs.
+// 2026-04-21: expanded to include public-source types (snap_retailer / fqhc /
+// senior_meal_site / soup_kitchen / mobile_pantry / community_fridge) — before
+// this fix the PWA's Zod validator rejected entire responses when they
+// contained a single row with a non-core type, silently collapsing the home
+// screen to the "nothing nearby" empty state even when the API returned rows.
+export const resourceTypeSchema = z.enum([
+  "pantry",
+  "kitchen",
+  "market",
+  "benefits",
+  "other",
+  "snap_retailer",
+  "senior_meal_site",
+  "fqhc",
+  "soup_kitchen",
+  "mobile_pantry",
+  "community_fridge"
+]);
 export const geoPrecisionSchema = z.enum([
   "exact",
   "rooftop",

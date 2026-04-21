@@ -73,6 +73,7 @@ import type {
   ResourceFilterType,
   SupportedLanguage,
 } from '@/lib/types';
+import { narrowResourceType } from '@/lib/types';
 import type { IconName } from '@/assets/icons/registry';
 
 type ResourceDetailScreenProps = {
@@ -85,7 +86,12 @@ type ResourceDetailScreenProps = {
  * card share a visual category language, even though the types happen to
  * be a subset of the ResourceCard category taxonomy.
  */
-const TYPE_ICON: Record<Exclude<ResourceFilterType, 'all'>, IconName> = {
+// Icons keyed by the 5 first-class categories; public-ingest types (PR #70)
+// route through narrowResourceType() to reuse the same icon vocabulary.
+const TYPE_ICON: Record<
+  'pantry' | 'kitchen' | 'market' | 'benefits' | 'other',
+  IconName
+> = {
   pantry: 'food',
   kitchen: 'meal',
   market: 'fresh',
@@ -177,7 +183,7 @@ export function ResourceDetailScreen({ providerId }: ResourceDetailScreenProps) 
 
   // Map the backend `type` onto a registered icon glyph via TYPE_ICON.
   // Fall back to `general` when the resource hasn't loaded yet.
-  const iconName: IconName = resource ? TYPE_ICON[resource.type] : 'general';
+  const iconName: IconName = resource ? TYPE_ICON[narrowResourceType(resource.type)] : 'general';
 
   const handleBookmark = useCallback(() => {
     if (!resource) return;

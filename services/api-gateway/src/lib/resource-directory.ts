@@ -28,9 +28,13 @@ export class PgResourceDirectoryService implements ResourceDirectoryService {
     const result = await this.repository.searchResources(input, zipCenter);
     // A5 P0 bonus — when the ZIP parsed but the geocoder couldn't resolve
     // it (e.g. a valid 5-digit code with no Nominatim entry), the radius
-    // filter collapses to "zip string exact match". Surface that so the
-    // PWA can render a distinct empty state.
-    if (zipCenter.lat === null || zipCenter.lng === null) {
+    // filter collapses to "zip string exact match". Only surface the empty-
+    // state signal when the exact-match also returned nothing. If rows were
+    // found via the fallback, those are still useful and the client should
+    // render them instead of an empty state. 2026-04-21 fix: previously we
+    // set this flag on every geocoder miss, which hid legitimate results
+    // for any ZIP Nominatim was temporarily slow/down on.
+    if ((zipCenter.lat === null || zipCenter.lng === null) && result.items.length === 0) {
       return { ...result, noResultsInArea: true };
     }
     return result;
