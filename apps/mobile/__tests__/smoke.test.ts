@@ -26,8 +26,12 @@ describe('M1 scaffold smoke', () => {
 
   test('theme spacing + radii present', () => {
     const { theme } = require('../src/theme/tokens');
-    expect(theme.spacing.l).toBe(16);
-    expect(theme.spacing.xxl).toBe(24);
+    // Crosswalk (see tokens.ts): `m=16` ≈ PWA --space-4, `l=24` ≈ --space-6,
+    // `xxl=32` ≈ --space-8. The earlier assertions collapsed m↔l and l↔xxl
+    // (they came from an older semantic map). Pin to current tokens.
+    expect(theme.spacing.m).toBe(16);
+    expect(theme.spacing.l).toBe(24);
+    expect(theme.spacing.xxl).toBe(32);
     expect(theme.borderRadii.pill).toBe(9999);
   });
 
@@ -50,9 +54,18 @@ describe('M1 scaffold smoke', () => {
   });
 
   test('Redux store exposes the expected shape', () => {
+    // M2 note: the M1 `placeholder` slice was removed when the real four
+    // slices (auth, community, postDraft, preferences) were ported
+    // verbatim from the PWA (see `apps/mobile/src/lib/store.ts`). The
+    // smoke check now asserts the full ported shape is present so a
+    // future rearrangement of the store composition can't silently
+    // reintroduce the placeholder without re-running the test suite.
     const { store } = require('../src/store');
     const state = store.getState();
-    expect(state).toHaveProperty('placeholder');
+    expect(state).toHaveProperty('auth');
+    expect(state).toHaveProperty('community');
+    expect(state).toHaveProperty('postDraft');
+    expect(state).toHaveProperty('preferences');
   });
 
   test('TanStack Query client exists', () => {
