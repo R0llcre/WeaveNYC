@@ -8,6 +8,7 @@ import { ContactInboxLink } from '@/components/contact-inbox-link';
 import { CommunityAnnouncements } from '@/components/community-announcements';
 import { PostCard } from '@/components/post-card';
 import {
+  Avatar,
   Banner,
   Button,
   Card,
@@ -21,6 +22,7 @@ import {
   Tag,
   Toast,
 } from '@/components/ui';
+import { SEED_PUBLIC_POSTS } from '@/lib/seed-activity';
 import { TopBar } from '@/components/shell';
 import { createAnonymousSession } from '@/lib/api';
 import { resolveErrorKey } from '@/lib/error-i18n';
@@ -391,39 +393,100 @@ export function CommunityScreen() {
             </Stack>
           </Card>
         ) : (
-          <Card variant="flat">
-            <EmptyState
-              illustrationName="matches-empty"
-              title={t('communityTitle')}
-              subtitle={t('communityNoMembership')}
-              cta={{
-                label: t('joinCommunityCta'),
-                href: '/community/join',
-                variant: 'primary',
-                testId: 'join-community',
-              }}
-            />
-            <Inline gap={3} wrap justify="center">
-              <Button
-                as="a"
-                variant="secondary"
-                size="md"
-                data-testid="request-help"
-                href="/posts/new/?post_type=request"
-              >
-                {t('requestHelpCta')}
-              </Button>
-              <Button
-                as="a"
-                variant="secondary"
-                size="md"
-                data-testid="offer-help"
-                href="/posts/new/?post_type=offer"
-              >
-                {t('offerHelpCta')}
-              </Button>
-            </Inline>
-          </Card>
+          // V2-C — when the visitor is anonymous and has no
+          // `currentCommunityId`, swap the invite-code-only EmptyState
+          // for a 3-row preview of seeded public activity so the tab
+          // stops reading as dead weight. The `join-community` CTA
+          // (same testid as the legacy EmptyState path) lives inside
+          // the preview card so the multi-community E2E spec still
+          // resolves it. Signed-in-but-not-yet-joined users continue
+          // to see the original EmptyState.
+          (!session || session.user.level === 'anonymous') ? (
+            <Card variant="flat" data-testid="community-anon-preview">
+              <Stack gap={3}>
+                <Stack gap={1}>
+                  <h2 style={{ margin: 0 }}>{t('communityAnonPreviewTitle')}</h2>
+                  <p className="muted" style={{ margin: 0 }}>
+                    {t('communityAnonPreviewSubtitle')}
+                  </p>
+                </Stack>
+                <Stack gap={2} as="section">
+                  {SEED_PUBLIC_POSTS.map((row) => (
+                    <Card
+                      key={row.id}
+                      variant="flat"
+                      data-testid={`community-anon-preview-row-${row.id}`}
+                    >
+                      <Inline gap={3} align="center">
+                        <Avatar
+                          name={row.name}
+                          initials={row.initials}
+                          size="sm"
+                          aria-hidden="true"
+                        />
+                        <Stack gap={1}>
+                          <p style={{ margin: 0, fontWeight: 600 }}>
+                            {t(row.copyKey)}
+                          </p>
+                          <p
+                            className="muted"
+                            style={{ margin: 0, fontSize: '0.875rem' }}
+                          >
+                            {row.community}
+                          </p>
+                        </Stack>
+                      </Inline>
+                    </Card>
+                  ))}
+                </Stack>
+                <Inline gap={3} wrap justify="center">
+                  <Button
+                    as="a"
+                    variant="primary"
+                    size="md"
+                    data-testid="join-community"
+                    href="/community/join"
+                  >
+                    {t('joinCommunityCta')}
+                  </Button>
+                </Inline>
+              </Stack>
+            </Card>
+          ) : (
+            <Card variant="flat">
+              <EmptyState
+                illustrationName="matches-empty"
+                title={t('communityTitle')}
+                subtitle={t('communityNoMembership')}
+                cta={{
+                  label: t('joinCommunityCta'),
+                  href: '/community/join',
+                  variant: 'primary',
+                  testId: 'join-community',
+                }}
+              />
+              <Inline gap={3} wrap justify="center">
+                <Button
+                  as="a"
+                  variant="secondary"
+                  size="md"
+                  data-testid="request-help"
+                  href="/posts/new/?post_type=request"
+                >
+                  {t('requestHelpCta')}
+                </Button>
+                <Button
+                  as="a"
+                  variant="secondary"
+                  size="md"
+                  data-testid="offer-help"
+                  href="/posts/new/?post_type=offer"
+                >
+                  {t('offerHelpCta')}
+                </Button>
+              </Inline>
+            </Card>
+          )
         )}
 
         {/* Community switcher: only meaningful when the user belongs to

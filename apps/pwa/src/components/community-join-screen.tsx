@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -98,6 +98,7 @@ export function CommunityJoinScreen() {
   const t = useTranslations();
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const search = useSearchParams();
   const session = useAppSelector(selectSession);
   const joinPreview = useAppSelector(selectJoinPreview);
   const [mode, setMode] = useState<JoinMode>('invite');
@@ -110,6 +111,14 @@ export function CommunityJoinScreen() {
   // before the router.push to /community lands. Matches the
   // resource-detail-screen.tsx pattern (inline state + setTimeout).
   const [joinSuccessToast, setJoinSuccessToast] = useState<string | null>(null);
+
+  // V2-C — `?hint=<communityId>` arrives from the Home activity ticker
+  // when an anonymous user taps a seeded row. We surface a soft Banner
+  // above the mode picker so the user knows which community the tap
+  // suggested, but don't auto-resolve it (the `communityId` slug from
+  // the seed is not an invite code; real joining still requires a code
+  // or QR). When the hint param is absent, this is a no-op.
+  const joinHint = search?.get('hint') ?? null;
 
   // G1: fire-and-forget anonymous session bootstrap so landing directly on
   // /community/join (without visiting home first) still mints a Bearer token
@@ -357,6 +366,19 @@ export function CommunityJoinScreen() {
           <Banner tone="info" title={t('creatingSession')} data-testid="bootstrap-pending">
             {t('joinNeedsSession')}
           </Banner>
+        ) : null}
+
+        {/* V2-C — deep-link hint from the Home activity ticker. The
+            `?hint=community-XXXXX` param is a soft suggestion only; we
+            surface it as an info chip so the user knows which community
+            the tap was tied to, but don't pre-fill the invite code
+            (the hint is a community_id, not a valid invite code). When
+            the backend's access-resolve endpoint learns to accept a
+            community-id hint, this chip can become a resolve shortcut. */}
+        {joinHint ? (
+          <Tag tone="community" data-testid="join-hint-tag">
+            {joinHint}
+          </Tag>
         ) : null}
 
         {/* Intro copy — TopBar only carries the title + eyebrow, so this
