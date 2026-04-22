@@ -1,17 +1,20 @@
 'use client';
 
 /**
- * V1-B Task 5 — Anchor-model onboarding explainer.
+ * V1-B Task 5 — Trust-model onboarding explainer.
  *
  * Lives at `/onboarding/trust/` as step 1.5 of the funnel:
  *   /onboarding/language  →  /onboarding/trust  →  /onboarding/location
  *
- * Why a dedicated step: the anchor-vouching model is the core product
- * differentiator but until now was never surfaced to the user. A first-
- * time visitor opening the app has no way to learn that:
+ * Why a dedicated step: the three trust guarantees above are the
+ * commitments most likely to drive (or kill) a first-time visitor's
+ * confidence to continue. A first-time visitor opening the app has no way
+ * to learn that:
  *   1. we never ask for legal ID / SSN / status
  *   2. results are proximity-local
- *   3. neighbors (anchors) vouch for neighbors
+ *   3. their data never leaves the device (V2-E: was "neighbors vouch for
+ *      neighbors" — the anchor-model is real in the backend but the PWA
+ *      shows zero anchor signal, so the claim wasn't backed by the UX).
  * without digging through later screens or leaving the app to read the
  * landing page. Three icon + 8-word bullets put the framing up front.
  *
@@ -51,10 +54,14 @@ type TrustBullet = {
  * set for these concepts. Each bullet hits ≤8 words per the spec so the
  * user scans the commitment in one beat.
  */
+// V2-E: icon for bullet 3 flipped from "handshake" (anchor / community
+// vouching) to "mobile phone" since the new copy is about on-device data.
+// The testid `trust-bullet-anchors` stays — it's a stable hook the
+// onboarding.test.tsx checks by name, renaming it is churn without value.
 const TRUST_BULLETS: ReadonlyArray<TrustBullet> = [
   { icon: '\u{1F6E1}', titleKey: 'trustBullet1Title', testId: 'trust-bullet-id' },
   { icon: '\u{1F4CD}', titleKey: 'trustBullet2Title', testId: 'trust-bullet-nearby' },
-  { icon: '\u{1F91D}', titleKey: 'trustBullet3Title', testId: 'trust-bullet-anchors' },
+  { icon: '\u{1F4F1}', titleKey: 'trustBullet3Title', testId: 'trust-bullet-anchors' },
 ];
 
 export function TrustOnboardingScreen() {

@@ -57,7 +57,12 @@ const INITIAL_LANGUAGE = 'en';
 
 export const metadata: Metadata = {
   title: 'WeaveNYC PWA',
-  description: 'WeaveNYC community mutual-aid PWA with nearby official resources, community posts, and lightweight verification.',
+  // V2-E — replaced the self-serving "community mutual-aid PWA with
+  // community posts and lightweight verification" line. What we actually
+  // deliver is a resource finder: food, healthcare, and housing pointers
+  // in three languages with no sign-in. Lead with that.
+  description:
+    'Find food, healthcare, and housing help near you in NYC \u2014 in English, Spanish, or Chinese. No sign-in, no ID.',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/icons/app-icon.svg',

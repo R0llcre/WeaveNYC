@@ -21,8 +21,12 @@
    ============================================================================ */
 
 :root {
-  /* Opt out of system dark-mode auto styling; the system is print-derived. */
-  color-scheme: light only;
+  /* V2-E: enable dark-mode surfaces driven by OS `prefers-color-scheme`.
+     Light remains the canonical brand surface; the dark palette below is
+     a reader-comfort accommodation (OLED late-night reading, warm-black
+     ink cards), not a separate theme. The full token overrides live in
+     the `@media (prefers-color-scheme: dark)` block further down. */
+  color-scheme: light dark;
 
   /* ============================================================
    * Surfaces — warm paper cream, layered white.
@@ -121,7 +125,15 @@
   --shadow-2: 0 2px 6px rgba(26, 31, 36, 0.06);
   --shadow-3: 0 8px 24px rgba(26, 31, 36, 0.10);
   --shadow-4: 0 16px 40px rgba(26, 31, 36, 0.14);
-  --shadow-ring-focus: 0 0 0 3px rgba(199, 61, 61, 0.35);
+  /* V2-E focus-ring split. Previously the focus halo used vermillion
+     35% — the same hue as the primary accent AND adjacent to
+     `--color-danger`, which meant three reds were all shouting at
+     once ("everything is urgent"). Focus is an interaction cue, not a
+     brand moment: switched to a deep-ink neutral so it reads as
+     "where am I?" instead of "this is a warning". Danger-variant
+     ring still uses the red family because in that context the red
+     IS the point. */
+  --shadow-ring-focus: 0 0 0 3px rgba(26, 31, 36, 0.32);
   --focus-ring-danger: 0 0 0 3px rgba(139, 42, 42, 0.35);
 
   /* Back-compat aliases (existing rules reference --shadow-sm/md/lg) */
@@ -150,8 +162,13 @@
   --type-display: 500 clamp(1.5rem, 3vw + 0.75rem, 2rem) / 1.2 var(--font-family-display);
   --type-h1: 600 clamp(2rem, 2vw + 1.25rem, 2.5rem) / 1.15 var(--font-family-display);
   --type-h2: 500 1.625rem / 1.25 var(--font-family-display);
-  --type-h3: 600 1.25rem / 1.4 var(--font-family-display);
-  --type-h4: 600 1.0625rem / 1.45 var(--font-family-display);
+  /* V2-E typography tighten — h3/h4 drop Fraunces and switch to Inter at
+     weight 600. Serif on ~17–20px titles (card heads, list items) reads
+     as editorial and fights Inter body copy directly below it. Display
+     + h1 stay Fraunces (hero use); h2 stays Fraunces as the section-
+     header brand accent moment. */
+  --type-h3: 600 1.25rem / 1.4 var(--font-family-base);
+  --type-h4: 600 1.0625rem / 1.4 var(--font-family-base);
   --type-overline: 500 0.75rem / 1.4 var(--font-family-base);
   --type-body: 400 1rem / 1.65 var(--font-family-base);
   --type-body-sm: 400 0.9375rem / 1.6 var(--font-family-base);
@@ -170,10 +187,13 @@
 
   /* ============================================================
    * Focus ring — WCAG 2.2 AA
+   * Deep-ink neutral (matching `--shadow-ring-focus` above) so the
+   * focus cue doesn't fight the vermillion accent or the deep-red
+   * danger token for meaning.
    * ============================================================ */
   --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
-  --focus-ring-color: var(--color-accent);
+  --focus-ring-color: rgba(26, 31, 36, 0.72);
 
   /* ============================================================
    * Back-compat aliases so legacy selectors keep resolving.
@@ -183,6 +203,97 @@
   --color-paper: var(--color-bg);
   --color-ink: var(--color-ink-primary);
   --color-chopmark: var(--color-accent);
+}
+
+/* ============================================================================
+   V2-E Dark mode — token overrides driven by OS `prefers-color-scheme: dark`.
+
+   Why warm-black, not cold gray: the light palette is cream paper / warm
+   grey-brown ink. A cold #0a0a0a canvas would throw that away and read as
+   "generic dark theme #47". `#1a1511` keeps the warm paper heritage,
+   flipped tonally so the cream becomes the ink. Cream on warm-black hits
+   ~15:1 contrast — AAA for body copy, plenty of headroom for muted text.
+
+   What we override: ONLY the surface / ink / border / accent tokens.
+   Everything downstream (cards, banners, buttons, borders) already reads
+   from those variables, so the dark surface ripples through without per-
+   selector rules. The one per-selector patch below handles `banner--info`,
+   whose hardcoded `#143f74` text colour would fail contrast on dark.
+   ============================================================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Warm near-black canvas. NOT cold gray — the brand is paper/ink, not
+       carbon-fiber tech. */
+    --color-bg: #1a1511;
+    --color-surface: #251e18;
+    --color-surface-raised: #2e2620;
+    --color-surface-sunken: #1f1914;
+    --color-surface-solid: #2e2620;
+    --color-overlay: rgba(0, 0, 0, 0.66);
+
+    /* Cream ink on warm-black. 15:1 on bg, 12:1 on surface. */
+    --color-ink-primary: #f0e8dc;
+    --color-ink-secondary: #c8bfae;
+    --color-ink-muted: #a39888;
+
+    /* Borders stay relative — cream at low alpha so they sit *on* the
+       surface the same way the light sheet's ink-at-low-alpha borders do. */
+    --color-border: rgba(240, 232, 220, 0.12);
+    --color-border-strong: rgba(240, 232, 220, 0.24);
+    --color-divider: rgba(240, 232, 220, 0.08);
+
+    /* Accent nudged brighter so the vermillion still reads as a signal
+       against the darker canvas without punching. Danger stays the
+       deeper historical red — contrast on dark is still ~6.5:1. */
+    --color-accent: #e85a5a;
+    --color-accent-strong: #f07878;
+    --color-accent-soft: rgba(232, 90, 90, 0.14);
+    --color-accent-ink: #1a1511;
+    --color-danger: #b93838;
+    --color-danger-strong: #8f2525;
+    --color-danger-soft: rgba(185, 56, 56, 0.18);
+
+    /* Semantic siblings re-tuned for legibility on dark. The verified
+       moss / urgent amber / info blue need a brighter baseline because
+       their original hex values were chosen for 4.5:1 on cream, not
+       warm-black. */
+    --color-verified: #6aa07f;
+    --color-verified-soft: rgba(106, 160, 127, 0.18);
+    --color-verified-strong: #8cbfa1;
+    --color-community: #6aa07f;
+    --color-community-soft: rgba(106, 160, 127, 0.14);
+    --color-urgent: #d89c3f;
+    --color-urgent-soft: rgba(216, 156, 63, 0.18);
+    --color-urgent-strong: #e8b566;
+    --color-info: #6a8fb3;
+    --color-info-soft: rgba(106, 143, 179, 0.16);
+
+    /* Illustration soft uses accent alpha — the brighter accent is already
+       folded in, so this re-references the new value. */
+    --illustration-soft: rgba(232, 90, 90, 0.08);
+
+    /* Shadows need much deeper black on dark because the mid-range
+       border trick loses its separation. Keep the elevation hierarchy
+       (sm < md < lg). */
+    --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-3: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --shadow-4: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+
+    /* Focus-ring flips too — deep-ink on cream becomes cream-on-ink so
+       the halo is still visible but stays quiet. */
+    --shadow-ring-focus: 0 0 0 3px rgba(240, 232, 220, 0.4);
+    --focus-ring-color: rgba(240, 232, 220, 0.8);
+  }
+
+  /* `banner--info` fills with a dark blue tint and renders the title in
+     `#143f74` — that fails contrast on `--color-info-soft` over our dark
+     surface. Re-point to the brightened info token. */
+  .banner--info {
+    color: var(--color-info);
+  }
 }
 
 /* ============================================================================
@@ -4087,6 +4198,20 @@ section.danger-zone {
 .home__hero > *:not(.home__hero-pattern) {
   position: relative;
   z-index: 1;
+}
+
+/* V2-E — freshness footer. Small, muted, centered, with a hairline rule
+   above it so it reads as metadata rather than copy. Pairs with the
+   `.muted` class in the JSX (colour already handled; this rule owns
+   positioning + size). */
+.home__freshness {
+  display: block;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+  font: var(--type-micro);
+  color: var(--color-ink-muted);
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: no-preference) {
