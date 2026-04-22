@@ -3717,6 +3717,18 @@ section.danger-zone {
   margin: 0 auto;
   padding: var(--space-6) var(--space-4) var(--space-10);
   display: grid;
+  /*
+   * V2-F CRITICAL LAYOUT FIX — the default implicit grid track is
+   * `minmax(auto, 1fr)`, whose `auto` minimum expands to `min-content` and
+   * can widen the track past the container whenever a descendant has a
+   * non-breaking word (long banner text, a button label, a pill rail that
+   * doesn't wrap). Observed on 390px iPhone home: `body.scrollWidth = 638px`
+   * (248px horizontal overflow) because the banner + home__meta + filter
+   * rail each forced the track to `max-content`. `minmax(0, 1fr)` caps the
+   * track at the container width, so descendants that can shrink do, and
+   * pill-rails / banners / empty-state copy all stay inside the viewport.
+   */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
 

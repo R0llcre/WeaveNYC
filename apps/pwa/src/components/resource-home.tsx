@@ -583,7 +583,15 @@ export function ResourceHome() {
                   testid + payload so those assertions stay green without
                   burning hero real estate on a dev-only readout. */}
               {session ? (
-                <span className="sr-only" data-testid="session-chip">
+                // V2-F a11y fix — `sr-only` hides the UUID visually but the
+                // VoiceOver accessibility tree previously announced all 36
+                // characters one-by-one on every home visit ("7 2 7 3 1
+                // b a 2 dash…"). `aria-hidden` removes it from the AT tree
+                // while preserving it in the DOM for E2E testid assertions
+                // (Playwright reads innerHTML, not accessibility). This is
+                // safe because nothing about a bootstrapped anon UUID is
+                // useful to a screen-reader user.
+                <span className="sr-only" aria-hidden="true" data-testid="session-chip">
                   {session.user.user_id}
                 </span>
               ) : null}
