@@ -597,6 +597,25 @@ type ChromeMessages = {
   // surfaced at build time via `NEXT_PUBLIC_DATA_SNAPSHOT_DATE` / `_COUNT`.
   // Placeholders: `{date}` (locale-formatted) and `{count}`.
   homeFreshnessFooter: string;
+  // V2-D crisis-first Home wizard — 4-card "what do you need?" picker that
+  // replaces the old taxonomy-first filter rail as the first-screen default.
+  // Each intent maps to an initial filter combo in `home-wizard.tsx` so the
+  // user never has to translate their crisis into pantry/kitchen/market
+  // vocabulary. Subtitles are one-line plain-English descriptions of what
+  // the user will see after tapping. `wizardChangeIntentCta` is the ghost
+  // button on the pre-filtered directory that clears the pick and routes
+  // back to the wizard.
+  wizardTitle: string;
+  wizardSubtitle: string;
+  wizardChangeIntentCta: string;
+  needFoodNow: string;
+  needFoodNowSubtitle: string;
+  needFoodWeek: string;
+  needFoodWeekSubtitle: string;
+  needDoctor: string;
+  needDoctorSubtitle: string;
+  needSleep: string;
+  needSleepSubtitle: string;
   // M8.5 PWA Redesign — Me hub (aggregates settings + verify + language + danger)
   meTitle: string;
   meSignedInAs: string;
@@ -1331,6 +1350,18 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeResultsCount: '{count} nearby',
     // V2-E — Home freshness footer
     homeFreshnessFooter: 'Last updated {date} \u00b7 Covering {count} places',
+    // V2-D crisis-first wizard — 4-card "what do you need?" picker
+    wizardTitle: 'What do you need right now?',
+    wizardSubtitle: 'Pick one. We will show places near you.',
+    wizardChangeIntentCta: "Change what I'm looking for",
+    needFoodNow: "I'm hungry right now",
+    needFoodNowSubtitle: 'Pantries and kitchens open tonight',
+    needFoodWeek: 'Food for my family this week',
+    needFoodWeekSubtitle: 'Pantries open in the next 7 days',
+    needDoctor: 'I need to see a doctor',
+    needDoctorSubtitle: 'Sliding-scale clinics, no insurance needed',
+    needSleep: 'A safe place to sleep',
+    needSleepSubtitle: 'Shelters and emergency housing',
     // M8.5 redesign — Me hub
     meTitle: 'Me',
     meSignedInAs: 'Verified as {name}',
@@ -2047,6 +2078,18 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeResultsCount: '{count} cerca',
     // V2-E — pie de p\u00e1gina de frescura en Inicio
     homeFreshnessFooter: '\u00daltima actualizaci\u00f3n {date} \u00b7 Cubriendo {count} lugares',
+    // V2-D crisis-first wizard — 4-card "what do you need?" picker
+    wizardTitle: '¿Qué necesitas ahora?',
+    wizardSubtitle: 'Elige una. Te mostramos lugares cerca.',
+    wizardChangeIntentCta: 'Cambiar lo que busco',
+    needFoodNow: 'Tengo hambre ahora',
+    needFoodNowSubtitle: 'Despensas y comedores abiertos esta noche',
+    needFoodWeek: 'Comida para mi familia esta semana',
+    needFoodWeekSubtitle: 'Despensas abiertas en los próximos 7 días',
+    needDoctor: 'Necesito ver a un médico',
+    needDoctorSubtitle: 'Clínicas de escala móvil, sin seguro',
+    needSleep: 'Un lugar seguro para dormir',
+    needSleepSubtitle: 'Refugios y vivienda de emergencia',
     // M8.5 redesign — Me hub
     meTitle: 'Yo',
     meSignedInAs: 'Verificado como {name}',
@@ -2759,6 +2802,18 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeResultsCount: '附近 {count} 个',
     // V2-E — Home 页脚数据时效
     homeFreshnessFooter: '最后更新 {date} · 覆盖 {count} 个地点',
+    // V2-D crisis-first wizard — 4-card "what do you need?" picker
+    wizardTitle: '你现在需要什么？',
+    wizardSubtitle: '选一个。我们会显示附近的地方。',
+    wizardChangeIntentCta: '换一个需求',
+    needFoodNow: '我现在就饿了',
+    needFoodNowSubtitle: '今晚还开的食品站和餐厅',
+    needFoodWeek: '这周家里的饭',
+    needFoodWeekSubtitle: '未来 7 天还开的食品站',
+    needDoctor: '我需要看医生',
+    needDoctorSubtitle: '按收入收费的诊所，无需保险',
+    needSleep: '安全的过夜地方',
+    needSleepSubtitle: '庇护所和紧急住所',
     // M8.5 redesign — Me hub
     meTitle: '我',
     meSignedInAs: '你是 {name}',

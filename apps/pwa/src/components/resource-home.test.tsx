@@ -90,8 +90,14 @@ function seedSession(): AuthSession {
   };
 }
 
-function renderHome(options: { zip?: string; withSession?: boolean } = {}) {
-  const { zip = '', withSession = true } = options;
+function renderHome(
+  options: {
+    zip?: string;
+    withSession?: boolean;
+    lastIntent?: import('@/lib/types').HomeIntent | null;
+  } = {},
+) {
+  const { zip = '', withSession = true, lastIntent = null } = options;
   const store = buildStore();
   store.dispatch(
     hydratePreferences({
@@ -103,6 +109,7 @@ function renderHome(options: { zip?: string; withSession?: boolean } = {}) {
       defaultPostVisibility: 'community_only',
       locationPrecision: 'zip_only',
       hasUserChosenLanguage: true,
+      lastIntent,
     }),
   );
   if (withSession) {
@@ -355,5 +362,81 @@ describe('ResourceHome (Wave 3A redesign)', () => {
 
     await screen.findByText(/3 nearby/);
     expect(screen.queryByTestId('home-sparse-fallback')).not.toBeInTheDocument();
+  });
+
+  // V2-D — when the user arrived here from the Home wizard, the initial
+  // filter + situational state is pre-seeded from the intent. The intent
+  // → filter mapping is documented on `initialFilterStateForIntent` in
+  // resource-home.tsx and reproduced on the `HomeIntent` type.
+  describe('V2-D wizard intent pre-filtering', () => {
+    it('pre-applies type=all + openNow=true for food_now intent', async () => {
+      renderHome({ zip: '11735', lastIntent: 'food_now' });
+      await waitFor(() => {
+        expect(searchResourcesMock).toHaveBeenCalled();
+      });
+      const firstCall = searchResourcesMock.mock.calls[0][0];
+      expect(firstCall.type).toBe('all');
+      expect(firstCall.openNow).toBe(true);
+      expect(firstCall.today).toBeUndefined();
+      // The Open now chip renders in its active state so the user can see
+      // why the list is filtered.
+      expect(screen.getByTestId('home-filter-open-now')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('pre-applies type=pantry + today=true for food_week intent', async () => {
+      renderHome({ zip: '11735', lastIntent: 'food_week' });
+      await waitFor(() => {
+        expect(searchResourcesMock).toHaveBeenCalled();
+      });
+      const firstCall = searchResourcesMock.mock.calls[0][0];
+      expect(firstCall.type).toBe('pantry');
+      expect(firstCall.today).toBe(true);
+      expect(firstCall.openNow).toBeUndefined();
+    });
+
+    it('pre-applies type=benefits for doctor intent', async () => {
+      renderHome({ zip: '11735', lastIntent: 'doctor' });
+      await waitFor(() => {
+        expect(searchResourcesMock).toHaveBeenCalled();
+      });
+      const firstCall = searchResourcesMock.mock.calls[0][0];
+      expect(firstCall.type).toBe('benefits');
+      expect(firstCall.openNow).toBeUndefined();
+      expect(firstCall.today).toBeUndefined();
+    });
+
+    it('pre-applies type=other for sleep intent', async () => {
+      renderHome({ zip: '11735', lastIntent: 'sleep' });
+      await waitFor(() => {
+        expect(searchResourcesMock).toHaveBeenCalled();
+      });
+      const firstCall = searchResourcesMock.mock.calls[0][0];
+      expect(firstCall.type).toBe('other');
+    });
+
+    it('renders the Change intent ghost button only when lastIntent is set', () => {
+      // No intent → no button.
+      const { unmount } = renderHome({ zip: '11735', lastIntent: null });
+      expect(
+        screen.queryByTestId('home-change-intent'),
+      ).not.toBeInTheDocument();
+      unmount();
+
+      // With intent → the button is visible.
+      renderHome({ zip: '11735', lastIntent: 'food_now' });
+      expect(screen.getByTestId('home-change-intent')).toBeInTheDocument();
+    });
+
+    it('clears lastIntent when the Change intent button is tapped', () => {
+      const { store } = renderHome({ zip: '11735', lastIntent: 'food_now' });
+      expect(store.getState().preferences.lastIntent).toBe('food_now');
+
+      fireEvent.click(screen.getByTestId('home-change-intent'));
+
+      expect(store.getState().preferences.lastIntent).toBeNull();
+    });
   });
 });
