@@ -1,28 +1,20 @@
 /**
- * Restyle theme entry point.
+ * Theme barrel — public surface for the mobile theme module.
+ * ==========================================================
  *
- * `useAppTheme()` reads the OS-level colour scheme via React Native's
- * `useColorScheme()` hook and returns the matching theme variant. Consumers
- * should use this hook rather than importing `theme`/`darkTheme` directly so
- * that a single source decides "light vs dark" (matching the PWA's
- * `prefers-color-scheme` media-query behavior).
+ * Consumers:
  *
- * `useTheme()` (from @shopify/restyle) is the hook that restyle-built
- * components (Box, Text) use internally — we re-export it verbatim so
- * downstream files don't need to import from two packages.
+ *   import { AppThemeProvider, useAppTheme, loadAppFonts } from '~/theme';
+ *
+ * Do NOT import from `./tokens` directly in atoms / screens — prefer the
+ * hook so values stay reactive to dark-mode flips. `theme` / `darkTheme`
+ * are exported only for Storybook stories, screenshot tests, and design
+ * tooling that needs the raw token payload.
  */
 
-import { useTheme } from '@shopify/restyle';
-import { useColorScheme } from 'react-native';
+export { theme, darkTheme, palette } from './tokens';
+export type { Theme } from './tokens';
 
-import { darkTheme, theme } from './tokens';
-import type { Theme } from './tokens';
+export { AppThemeProvider, useAppTheme } from './provider';
 
-export { theme, darkTheme };
-export type { Theme };
-export { useTheme };
-
-export function useAppTheme(): Theme {
-  const colorScheme = useColorScheme();
-  return colorScheme === 'dark' ? darkTheme : theme;
-}
+export { loadAppFonts, listAppFontKeys } from './fonts';
