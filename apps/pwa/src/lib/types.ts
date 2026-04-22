@@ -127,6 +127,21 @@ export type ResourceQueryInput = {
 export type DefaultPostVisibility = "community_only" | "public" | "anchor_mediated";
 export type LocationPrecision = "zip_only" | "zip_and_neighborhood";
 
+/**
+ * V2-D — crisis-first wizard intent. The Home screen renders a 4-card
+ * "what do you need?" picker when `lastIntent` is null, and the filtered
+ * directory view when the user has picked an intent. Persisted to IndexedDB
+ * so a returning user lands on the filtered list they already chose, not
+ * back on the wizard. `clearLastIntent()` routes back to the wizard.
+ *
+ * Intent → filter mapping (see `home-wizard.tsx`):
+ *   - `food_now`  → { type: 'all',     openNow: true }
+ *   - `food_week` → { type: 'pantry',  today:   true }
+ *   - `doctor`    → { type: 'benefits'               }
+ *   - `sleep`     → { type: 'other'                  }
+ */
+export type HomeIntent = 'food_now' | 'food_week' | 'doctor' | 'sleep';
+
 export type PreferencesState = {
   language: SupportedLanguage;
   zipCode: string;
@@ -164,6 +179,14 @@ export type PreferencesState = {
    * first-visit onboarding redirect).
    */
   hydrationComplete: boolean;
+  /**
+   * V2-D — crisis-first Home wizard. `null` means "show the 4-card intent
+   * picker"; any value means "skip the wizard and render the pre-filtered
+   * directory". Persisted to IndexedDB so returning users land where they
+   * left off. The "Change what I'm looking for" ghost button on the
+   * directory dispatches `clearLastIntent()` which flips this back to null.
+   */
+  lastIntent: HomeIntent | null;
 };
 
 export type OtpStartInput = {

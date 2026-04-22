@@ -268,6 +268,12 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await page.getByTestId('onboarding-location-submit').click();
   await page.waitForURL((url) => !url.pathname.includes('/onboarding'));
 
+  // V2-D: after onboarding the user lands on the crisis-first HomeWizard.
+  // `create-session` + `session-chip` are preserved as sr-only shims on the
+  // wizard so this legacy assertion stays green, but to reach the directory
+  // we first tap an intent card. "food_now" pre-applies openNow=true on
+  // the directory; the `see-nearby` ("All" filter) testid then lets us
+  // broaden to the full result set.
   await expect(page.getByTestId('create-session')).toBeVisible();
   await page.getByTestId('create-session').click();
   // Use the `session-chip` testid rather than a raw text match: the Tag
@@ -279,6 +285,8 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
     '11111111-1111-4111-8111-111111111111',
   );
 
+  // V2-D wizard — pick an intent to surface the directory.
+  await page.getByTestId('need-food-now').click();
   await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');
 

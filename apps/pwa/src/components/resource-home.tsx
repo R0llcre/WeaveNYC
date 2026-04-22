@@ -82,8 +82,12 @@ import { TopBar } from '@/components/shell';
 import { resolveErrorKey } from '@/lib/error-i18n';
 import { useAppDispatch, useAppSelector, useResources } from '@/lib/hooks';
 import { selectPreferences, selectSession } from '@/lib/selectors';
-import { dismissTrustBanner, toggleBookmark } from '@/lib/slices/preferences-slice';
-import type { ResourceFilterType, ResourceSummary } from '@/lib/types';
+import {
+  clearLastIntent,
+  dismissTrustBanner,
+  toggleBookmark,
+} from '@/lib/slices/preferences-slice';
+import type { HomeIntent, ResourceFilterType, ResourceSummary } from '@/lib/types';
 import { narrowResourceType } from '@/lib/types';
 import { usePullToRefresh } from '@/lib/use-pull-to-refresh';
 import { useSessionBootstrap } from '@/lib/use-session-bootstrap';
@@ -133,6 +137,47 @@ const SPARSE_RESULTS_THRESHOLD = 3;
 const DATA_SNAPSHOT_DATE = process.env.NEXT_PUBLIC_DATA_SNAPSHOT_DATE ?? '';
 const DATA_SNAPSHOT_COUNT = process.env.NEXT_PUBLIC_DATA_SNAPSHOT_COUNT ?? '';
 
+// V2-D — crisis-first wizard intent → initial filter state. When the user
+// picks an intent in HomeWizard, the directory mounts with these defaults
+// already applied. The wire types / backend contract are unchanged; the
+// intent is purely a client-side shortcut over the existing filter rail.
+// The user can still tap the category pills to override — we only pre-seed
+// the initial state, we don't lock it to the intent.
+type InitialFilterState = {
+  filter: HomeFilterKey;
+  situational: ReadonlyArray<SituationalKey>;
+};
+
+function initialFilterStateForIntent(
+  intent: HomeIntent | null,
+): InitialFilterState {
+  switch (intent) {
+    case 'food_now':
+      // "I'm hungry right now" — pantries AND kitchens open right now. We
+      // leave `filter: 'all'` so both food types surface, and set the
+      // `open_now` situational chip active so the user immediately sees
+      // only places that can help tonight.
+      return { filter: 'all', situational: ['open_now'] };
+    case 'food_week':
+      // "Food for my family this week" — pantry-heavy category with the
+      // `today` chip active. `today` is the closest approximation we have
+      // to "next 7 days" on the existing API; the copy on the wizard card
+      // promises "next 7 days" as a rolling window the user can refine
+      // with their own visits across the week.
+      return { filter: 'food', situational: ['today'] };
+    case 'doctor':
+      // "I need to see a doctor" — `benefits` bucket, which
+      // `narrowResourceType()` maps to FQHCs (sliding-scale clinics).
+      return { filter: 'health', situational: [] };
+    case 'sleep':
+      // "A safe place to sleep" — `other` bucket holds shelter / housing.
+      return { filter: 'housing', situational: [] };
+    case null:
+    default:
+      return { filter: 'all', situational: [] };
+  }
+}
+
 /**
  * Suggest up to 3 adjacent ZIPs by flexing the last digit of the current
  * ZIP. This is a deliberately cheap client-side heuristic — the V1-D
@@ -170,13 +215,23 @@ export function ResourceHome() {
   const dispatch = useAppDispatch();
   const preferences = useAppSelector(selectPreferences);
   const session = useAppSelector(selectSession);
-  const [filter, setFilter] = useState<HomeFilterKey>('all');
+  // V2-D — initial filter + situational state are derived from the wizard
+  // intent, if any. Lazy initializers run once at mount, so after the
+  // user taps a category pill or situational chip the intent does NOT
+  // re-seed state (spec: "doesn't reset the intent; just overrides").
+  // Changing the intent via the "Change what I'm looking for" button
+  // dispatches `clearLastIntent` which causes `page.tsx` to unmount this
+  // component entirely and render `<HomeWizard />` instead, so no
+  // reactive re-seed is needed here.
+  const [filter, setFilter] = useState<HomeFilterKey>(
+    () => initialFilterStateForIntent(preferences.lastIntent).filter,
+  );
   // V1-D: situational chips are multi-select. A `Set` keeps the add/remove
   // logic simple, and memoised `has` lookups are O(1) for the query-input
-  // derivation below. Initial empty — "no filter" means "show everything
-  // the category selection allows".
+  // derivation below. V2-D seeds it from the wizard intent (empty Set when
+  // lastIntent is null).
   const [situational, setSituational] = useState<Set<SituationalKey>>(
-    () => new Set(),
+    () => new Set(initialFilterStateForIntent(preferences.lastIntent).situational),
   );
   // P6 UX finding 8 — offline banner on Home. We previously rendered
   // stale results silently; now we pick up the browser online/offline
@@ -515,6 +570,23 @@ export function ResourceHome() {
                   data-testid="home-change-zip"
                 >
                   {t('homeZipChange')}
+                </Button>
+              ) : null}
+              {/* V2-D — "Change what I'm looking for" ghost button. Only
+                  surfaces when the user arrived here from the wizard (i.e.
+                  `lastIntent !== null`); clearing the intent makes
+                  `page.tsx` swap this component back for `<HomeWizard />`
+                  on the next render. The button stays small + ghost-variant
+                  so it doesn't compete with actionable chips below the
+                  hero. */}
+              {preferences.lastIntent !== null ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => dispatch(clearLastIntent())}
+                  data-testid="home-change-intent"
+                >
+                  {t('wizardChangeIntentCta')}
                 </Button>
               ) : null}
               {/* V1-A UX fix — the visible "Ready to go" primary CTA was a

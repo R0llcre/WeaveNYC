@@ -2,6 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 import type {
   DefaultPostVisibility,
+  HomeIntent,
   LocationPrecision,
   PreferencesState,
   SupportedLanguage,
@@ -18,6 +19,7 @@ export const initialPreferencesState: PreferencesState = {
   hasUserChosenLanguage: false,
   trustBannerDismissed: false,
   hydrationComplete: false,
+  lastIntent: null,
 };
 
 function uniqueBookmarks(bookmarks: string[]) {
@@ -87,16 +89,36 @@ const preferencesSlice = createSlice({
     dismissTrustBanner(state) {
       state.trustBannerDismissed = true;
     },
+    /**
+     * V2-D — record which crisis-first intent the user picked on the Home
+     * wizard. `<page.tsx>` reads `preferences.lastIntent` to decide between
+     * rendering `<HomeWizard />` (null) and `<ResourceDirectory />` (any
+     * intent). Persisted to IndexedDB so a returning user lands on the
+     * same pre-filtered directory they picked last time.
+     */
+    setLastIntent(state, action: PayloadAction<HomeIntent>) {
+      state.lastIntent = action.payload;
+    },
+    /**
+     * V2-D — reset the Home wizard pick so the next visit to `/` re-renders
+     * the 4-card intent picker. Dispatched by the "Change what I'm looking
+     * for" ghost button on the pre-filtered directory.
+     */
+    clearLastIntent(state) {
+      state.lastIntent = null;
+    },
   },
 });
 
 export const {
   applyDetectedLanguage,
+  clearLastIntent,
   completeOnboarding,
   dismissTrustBanner,
   hydratePreferences,
   setDefaultPostVisibility,
   setLanguage,
+  setLastIntent,
   setLocationPrecision,
   setZipCode,
   toggleBookmark,

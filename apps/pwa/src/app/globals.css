@@ -4220,6 +4220,164 @@ section.danger-zone {
 }
 
 /* ============================================================================
+   V2-D — HomeWizard (crisis-first "what do you need?" picker)
+   ----------------------------------------------------------------------------
+   Renders at `/` when `preferences.lastIntent === null`. 4 big intent cards in
+   a 2x2 grid on tablet+ and a single column on narrow viewports. Each card is
+   a real <button> so keyboard + SR users get native semantics; the hover /
+   focus-visible styles mirror `.lang-card__button` so the picker feels like
+   the existing language-picker onboarding screen.
+   ============================================================================ */
+.home-wizard {
+  padding-block: var(--space-4) var(--space-6);
+}
+
+.home-wizard__hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-4) var(--space-5);
+}
+
+.home-wizard__eyebrow {
+  color: var(--color-accent);
+}
+
+.home-wizard__headline {
+  font: var(--type-display);
+  margin: 0;
+  /* Wider cap than the 22ch headline on the old masthead so the long EN
+     "What do you need right now?" stays on two lines at most, and the
+     shorter ZH/ES variants still read as a statement not a caption. */
+  max-width: 28ch;
+  color: var(--color-ink-primary);
+}
+
+.home-wizard__subtitle {
+  margin: 0;
+  color: var(--color-ink-secondary);
+  line-height: 1.5;
+  max-width: 42ch;
+}
+
+.home-wizard__grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-wizard__cell {
+  display: flex;
+}
+
+.home-wizard__footnote {
+  margin: 0;
+  font-size: var(--type-small, 13px);
+}
+
+.need-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  justify-content: flex-start;
+  /* Min-height gives every card the same visual weight regardless of
+     label length; 160px is well above the 64px touch-target floor. */
+  min-height: 160px;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.need-card:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.need-card:active {
+  transform: scale(0.995);
+}
+
+.need-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.need-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Spec calls for a "big icon (96px)". We render the 24x24 registry SVG
+     inside a 96x96 tinted tile — large enough to register as a glyph in a
+     hallway-scan without requiring a new 96x96 asset. */
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+}
+
+.need-card__icon .icon {
+  width: 48px;
+  height: 48px;
+}
+
+.need-card__title {
+  font-size: clamp(18px, 2.5vw, 22px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-ink-primary);
+}
+
+.need-card__subtitle {
+  font-size: var(--type-small, 13px);
+  color: var(--color-ink-muted);
+  line-height: 1.45;
+}
+
+/* 1-column stack on narrow viewports. The breakpoint mirrors the
+   existing `.grid--two` responsive flip in this file (see ~line 2066). */
+@media (max-width: 640px) {
+  .home-wizard__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .need-card {
+    min-height: 132px;
+  }
+
+  .need-card__icon {
+    width: 72px;
+    height: 72px;
+  }
+
+  .need-card__icon .icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .need-card {
+    transition: none;
+  }
+
+  .need-card:active {
+    transform: none;
+  }
+}
+
+/* ============================================================================
    Post composer — keyboard safe-area reservation so the Preview/Publish CTA is
    never hidden behind the iOS soft keyboard when the textarea is focused. The
    screen content already lives inside `.page-content` inside AppShell's main,
