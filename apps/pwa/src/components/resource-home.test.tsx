@@ -439,4 +439,74 @@ describe('ResourceHome (Wave 3A redesign)', () => {
       expect(store.getState().preferences.lastIntent).toBeNull();
     });
   });
+
+  // V2-C — neighbor banner + activity ticker must render for anonymous
+  // visitors (the primary use case — Home is their first exposure to the
+  // social layer). We assert on the banner copy plus the ticker's stable
+  // testid. The anonymous-banner path is the default: the fixture session
+  // uses `level: 'anonymous'`, so `isReturningNeighbor` is false and the
+  // non-returning copy wins.
+  it('renders the neighbor banner and activity ticker for anonymous users', async () => {
+    renderHome({ zip: '11735' });
+    // Banner uses the anon-variant title since the fixture session is
+    // anonymous (`level === 'anonymous'`).
+    expect(
+      await screen.findByTestId('home-neighbor-banner'),
+    ).toHaveTextContent(messages.en.homeNeighborBannerTitle);
+    // The ticker mounts client-side after the hydration effect. Use
+    // findByTestId to wait for the mount.
+    expect(await screen.findByTestId('activity-ticker')).toBeInTheDocument();
+  });
+
+  // V2-C — when the session carries a non-anonymous level (verified /
+  // anchor), the banner swaps to the "welcome back" variant. This pins
+  // the returning-neighbor copy path.
+  it('renders the returning-neighbor banner for non-anonymous users', async () => {
+    const store = buildStore();
+    store.dispatch(
+      hydratePreferences({
+        language: 'en',
+        zipCode: '11735',
+        onboardingComplete: true,
+        lowBandwidth: false,
+        bookmarks: [],
+        defaultPostVisibility: 'community_only',
+        locationPrecision: 'zip_only',
+        hasUserChosenLanguage: true,
+      }),
+    );
+    store.dispatch(
+      setSession({
+        access_token: 'verified-access',
+        refresh_token: 'verified-refresh',
+        user: {
+          user_id: '11111111-1111-4111-8111-111111111111',
+          level: 'verified',
+        },
+        issued_via: 'otp',
+      }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    render(
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <NextIntlClientProvider
+            locale="en"
+            messages={messages.en}
+            timeZone="America/New_York"
+          >
+            <ResourceHome />
+          </NextIntlClientProvider>
+        </QueryClientProvider>
+      </Provider>,
+    );
+    expect(
+      await screen.findByTestId('home-neighbor-banner'),
+    ).toHaveTextContent(messages.en.homeNeighborBannerTitleReturning);
+  });
 });

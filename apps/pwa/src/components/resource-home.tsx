@@ -67,6 +67,7 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { ActivityTicker } from '@/components/activity-ticker';
 import {
   Banner,
   Button,
@@ -507,6 +508,19 @@ export function ResourceHome() {
   const shouldShowTrustBanner =
     preferences.hydrationComplete && !preferences.trustBannerDismissed;
 
+  // V2-C — "returning neighbor" proxy. The V2-C spec pointed at a
+  // `session?.user?.display_name` field, but the AuthUser shape today
+  // only carries `{ user_id, level }` (see `lib/types.ts`). Until a real
+  // display-name channel lands we gate the returning-user banner copy
+  // on the session level: anonymous users see the generic "See what your
+  // neighbors did this week" banner, while verified/anchor users see
+  // "Welcome back — your neighborhood moved while you were gone".
+  // Rationale: `level === 'anonymous'` literally means the user has
+  // never identified themselves, so any other level is a credible
+  // "returning neighbor" signal.
+  const isReturningNeighbor =
+    Boolean(session) && session?.user.level !== 'anonymous';
+
   return (
     <>
       <TopBar variant="brand" />
@@ -610,6 +624,28 @@ export function ResourceHome() {
               </button>
             </div>
           </section>
+
+          {/* V2-C — neighbor banner + rotating activity ticker. Sits below
+              the hero so Home's first impression ("Help near you") leads,
+              but above the filter rail so a brand-new anonymous user sees
+              the social layer breathe before they try to filter. The
+              banner variant swaps based on whether the session carries a
+              non-anonymous level (proxy for "returning neighbor") so the
+              copy acknowledges the user instead of re-greeting them like
+              a stranger. See `activity-ticker.tsx` for rotation, reduced-
+              motion handling, and the feature-flag. */}
+          <Stack gap={3} data-testid="home-neighbor-section">
+            <p
+              className="overline"
+              data-testid="home-neighbor-banner"
+              style={{ margin: 0 }}
+            >
+              {isReturningNeighbor
+                ? t('homeNeighborBannerTitleReturning')
+                : t('homeNeighborBannerTitle')}
+            </p>
+            <ActivityTicker />
+          </Stack>
 
           {/* P6 UX finding 8 — offline banner. Wrapped in a live region so
               SR users hear the state transition when connectivity drops.

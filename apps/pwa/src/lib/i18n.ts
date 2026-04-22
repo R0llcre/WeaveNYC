@@ -768,6 +768,35 @@ type ChromeMessages = {
   // B5/B6 — Demo sandbox mode copy.
   demoSandboxNotice: string;
   demoSandboxPill: string;
+  // V2-C — Home activity ticker + neighbor banner + anonymous community
+  // preview. `homeNeighborBannerTitle*` is the small static banner sitting
+  // above the rotating ticker; the `*Returning` variant swaps in when the
+  // session carries a non-anonymous user (proxy for "returning neighbor").
+  // The `tickerX` family is the 15 seeded activity rows — each row's
+  // `copyKey` in `seed-activity.ts` resolves to one of these.
+  // `activityTickerAriaLabel` gives the rotating region an accessible name.
+  // `communityAnonPreview*` powers the 3-row anonymous preview card on the
+  // community tab; `joinCommunityCta` is reused for the footer button.
+  homeNeighborBannerTitle: string;
+  homeNeighborBannerTitleReturning: string;
+  activityTickerAriaLabel: string;
+  communityAnonPreviewTitle: string;
+  communityAnonPreviewSubtitle: string;
+  tickerMarisolRice: string;
+  tickerDwayneStroller: string;
+  tickerPriyaWelcome: string;
+  tickerJorgeTransport: string;
+  tickerJamalPantry: string;
+  tickerLingTranslate: string;
+  tickerAyeshaChildcare: string;
+  tickerDevonMeal: string;
+  tickerTashaCoats: string;
+  tickerMireyaPantry: string;
+  tickerRafaChildcare: string;
+  tickerKiraTransport: string;
+  tickerOmarBread: string;
+  tickerNadiaWelcome: string;
+  tickerCarlosBooks: string;
 };
 
 export const messages: Record<SupportedLanguage, ChromeMessages> = {
@@ -1506,6 +1535,29 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // B5/B6 — Demo sandbox mode copy.
     demoSandboxNotice: 'Demo only — this is not a real verification code. Code: 246810',
     demoSandboxPill: 'SANDBOX',
+    // V2-C — home activity ticker + neighbor banner + anon community preview.
+    // Keep each tickerX under ~9 words so it fits the one-line card at 320px.
+    homeNeighborBannerTitle: 'See what your neighbors did this week',
+    homeNeighborBannerTitleReturning:
+      'Welcome back \u2014 your neighborhood moved while you were gone',
+    activityTickerAriaLabel: 'Recent neighbor activity',
+    communityAnonPreviewTitle: "Here's what neighbors shared this week",
+    communityAnonPreviewSubtitle: 'Join a community to post your own.',
+    tickerMarisolRice: 'Marisol offered extra rice in Corona',
+    tickerDwayneStroller: 'Dwayne is asking for a stroller in Corona',
+    tickerPriyaWelcome: 'Priya welcomed a new neighbor in Jackson Heights',
+    tickerJorgeTransport: 'Jorge needs a ride to a clinic in Farmingdale',
+    tickerJamalPantry: 'Anchor Jamal verified a pantry in Jackson Heights',
+    tickerLingTranslate: 'Ling offered translation help in Flushing',
+    tickerAyeshaChildcare: 'Ayesha is watching kids after school in Flushing',
+    tickerDevonMeal: 'Devon delivered a hot meal in Bushwick',
+    tickerTashaCoats: 'Tasha is sharing winter coats in Harlem',
+    tickerMireyaPantry: 'Anchor Mireya verified a pantry in Washington Heights',
+    tickerRafaChildcare: 'Rafa is asking for childcare in Sunset Park',
+    tickerKiraTransport: 'Kira offered rides this weekend in Washington Heights',
+    tickerOmarBread: 'Omar shared fresh bread in Sunset Park',
+    tickerNadiaWelcome: 'Nadia welcomed a new family in Bushwick',
+    tickerCarlosBooks: 'Carlos delivered school books in Harlem',
   },
   es: {
     brand: 'WeaveNYC',
@@ -2233,6 +2285,33 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // B5/B6 — Demo sandbox mode copy.
     demoSandboxNotice: 'Solo demo \u2014 este no es un c\u00f3digo de verificaci\u00f3n real. C\u00f3digo: 246810',
     demoSandboxPill: 'SANDBOX',
+    // V2-C — ticker + banner + anon community preview (ES)
+    homeNeighborBannerTitle: 'Mira lo que hicieron tus vecinos esta semana',
+    homeNeighborBannerTitleReturning:
+      'Bienvenido de nuevo \u2014 tu barrio se movi\u00f3 mientras no estabas',
+    activityTickerAriaLabel: 'Actividad reciente de los vecinos',
+    communityAnonPreviewTitle: 'Esto compartieron los vecinos esta semana',
+    communityAnonPreviewSubtitle:
+      '\u00danete a una comunidad para publicar lo tuyo.',
+    tickerMarisolRice: 'Marisol comparti\u00f3 arroz en Corona',
+    tickerDwayneStroller: 'Dwayne pide una carriola en Corona',
+    tickerPriyaWelcome:
+      'Priya dio la bienvenida a un vecino en Jackson Heights',
+    tickerJorgeTransport: 'Jorge necesita ir a una cl\u00ednica en Farmingdale',
+    tickerJamalPantry:
+      'El anfitri\u00f3n Jamal verific\u00f3 una despensa en Jackson Heights',
+    tickerLingTranslate: 'Ling ofrece ayuda de traducci\u00f3n en Flushing',
+    tickerAyeshaChildcare: 'Ayesha cuida ni\u00f1os despu\u00e9s del colegio en Flushing',
+    tickerDevonMeal: 'Devon entreg\u00f3 una comida caliente en Bushwick',
+    tickerTashaCoats: 'Tasha regala abrigos de invierno en Harlem',
+    tickerMireyaPantry:
+      'La anfitriona Mireya verific\u00f3 una despensa en Washington Heights',
+    tickerRafaChildcare: 'Rafa pide cuidado de ni\u00f1os en Sunset Park',
+    tickerKiraTransport:
+      'Kira ofrece llevar a vecinos este fin de semana en Washington Heights',
+    tickerOmarBread: 'Omar comparti\u00f3 pan fresco en Sunset Park',
+    tickerNadiaWelcome: 'Nadia recibi\u00f3 a una familia nueva en Bushwick',
+    tickerCarlosBooks: 'Carlos entreg\u00f3 libros escolares en Harlem',
   },
   zh: {
     brand: 'WeaveNYC',
@@ -2957,6 +3036,27 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     // B5/B6 — Demo sandbox mode copy.
     demoSandboxNotice: '仅供演示 — 这不是真实的验证码。验证码：246810',
     demoSandboxPill: 'SANDBOX',
+    // V2-C — ticker + banner + anon community preview (ZH)
+    homeNeighborBannerTitle: '看看本周邻居做了什么',
+    homeNeighborBannerTitleReturning: '欢迎回来——你不在时，邻里在行动',
+    activityTickerAriaLabel: '邻居最近的动态',
+    communityAnonPreviewTitle: '本周邻居分享了这些',
+    communityAnonPreviewSubtitle: '加入一个社区，发布你自己的内容。',
+    tickerMarisolRice: 'Marisol 在 Corona 分享多出来的米',
+    tickerDwayneStroller: 'Dwayne 在 Corona 需要一辆婴儿车',
+    tickerPriyaWelcome: 'Priya 在 Jackson Heights 欢迎了一位新邻居',
+    tickerJorgeTransport: 'Jorge 在 Farmingdale 需要搭车去看病',
+    tickerJamalPantry: 'Anchor Jamal 在 Jackson Heights 核实了一家食物发放点',
+    tickerLingTranslate: 'Ling 在 Flushing 提供翻译帮助',
+    tickerAyeshaChildcare: 'Ayesha 在 Flushing 放学后帮忙照看孩子',
+    tickerDevonMeal: 'Devon 在 Bushwick 送了一份热饭',
+    tickerTashaCoats: 'Tasha 在 Harlem 分享冬天的外套',
+    tickerMireyaPantry: 'Anchor Mireya 在 Washington Heights 核实了一家食物发放点',
+    tickerRafaChildcare: 'Rafa 在 Sunset Park 需要有人帮忙照看孩子',
+    tickerKiraTransport: 'Kira 这个周末在 Washington Heights 帮忙搭车',
+    tickerOmarBread: 'Omar 在 Sunset Park 分享新鲜面包',
+    tickerNadiaWelcome: 'Nadia 在 Bushwick 欢迎了一家新邻居',
+    tickerCarlosBooks: 'Carlos 在 Harlem 送了学校用的课本',
   },
 };
 
