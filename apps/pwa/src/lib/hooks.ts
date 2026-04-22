@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
 
 import {
@@ -109,6 +109,28 @@ export function useResources(input: ResourceQueryInput, enabled = true) {
     queryFn: () => searchResources(input),
     enabled,
     staleTime: 60_000,
+  });
+}
+
+/**
+ * V2-B win #3 — localStorage-backed variant of `useResources` for the
+ * home screen. The underlying `["resources", input]` query is already
+ * persisted via `PersistQueryClientProvider` (see
+ * `components/providers.tsx`), so return visits rehydrate the result on
+ * mount. `placeholderData: keepPreviousData` smooths the typical filter-
+ * change flow (user toggles categories / ZIP): instead of flashing the
+ * skeleton while the new query loads, we keep the previous result
+ * visible and overlay the refreshed data when it lands. Pair with the
+ * existing `staleTime: 60_000` so we still refetch in the background on
+ * every mount past the minute mark.
+ */
+export function useCachedResources(input: ResourceQueryInput, enabled = true) {
+  return useQuery({
+    queryKey: ["resources", input],
+    queryFn: () => searchResources(input),
+    enabled,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 }
 
