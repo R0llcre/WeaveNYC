@@ -1,0 +1,147 @@
+name: Mobile Build
+
+# Triggered only when mobile sources change. The PWA CI (`ci.yml`) and this
+# workflow are intentionally disjoint so a PWA copy tweak doesn't burn EAS
+# build minutes, and an iOS-only change doesn't retrigger the browser E2E
+# matrix. Path filter below must stay in sync with the folders under
+# apps/mobile/** (plus app.config.ts and eas.json themselves).
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-build.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-build.yml"
+
+concurrency:
+  group: mobile-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast JS-only gates. These run before we burn an EAS build slot — if
+  # typecheck fails there's no point in a 10-minute cloud build.
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck mobile
+        run: pnpm --filter @weavenyc/mobile typecheck
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint mobile
+        run: pnpm --filter @weavenyc/mobile lint
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared deps
+        run: pnpm --filter @weavenyc/shared build
+      - name: Unit tests
+        run: pnpm --filter @weavenyc/mobile test
+
+  # EAS Build — runs on EAS cloud, not GitHub runners. We only spend build
+  # minutes once the gates above pass.
+  eas-build:
+    needs: [typecheck, lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Don't build for PRs from forks — EXPO_TOKEN isn't exposed to forks.
+    # Maintainers can close/reopen the PR from a branch in this repo to run.
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+
+      # PR: preview build, internal distribution, posts install URL as PR comment.
+      # main push: production build, EAS submits to App Store Connect after build.
+      - name: EAS Build (preview — PRs)
+        if: github.event_name == 'pull_request'
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: eas build --platform ios --profile preview --non-interactive --no-wait
+
+      - name: EAS Build (production — main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: eas build --platform ios --profile production --non-interactive --auto-submit
+
+      # Install-URL comment on the PR. `expo/expo-github-action/preview-build`
+      # resolves the most recent in-flight build for this branch and posts
+      # its EAS install URL + QR code.
+      - name: Comment PR with install URL
+        if: github.event_name == 'pull_request'
+        uses: expo/expo-github-action/preview-build@v8
+        with:
+          profile: preview
+          platform: ios
+          message: |
+            EAS preview build for this PR is ready.
+            Install: {projectLink}
+            Build logs: {buildLink}
+
+# Required repository secrets
+# ---------------------------
+# Configure at Settings → Secrets and variables → Actions.
+# See apps/mobile/release/EAS_CONFIG.md for provisioning instructions.
+#
+# | Secret                           | Source                                             |
+# | -------------------------------- | -------------------------------------------------- |
+# | EXPO_TOKEN                       | expo.dev → Access Tokens                           |
+# | SENTRY_AUTH_TOKEN                | sentry.io → Org → Auth Tokens, project:releases    |
+# | APPLE_APP_SPECIFIC_PASSWORD      | appleid.apple.com → Sign-In and Security           |
+#
+# Rotation cadence: 180 days for EXPO_TOKEN + SENTRY_AUTH_TOKEN, immediately
+# on Team Agent offboarding for APPLE_APP_SPECIFIC_PASSWORD.

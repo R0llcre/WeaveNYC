@@ -1,0 +1,38 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["<TEAM_ID>.org.weavenyc.app"],
+        "components": [
+          {
+            "/": "/posts/*",
+            "comment": "Deep link to a specific post; rendered natively when app installed."
+          },
+          {
+            "/": "/resources/*",
+            "comment": "Deep link to a provider detail screen."
+          },
+          {
+            "/": "/communities/*",
+            "comment": "Deep link to a community feed or join-by-code screen."
+          },
+          {
+            "/": "/verify/*",
+            "comment": "Magic-link OTP completion; app handles auth callback natively."
+          },
+          {
+            "/": "/open/*",
+            "comment": "Generic deep-link fallback — any future entity can be routed here."
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["<TEAM_ID>.org.weavenyc.app"]
+  },
+  "activitycontinuation": {
+    "apps": ["<TEAM_ID>.org.weavenyc.app"]
+  }
+}
