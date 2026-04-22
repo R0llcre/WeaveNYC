@@ -34,3 +34,13 @@
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate
   Service-Worker-Allowed: /
+
+# Apple App Site Association — served with no file extension per Apple's
+# spec. Cloudflare Pages defaults unknown-extension files to
+# application/octet-stream, which Apple rejects; we pin application/json
+# explicitly. 1h cache balances "can push AASA fixes quickly" against
+# "don't thrash Apple's fetch on every app install".
+# See apps/mobile/release/UNIVERSAL_LINKS.md for the full flow.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
