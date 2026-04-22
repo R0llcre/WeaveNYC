@@ -31,7 +31,10 @@
     "resources:sync": "pnpm --filter @weavenyc/resource-directory resources:sync",
     "demo:preflight": "tsx scripts/demo/preflight.ts",
     "demo:local": "tsx scripts/demo/local.ts",
-    "demo:multicloud": "bash scripts/demo/multicloud.sh"
+    "demo:multicloud": "bash scripts/demo/multicloud.sh",
+    "mobile:start": "pnpm --filter @weavenyc/mobile start",
+    "mobile:ios": "pnpm --filter @weavenyc/mobile ios",
+    "mobile:typecheck": "pnpm --filter @weavenyc/mobile typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

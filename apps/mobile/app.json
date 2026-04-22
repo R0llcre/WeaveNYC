@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "WeaveNYC",
+    "slug": "weavenyc",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "weavenyc",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "jsEngine": "hermes",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "org.weavenyc.app",
+      "supportsTablet": true,
+      "deploymentTarget": "16.0",
+      "associatedDomains": ["applinks:weavenyc.org"],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "WeaveNYC uses the camera to scan QR codes for verified anchors and to attach photos to posts.",
+        "NSMicrophoneUsageDescription": "WeaveNYC uses the microphone to record short voice notes for posts and chat.",
+        "NSLocationWhenInUseUsageDescription": "WeaveNYC uses your location to show nearby resources like food pantries, clinics, and housing help.",
+        "NSPhotoLibraryUsageDescription": "WeaveNYC uses your photo library to let you attach images to posts.",
+        "NSContactsUsageDescription": "WeaveNYC can add trusted neighbors to your contacts, with your permission.",
+        "NSFaceIDUsageDescription": "WeaveNYC can use Face ID to lock your verified session."
+      }
+    },
+    "android": {
+      "package": "org.weavenyc.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-camera",
+      "expo-barcode-scanner",
+      "expo-local-authentication",
+      "expo-contacts",
+      "expo-av",
+      "expo-updates",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}
