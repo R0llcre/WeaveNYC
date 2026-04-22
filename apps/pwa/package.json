@@ -7,6 +7,7 @@
     "dev": "next dev --hostname 0.0.0.0 --port 3000",
     "prebuild": "pnpm --filter @weavenyc/shared build",
     "build": "next build",
+    "postbuild": "node scripts/gen-sw-manifest.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "test": "cd ../.. && vitest run apps/pwa",
@@ -15,7 +16,9 @@
   "dependencies": {
     "@reduxjs/toolkit": "2.11.2",
     "@sentry/nextjs": "^10.49.0",
-    "@tanstack/react-query": "5.96.2",
+    "@tanstack/query-sync-storage-persister": "^5.99.2",
+    "@tanstack/react-query": "5.99.2",
+    "@tanstack/react-query-persist-client": "^5.99.2",
     "@weavenyc/shared": "workspace:*",
     "dexie": "^4.2.1",
     "framer-motion": "^12.38.0",

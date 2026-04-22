@@ -2,9 +2,11 @@
 
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { Provider } from 'react-redux';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { coerceSupportedLanguage, messages } from '@/lib/i18n';
@@ -78,6 +80,26 @@ type ProvidersProps = {
   initialLanguage: SupportedLanguage;
 };
 
+// V2-B win #3 — persist react-query's cache to localStorage so return
+// visits render the home /resources list from disk on mount (0 network
+// RTT) and only revalidate in the background once `staleTime` expires.
+// We keep a hard 24h TTL on the persisted cache (`maxAge`) and bump
+// `buster` on schema changes so any breaking data-shape update purges
+// the stale payload automatically.
+//
+// `dehydrateOptions.shouldDehydrateQuery` is the escape hatch for the
+// sensitive-data rule: only GET-ish resource queries and match inbox
+// shapes should hit localStorage. Mutations and auth-bound queries are
+// in-memory only (they carry an `accessToken` in their query key, so
+// filtering on that excludes them naturally — see CACHEABLE_KEYS below).
+const CACHEABLE_PERSISTED_KEYS = new Set([
+  'resources',
+  'resource',
+]);
+
+const PERSISTED_CACHE_BUSTER = 'weavenyc-v2b-2026-04';
+const PERSISTED_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
+
 export function Providers({ children, initialLanguage }: ProvidersProps) {
   const [queryClient] = useState(
     () =>
@@ -86,15 +108,67 @@ export function Providers({ children, initialLanguage }: ProvidersProps) {
           queries: {
             retry: 1,
             refetchOnWindowFocus: false,
+            // V2-B win #3 — give persisted queries a full 24h window of
+            // `gcTime` so rehydrated entries actually stick around in
+            // memory after the first render (default `gcTime` is 5min;
+            // react-query would otherwise evict them before the user's
+            // next navigation).
+            gcTime: PERSISTED_CACHE_MAX_AGE_MS,
           },
         },
       }),
   );
 
+  // `createSyncStoragePersister` does a single lazy `localStorage.getItem`
+  // per mount and writes back on cache change. SSR-safe: we detect the
+  // absence of `window` and hand back `null`, which causes
+  // `PersistQueryClientProvider` to silently skip persistence.
+  const persister = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      return createSyncStoragePersister({
+        storage: window.localStorage,
+        key: 'weavenyc-query-cache',
+        throttleTime: 1000,
+      });
+    } catch {
+      // Private browsing / storage quota / disabled storage all surface as
+      // thrown errors on the first `setItem`. Degrade to in-memory cache
+      // rather than blocking the entire provider tree.
+      return null;
+    }
+  }, []);
+
   return (
     <Provider store={store}>
       <ClientBootstrap initialLanguage={initialLanguage}>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        {persister ? (
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+              persister,
+              maxAge: PERSISTED_CACHE_MAX_AGE_MS,
+              buster: PERSISTED_CACHE_BUSTER,
+              dehydrateOptions: {
+                // Only dehydrate non-auth resource queries. Everything that
+                // carries an accessToken (posts, inbox, conversations) stays
+                // in-memory; persisting those would both leak community
+                // data across logins and go stale quickly.
+                shouldDehydrateQuery: (query) => {
+                  if (!Array.isArray(query.queryKey)) return false;
+                  const [head] = query.queryKey;
+                  return typeof head === 'string' && CACHEABLE_PERSISTED_KEYS.has(head);
+                },
+              },
+            }}
+          >
+            {children}
+          </PersistQueryClientProvider>
+        ) : (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        )}
       </ClientBootstrap>
     </Provider>
   );
