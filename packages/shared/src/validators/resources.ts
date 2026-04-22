@@ -69,7 +69,16 @@ export const resourceDetailSchema = resourceSummarySchema.extend({
 export const resourceListResponseSchema = z.object({
   items: z.array(resourceSummarySchema),
   next_cursor: z.string().min(1).nullable(),
-  source_mode: z.enum(["api", "fixture"])
+  source_mode: z.enum(["api", "fixture"]),
+  // A5 P0 bonus — optional "the geocoder returned nothing for this ZIP" hint.
+  // Kept optional for backwards-compatibility: legacy responses omit it.
+  no_results_in_area: z.boolean().optional(),
+  // V2-A — optional effective search radius in miles. Populated when the
+  // repository's progressive-widening loop lands on a tier > 5 (PWA uses
+  // this to render "no results within 5 mi — showing within N mi" banner).
+  // `null` when the geocoder couldn't resolve the ZIP so no radius walk
+  // happened; absent on legacy callers for backwards compat.
+  widened_to_miles: z.number().positive().nullable().optional()
 });
 
 export const resourceSearchRequestSchema = z.object({

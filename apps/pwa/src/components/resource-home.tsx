@@ -439,8 +439,25 @@ export function ResourceHome() {
       : [];
     const sparseSubtitle = t('homeSparseSubtitle', { count: nearbyCount });
 
+    // V2-A — show the widened-radius banner when the backend had to walk
+    // past the default 5mi tier to find results. `> 5` intentionally
+    // excludes the zero-radius case (null) and the 5mi happy path.
+    const widenedToMiles = resourceQuery.data?.widened_to_miles ?? null;
+    const showWidenedBanner =
+      widenedToMiles !== null && widenedToMiles > 5;
+
     return (
       <Stack gap={3}>
+        {showWidenedBanner ? (
+          <Banner
+            tone="info"
+            title={t('homeRadiusWidenedBanner', {
+              zip: preferences.zipCode,
+              miles: widenedToMiles,
+            })}
+            data-testid="home-widened-banner"
+          />
+        ) : null}
         <p className="muted">{t('homeResultsCount', { count: nearbyCount })}</p>
         <Stack gap={2} as="section">
           {items.map((resource) => (

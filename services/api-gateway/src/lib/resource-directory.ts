@@ -20,7 +20,10 @@ export class PgResourceDirectoryService implements ResourceDirectoryService {
 
   constructor(private readonly pool: Pool) {
     this.repository = new ResourceQueryRepository(pool);
-    this.geocoder = new NominatimGeocoder();
+    // V2-A — NominatimGeocoder accepts an optional centroid reader. Passing
+    // `pool` routes NYC-ZIP geocodes through `nyc_zip_centroids` first; the
+    // in-memory Long Island table + Nominatim remain as the 2nd/3rd tiers.
+    this.geocoder = new NominatimGeocoder(fetch, undefined, pool);
   }
 
   async searchResources(input: ResourceSearchInput): Promise<ResourceSearchResult> {

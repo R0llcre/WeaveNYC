@@ -2,201 +2,3153 @@
   "features": [
     {
       "attributes": {
-        "OBJECTID": 5001,
-        "Site_ID": "BPHC-NY-0001",
-        "Site_Name": "Urban Health Plan Inc - Bella Vista Health Center",
-        "Site_Address": "890 Garrison Avenue",
-        "Site_City": "Bronx",
-        "Site_State_Abbreviation": "NY",
-        "State_Name": "New York",
-        "Site_Postal_Code": "10474",
-        "Site_Telephone_Number": "(718) 589-2440",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "55",
-        "Latitude": 40.8144,
-        "Longitude": -73.8920
-      },
-      "geometry": { "x": -73.8920, "y": 40.8144 }
-    },
-    {
-      "attributes": {
-        "OBJECTID": 5002,
-        "Site_ID": "BPHC-NY-0002",
-        "Site_Name": "Morris Heights Health Center",
-        "Site_Address": "85 West Burnside Avenue",
-        "Site_City": "Bronx",
-        "Site_State_Abbreviation": "NY",
-        "State_Name": "New York",
-        "Site_Postal_Code": "10453",
-        "Site_Telephone_Number": "(718) 716-4400",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "60",
-        "Latitude": 40.8524,
-        "Longitude": -73.9108
-      },
-      "geometry": { "x": -73.9108, "y": 40.8524 }
-    },
-    {
-      "attributes": {
-        "OBJECTID": 5003,
-        "Site_ID": "BPHC-NY-0003",
-        "Site_Name": "Charles B. Wang Community Health Center - Flushing",
-        "Site_Address": "136-26 37th Avenue",
-        "Site_City": "Flushing",
-        "Site_State_Abbreviation": "NY",
-        "State_Name": "New York",
-        "Site_Postal_Code": "11354",
-        "Site_Telephone_Number": "(212) 379-6988",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "55",
-        "Latitude": 40.7590,
-        "Longitude": -73.8306
-      },
-      "geometry": { "x": -73.8306, "y": 40.7590 }
-    },
-    {
-      "attributes": {
-        "OBJECTID": 5004,
-        "Site_ID": "BPHC-NY-0004",
-        "Site_Name": "Community Healthcare Network - Queens Health Center",
-        "Site_Address": "90-04 161st Street",
-        "Site_City": "Jamaica",
-        "Site_State_Abbreviation": "NY",
-        "State_Name": "New York",
-        "Site_Postal_Code": "11432",
-        "Site_Telephone_Number": "(212) 545-2400",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "45",
-        "Latitude": 40.7054,
-        "Longitude": -73.7998
-      },
-      "geometry": { "x": -73.7998, "y": 40.7054 }
-    },
-    {
-      "attributes": {
-        "OBJECTID": 5005,
-        "Site_ID": "BPHC-NY-0005",
-        "Site_Name": "William F. Ryan Community Health Center",
-        "Site_Address": "110 West 97th Street",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-040833",
+        "Site_Name": "Central Administrative Office",
+        "Site_Address": "44 W 28th St",
         "Site_City": "New York",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
-        "Site_Postal_Code": "10025",
-        "Site_Telephone_Number": "(212) 749-1820",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "55",
-        "Latitude": 40.7944,
-        "Longitude": -73.9678
+        "Site_Postal_Code": "10001",
+        "Site_Telephone_Number": "212-545-2400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.74559755,
+        "Longitude": -73.99001118
       },
-      "geometry": { "x": -73.9678, "y": 40.7944 }
+      "geometry": {
+        "x": -73.99001118,
+        "y": 40.74559755
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 5006,
-        "Site_ID": "BPHC-NY-0006",
-        "Site_Name": "Brownsville Multi-Service Family Health Center",
-        "Site_Address": "592 Rockaway Avenue",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-001470",
+        "Site_Name": "C.A.B.S. CENTER",
+        "Site_Address": "94 Manhattan Ave",
         "Site_City": "Brooklyn",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
-        "Site_Postal_Code": "11212",
-        "Site_Telephone_Number": "(718) 345-5000",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "50",
-        "Latitude": 40.6646,
-        "Longitude": -73.9085
+        "Site_Postal_Code": "11206",
+        "Site_Telephone_Number": "718-388-0390",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "47.00",
+        "Latitude": 40.70555552,
+        "Longitude": -73.94434221
       },
-      "geometry": { "x": -73.9085, "y": 40.6646 }
+      "geometry": {
+        "x": -73.94434221,
+        "y": 40.70555552
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 5007,
-        "Site_ID": "BPHC-NY-0007",
-        "Site_Name": "ODA Primary Health Care Center",
-        "Site_Address": "14 Heyward Street",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-014524",
+        "Site_Name": "ODA Professionals",
+        "Site_Address": "329 Hewes St",
         "Site_City": "Brooklyn",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
-        "Site_Postal_Code": "11249",
-        "Site_Telephone_Number": "(718) 260-4600",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "45",
-        "Latitude": 40.7083,
-        "Longitude": -73.9620
+        "Site_Postal_Code": "11211",
+        "Site_Telephone_Number": "718-384-3475",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "44.00",
+        "Latitude": 40.70651101,
+        "Longitude": -73.95322745
       },
-      "geometry": { "x": -73.9620, "y": 40.7083 }
+      "geometry": {
+        "x": -73.95322745,
+        "y": 40.70651101
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 5008,
-        "Site_ID": "BPHC-NY-0008",
-        "Site_Name": "Community Healthcare Network - Bronx Health Center",
-        "Site_Address": "975 Westchester Avenue",
-        "Site_City": "Bronx",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002898",
+        "Site_Name": "PS 188: The Island School",
+        "Site_Address": "442 E Houston St",
+        "Site_City": "New York",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
-        "Site_Postal_Code": "10459",
-        "Site_Telephone_Number": "(212) 545-2400",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "50",
-        "Latitude": 40.8252,
-        "Longitude": -73.8887
+        "Site_Postal_Code": "10002",
+        "Site_Telephone_Number": "212-749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.71963498,
+        "Longitude": -73.97750664
       },
-      "geometry": { "x": -73.8887, "y": 40.8252 }
+      "geometry": {
+        "x": -73.97750664,
+        "y": 40.71963498
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 5009,
-        "Site_ID": "BPHC-NY-0009",
-        "Site_Name": "Community Health Center of Richmond",
-        "Site_Address": "235 Port Richmond Avenue",
-        "Site_City": "Staten Island",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-007873",
+        "Site_Name": "Third Street Primary Care Clinic",
+        "Site_Address": "8 E 3rd St",
+        "Site_City": "New York",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
-        "Site_Postal_Code": "10302",
-        "Site_Telephone_Number": "(718) 876-1732",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "50",
-        "Latitude": 40.6389,
-        "Longitude": -74.1389
+        "Site_Postal_Code": "10003",
+        "Site_Telephone_Number": "212-533-8400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "41.00",
+        "Latitude": 40.72599244,
+        "Longitude": -73.99092741
       },
-      "geometry": { "x": -74.1389, "y": 40.6389 }
+      "geometry": {
+        "x": -73.99092741,
+        "y": 40.72599244
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 5010,
-        "Site_ID": "BPHC-NY-0010",
-        "Site_Name": "Callen-Lorde Community Health Center",
-        "Site_Address": "356 West 18th Street",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-001641",
+        "Site_Name": "Ryan Health | NENA",
+        "Site_Address": "279 E 3rd St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10009",
+        "Site_Telephone_Number": "212-749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "43.75",
+        "Latitude": 40.72149027,
+        "Longitude": -73.98007401
+      },
+      "geometry": {
+        "x": -73.98007401,
+        "y": 40.72149027
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-000534",
+        "Site_Name": "CALLEN LORDE COMMUNITY HEALTH CENTER",
+        "Site_Address": "356 W 18th St",
         "Site_City": "New York",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
         "Site_Postal_Code": "10011",
-        "Site_Telephone_Number": "(212) 271-7200",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "55",
-        "Latitude": 40.7414,
-        "Longitude": -74.0024
+        "Site_Telephone_Number": "212-271-7200",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.74303608,
+        "Longitude": -74.00312257
       },
-      "geometry": { "x": -74.0024, "y": 40.7414 }
+      "geometry": {
+        "x": -74.00312257,
+        "y": 40.74303608
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 5011,
-        "Site_ID": "BPHC-NY-0011",
-        "Site_Name": "La Clinica Del Barrio",
-        "Site_Address": "413 East 120th Street",
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024629",
+        "Site_Name": "Sydenham Health Center",
+        "Site_Address": "264 W 118th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10026",
+        "Site_Telephone_Number": "212-932-6500",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "62.00",
+        "Latitude": 40.80533118,
+        "Longitude": -73.9535535
+      },
+      "geometry": {
+        "x": -73.9535535,
+        "y": 40.80533118
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-012225",
+        "Site_Name": "Ezra Mobile Dental Van #1",
+        "Site_Address": "1312 38th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11218",
+        "Site_Telephone_Number": "718-686-7600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "32.00",
+        "Latitude": 40.64080934,
+        "Longitude": -73.98527457
+      },
+      "geometry": {
+        "x": -73.98527457,
+        "y": 40.64080934
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-005857",
+        "Site_Name": "Lutheran Augustana Center",
+        "Site_Address": "5434 2nd Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11220",
+        "Site_Telephone_Number": "718-630-6000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Nursing Home",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.64638486,
+        "Longitude": -74.01976643
+      },
+      "geometry": {
+        "x": -74.01976643,
+        "y": 40.64638486
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010994",
+        "Site_Name": "Prevention Assessment Temporary Housing",
+        "Site_Address": "151 E 151st St",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10451",
+        "Site_Telephone_Number": "718-872-9490",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "112.00",
+        "Latitude": 40.82155544,
+        "Longitude": -73.92765502
+      },
+      "geometry": {
+        "x": -73.92765502,
+        "y": 40.82155544
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024414",
+        "Site_Name": "Morrisania D&TC",
+        "Site_Address": "1225 Gerard Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10452",
+        "Site_Telephone_Number": "718-960-2777",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "67.00",
+        "Latitude": 40.83602663,
+        "Longitude": -73.92007928
+      },
+      "geometry": {
+        "x": -73.92007928,
+        "y": 40.83602663
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-000735",
+        "Site_Name": "CIS 303: Leadership & Community Service Academy/232",
+        "Site_Address": "1700 Macombs Rd",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10453",
+        "Site_Telephone_Number": "718-583-5975",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.84949731,
+        "Longitude": -73.91575498
+      },
+      "geometry": {
+        "x": -73.91575498,
+        "y": 40.84949731
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-015078",
+        "Site_Name": "Family Health Center",
+        "Site_Address": "1 Fordham Plz",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10458",
+        "Site_Telephone_Number": "718-933-2400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "54.00",
+        "Latitude": 40.86076754,
+        "Longitude": -73.89010786
+      },
+      "geometry": {
+        "x": -73.89010786,
+        "y": 40.86076754
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-008236",
+        "Site_Name": "Plaza del Sol Health Center",
+        "Site_Address": "3712 108th St",
+        "Site_City": "Corona",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11368",
+        "Site_Telephone_Number": "718-651-4000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "62.00",
+        "Latitude": 40.75339909,
+        "Longitude": -73.8604371
+      },
+      "geometry": {
+        "x": -73.8604371,
+        "y": 40.75339909
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-000410",
+        "Site_Name": "Charles B. Wang Community Health Center, Inc.",
+        "Site_Address": "136-26 37th Ave",
+        "Site_City": "Flushing",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11354",
+        "Site_Telephone_Number": "718-886-1212",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "68.00",
+        "Latitude": 40.76174051,
+        "Longitude": -73.83012084
+      },
+      "geometry": {
+        "x": -73.83012084,
+        "y": 40.76174051
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-000298",
+        "Site_Name": "M.S. 424",
+        "Site_Address": "730 Bryant Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10474",
+        "Site_Telephone_Number": "718-378-3250",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.81546473,
+        "Longitude": -73.88556378
+      },
+      "geometry": {
+        "x": -73.88556378,
+        "y": 40.81546473
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021781",
+        "Site_Name": "PS 12/MS 484",
+        "Site_Address": "430 Howard Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11233",
+        "Site_Telephone_Number": "718-953-4428",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.67285277,
+        "Longitude": -73.91963571
+      },
+      "geometry": {
+        "x": -73.91963571,
+        "y": 40.67285277
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002451",
+        "Site_Name": "SETTLEMENT HEALTH & MEDICAL SERVICES, INC.",
+        "Site_Address": "212 E 106th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10029",
+        "Site_Telephone_Number": "212-360-2600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "44.00",
+        "Latitude": 40.79111945,
+        "Longitude": -73.9440905
+      },
+      "geometry": {
+        "x": -73.9440905,
+        "y": 40.79111945
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-005696",
+        "Site_Name": "HELP CROTONA",
+        "Site_Address": "785 Crotona Park N",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10460",
+        "Site_Telephone_Number": "718-588-4460",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "8.00",
+        "Latitude": 40.840664,
+        "Longitude": -73.89115065
+      },
+      "geometry": {
+        "x": -73.89115065,
+        "y": 40.840664
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-019438",
+        "Site_Name": "Long Island City Health Center",
+        "Site_Address": "3411 Vernon Blvd",
+        "Site_City": "Long Island City",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11106",
+        "Site_Telephone_Number": "347-630-8401",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.76507965,
+        "Longitude": -73.94038545
+      },
+      "geometry": {
+        "x": -73.94038545,
+        "y": 40.76507965
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-021487",
+        "Site_Name": "PS 55 Benjamin Franklin",
+        "Site_Address": "450 Saint Pauls Pl",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10456",
+        "Site_Telephone_Number": "718-681-6227",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.50",
+        "Latitude": 40.83614259,
+        "Longitude": -73.90456053
+      },
+      "geometry": {
+        "x": -73.90456053,
+        "y": 40.83614259
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024694",
+        "Site_Name": "PS 092",
+        "Site_Address": "601 Parkside Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11226",
+        "Site_Telephone_Number": "718-462-8449",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.65613741,
+        "Longitude": -73.9541156
+      },
+      "geometry": {
+        "x": -73.9541156,
+        "y": 40.65613741
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024412",
+        "Site_Name": "East New York Diagnostic and Treatment Center",
+        "Site_Address": "2094 Pitkin Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11207",
+        "Site_Telephone_Number": "718-240-0400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "66.00",
+        "Latitude": 40.6718531,
+        "Longitude": -73.89531403
+      },
+      "geometry": {
+        "x": -73.89531403,
+        "y": 40.6718531
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-001754",
+        "Site_Name": "Brownsville Multi-Service Family Health Center",
+        "Site_Address": "592 Rockaway Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11212",
+        "Site_Telephone_Number": "718-345-5000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "60.00",
+        "Latitude": 40.66541287,
+        "Longitude": -73.90966796
+      },
+      "geometry": {
+        "x": -73.90966796,
+        "y": 40.66541287
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-017128",
+        "Site_Name": "Union Community Health Center #6",
+        "Site_Address": "2016 Bronxdale Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10462",
+        "Site_Telephone_Number": "929-375-3400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.00",
+        "Latitude": 40.85040943,
+        "Longitude": -73.86572742
+      },
+      "geometry": {
+        "x": -73.86572742,
+        "y": 40.85040943
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021981",
+        "Site_Name": "Ridgewood Communicare Clinic",
+        "Site_Address": "769 Onderdonk Ave",
+        "Site_City": "Ridgewood",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11385",
+        "Site_Telephone_Number": "718-334-6190",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.50",
+        "Latitude": 40.70295239,
+        "Longitude": -73.90544482
+      },
+      "geometry": {
+        "x": -73.90544482,
+        "y": 40.70295239
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-001190",
+        "Site_Name": "PS 75",
+        "Site_Address": "984 Faile St",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10459",
+        "Site_Telephone_Number": "718-860-6475",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.82231698,
+        "Longitude": -73.88923246
+      },
+      "geometry": {
+        "x": -73.88923246,
+        "y": 40.82231698
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024510",
+        "Site_Name": "Crown Heights",
+        "Site_Address": "1218 Prospect Pl",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11213",
+        "Site_Telephone_Number": "718-735-0561",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "56.00",
+        "Latitude": 40.67339252,
+        "Longitude": -73.93596291
+      },
+      "geometry": {
+        "x": -73.93596291,
+        "y": 40.67339252
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-016858",
+        "Site_Name": "Ryan Health | Frederick Douglass",
+        "Site_Address": "2381 Frederick Douglass Blvd",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10027",
+        "Site_Telephone_Number": "212-749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.81189123,
+        "Longitude": -73.95015062
+      },
+      "geometry": {
+        "x": -73.95015062,
+        "y": 40.81189123
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-017740",
+        "Site_Name": "CHCR - 135 Canal St, 3rd Floor",
+        "Site_Address": "135 Canal St",
+        "Site_City": "Staten Island",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10304",
+        "Site_Telephone_Number": "718-924-2254",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.62685397,
+        "Longitude": -74.07811152
+      },
+      "geometry": {
+        "x": -74.07811152,
+        "y": 40.62685397
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-040732",
+        "Site_Name": "Care Found Here: Blondell Health Center",
+        "Site_Address": "1400 Blondell Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10461",
+        "Site_Telephone_Number": "212-366-4459",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.84271283,
+        "Longitude": -73.84243503
+      },
+      "geometry": {
+        "x": -73.84243503,
+        "y": 40.84271283
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-004173",
+        "Site_Name": "Ryan Chelsea-Clinton Community Health Center",
+        "Site_Address": "645 10th Ave",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10036",
+        "Site_Telephone_Number": "212-265-4500",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "49.25",
+        "Latitude": 40.76197315,
+        "Longitude": -73.99378731
+      },
+      "geometry": {
+        "x": -73.99378731,
+        "y": 40.76197315
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-013634",
+        "Site_Name": "ODA Quality Health Center",
+        "Site_Address": "432 Bedford Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11249",
+        "Site_Telephone_Number": "718-260-4600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "63.00",
+        "Latitude": 40.70904562,
+        "Longitude": -73.96415259
+      },
+      "geometry": {
+        "x": -73.96415259,
+        "y": 40.70904562
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-036070",
+        "Site_Name": "PS/MS 46 The Arthur Tappan School",
+        "Site_Address": "2987 Frederick Douglass Blvd",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10039",
+        "Site_Telephone_Number": "212-360-1519",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.83140804,
+        "Longitude": -73.9357495
+      },
+      "geometry": {
+        "x": -73.9357495,
+        "y": 40.83140804
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-005815",
+        "Site_Name": "ALL ANGELS CHURCH",
+        "Site_Address": "251 W 80th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10024",
+        "Site_Telephone_Number": "212-362-9300",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "15.00",
+        "Latitude": 40.78481031,
+        "Longitude": -73.98008298
+      },
+      "geometry": {
+        "x": -73.98008298,
+        "y": 40.78481031
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-001858",
+        "Site_Name": "PS 90",
+        "Site_Address": "1116 Sheridan Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10456",
+        "Site_Telephone_Number": "718-681-7023",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.83213433,
+        "Longitude": -73.91785733
+      },
+      "geometry": {
+        "x": -73.91785733,
+        "y": 40.83213433
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-035303",
+        "Site_Name": "Lower East Side Health Center",
+        "Site_Address": "255 E Houston St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10002",
+        "Site_Telephone_Number": "212-477-1120",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.72148482,
+        "Longitude": -73.98512093
+      },
+      "geometry": {
+        "x": -73.98512093,
+        "y": 40.72148482
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-038037",
+        "Site_Name": "SHERO Housing Plus 2",
+        "Site_Address": "297 Essex St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11208",
+        "Site_Telephone_Number": "934-386-0595",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "12.00",
+        "Latitude": 40.67699716,
+        "Longitude": -73.88211362
+      },
+      "geometry": {
+        "x": -73.88211362,
+        "y": 40.67699716
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-003295",
+        "Site_Name": "MHHC at 85 W Burnside",
+        "Site_Address": "85 W Burnside Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10453",
+        "Site_Telephone_Number": "718-716-4400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "53.50",
+        "Latitude": 40.8547016,
+        "Longitude": -73.91035334
+      },
+      "geometry": {
+        "x": -73.91035334,
+        "y": 40.8547016
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-036560",
+        "Site_Name": "Bushwick Educational Campus",
+        "Site_Address": "400 Irving Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11237",
+        "Site_Telephone_Number": "718-381-7100",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.69709814,
+        "Longitude": -73.91138323
+      },
+      "geometry": {
+        "x": -73.91138323,
+        "y": 40.69709814
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5,
+        "Site_ID": "BPS-H80-027525",
+        "Site_Name": "Ryan Health Mobile Health Center",
+        "Site_Address": "1480 Sheridan Expy",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10459",
+        "Site_Telephone_Number": "212-749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.82980973,
+        "Longitude": -73.88511233
+      },
+      "geometry": {
+        "x": -73.88511233,
+        "y": 40.82980973
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-LAL-036820",
+        "Site_Name": "LaSante Health Center Administrative Site",
+        "Site_Address": "640 Parkside Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11226",
+        "Site_Telephone_Number": "718-246-5700",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Unknown",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.65610497,
+        "Longitude": -73.9522476
+      },
+      "geometry": {
+        "x": -73.9522476,
+        "y": 40.65610497
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-014785",
+        "Site_Name": "Boricua Community Health Center",
+        "Site_Address": "3209 3rd Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10451",
+        "Site_Telephone_Number": "718-589-2440",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "49.00",
+        "Latitude": 40.82308745,
+        "Longitude": -73.90931633
+      },
+      "geometry": {
+        "x": -73.90931633,
+        "y": 40.82308745
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-013921",
+        "Site_Name": "Community League Health Center",
+        "Site_Address": "511 W 157th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10032",
+        "Site_Telephone_Number": "212-781-7979",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.00",
+        "Latitude": 40.83313542,
+        "Longitude": -73.94261361
+      },
+      "geometry": {
+        "x": -73.94261361,
+        "y": 40.83313542
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-034886",
+        "Site_Name": "Sun River Health Richmond Hill",
+        "Site_Address": "110-20 Jamaica Ave",
+        "Site_City": "Richmond Hill",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11418",
+        "Site_Telephone_Number": "718-850-4644",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.50",
+        "Latitude": 40.69669216,
+        "Longitude": -73.83736918
+      },
+      "geometry": {
+        "x": -73.83736918,
+        "y": 40.69669216
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-038024",
+        "Site_Name": "Sun River Health Brooklyn Bedford Ave",
+        "Site_Address": "2351 Bedford Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11226",
+        "Site_Telephone_Number": "844-400-1975",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.64633947,
+        "Longitude": -73.95546718
+      },
+      "geometry": {
+        "x": -73.95546718,
+        "y": 40.64633947
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-036363",
+        "Site_Name": "BMS Urgent Care",
+        "Site_Address": "407 Dumont Ave BLDG 407",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11212",
+        "Site_Telephone_Number": "718-345-5000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "55.00",
+        "Latitude": 40.66490102,
+        "Longitude": -73.90433326
+      },
+      "geometry": {
+        "x": -73.90433326,
+        "y": 40.66490102
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-017578",
+        "Site_Name": "PS 188 School Based Health Center",
+        "Site_Address": "3314 Neptune Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11224",
+        "Site_Telephone_Number": "718-265-7580",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "168.00",
+        "Latitude": 40.57702955,
+        "Longitude": -74.00053206
+      },
+      "geometry": {
+        "x": -74.00053206,
+        "y": 40.57702955
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-034377",
+        "Site_Name": "Goldie Maple Academy/P.S. 333",
+        "Site_Address": "3-65 Beach 56th St",
+        "Site_City": "Arverne",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11692",
+        "Site_Telephone_Number": "718-945-3300",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.59090001,
+        "Longitude": -73.78662002
+      },
+      "geometry": {
+        "x": -73.78662002,
+        "y": 40.59090001
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-017803",
+        "Site_Name": "PS 257 School-Based Health Center",
+        "Site_Address": "60 Cook St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11206",
+        "Site_Telephone_Number": "718-384-7128",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.702618,
+        "Longitude": -73.94141257
+      },
+      "geometry": {
+        "x": -73.94141257,
+        "y": 40.702618
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-041141",
+        "Site_Name": "Callen-Lorde 19th Street Administrative Offices",
+        "Site_Address": "155 W 19th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10011",
+        "Site_Telephone_Number": "212-271-7200",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.74151049,
+        "Longitude": -73.99661545
+      },
+      "geometry": {
+        "x": -73.99661545,
+        "y": 40.74151049
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-017275",
+        "Site_Name": "Charles B. Wang Community Health Center, Inc.",
+        "Site_Address": "13743 45th Ave",
+        "Site_City": "Flushing",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11355",
+        "Site_Telephone_Number": "929-362-3018",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "35.00",
+        "Latitude": 40.75156055,
+        "Longitude": -73.82202921
+      },
+      "geometry": {
+        "x": -73.82202921,
+        "y": 40.75156055
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-040993",
+        "Site_Name": "P.S.413 The Joanne Seminara School of Law and Medicine",
+        "Site_Address": "280 Senator St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11220",
+        "Site_Telephone_Number": "347-991-7047",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "16.00",
+        "Latitude": 40.63737298,
+        "Longitude": -74.02565395
+      },
+      "geometry": {
+        "x": -74.02565395,
+        "y": 40.63737298
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-018776",
+        "Site_Name": "P.S. 217 / Magnet School of International Arts and Letters",
+        "Site_Address": "1100 Newkirk Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11230",
+        "Site_Telephone_Number": "718-434-6960",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "25.00",
+        "Latitude": 40.63381083,
+        "Longitude": -73.96637614
+      },
+      "geometry": {
+        "x": -73.96637614,
+        "y": 40.63381083
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-009560",
+        "Site_Name": "PS 57/James Weldon Johnson School-Based Health Center",
+        "Site_Address": "176 E 115th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10029",
+        "Site_Telephone_Number": "212-560-5812",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.7976205,
+        "Longitude": -73.9413927
+      },
+      "geometry": {
+        "x": -73.9413927,
+        "y": 40.7976205
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5,
+        "Site_ID": "BPS-H80-010703",
+        "Site_Name": "CareVan",
+        "Site_Address": "8 E 3rd St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10003",
+        "Site_Telephone_Number": "212-533-8400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.72599244,
+        "Longitude": -73.99092741
+      },
+      "geometry": {
+        "x": -73.99092741,
+        "y": 40.72599244
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-032851",
+        "Site_Name": "MHHC Brooklyn",
+        "Site_Address": "1095 Flatbush Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11226",
+        "Site_Telephone_Number": "718-716-4400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "50.00",
+        "Latitude": 40.64364226,
+        "Longitude": -73.95765569
+      },
+      "geometry": {
+        "x": -73.95765569,
+        "y": 40.64364226
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-LAL-040192",
+        "Site_Name": "Premium Health, Inc.",
+        "Site_Address": "4510 16th Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11204",
+        "Site_Telephone_Number": "718-407-7300",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "58.00",
+        "Latitude": 40.63320306,
+        "Longitude": -73.98361168
+      },
+      "geometry": {
+        "x": -73.98361168,
+        "y": 40.63320306
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-035789",
+        "Site_Name": "Temporary Site - BCCHC Hotel Sanctuary 2",
+        "Site_Address": "310 Wild Ave",
+        "Site_City": "Staten Island",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10314",
+        "Site_Telephone_Number": "917-348-6291",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.58718201,
+        "Longitude": -74.19115062
+      },
+      "geometry": {
+        "x": -74.19115062,
+        "y": 40.58718201
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-004662",
+        "Site_Name": "CHARLES B. WANG COMMUNITY HEALTH CENTER, INC.",
+        "Site_Address": "268 Canal St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10013",
+        "Site_Telephone_Number": "212-379-6988",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "57.00",
+        "Latitude": 40.71877298,
+        "Longitude": -74.00128417
+      },
+      "geometry": {
+        "x": -74.00128417,
+        "y": 40.71877298
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-036367",
+        "Site_Name": "BMS Dental@Bristol",
+        "Site_Address": "259 Bristol St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11212",
+        "Site_Telephone_Number": "929-232-6800",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "43.50",
+        "Latitude": 40.66478351,
+        "Longitude": -73.91138457
+      },
+      "geometry": {
+        "x": -73.91138457,
+        "y": 40.66478351
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-004012",
+        "Site_Name": "PUBLIC SCHOOL #7 SBHC",
+        "Site_Address": "160 E 120th St",
         "Site_City": "New York",
         "Site_State_Abbreviation": "NY",
         "State_Name": "New York",
         "Site_Postal_Code": "10035",
-        "Site_Telephone_Number": "(212) 860-8420",
-        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Community",
-        "Site_Operating_Hours_per_Week": "40",
-        "Latitude": 40.8012,
-        "Longitude": -73.9334
+        "Site_Telephone_Number": "212-876-3690",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.80087855,
+        "Longitude": -73.93926697
       },
-      "geometry": { "x": -73.9334, "y": 40.8012 }
+      "geometry": {
+        "x": -73.93926697,
+        "y": 40.80087855
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-015519",
+        "Site_Name": "In Homes Now Healthcare Services",
+        "Site_Address": "502 W 152nd St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10031",
+        "Site_Telephone_Number": "212-620-0340",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.82990256,
+        "Longitude": -73.94505317
+      },
+      "geometry": {
+        "x": -73.94505317,
+        "y": 40.82990256
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-002266",
+        "Site_Name": "P.S. 48",
+        "Site_Address": "1290 Spofford Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10474",
+        "Site_Telephone_Number": "718-860-1933",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.81423653,
+        "Longitude": -73.88689047
+      },
+      "geometry": {
+        "x": -73.88689047,
+        "y": 40.81423653
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-014992",
+        "Site_Name": "Union Community Health Center #2",
+        "Site_Address": "2021 Grand Conc",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10453",
+        "Site_Telephone_Number": "718-220-2020",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.00",
+        "Latitude": 40.84958214,
+        "Longitude": -73.90598134
+      },
+      "geometry": {
+        "x": -73.90598134,
+        "y": 40.84958214
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002873",
+        "Site_Name": "WASHINGTON IRVING SCHOOL BASED HEALTH CENTER",
+        "Site_Address": "40 Irving Pl",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10003",
+        "Site_Telephone_Number": "646-654-0640",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.73554748,
+        "Longitude": -73.98745118
+      },
+      "geometry": {
+        "x": -73.98745118,
+        "y": 40.73554748
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010397",
+        "Site_Name": "Charles H. Gay Shelter Care-Center for Men",
+        "Site_Address": "One Keener Building",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10035",
+        "Site_Telephone_Number": "212-369-7890",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.00",
+        "Latitude": 40.78901208,
+        "Longitude": -73.93061592
+      },
+      "geometry": {
+        "x": -73.93061592,
+        "y": 40.78901208
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-009483",
+        "Site_Name": "Women Infants Children Family Health Center at NYU Langone",
+        "Site_Address": "5610 2nd Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11220",
+        "Site_Telephone_Number": "718-630-7942",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "79.00",
+        "Latitude": 40.64555597,
+        "Longitude": -74.02082062
+      },
+      "geometry": {
+        "x": -74.02082062,
+        "y": 40.64555597
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-LAL-040180",
+        "Site_Name": "Rambam Family Health Center",
+        "Site_Address": "1404 48th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11219",
+        "Site_Telephone_Number": "718-645-7337",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.50",
+        "Latitude": 40.63400018,
+        "Longitude": -73.98931397
+      },
+      "geometry": {
+        "x": -73.98931397,
+        "y": 40.63400018
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024627",
+        "Site_Name": "Judson Health Center",
+        "Site_Address": "34 Spring St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10012",
+        "Site_Telephone_Number": "212-925-5000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "47.00",
+        "Latitude": 40.72174009,
+        "Longitude": -73.99579989
+      },
+      "geometry": {
+        "x": -73.99579989,
+        "y": 40.72174009
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-014000",
+        "Site_Name": "International Community HS",
+        "Site_Address": "345 Brook Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10454",
+        "Site_Telephone_Number": "718-483-1270",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.8102395,
+        "Longitude": -73.91787426
+      },
+      "geometry": {
+        "x": -73.91787426,
+        "y": 40.8102395
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-002257",
+        "Site_Name": "PS 15 School-Based Health Center",
+        "Site_Address": "71 Sullivan St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11231",
+        "Site_Telephone_Number": "718-788-6572",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.67721216,
+        "Longitude": -74.01138101
+      },
+      "geometry": {
+        "x": -74.01138101,
+        "y": 40.67721216
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-017219",
+        "Site_Name": "The Institute for Family Health",
+        "Site_Address": "2006 Madison Ave",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10035",
+        "Site_Telephone_Number": "212-633-0800",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.8074391,
+        "Longitude": -73.93940292
+      },
+      "geometry": {
+        "x": -73.93940292,
+        "y": 40.8074391
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-003385",
+        "Site_Name": "Park Ridge Family Health Center at NYU Langone",
+        "Site_Address": "6317 4th Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11220",
+        "Site_Telephone_Number": "718-907-8100",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "52.50",
+        "Latitude": 40.63881265,
+        "Longitude": -74.02040706
+      },
+      "geometry": {
+        "x": -74.02040706,
+        "y": 40.63881265
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-004320",
+        "Site_Name": "BRONX COMMUNITY HEALTH NETWORK, INC",
+        "Site_Address": "1 Fordham Plz STE 1108",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10458",
+        "Site_Telephone_Number": "718-405-7720",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Unknown",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.86088304,
+        "Longitude": -73.89004768
+      },
+      "geometry": {
+        "x": -73.89004768,
+        "y": 40.86088304
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010402",
+        "Site_Name": "Grand Central Neighborhood Association",
+        "Site_Address": "120 E 32nd St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10016",
+        "Site_Telephone_Number": "212-833-0680",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "24.00",
+        "Latitude": 40.74521043,
+        "Longitude": -73.98146751
+      },
+      "geometry": {
+        "x": -73.98146751,
+        "y": 40.74521043
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-008725",
+        "Site_Name": "Bronx Health Collective @ 890 Prospect Ave",
+        "Site_Address": "890 Prospect Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10459",
+        "Site_Telephone_Number": "718-991-0605",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "49.00",
+        "Latitude": 40.82077165,
+        "Longitude": -73.90114431
+      },
+      "geometry": {
+        "x": -73.90114431,
+        "y": 40.82077165
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-015077",
+        "Site_Name": "Montefiore Med Group-Williamsbridge",
+        "Site_Address": "3011 Boston Rd",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10469",
+        "Site_Telephone_Number": "718-547-6111",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "51.50",
+        "Latitude": 40.86993717,
+        "Longitude": -73.85716472
+      },
+      "geometry": {
+        "x": -73.85716472,
+        "y": 40.86993717
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-027219",
+        "Site_Name": "Sun River Health Church Avenue Clinic",
+        "Site_Address": "2412 Church Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11226",
+        "Site_Telephone_Number": "718-681-8700",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "63.00",
+        "Latitude": 40.65052216,
+        "Longitude": -73.95533038
+      },
+      "geometry": {
+        "x": -73.95533038,
+        "y": 40.65052216
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-036062",
+        "Site_Name": "91 East Broadway Health Center",
+        "Site_Address": "91 E Broadway",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10002",
+        "Site_Telephone_Number": "833-423-4273",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "35.00",
+        "Latitude": 40.71339838,
+        "Longitude": -73.9936071
+      },
+      "geometry": {
+        "x": -73.9936071,
+        "y": 40.71339838
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-005534",
+        "Site_Name": "BronxCare Health Integrated Services System Inc.",
+        "Site_Address": "1650 Selwyn Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10457",
+        "Site_Telephone_Number": "718-466-8163",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.84363254,
+        "Longitude": -73.9103655
+      },
+      "geometry": {
+        "x": -73.9103655,
+        "y": 40.84363254
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-011662",
+        "Site_Name": "Mott Haven Campus",
+        "Site_Address": "730 Concourse Vlg W",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10451",
+        "Site_Telephone_Number": "718-402-7340",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.50",
+        "Latitude": 40.82258172,
+        "Longitude": -73.92354679
+      },
+      "geometry": {
+        "x": -73.92354679,
+        "y": 40.82258172
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-013208",
+        "Site_Name": "MHHC at Melrose",
+        "Site_Address": "779 Melrose Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10451",
+        "Site_Telephone_Number": "718-716-4400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "39.00",
+        "Latitude": 40.82213015,
+        "Longitude": -73.91496901
+      },
+      "geometry": {
+        "x": -73.91496901,
+        "y": 40.82213015
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-009983",
+        "Site_Name": "PS 90 School-Based Health Center",
+        "Site_Address": "2840 W 12th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11224",
+        "Site_Telephone_Number": "718-266-8090",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.57814531,
+        "Longitude": -73.97983622
+      },
+      "geometry": {
+        "x": -73.97983622,
+        "y": 40.57814531
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-030440",
+        "Site_Name": "Callen-Lorde Brooklyn",
+        "Site_Address": "40 Flatbush Avenue Ext FL 3",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11201",
+        "Site_Telephone_Number": "212-271-7200",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "46.50",
+        "Latitude": 40.69748299,
+        "Longitude": -73.98532871
+      },
+      "geometry": {
+        "x": -73.98532871,
+        "y": 40.69748299
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-004828",
+        "Site_Name": "Park Slope Family Health Center at NYU Langone",
+        "Site_Address": "220 13th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11215",
+        "Site_Telephone_Number": "718-832-5980",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "52.00",
+        "Latitude": 40.66760985,
+        "Longitude": -73.99010405
+      },
+      "geometry": {
+        "x": -73.99010405,
+        "y": 40.66760985
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021906",
+        "Site_Name": "The Care Connection",
+        "Site_Address": "110 W Tremont Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10453",
+        "Site_Telephone_Number": "718-716-4400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "Unknown",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.84982836,
+        "Longitude": -73.91397709
+      },
+      "geometry": {
+        "x": -73.91397709,
+        "y": 40.84982836
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-018466",
+        "Site_Name": "Metro Community Health Centers  -  Downtown Brooklyn",
+        "Site_Address": "177 Livingston St UNIT Ll",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11201",
+        "Site_Telephone_Number": "212-356-1204",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.69020335,
+        "Longitude": -73.98679764
+      },
+      "geometry": {
+        "x": -73.98679764,
+        "y": 40.69020335
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-000121",
+        "Site_Name": "Queens Health Center Site",
+        "Site_Address": "Sutphin Blvd",
+        "Site_City": "Jamaica",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11435",
+        "Site_Telephone_Number": "718-657-7088",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "47.00",
+        "Latitude": 40.69334746,
+        "Longitude": -73.79975301
+      },
+      "geometry": {
+        "x": -73.79975301,
+        "y": 40.69334746
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010398",
+        "Site_Name": "LFHC Community Medicine Program at Bowery Residents Committee",
+        "Site_Address": "317 Bowery",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10003",
+        "Site_Telephone_Number": "212-533-5656",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.72529364,
+        "Longitude": -73.99195486
+      },
+      "geometry": {
+        "x": -73.99195486,
+        "y": 40.72529364
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-040083",
+        "Site_Name": "HCZ Promise Academy II Elementary",
+        "Site_Address": "1681 Madison Ave",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10029",
+        "Site_Telephone_Number": "646-448-8211",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.79712064,
+        "Longitude": -73.94684903
+      },
+      "geometry": {
+        "x": -73.94684903,
+        "y": 40.79712064
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-022235",
+        "Site_Name": "Bedford Community Health Center",
+        "Site_Address": "485 Throop Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11221",
+        "Site_Telephone_Number": "646-614-4900",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "24.00",
+        "Latitude": 40.68552654,
+        "Longitude": -73.94142464
+      },
+      "geometry": {
+        "x": -73.94142464,
+        "y": 40.68552654
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021930",
+        "Site_Name": "Institute for Family Health at Westchester Square",
+        "Site_Address": "1420 Ferris Pl",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10461",
+        "Site_Telephone_Number": "718-730-1004",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.50",
+        "Latitude": 40.83935697,
+        "Longitude": -73.84147556
+      },
+      "geometry": {
+        "x": -73.84147556,
+        "y": 40.83935697
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-LAL-036706",
+        "Site_Name": "BP Dental Center for Kids",
+        "Site_Address": "5309 18th Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11204",
+        "Site_Telephone_Number": "718-246-5700",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.62581127,
+        "Longitude": -73.98344656
+      },
+      "geometry": {
+        "x": -73.98344656,
+        "y": 40.62581127
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-013298",
+        "Site_Name": "La Casa de Salud, Inc.",
+        "Site_Address": "966 Prospect Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10459",
+        "Site_Telephone_Number": "718-842-1412",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "53.00",
+        "Latitude": 40.82292215,
+        "Longitude": -73.90006431
+      },
+      "geometry": {
+        "x": -73.90006431,
+        "y": 40.82292215
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-022081",
+        "Site_Name": "PS 002",
+        "Site_Address": "122 Henry St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10002",
+        "Site_Telephone_Number": "212-964-0350",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.71317496,
+        "Longitude": -73.99135136
+      },
+      "geometry": {
+        "x": -73.99135136,
+        "y": 40.71317496
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-029939",
+        "Site_Name": "Rusk Rehabilitation at 60th Street",
+        "Site_Address": "230 60th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11220",
+        "Site_Telephone_Number": "718-439-5600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "57.00",
+        "Latitude": 40.64307845,
+        "Longitude": -74.02218235
+      },
+      "geometry": {
+        "x": -74.02218235,
+        "y": 40.64307845
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-004674",
+        "Site_Name": "WHITMAN, INGERSOLL, FARRAGUT H C",
+        "Site_Address": "297 Myrtle Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11205",
+        "Site_Telephone_Number": "718-596-8000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.69340381,
+        "Longitude": -73.97617978
+      },
+      "geometry": {
+        "x": -73.97617978,
+        "y": 40.69340381
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010395",
+        "Site_Name": "Atlantic House Shelter",
+        "Site_Address": "2402 Atlantic Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11233",
+        "Site_Telephone_Number": "718-385-8335",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.67586367,
+        "Longitude": -73.90524969
+      },
+      "geometry": {
+        "x": -73.90524969,
+        "y": 40.67586367
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-012038",
+        "Site_Name": "Magnolia House",
+        "Site_Address": "1424 Herkimer St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11233",
+        "Site_Telephone_Number": "718-437-5201",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.67724371,
+        "Longitude": -73.90624621
+      },
+      "geometry": {
+        "x": -73.90624621,
+        "y": 40.67724371
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-040642",
+        "Site_Name": "Grand Street High School",
+        "Site_Address": "850 Grand St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11211",
+        "Site_Telephone_Number": "718-387-2800",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.71213875,
+        "Longitude": -73.93928667
+      },
+      "geometry": {
+        "x": -73.93928667,
+        "y": 40.71213875
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-030182",
+        "Site_Name": "52nd Street Health Center",
+        "Site_Address": "427 W 52nd St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10019",
+        "Site_Telephone_Number": "215-359-2811",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.76549535,
+        "Longitude": -73.98924063
+      },
+      "geometry": {
+        "x": -73.98924063,
+        "y": 40.76549535
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-033084",
+        "Site_Name": "Settlement Health - Plaza 2",
+        "Site_Address": "2082 1st Ave",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10029",
+        "Site_Telephone_Number": "212-360-2600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "14.00",
+        "Latitude": 40.79087713,
+        "Longitude": -73.93913085
+      },
+      "geometry": {
+        "x": -73.93913085,
+        "y": 40.79087713
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-022051",
+        "Site_Name": "VIDA Guidance Center",
+        "Site_Address": "4419 3rd Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10457",
+        "Site_Telephone_Number": "718-589-2440",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.85187425,
+        "Longitude": -73.89303507
+      },
+      "geometry": {
+        "x": -73.89303507,
+        "y": 40.85187425
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-034037",
+        "Site_Name": "JHS 291 - Roland Hayes Campus",
+        "Site_Address": "231 Palmetto St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11221",
+        "Site_Telephone_Number": "718-574-0361",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.69543156,
+        "Longitude": -73.91509784
+      },
+      "geometry": {
+        "x": -73.91509784,
+        "y": 40.69543156
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-014715",
+        "Site_Name": "Downtown Brooklyn Health Center",
+        "Site_Address": "57 Willoughby St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11201",
+        "Site_Telephone_Number": "718-277-0386",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.69223789,
+        "Longitude": -73.98654166
+      },
+      "geometry": {
+        "x": -73.98654166,
+        "y": 40.69223789
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021932",
+        "Site_Name": "Institute for Family Health at CASES",
+        "Site_Address": "2090 Adam Clayton Powell Jr Blvd",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10027",
+        "Site_Telephone_Number": "212-633-0800",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "24.00",
+        "Latitude": 40.80863721,
+        "Longitude": -73.94870835
+      },
+      "geometry": {
+        "x": -73.94870835,
+        "y": 40.80863721
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-032704",
+        "Site_Name": "Fresh Meadows",
+        "Site_Address": "61-27 186th St",
+        "Site_City": "Fresh Meadows",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11365",
+        "Site_Telephone_Number": "718-277-0386",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "168.00",
+        "Latitude": 40.73934402,
+        "Longitude": -73.78797772
+      },
+      "geometry": {
+        "x": -73.78797772,
+        "y": 40.73934402
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024407",
+        "Site_Name": "La Clinica de Las Americas (Dyckman Health Center)",
+        "Site_Address": "175 Nagle Ave",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10034",
+        "Site_Telephone_Number": "212-544-2001",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.86156055,
+        "Longitude": -73.92418306
+      },
+      "geometry": {
+        "x": -73.92418306,
+        "y": 40.86156055
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-018080",
+        "Site_Name": "121st Street Family Health Center",
+        "Site_Address": "219 E 121st St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10035",
+        "Site_Telephone_Number": "646-665-7022",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "46.00",
+        "Latitude": 40.80072855,
+        "Longitude": -73.93664377
+      },
+      "geometry": {
+        "x": -73.93664377,
+        "y": 40.80072855
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-001979",
+        "Site_Name": "BronxCare Medical and Dental at Poe",
+        "Site_Address": "2432 Grand Conc",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10458",
+        "Site_Telephone_Number": "718-817-7900",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.86062836,
+        "Longitude": -73.89789138
+      },
+      "geometry": {
+        "x": -73.89789138,
+        "y": 40.86062836
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002021",
+        "Site_Name": "Walton Campus",
+        "Site_Address": "2780 Reservoir Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10468",
+        "Site_Telephone_Number": "718-364-7400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.50",
+        "Latitude": 40.87079615,
+        "Longitude": -73.89780421
+      },
+      "geometry": {
+        "x": -73.89780421,
+        "y": 40.87079615
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-032452",
+        "Site_Name": "Project Hospitality Health Center",
+        "Site_Address": "150 Richmond Ter",
+        "Site_City": "Staten Island",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10301",
+        "Site_Telephone_Number": "212-366-4459",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.64570207,
+        "Longitude": -74.0778987
+      },
+      "geometry": {
+        "x": -74.0778987,
+        "y": 40.64570207
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-001834",
+        "Site_Name": "BELLA VISTA HEALTH CENTER",
+        "Site_Address": "890 Hunts Point Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10474",
+        "Site_Telephone_Number": "718-589-2141",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "58.00",
+        "Latitude": 40.81933952,
+        "Longitude": -73.88938459
+      },
+      "geometry": {
+        "x": -73.88938459,
+        "y": 40.81933952
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-005168",
+        "Site_Name": "South Bronx Campus",
+        "Site_Address": "701 St Anns Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10455",
+        "Site_Telephone_Number": "718-231-5482",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.50",
+        "Latitude": 40.81826986,
+        "Longitude": -73.91104317
+      },
+      "geometry": {
+        "x": -73.91104317,
+        "y": 40.81826986
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-019276",
+        "Site_Name": "CitiCARES Community Health Center",
+        "Site_Address": "154 W 127th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10027",
+        "Site_Telephone_Number": "212-749-3508",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.80993108,
+        "Longitude": -73.94663952
+      },
+      "geometry": {
+        "x": -73.94663952,
+        "y": 40.80993108
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-000610",
+        "Site_Name": "PS 24 School-Based Health Center",
+        "Site_Address": "427 38th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11232",
+        "Site_Telephone_Number": "718-832-9449",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.65269463,
+        "Longitude": -74.00471756
+      },
+      "geometry": {
+        "x": -74.00471756,
+        "y": 40.65269463
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-000177",
+        "Site_Name": "Fort Washington Dental And Primary Care Clinic",
+        "Site_Address": "651 W 168th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10032",
+        "Site_Telephone_Number": "212-740-1780",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "38.00",
+        "Latitude": 40.84192447,
+        "Longitude": -73.94142347
+      },
+      "geometry": {
+        "x": -73.94142347,
+        "y": 40.84192447
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-015483",
+        "Site_Name": "Ramon Velez Community Health Center",
+        "Site_Address": "754 E 151st St",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10455",
+        "Site_Telephone_Number": "718-960-7601",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "54.50",
+        "Latitude": 40.81474464,
+        "Longitude": -73.90719881
+      },
+      "geometry": {
+        "x": -73.90719881,
+        "y": 40.81474464
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-027575",
+        "Site_Name": "Fannie Lou Hamer M.S./P.S. 66",
+        "Site_Address": "1001 Jennings St",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10460",
+        "Site_Telephone_Number": "718-589-2440",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.83122418,
+        "Longitude": -73.88672618
+      },
+      "geometry": {
+        "x": -73.88672618,
+        "y": 40.83122418
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021834",
+        "Site_Name": "Greenpoint Health Center",
+        "Site_Address": "875 Manhattan Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11222",
+        "Site_Telephone_Number": "718-388-5889",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.50",
+        "Latitude": 40.72969142,
+        "Longitude": -73.95405038
+      },
+      "geometry": {
+        "x": -73.95405038,
+        "y": 40.72969142
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-034376",
+        "Site_Name": "Village Academy (27Q319)",
+        "Site_Address": "10-45 Nameoke St",
+        "Site_City": "Far Rockaway",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11691",
+        "Site_Telephone_Number": "718-471-6042",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.60422946,
+        "Longitude": -73.74934587
+      },
+      "geometry": {
+        "x": -73.74934587,
+        "y": 40.60422946
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-028084",
+        "Site_Name": "P.S. 135 - Sheldon A. Brookner",
+        "Site_Address": "684 Linden Blvd",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11203",
+        "Site_Telephone_Number": "718-693-4363",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.65342649,
+        "Longitude": -73.93297836
+      },
+      "geometry": {
+        "x": -73.93297836,
+        "y": 40.65342649
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-018792",
+        "Site_Name": "Myrtle Avenue Family Health Center",
+        "Site_Address": "11711 Myrtle Ave",
+        "Site_City": "Richmond Hill",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11418",
+        "Site_Telephone_Number": "347-571-5922",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "15.00",
+        "Latitude": 40.70022999,
+        "Longitude": -73.83200803
+      },
+      "geometry": {
+        "x": -73.83200803,
+        "y": 40.70022999
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024413",
+        "Site_Name": "Segundo Ruiz Belvis Diagnostic and Treatment Center",
+        "Site_Address": "545 E 142nd St",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10454",
+        "Site_Telephone_Number": "718-579-4000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "53.00",
+        "Latitude": 40.80987032,
+        "Longitude": -73.91580552
+      },
+      "geometry": {
+        "x": -73.91580552,
+        "y": 40.80987032
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021481",
+        "Site_Name": "The Institute for Family Health at 17th Street",
+        "Site_Address": "230 W 17th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10011",
+        "Site_Telephone_Number": "212-206-5200",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "54.00",
+        "Latitude": 40.7409274,
+        "Longitude": -73.99980577
+      },
+      "geometry": {
+        "x": -73.99980577,
+        "y": 40.7409274
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-015401",
+        "Site_Name": "Via Verde Health Center",
+        "Site_Address": "730 Brook Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10455",
+        "Site_Telephone_Number": "718-484-1247",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "42.50",
+        "Latitude": 40.81930541,
+        "Longitude": -73.91239165
+      },
+      "geometry": {
+        "x": -73.91239165,
+        "y": 40.81930541
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-037485",
+        "Site_Name": "West Farms Family Practice",
+        "Site_Address": "1825 Boston Rd",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10460",
+        "Site_Telephone_Number": "718-842-8040",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.83882246,
+        "Longitude": -73.88543227
+      },
+      "geometry": {
+        "x": -73.88543227,
+        "y": 40.83882246
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-024410",
+        "Site_Name": "Brownsville CHC",
+        "Site_Address": "259 Bristol St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11212",
+        "Site_Telephone_Number": "718-495-7283",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.6647828,
+        "Longitude": -73.91138356
+      },
+      "geometry": {
+        "x": -73.91138356,
+        "y": 40.6647828
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-000537",
+        "Site_Name": "BMS@Jefferson High School Campus",
+        "Site_Address": "400 Pennsylvania Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11207",
+        "Site_Telephone_Number": "718-345-5000 x1126",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.66696046,
+        "Longitude": -73.89463836
+      },
+      "geometry": {
+        "x": -73.89463836,
+        "y": 40.66696046
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-028072",
+        "Site_Name": "James Kieran School Based Health Center",
+        "Site_Address": "1025 Morrison Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10472",
+        "Site_Telephone_Number": "718-328-2105",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "35.00",
+        "Latitude": 40.82505212,
+        "Longitude": -73.87360247
+      },
+      "geometry": {
+        "x": -73.87360247,
+        "y": 40.82505212
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010673",
+        "Site_Name": "Harmony Healthcare Long Island at Elmont",
+        "Site_Address": "161 Hempstead Tpke",
+        "Site_City": "Elmont",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11003",
+        "Site_Telephone_Number": "516-571-8200",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "58.00",
+        "Latitude": 40.70865775,
+        "Longitude": -73.72096986
+      },
+      "geometry": {
+        "x": -73.72096986,
+        "y": 40.70865775
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010995",
+        "Site_Name": "Bella Vista Community Health Center",
+        "Site_Address": "882 Hunts Point Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10474",
+        "Site_Telephone_Number": "718-589-2440",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.81913571,
+        "Longitude": -73.88925861
+      },
+      "geometry": {
+        "x": -73.88925861,
+        "y": 40.81913571
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-LAL-040197",
+        "Site_Name": "Premium Health, Inc.",
+        "Site_Address": "620 Foster Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11230",
+        "Site_Telephone_Number": "718-407-7300",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "58.00",
+        "Latitude": 40.63015326,
+        "Longitude": -73.97088032
+      },
+      "geometry": {
+        "x": -73.97088032,
+        "y": 40.63015326
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-008283",
+        "Site_Name": "DeWitt Clinton High School",
+        "Site_Address": "100 W Mosholu Pkwy S",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10468",
+        "Site_Telephone_Number": "718-543-1000",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.50",
+        "Latitude": 40.88146275,
+        "Longitude": -73.88693171
+      },
+      "geometry": {
+        "x": -73.88693171,
+        "y": 40.88146275
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021112",
+        "Site_Name": "JHS 162 - Lola Rodriguez de Tio (x162 Campus)",
+        "Site_Address": "600 Saint Anns Ave",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10455",
+        "Site_Telephone_Number": "718-483-1270",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.81497276,
+        "Longitude": -73.91229241
+      },
+      "geometry": {
+        "x": -73.91229241,
+        "y": 40.81497276
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-002645",
+        "Site_Name": "SBHC CES 126",
+        "Site_Address": "175 W 166th St",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10452",
+        "Site_Telephone_Number": "718-588-1596",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.8359605,
+        "Longitude": -73.92839254
+      },
+      "geometry": {
+        "x": -73.92839254,
+        "y": 40.8359605
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-027218",
+        "Site_Name": "Sun River Health Westchester Square Health Center",
+        "Site_Address": "2510 Westchester Ave STE 202",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10461",
+        "Site_Telephone_Number": "718-681-8700",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "62.00",
+        "Latitude": 40.83926691,
+        "Longitude": -73.84341127
+      },
+      "geometry": {
+        "x": -73.84341127,
+        "y": 40.83926691
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-022230",
+        "Site_Name": "Vanderbilt Community Health Center",
+        "Site_Address": "165 Vanderbilt Ave",
+        "Site_City": "Staten Island",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10304",
+        "Site_Telephone_Number": "718-616-0999",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "45.00",
+        "Latitude": 40.62025746,
+        "Longitude": -74.07684719
+      },
+      "geometry": {
+        "x": -74.07684719,
+        "y": 40.62025746
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Site_ID": "BPS-H80-009989",
+        "Site_Name": "PS 18 School Based Health Center",
+        "Site_Address": "221 Broadway",
+        "Site_City": "Staten Island",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10310",
+        "Site_Telephone_Number": "718-442-0216",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.63683967,
+        "Longitude": -74.11752633
+      },
+      "geometry": {
+        "x": -74.11752633,
+        "y": 40.63683967
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-031335",
+        "Site_Name": "Ryan Health | Wadsworth",
+        "Site_Address": "154 Wadsworth Ave",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10033",
+        "Site_Telephone_Number": "212-749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "55.50",
+        "Latitude": 40.84975162,
+        "Longitude": -73.93521625
+      },
+      "geometry": {
+        "x": -73.93521625,
+        "y": 40.84975162
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-006017",
+        "Site_Name": "The Bridge",
+        "Site_Address": "248 W 108th St",
+        "Site_City": "New York",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10025",
+        "Site_Telephone_Number": "212-749-1820",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "8.00",
+        "Latitude": 40.80244047,
+        "Longitude": -73.96698416
+      },
+      "geometry": {
+        "x": -73.96698416,
+        "y": 40.80244047
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002263",
+        "Site_Name": "Shore Road Sports Therapy and Rehabilitation",
+        "Site_Address": "9000 Shore Rd",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11209",
+        "Site_Telephone_Number": "718-821-2945",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.62193732,
+        "Longitude": -74.03995869
+      },
+      "geometry": {
+        "x": -74.03995869,
+        "y": 40.62193732
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002039",
+        "Site_Name": "Flatbush Family Health Center at NYU Langone",
+        "Site_Address": "3414 Church Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11203",
+        "Site_Telephone_Number": "718-940-9425",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "44.00",
+        "Latitude": 40.65078112,
+        "Longitude": -73.94513916
+      },
+      "geometry": {
+        "x": -73.94513916,
+        "y": 40.65078112
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-002425",
+        "Site_Name": "PETER JAY SHARP CENTER FOR OPPT",
+        "Site_Address": "89 Porter Ave",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11237",
+        "Site_Telephone_Number": "718-417-2535",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "40.00",
+        "Latitude": 40.70795819,
+        "Longitude": -73.92881189
+      },
+      "geometry": {
+        "x": -73.92881189,
+        "y": 40.70795819
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-027987",
+        "Site_Name": "P.S. 194 - Raoul Wallenberg",
+        "Site_Address": "3117 Avenue W",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11229",
+        "Site_Telephone_Number": "718-648-8804",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "48.00",
+        "Latitude": 40.59715811,
+        "Longitude": -73.93401713
+      },
+      "geometry": {
+        "x": -73.93401713,
+        "y": 40.59715811
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-010480",
+        "Site_Name": "Harrison Circle",
+        "Site_Address": "57 W Burnside Ave # 69",
+        "Site_City": "Bronx",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "10453",
+        "Site_Telephone_Number": "718-716-4400",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "58.50",
+        "Latitude": 40.85434063,
+        "Longitude": -73.90972168
+      },
+      "geometry": {
+        "x": -73.90972168,
+        "y": 40.85434063
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-021995",
+        "Site_Name": "Elmhurst Educational Campus",
+        "Site_Address": "4510 94th St",
+        "Site_City": "Elmhurst",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11373",
+        "Site_Telephone_Number": "718-589-2440",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "School",
+        "Site_Operating_Hours_per_Week": "35.00",
+        "Latitude": 40.74357663,
+        "Longitude": -73.87062295
+      },
+      "geometry": {
+        "x": -73.87062295,
+        "y": 40.74357663
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Site_ID": "BPS-H80-027074",
+        "Site_Name": "Ezra Medical Center Administration",
+        "Site_Address": "1326 38th St",
+        "Site_City": "Brooklyn",
+        "Site_State_Abbreviation": "NY",
+        "State_Name": "New York",
+        "Site_Postal_Code": "11218",
+        "Site_Telephone_Number": "718-686-7600",
+        "Health_Center_Service_Delivery_Site_Location_Setting_Description": "All Other Clinic Types",
+        "Site_Operating_Hours_per_Week": "",
+        "Latitude": 40.64074208,
+        "Longitude": -73.98500727
+      },
+      "geometry": {
+        "x": -73.98500727,
+        "y": 40.64074208
+      }
     }
   ]
 }

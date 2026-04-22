@@ -405,7 +405,16 @@ type MergedResourceItem = ResourceListItem & {
 };
 
 export class ResourceQueryRepository {
-  private static readonly searchRadiusMiles = 10;
+  /**
+   * V2-A — progressive radius tiers. We used to hard-code 10 miles, which
+   * meant a user in a ZIP without a committed provider within 10mi got a
+   * blank list even if a pantry sat 12mi away. The new flow walks these
+   * tiers and stops at the smallest one with ≥3 results (or the last tier,
+   * whichever comes first). `widenedToMiles` in the response tells the PWA
+   * which tier was used so it can render a banner when > 5mi.
+   */
+  private static readonly SEARCH_RADIUS_TIERS = [5, 10, 25, 100] as const;
+  private static readonly WIDEN_MIN_RESULTS = 3;
 
   constructor(private readonly pool: Pool) {}
 
@@ -420,52 +429,87 @@ export class ResourceQueryRepository {
     // — we don't lean on it in the query path). Pruning by `left(zip, 3)`
     // is a ~10-mile urban-NYC proxy that keeps the JS step cheap and
     // lines up with idx_resources_zip3_type_status (migration 0015).
+    //
+    // V2-A note — we KEEP the zip3 prune even for the 25mi/100mi tiers.
+    // A NYC 3-digit prefix spans most of a borough (10-15mi across), and
+    // at pilot scale losing a pantry 20mi away in a different prefix is
+    // fine — the widening loop below still helps the common case (user
+    // in a data-sparse ZIP, adjacent ZIPs have rows).
+    const tiers = ResourceQueryRepository.SEARCH_RADIUS_TIERS;
     const rows = await this.fetchActiveRows({
       zipPrefix: input.zip.slice(0, 3),
       type: input.type ?? null,
     });
     const merged = this.mergeRows(rows, zipCenter);
-    const filtered = merged.filter((item) => {
-      const matchesZip = item.zip === input.zip;
-      const withinRadius =
-        item.distanceMiles !== null && item.distanceMiles <= ResourceQueryRepository.searchRadiusMiles;
 
-      if (!matchesZip && !withinRadius) {
-        return false;
-      }
-
+    const passesNonRadiusFilters = (item: MergedResourceItem, matchesZip: boolean) => {
       if (input.type && item.type !== input.type) {
         return false;
       }
-
       if (input.today && !item.isOpenToday) {
         return false;
       }
-
       if (input.openNow && !item.isOpenNow) {
         return false;
       }
-
+      // Mirror the legacy `matchesZip || withinRadius` shape so rows in the
+      // exact ZIP always pass, even when we have no center to distance-check
+      // against (the zero-geocode case).
+      if (!matchesZip && (item.distanceMiles === null || zipCenter.lat === null || zipCenter.lng === null)) {
+        return false;
+      }
       return true;
-    });
+    };
 
-    filtered.sort((left, right) => {
-      if (left.isOpenNow !== right.isOpenNow) {
-        return left.isOpenNow ? -1 : 1;
-      }
-
-      if (left.distanceMiles !== null && right.distanceMiles !== null) {
-        if (left.distanceMiles !== right.distanceMiles) {
-          return left.distanceMiles - right.distanceMiles;
+    const sortResults = (list: MergedResourceItem[]) =>
+      list.sort((left, right) => {
+        if (left.isOpenNow !== right.isOpenNow) {
+          return left.isOpenNow ? -1 : 1;
         }
-      } else if (left.distanceMiles !== null) {
-        return -1;
-      } else if (right.distanceMiles !== null) {
-        return 1;
-      }
 
-      return left.name.localeCompare(right.name);
-    });
+        if (left.distanceMiles !== null && right.distanceMiles !== null) {
+          if (left.distanceMiles !== right.distanceMiles) {
+            return left.distanceMiles - right.distanceMiles;
+          }
+        } else if (left.distanceMiles !== null) {
+          return -1;
+        } else if (right.distanceMiles !== null) {
+          return 1;
+        }
+
+        return left.name.localeCompare(right.name);
+      });
+
+    let filtered: MergedResourceItem[] = [];
+    let widenedToMiles: number | null = null;
+
+    // V2-A radius-widening loop. Try 5mi first — if we get ≥3 results the
+    // UX is unchanged. If not, widen progressively. `widenedToMiles` is
+    // set even when we land on the first tier so callers can audit what
+    // radius produced the response.
+    for (let tierIdx = 0; tierIdx < tiers.length; tierIdx += 1) {
+      const radius = tiers[tierIdx]!;
+      const tierMatches = merged.filter((item) => {
+        const matchesZip = item.zip === input.zip;
+        const withinRadius =
+          item.distanceMiles !== null && item.distanceMiles <= radius;
+        if (!matchesZip && !withinRadius) {
+          return false;
+        }
+        return passesNonRadiusFilters(item, matchesZip);
+      });
+
+      if (
+        tierMatches.length >= ResourceQueryRepository.WIDEN_MIN_RESULTS ||
+        tierIdx === tiers.length - 1
+      ) {
+        filtered = tierMatches;
+        widenedToMiles = radius;
+        break;
+      }
+    }
+
+    sortResults(filtered);
 
     const limit = input.limit ?? 20;
     const offset = decodeCursor(input.cursor);
@@ -475,7 +519,11 @@ export class ResourceQueryRepository {
     return {
       items,
       nextCursor,
-      sourceMode: "api"
+      sourceMode: "api",
+      // If the caller had no geocoded center we ran zip-exact-match only;
+      // surface `widenedToMiles: null` to signal the radius walk was a no-op.
+      widenedToMiles:
+        zipCenter.lat === null || zipCenter.lng === null ? null : widenedToMiles,
     };
   }
 

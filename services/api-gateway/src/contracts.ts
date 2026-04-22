@@ -604,7 +604,13 @@ export const resourceListResponseSchema = {
     // upstream Nominatim timeout), the sidecar returns an explicit hint so
     // the PWA can show a "no pantries in this area" empty state instead of
     // leaving the user staring at a blank list with no explanation.
-    no_results_in_area: { type: "boolean" }
+    no_results_in_area: { type: "boolean" },
+    // V2-A — effective search radius (miles). The repository walks
+    // progressive tiers [5, 10, 25, 100]; this field reflects which tier
+    // populated the `items` array. Null when the geocoder couldn't
+    // resolve the ZIP (so radius was not applied). PWA uses values > 5
+    // to render a "showing results within N mi" banner.
+    widened_to_miles: { type: ["number", "null"] }
   }
 } as const;
 

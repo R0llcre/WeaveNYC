@@ -15,6 +15,24 @@ import type {
 const SOURCE_ID = "foodhelp_nyc";
 const SOURCE_LABEL = "NYC HRA Food Help NYC";
 const SOURCE_URL = "https://finder.nyc.gov/foodhelp/";
+// V2-A 2026-04-22 — the legacy Socrata dataset `kwhm-eh2p` no longer exists
+// (HRA retired the public CSV in late 2025; `data.cityofnewyork.us` now
+// returns HTTP 404). The live Food Help NYC finder at finder.nyc.gov/foodhelp
+// is a React SPA that queries a private NYC-internal service, not a public
+// Socrata layer. A search of `data.cityofnewyork.us` for "food pantry",
+// "soup kitchen", and "HRA Community Food Connection" returned only the
+// aggregate quarterly report `mpqk-skis` (no addresses).
+//
+// Until HRA republishes site-level data we fall back to the committed
+// fixture `fixtures/foodhelp-nyc.raw.sample.json`, which is hand-curated
+// from well-known public pantry/soup-kitchen addresses across all five
+// boroughs (65 rows spanning the Midtown/Bushwick/Williamsburg ZIPs
+// the prior dataset collapsed to zero on).
+//
+// The `SOCRATA_URL` constant is kept for historical context — `fetchLive`
+// still tries it once so the code path exists if HRA ever republishes the
+// dataset under the same ID. The 404 is caught and the ingest pipeline
+// transparently falls back to the fixture (see the `fetch` method below).
 const SOCRATA_URL =
   "https://data.cityofnewyork.us/resource/kwhm-eh2p.json?$limit=5000";
 const FIXTURE_PATH = path.resolve(

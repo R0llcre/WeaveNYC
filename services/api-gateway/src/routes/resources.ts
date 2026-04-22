@@ -74,6 +74,7 @@ export const resourceRoutes: FastifyPluginAsync = async (app) => {
           next_cursor: string | null;
           source_mode: typeof result.sourceMode;
           no_results_in_area?: boolean;
+          widened_to_miles?: number | null;
         } = {
           items: result.items.map((item) => toResourceSummary(item)),
           next_cursor: result.nextCursor,
@@ -81,6 +82,13 @@ export const resourceRoutes: FastifyPluginAsync = async (app) => {
         };
         if (result.noResultsInArea) {
           body.no_results_in_area = true;
+        }
+        // V2-A — forward the effective search radius so the PWA can render
+        // the widened-banner when > 5mi. `undefined` stays omitted from the
+        // payload; `null` surfaces explicitly so callers can distinguish
+        // "no widening applied" (null) from "legacy server" (key absent).
+        if (result.widenedToMiles !== undefined) {
+          body.widened_to_miles = result.widenedToMiles;
         }
         return body;
       } catch (error) {

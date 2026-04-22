@@ -2,146 +2,3203 @@
   "features": [
     {
       "attributes": {
-        "OBJECTID": 1001,
-        "Store_Name": "C-Town Supermarket",
-        "Address": "4010 103rd Street",
-        "City": "Corona",
+        "OBJECTID": 1527,
+        "Store_Name": "Heavenly Market 10th Avenue Corp.",
+        "Address": "440 10th Ave",
+        "City": "New York",
         "State": "NY",
-        "Zip5": "11368",
-        "Latitude": 40.7499,
-        "Longitude": -73.8639
+        "Zip5": "10001",
+        "Latitude": 40.75491,
+        "Longitude": -73.998695
       },
-      "geometry": { "x": -73.8639, "y": 40.7499 }
+      "geometry": {
+        "x": -73.998695,
+        "y": 40.75491
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1002,
-        "Store_Name": "Key Food Corona",
-        "Address": "104-18 Roosevelt Avenue",
-        "City": "Corona",
+        "OBJECTID": 1293,
+        "Store_Name": "Sonic Drive In",
+        "Address": "730 Broadway",
+        "City": "Brooklyn",
         "State": "NY",
-        "Zip5": "11368",
-        "Latitude": 40.7471,
-        "Longitude": -73.8611
+        "Zip5": "11206",
+        "Latitude": 40.700996,
+        "Longitude": -73.942604
       },
-      "geometry": { "x": -73.8611, "y": 40.7471 }
+      "geometry": {
+        "x": -73.942604,
+        "y": 40.700996
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1003,
-        "Store_Name": "Bravo Supermarket",
-        "Address": "838 Hunts Point Avenue",
+        "OBJECTID": 804,
+        "Store_Name": "Aden Food Market corp",
+        "Address": "351 Bedford Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11211",
+        "Latitude": 40.711769,
+        "Longitude": -73.962891
+      },
+      "geometry": {
+        "x": -73.962891,
+        "y": 40.711769
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 907,
+        "Store_Name": "C.T. Seafood Marts Corp.",
+        "Address": "249 Grand Street",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10002",
+        "Latitude": 40.718132,
+        "Longitude": -73.99411
+      },
+      "geometry": {
+        "x": -73.99411,
+        "y": 40.718132
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1750,
+        "Store_Name": "Target Store T3380",
+        "Address": "10 Union Sq E",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10003",
+        "Latitude": 40.73484,
+        "Longitude": -73.989784
+      },
+      "geometry": {
+        "x": -73.989784,
+        "y": 40.73484
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 22332,
+        "Store_Name": "Nyc Grill & Deli Corp",
+        "Address": "191 Avenue A",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10009",
+        "Latitude": 40.729012,
+        "Longitude": -73.981567
+      },
+      "geometry": {
+        "x": -73.981567,
+        "y": 40.729012
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2553,
+        "Store_Name": "GRISTEDE'S 545",
+        "Address": "225 9th Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10011",
+        "Latitude": 40.74707,
+        "Longitude": -74.001137
+      },
+      "geometry": {
+        "x": -74.001137,
+        "y": 40.74707
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 3227,
+        "Store_Name": "117 CORONA MEAT CORP.",
+        "Address": "136 Malcolm X Blvd",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10026",
+        "Latitude": 40.802773,
+        "Longitude": -73.948952
+      },
+      "geometry": {
+        "x": -73.948952,
+        "y": 40.802773
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 671,
+        "Store_Name": "Modega Inc.",
+        "Address": "101 Albemarle Rd",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11218",
+        "Latitude": 40.645264,
+        "Longitude": -73.979698
+      },
+      "geometry": {
+        "x": -73.979698,
+        "y": 40.645264
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 827,
+        "Store_Name": "Jiajia Grocery Inc",
+        "Address": "5522 7th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11220",
+        "Latitude": 40.639297,
+        "Longitude": -74.009407
+      },
+      "geometry": {
+        "x": -74.009407,
+        "y": 40.639297
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1436,
+        "Store_Name": "Concourse Gourmet",
+        "Address": "845 Concourse Vlg W",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10451",
+        "Latitude": 40.825581,
+        "Longitude": -73.921974
+      },
+      "geometry": {
+        "x": -73.921974,
+        "y": 40.825581
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 45,
+        "Store_Name": "Sea & Salt Seafood Corp",
+        "Address": "15 E 170th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10452",
+        "Latitude": 40.840118,
+        "Longitude": -73.917038
+      },
+      "geometry": {
+        "x": -73.917038,
+        "y": 40.840118
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 156,
+        "Store_Name": "174th Grand Foodmart Corp",
+        "Address": "1645 Grand Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10453",
+        "Latitude": 40.847061,
+        "Longitude": -73.91526
+      },
+      "geometry": {
+        "x": -73.91526,
+        "y": 40.847061
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 433,
+        "Store_Name": "I & C Meat Market Inc",
+        "Address": "541 E 183rd St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10458",
+        "Latitude": 40.854511,
+        "Longitude": -73.891571
+      },
+      "geometry": {
+        "x": -73.891571,
+        "y": 40.854511
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 825,
+        "Store_Name": "Mi Pueblito",
+        "Address": "3916 104th St",
+        "City": "Corona",
+        "State": "NY",
+        "Zip5": "11368",
+        "Latitude": 40.75042,
+        "Longitude": -73.862114
+      },
+      "geometry": {
+        "x": -73.862114,
+        "y": 40.75042
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 5945,
+        "Store_Name": "KWONS CORP/HAN AH REUM II",
+        "Address": "2902 Union St",
+        "City": "Flushing",
+        "State": "NY",
+        "Zip5": "11354",
+        "Latitude": 40.772232,
+        "Longitude": -73.82663
+      },
+      "geometry": {
+        "x": -73.82663,
+        "y": 40.772232
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 1398,
+        "Store_Name": "Salcedo Supermarket Corp",
+        "Address": "1318 Lafayette Ave",
         "City": "Bronx",
         "State": "NY",
         "Zip5": "10474",
-        "Latitude": 40.8126,
-        "Longitude": -73.8861
+        "Latitude": 40.816769,
+        "Longitude": -73.886253
       },
-      "geometry": { "x": -73.8861, "y": 40.8126 }
+      "geometry": {
+        "x": -73.886253,
+        "y": 40.816769
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1004,
-        "Store_Name": "Fine Fare Supermarket",
-        "Address": "900 Southern Boulevard",
-        "City": "Bronx",
+        "OBJECTID": 999,
+        "Store_Name": "Malcolmx Group Inc 1",
+        "Address": "354 Malcolm X Blvd",
+        "City": "Brooklyn",
         "State": "NY",
-        "Zip5": "10459",
-        "Latitude": 40.8255,
-        "Longitude": -73.8894
+        "Zip5": "11233",
+        "Latitude": 40.680706,
+        "Longitude": -73.928833
       },
-      "geometry": { "x": -73.8894, "y": 40.8255 }
+      "geometry": {
+        "x": -73.928833,
+        "y": 40.680706
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1005,
-        "Store_Name": "Associated Supermarket",
-        "Address": "2032 Third Avenue",
+        "OBJECTID": 369,
+        "Store_Name": "Metro Cafe & Grill Corp",
+        "Address": "1965 1st Ave",
         "City": "New York",
         "State": "NY",
         "Zip5": "10029",
-        "Latitude": 40.7945,
-        "Longitude": -73.9446
+        "Latitude": 40.786598,
+        "Longitude": -73.94236
       },
-      "geometry": { "x": -73.9446, "y": 40.7945 }
+      "geometry": {
+        "x": -73.94236,
+        "y": 40.786598
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1006,
-        "Store_Name": "Western Beef",
-        "Address": "3034 Northern Boulevard",
+        "OBJECTID": 904,
+        "Store_Name": "McDonald's E Tremont #14518",
+        "Address": "1101 E Tremont Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10460",
+        "Latitude": 40.840336,
+        "Longitude": -73.876945
+      },
+      "geometry": {
+        "x": -73.876945,
+        "y": 40.840336
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 19232,
+        "Store_Name": "Crescent Food Corp",
+        "Address": "2355 Broadway",
         "City": "Long Island City",
         "State": "NY",
-        "Zip5": "11101",
-        "Latitude": 40.7557,
-        "Longitude": -73.9271
+        "Zip5": "11106",
+        "Latitude": 40.76355,
+        "Longitude": -73.928627
       },
-      "geometry": { "x": -73.9271, "y": 40.7557 }
+      "geometry": {
+        "x": -73.928627,
+        "y": 40.76355
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1007,
-        "Store_Name": "Foodtown",
-        "Address": "1325 Fulton Street",
+        "OBJECTID": 105,
+        "Store_Name": "1086 Luna Deli Grocery Corp",
+        "Address": "1086 Boston Rd",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10456",
+        "Latitude": 40.826992,
+        "Longitude": -73.905029
+      },
+      "geometry": {
+        "x": -73.905029,
+        "y": 40.826992
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 794,
+        "Store_Name": "Adam Deli Grocery Ii Corp.",
+        "Address": "863 Flatbush Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11226",
+        "Latitude": 40.651108,
+        "Longitude": -73.958725
+      },
+      "geometry": {
+        "x": -73.958725,
+        "y": 40.651108
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 728,
+        "Store_Name": "Sonic Drive In",
+        "Address": "805 Pennsylvania Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11207",
+        "Latitude": 40.658108,
+        "Longitude": -73.889938
+      },
+      "geometry": {
+        "x": -73.889938,
+        "y": 40.658108
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 914,
+        "Store_Name": "Lebron Restaurant Inc",
+        "Address": "1567A Pitkin Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.669079,
+        "Longitude": -73.915718
+      },
+      "geometry": {
+        "x": -73.915718,
+        "y": 40.669079
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 303,
+        "Store_Name": "Amani Halal Meat Market Corp",
+        "Address": "705 Rhinelander Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10462",
+        "Latitude": 40.84771,
+        "Longitude": -73.86657
+      },
+      "geometry": {
+        "x": -73.86657,
+        "y": 40.84771
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2278,
+        "Store_Name": "HOME DELI & CATERING",
+        "Address": "7135 73rd Pl",
+        "City": "Glendale",
+        "State": "NY",
+        "Zip5": "11385",
+        "Latitude": 40.70451,
+        "Longitude": -73.876282
+      },
+      "geometry": {
+        "x": -73.876282,
+        "y": 40.70451
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 253782,
+        "Store_Name": "Mr. Mango",
+        "Address": "59 Lafayette Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11217",
+        "Latitude": 40.687283,
+        "Longitude": -73.976143
+      },
+      "geometry": {
+        "x": -73.976143,
+        "y": 40.687283
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 73553,
+        "Store_Name": "Steven Deli & Grocery Corp",
+        "Address": "325 Cypress Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10454",
+        "Latitude": 40.807789,
+        "Longitude": -73.913483
+      },
+      "geometry": {
+        "x": -73.913483,
+        "y": 40.807789
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 233496,
+        "Store_Name": "C-Town Farmers Market",
+        "Address": "5802 Metropolitan Ave",
+        "City": "Ridgewood",
+        "State": "NY",
+        "Zip5": "11385",
+        "Latitude": 40.712521,
+        "Longitude": -73.905739
+      },
+      "geometry": {
+        "x": -73.905739,
+        "y": 40.712521
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 145582,
+        "Store_Name": "New True Blue Deli Grocery Corp",
+        "Address": "2741 Frederick Douglass Blvd",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10039",
+        "Latitude": 40.82362,
+        "Longitude": -73.941383
+      },
+      "geometry": {
+        "x": -73.941383,
+        "y": 40.82362
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 243264,
+        "Store_Name": "Freshlab Supermarket Inc",
+        "Address": "24926 Horace Harding Expy",
+        "City": "Little Neck",
+        "State": "NY",
+        "Zip5": "11362",
+        "Latitude": 40.760708,
+        "Longitude": -73.730789
+      },
+      "geometry": {
+        "x": -73.730789,
+        "y": 40.760708
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 91525,
+        "Store_Name": "Dollar Tree 5099",
+        "Address": "1701 Utica Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11234",
+        "Latitude": 40.630726,
+        "Longitude": -73.928108
+      },
+      "geometry": {
+        "x": -73.928108,
+        "y": 40.630726
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 206837,
+        "Store_Name": "Brooklyn Harvest Market",
+        "Address": "8102 3rd Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11209",
+        "Latitude": 40.626842,
+        "Longitude": -74.029724
+      },
+      "geometry": {
+        "x": -74.029724,
+        "y": 40.626842
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 211300,
+        "Store_Name": "Ricky Deli Store I I  Inc.",
+        "Address": "14706 45th Ave",
+        "City": "Flushing",
+        "State": "NY",
+        "Zip5": "11355",
+        "Latitude": 40.75547,
+        "Longitude": -73.815056
+      },
+      "geometry": {
+        "x": -73.815056,
+        "y": 40.75547
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 192887,
+        "Store_Name": "B & K Blessing Corp",
+        "Address": "512 E 149th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10455",
+        "Latitude": 40.814674,
+        "Longitude": -73.914642
+      },
+      "geometry": {
+        "x": -73.914642,
+        "y": 40.814674
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 41739,
+        "Store_Name": "YELLOW MARKET CORP",
+        "Address": "5812 Glenwood Rd",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11234",
+        "Latitude": 40.633636,
+        "Longitude": -73.920067
+      },
+      "geometry": {
+        "x": -73.920067,
+        "y": 40.633636
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 239114,
+        "Store_Name": "Monarch Deli Corp.",
+        "Address": "2006 Lexington Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10035",
+        "Latitude": 40.802711,
+        "Longitude": -73.938812
+      },
+      "geometry": {
+        "x": -73.938812,
+        "y": 40.802711
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 183870,
+        "Store_Name": "Tremont Gourmet Deli Inc",
+        "Address": "706 E Tremont Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10457",
+        "Latitude": 40.845078,
+        "Longitude": -73.891045
+      },
+      "geometry": {
+        "x": -73.891045,
+        "y": 40.845078
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 19773,
+        "Store_Name": "CVS PHARMACY  6048",
+        "Address": "1933 Victory Blvd",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10314",
+        "Latitude": 40.612804,
+        "Longitude": -74.12867
+      },
+      "geometry": {
+        "x": -74.12867,
+        "y": 40.612804
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 162828,
+        "Store_Name": "Seafoodmixer Market",
+        "Address": "1812 Seward Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10473",
+        "Latitude": 40.819145,
+        "Longitude": -73.862785
+      },
+      "geometry": {
+        "x": -73.862785,
+        "y": 40.819145
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 208410,
+        "Store_Name": "Rico Ambateno Deli Llc",
+        "Address": "198 Wyckoff Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11237",
+        "Latitude": 40.701641,
+        "Longitude": -73.915115
+      },
+      "geometry": {
+        "x": -73.915115,
+        "y": 40.701641
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 190685,
+        "Store_Name": "Golden Krust",
+        "Address": "1364 Pennsylvania Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11239",
+        "Latitude": 40.646763,
+        "Longitude": -73.883438
+      },
+      "geometry": {
+        "x": -73.883438,
+        "y": 40.646763
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 239931,
+        "Store_Name": "Katonah Irish Mini Mart Inc.",
+        "Address": "4345 Katonah Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10470",
+        "Latitude": 40.900127,
+        "Longitude": -73.867828
+      },
+      "geometry": {
+        "x": -73.867828,
+        "y": 40.900127
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 189307,
+        "Store_Name": "12e 196th St Foos Inc",
+        "Address": "12 E 196th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10468",
+        "Latitude": 40.868904,
+        "Longitude": -73.895546
+      },
+      "geometry": {
+        "x": -73.895546,
+        "y": 40.868904
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 96768,
+        "Store_Name": "K & K Seafood Inc",
+        "Address": "5518 8th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11220",
+        "Latitude": 40.638008,
+        "Longitude": -74.007156
+      },
+      "geometry": {
+        "x": -74.007156,
+        "y": 40.638008
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 184022,
+        "Store_Name": "Anabelle Deli Grocery Corp",
+        "Address": "2121 2nd Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10029",
+        "Latitude": 40.792736,
+        "Longitude": -73.941132
+      },
+      "geometry": {
+        "x": -73.941132,
+        "y": 40.792736
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 17157,
+        "Store_Name": "J & J GROCERY",
+        "Address": "1840 Coney Island Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11230",
+        "Latitude": 40.612408,
+        "Longitude": -73.963028
+      },
+      "geometry": {
+        "x": -73.963028,
+        "y": 40.612408
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 217990,
+        "Store_Name": "Maspeth Grill & Deli Corp",
+        "Address": "7101 Grand Ave",
+        "City": "Maspeth",
+        "State": "NY",
+        "Zip5": "11378",
+        "Latitude": 40.727943,
+        "Longitude": -73.892235
+      },
+      "geometry": {
+        "x": -73.892235,
+        "y": 40.727943
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 11743,
+        "Store_Name": "Castle Of The Kingdom Organic Market Corp.",
+        "Address": "736 Flatbush Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11226",
+        "Latitude": 40.655037,
+        "Longitude": -73.959892
+      },
+      "geometry": {
+        "x": -73.959892,
+        "y": 40.655037
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 196095,
+        "Store_Name": "Diprice Inc.",
+        "Address": "8702 4th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11209",
+        "Latitude": 40.621956,
+        "Longitude": -74.028908
+      },
+      "geometry": {
+        "x": -74.028908,
+        "y": 40.621956
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 223554,
+        "Store_Name": "Broadway Stop N Go Grocery Inc.",
+        "Address": "5311 Broadway",
+        "City": "Woodside",
+        "State": "NY",
+        "Zip5": "11377",
+        "Latitude": 40.753582,
+        "Longitude": -73.907227
+      },
+      "geometry": {
+        "x": -73.907227,
+        "y": 40.753582
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 188970,
+        "Store_Name": "CD East Harlem Deli Corp",
+        "Address": "2375 2nd Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10035",
+        "Latitude": 40.80077,
+        "Longitude": -73.93531
+      },
+      "geometry": {
+        "x": -73.93531,
+        "y": 40.80077
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 195403,
+        "Store_Name": "Jl Plum Tree LLC",
+        "Address": "1156 Flatbush Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11226",
+        "Latitude": 40.642078,
+        "Longitude": -73.957245
+      },
+      "geometry": {
+        "x": -73.957245,
+        "y": 40.642078
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 29754,
+        "Store_Name": "Mega Seafood Corp.",
+        "Address": "1181 Morrison Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10472",
+        "Latitude": 40.828938,
+        "Longitude": -73.874619
+      },
+      "geometry": {
+        "x": -73.874619,
+        "y": 40.828938
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 83652,
+        "Store_Name": "La Oaxaquena Corp",
+        "Address": "2276 Jerome Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10453",
+        "Latitude": 40.85849,
+        "Longitude": -73.903603
+      },
+      "geometry": {
+        "x": -73.903603,
+        "y": 40.85849
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 149439,
+        "Store_Name": "Cousins Meats & Fish Llc",
+        "Address": "1443 Webster Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10456",
+        "Latitude": 40.837612,
+        "Longitude": -73.906609
+      },
+      "geometry": {
+        "x": -73.906609,
+        "y": 40.837612
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 224345,
+        "Store_Name": "Amira Halal Meat Inc",
+        "Address": "2201 59th St",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11204",
+        "Latitude": 40.617203,
+        "Longitude": -73.977486
+      },
+      "geometry": {
+        "x": -73.977486,
+        "y": 40.617203
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 124659,
+        "Store_Name": "Orlando 7 Corp",
+        "Address": "1190 Cromwell Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10452",
+        "Latitude": 40.835743,
+        "Longitude": -73.922348
+      },
+      "geometry": {
+        "x": -73.922348,
+        "y": 40.835743
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 18904,
+        "Store_Name": "Mk Halal Food Market",
+        "Address": "2610 3rd Avenue",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10454",
+        "Latitude": 40.811993,
+        "Longitude": -73.925018
+      },
+      "geometry": {
+        "x": -73.925018,
+        "y": 40.811993
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 215762,
+        "Store_Name": "Metro Deli Mini Market Inc",
+        "Address": "6512 Metropolitan Ave",
+        "City": "Middle Village",
+        "State": "NY",
+        "Zip5": "11379",
+        "Latitude": 40.712399,
+        "Longitude": -73.895767
+      },
+      "geometry": {
+        "x": -73.895767,
+        "y": 40.712399
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 128487,
+        "Store_Name": "Fresh And Clean I Inc.",
+        "Address": "1755 Richmond Rd",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10306",
+        "Latitude": 40.587505,
+        "Longitude": -74.103683
+      },
+      "geometry": {
+        "x": -74.103683,
+        "y": 40.587505
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 65941,
+        "Store_Name": "Munch'n Out Food & Convenience",
+        "Address": "1215 Grand Concourse",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10452",
+        "Latitude": 40.83503,
+        "Longitude": -73.917648
+      },
+      "geometry": {
+        "x": -73.917648,
+        "y": 40.83503
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 231349,
+        "Store_Name": "Friendly Market 168 Inc",
+        "Address": "5516 Myrtle Ave",
+        "City": "Ridgewood",
+        "State": "NY",
+        "Zip5": "11385",
+        "Latitude": 40.699833,
+        "Longitude": -73.90786
+      },
+      "geometry": {
+        "x": -73.90786,
+        "y": 40.699833
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 148704,
+        "Store_Name": "Wing Long Trading Inc 135",
+        "Address": "135 Mott St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10013",
+        "Latitude": 40.718472,
+        "Longitude": -73.996773
+      },
+      "geometry": {
+        "x": -73.996773,
+        "y": 40.718472
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 229360,
+        "Store_Name": "Acapulco Deli Grocery & Tacos Corp",
+        "Address": "206 Dyckman St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10040",
+        "Latitude": 40.86512,
+        "Longitude": -73.927025
+      },
+      "geometry": {
+        "x": -73.927025,
+        "y": 40.86512
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 192657,
+        "Store_Name": "M & M Detox Deli Corp",
+        "Address": "134 Manhattan Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11206",
+        "Latitude": 40.707336,
+        "Longitude": -73.944786
+      },
+      "geometry": {
+        "x": -73.944786,
+        "y": 40.707336
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 100209,
+        "Store_Name": "2185 Adam 99C Corp",
+        "Address": "2185 Adam Clayton Powell Jr Blvd",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10027",
+        "Latitude": 40.811687,
+        "Longitude": -73.946198
+      },
+      "geometry": {
+        "x": -73.946198,
+        "y": 40.811687
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 193827,
+        "Store_Name": "Ocean Deli And Grill Inc",
+        "Address": "2616 Ocean Pkwy",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11235",
+        "Latitude": 40.586163,
+        "Longitude": -73.966682
+      },
+      "geometry": {
+        "x": -73.966682,
+        "y": 40.586163
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 16691,
+        "Store_Name": "C TOWN SUPERMARKET",
+        "Address": "8129 Lefferts Blvd",
+        "City": "Kew Gardens",
+        "State": "NY",
+        "Zip5": "11415",
+        "Latitude": 40.708683,
+        "Longitude": -73.830566
+      },
+      "geometry": {
+        "x": -73.830566,
+        "y": 40.708683
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 37344,
+        "Store_Name": "KF Frozen Seafood Market",
+        "Address": "3310 Church Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11203",
+        "Latitude": 40.65086,
+        "Longitude": -73.946266
+      },
+      "geometry": {
+        "x": -73.946266,
+        "y": 40.65086
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 104847,
+        "Store_Name": "Tremont Food Market Inc.",
+        "Address": "920 E Tremont Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10460",
+        "Latitude": 40.841656,
+        "Longitude": -73.883797
+      },
+      "geometry": {
+        "x": -73.883797,
+        "y": 40.841656
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 205158,
+        "Store_Name": "B And H Kosher Bakery",
+        "Address": "188 Lee Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11211",
+        "Latitude": 40.702339,
+        "Longitude": -73.956223
+      },
+      "geometry": {
+        "x": -73.956223,
+        "y": 40.702339
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 99328,
+        "Store_Name": "Bushwick Organic Deli Corp.",
+        "Address": "1222 Bushwick Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11221",
+        "Latitude": 40.687687,
+        "Longitude": -73.915466
+      },
+      "geometry": {
+        "x": -73.915466,
+        "y": 40.687687
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 209665,
+        "Store_Name": "Fix-U-Plate",
+        "Address": "1139 Clarkson Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.660885,
+        "Longitude": -73.920738
+      },
+      "geometry": {
+        "x": -73.920738,
+        "y": 40.660885
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 92659,
+        "Store_Name": "Mi Casa Bakery Corp",
+        "Address": "18 Bedford Park Blvd E",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10468",
+        "Latitude": 40.872795,
+        "Longitude": -73.888954
+      },
+      "geometry": {
+        "x": -73.888954,
+        "y": 40.872795
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 31956,
+        "Store_Name": "Dtj 1727 Corp./Antillana Market Place",
+        "Address": "1725 University Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10453",
+        "Latitude": 40.849838,
+        "Longitude": -73.916817
+      },
+      "geometry": {
+        "x": -73.916817,
+        "y": 40.849838
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 215041,
+        "Store_Name": "3100 Third Ave Food LLC Foodtown 528",
+        "Address": "3100 3rd Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10451",
+        "Latitude": 40.821693,
+        "Longitude": -73.911995
+      },
+      "geometry": {
+        "x": -73.911995,
+        "y": 40.821693
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 253798,
+        "Store_Name": "109 Ave Deli & Grill Corp.",
+        "Address": "10902 Guy r Brewer Blvd",
+        "City": "Jamaica",
+        "State": "NY",
+        "Zip5": "11433",
+        "Latitude": 40.694752,
+        "Longitude": -73.790237
+      },
+      "geometry": {
+        "x": -73.790237,
+        "y": 40.694752
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 61505,
+        "Store_Name": "Walgreens 17979",
+        "Address": "7814 Linden Blvd",
+        "City": "Howard Beach",
+        "State": "NY",
+        "Zip5": "11414",
+        "Latitude": 40.670033,
+        "Longitude": -73.85704
+      },
+      "geometry": {
+        "x": -73.85704,
+        "y": 40.670033
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 7650,
+        "Store_Name": "2500 Victory Blvd Meat Corp",
+        "Address": "2500B Victory Blvd",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10314",
+        "Latitude": 40.609867,
+        "Longitude": -74.146439
+      },
+      "geometry": {
+        "x": -74.146439,
+        "y": 40.609867
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 134811,
+        "Store_Name": "Gaspare The Meat Boss",
+        "Address": "6843 Myrtle Ave",
+        "City": "Glendale",
+        "State": "NY",
+        "Zip5": "11385",
+        "Latitude": 40.701794,
+        "Longitude": -73.883057
+      },
+      "geometry": {
+        "x": -73.883057,
+        "y": 40.701794
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 108200,
+        "Store_Name": "Green Valley Corp/Fine Fare",
+        "Address": "8945 163rd St",
+        "City": "Jamaica",
+        "State": "NY",
+        "Zip5": "11432",
+        "Latitude": 40.70578,
+        "Longitude": -73.797401
+      },
+      "geometry": {
+        "x": -73.797401,
+        "y": 40.70578
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 191113,
+        "Store_Name": "Zsk LLC",
+        "Address": "69 Church Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11218",
+        "Latitude": 40.642483,
+        "Longitude": -73.980789
+      },
+      "geometry": {
+        "x": -73.980789,
+        "y": 40.642483
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 236308,
+        "Store_Name": "Campus Deli And Grill Inc",
+        "Address": "1606 Amsterdam Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10031",
+        "Latitude": 40.821625,
+        "Longitude": -73.95047
+      },
+      "geometry": {
+        "x": -73.95047,
+        "y": 40.821625
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 251561,
+        "Store_Name": "Elena Master Grocery Corp",
+        "Address": "1801 Pitkin Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.670448,
+        "Longitude": -73.906487
+      },
+      "geometry": {
+        "x": -73.906487,
+        "y": 40.670448
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 131407,
+        "Store_Name": "Giffords Lane Bagels & Deli Inc",
+        "Address": "27 Giffords Ln",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10308",
+        "Latitude": 40.551502,
+        "Longitude": -74.150383
+      },
+      "geometry": {
+        "x": -74.150383,
+        "y": 40.551502
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 254783,
+        "Store_Name": "Kaho International Market Corp",
+        "Address": "741 Jennings St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10459",
+        "Latitude": 40.831928,
+        "Longitude": -73.898567
+      },
+      "geometry": {
+        "x": -73.898567,
+        "y": 40.831928
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 17404,
+        "Store_Name": "Nabu Market",
+        "Address": "2024 Webster Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10457",
+        "Latitude": 40.850666,
+        "Longitude": -73.898949
+      },
+      "geometry": {
+        "x": -73.898949,
+        "y": 40.850666
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 232794,
+        "Store_Name": "Big Lou 3 Grocery And Deli Corp.",
+        "Address": "22316 S Conduit Ave",
+        "City": "Springfield Gardens",
+        "State": "NY",
+        "Zip5": "11413",
+        "Latitude": 40.665451,
+        "Longitude": -73.754517
+      },
+      "geometry": {
+        "x": -73.754517,
+        "y": 40.665451
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 182296,
+        "Store_Name": "Leidy Mini Market Inc.",
+        "Address": "33 Van Cortlandt Avenue East",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10468",
+        "Latitude": 40.877327,
+        "Longitude": -73.886414
+      },
+      "geometry": {
+        "x": -73.886414,
+        "y": 40.877327
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 215603,
+        "Store_Name": "Metropolitan Citymarket",
+        "Address": "1142 Bedford Ave",
         "City": "Brooklyn",
         "State": "NY",
         "Zip5": "11216",
-        "Latitude": 40.6805,
-        "Longitude": -73.9511
+        "Latitude": 40.685181,
+        "Longitude": -73.954437
       },
-      "geometry": { "x": -73.9511, "y": 40.6805 }
+      "geometry": {
+        "x": -73.954437,
+        "y": 40.685181
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1008,
-        "Store_Name": "Met Food Supermarket",
-        "Address": "5811 Fort Hamilton Parkway",
+        "OBJECTID": 93120,
+        "Store_Name": "Quick Deli & Grill 2 Corp",
+        "Address": "2601 Bath Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11214",
+        "Latitude": 40.593018,
+        "Longitude": -73.988487
+      },
+      "geometry": {
+        "x": -73.988487,
+        "y": 40.593018
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 111637,
+        "Store_Name": "2676 7th Ave Grocery Inc",
+        "Address": "2626 7th Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10039",
+        "Latitude": 40.825615,
+        "Longitude": -73.936356
+      },
+      "geometry": {
+        "x": -73.936356,
+        "y": 40.825615
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 178731,
+        "Store_Name": "192 Station Mart Corp",
+        "Address": "39-21 192nd Street",
+        "City": "Flushing",
+        "State": "NY",
+        "Zip5": "11358",
+        "Latitude": 40.7612,
+        "Longitude": -73.789764
+      },
+      "geometry": {
+        "x": -73.789764,
+        "y": 40.7612
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 209607,
+        "Store_Name": "123 Meat Fruit &Vegetable Corp/Antillana Meat Mkt",
+        "Address": "123 W Kingsbridge Rd",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10468",
+        "Latitude": 40.868786,
+        "Longitude": -73.902496
+      },
+      "geometry": {
+        "x": -73.902496,
+        "y": 40.868786
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 246846,
+        "Store_Name": "E Flying Eagle Corp DBA Izzy's Gourmet Deli",
+        "Address": "3001 Westchester Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10461",
+        "Latitude": 40.847321,
+        "Longitude": -73.832191
+      },
+      "geometry": {
+        "x": -73.832191,
+        "y": 40.847321
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 185967,
+        "Store_Name": "F Gourmet Deli Corp",
+        "Address": "1558 Fulton St",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11216",
+        "Latitude": 40.679684,
+        "Longitude": -73.938606
+      },
+      "geometry": {
+        "x": -73.938606,
+        "y": 40.679684
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 255532,
+        "Store_Name": "Hassy Juice Bar And Deli Corp",
+        "Address": "200 E 125th St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10035",
+        "Latitude": 40.803482,
+        "Longitude": -73.935692
+      },
+      "geometry": {
+        "x": -73.935692,
+        "y": 40.803482
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 139273,
+        "Store_Name": "Express Deli Grocery Inc II",
+        "Address": "3008 Glenwood Rd",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11210",
+        "Latitude": 40.633911,
+        "Longitude": -73.947334
+      },
+      "geometry": {
+        "x": -73.947334,
+        "y": 40.633911
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 87718,
+        "Store_Name": "Confe Park Deli Grocery Corp",
+        "Address": "4666 Park Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10458",
+        "Latitude": 40.858082,
+        "Longitude": -73.892632
+      },
+      "geometry": {
+        "x": -73.892632,
+        "y": 40.858082
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 176389,
+        "Store_Name": "Court Juice Bar & Deli Inc",
+        "Address": "205 Court St",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11201",
+        "Latitude": 40.686993,
+        "Longitude": -73.993515
+      },
+      "geometry": {
+        "x": -73.993515,
+        "y": 40.686993
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 11608,
+        "Store_Name": "South Beach Food Station Corp",
+        "Address": "331 Sand Ln",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10305",
+        "Latitude": 40.591869,
+        "Longitude": -74.067558
+      },
+      "geometry": {
+        "x": -74.067558,
+        "y": 40.591869
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 126491,
+        "Store_Name": "51-30 Fresh Harvest Deli & Mini Market Corp",
+        "Address": "51-30 Roosevelt Ave",
+        "City": "Queens",
+        "State": "NY",
+        "Zip5": "11377",
+        "Latitude": 40.743931,
+        "Longitude": -73.913124
+      },
+      "geometry": {
+        "x": -73.913124,
+        "y": 40.743931
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 42738,
+        "Store_Name": "145 Bagel And Coffee Deli Corp",
+        "Address": "1717 Amsterdam Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10031",
+        "Latitude": 40.825039,
+        "Longitude": -73.947533
+      },
+      "geometry": {
+        "x": -73.947533,
+        "y": 40.825039
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 190190,
+        "Store_Name": "Uli Mota Grocery Corp.",
+        "Address": "10747 Sutphin Blvd",
+        "City": "Jamaica",
+        "State": "NY",
+        "Zip5": "11435",
+        "Latitude": 40.693493,
+        "Longitude": -73.799744
+      },
+      "geometry": {
+        "x": -73.799744,
+        "y": 40.693493
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 110874,
+        "Store_Name": "Astor Mini Market & Deli Corp",
+        "Address": "736 Astor Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10467",
+        "Latitude": 40.859451,
+        "Longitude": -73.866013
+      },
+      "geometry": {
+        "x": -73.866013,
+        "y": 40.859451
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 142077,
+        "Store_Name": "La Gaviota Deli Grocery",
+        "Address": "565 E 188th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10458",
+        "Latitude": 40.857086,
+        "Longitude": -73.887848
+      },
+      "geometry": {
+        "x": -73.887848,
+        "y": 40.857086
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 172846,
+        "Store_Name": "G Deli Market Corp",
+        "Address": "551 E 178th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10457",
+        "Latitude": 40.847607,
+        "Longitude": -73.894569
+      },
+      "geometry": {
+        "x": -73.894569,
+        "y": 40.847607
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 119294,
+        "Store_Name": "Nk Supermarket Inc./Bangla Supermarket",
+        "Address": "2741 Pitkin Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11208",
+        "Latitude": 40.67569,
+        "Longitude": -73.87088
+      },
+      "geometry": {
+        "x": -73.87088,
+        "y": 40.67569
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 252998,
+        "Store_Name": "Express Deli Market & Juice Bar",
+        "Address": "18205 Jamaica Ave",
+        "City": "Hollis",
+        "State": "NY",
+        "Zip5": "11423",
+        "Latitude": 40.709038,
+        "Longitude": -73.778862
+      },
+      "geometry": {
+        "x": -73.778862,
+        "y": 40.709038
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 180206,
+        "Store_Name": "Fancy Varieties Inc",
+        "Address": "16830 Hillside Ave",
+        "City": "Jamaica",
+        "State": "NY",
+        "Zip5": "11432",
+        "Latitude": 40.710266,
+        "Longitude": -73.793701
+      },
+      "geometry": {
+        "x": -73.793701,
+        "y": 40.710266
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 245408,
+        "Store_Name": "MSR Discount And Grocery Corp.",
+        "Address": "1746 Flatbush Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11210",
+        "Latitude": 40.627636,
+        "Longitude": -73.942413
+      },
+      "geometry": {
+        "x": -73.942413,
+        "y": 40.627636
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 178517,
+        "Store_Name": "Tasty Picks 4 Corp",
+        "Address": "1400 Pelham Pkwy S",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10461",
+        "Latitude": 40.857105,
+        "Longitude": -73.84745
+      },
+      "geometry": {
+        "x": -73.84745,
+        "y": 40.857105
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 210746,
+        "Store_Name": "Bismillah Data Corp",
+        "Address": "2038 Bath Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11214",
+        "Latitude": 40.600628,
+        "Longitude": -74.00058
+      },
+      "geometry": {
+        "x": -74.00058,
+        "y": 40.600628
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 107165,
+        "Store_Name": "Family Dollar 11777",
+        "Address": "130 New Lots Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.658394,
+        "Longitude": -73.90078
+      },
+      "geometry": {
+        "x": -73.90078,
+        "y": 40.658394
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 225141,
+        "Store_Name": "Al Nour Food Inc",
+        "Address": "4108 30th Ave",
+        "City": "Astoria",
+        "State": "NY",
+        "Zip5": "11103",
+        "Latitude": 40.763252,
+        "Longitude": -73.91391
+      },
+      "geometry": {
+        "x": -73.91391,
+        "y": 40.763252
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 128346,
+        "Store_Name": "PEPPAS JERK CHICKEN",
+        "Address": "791 Prospect Pl",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11216",
+        "Latitude": 40.67445,
+        "Longitude": -73.950439
+      },
+      "geometry": {
+        "x": -73.950439,
+        "y": 40.67445
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 241029,
+        "Store_Name": "Popeye's",
+        "Address": "2176 White Plains Rd",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10462",
+        "Latitude": 40.855656,
+        "Longitude": -73.86747
+      },
+      "geometry": {
+        "x": -73.86747,
+        "y": 40.855656
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 240383,
+        "Store_Name": "Rosenfeld's Grocery",
+        "Address": "160 Penn St",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11211",
+        "Latitude": 40.702869,
+        "Longitude": -73.9571
+      },
+      "geometry": {
+        "x": -73.9571,
+        "y": 40.702869
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 103494,
+        "Store_Name": "Familia Fruit Market",
+        "Address": "3430 Broadway",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10031",
+        "Latitude": 40.822899,
+        "Longitude": -73.952454
+      },
+      "geometry": {
+        "x": -73.952454,
+        "y": 40.822899
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 37478,
+        "Store_Name": "One Stop Health Deli & Market Inc",
+        "Address": "34 Ralph Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11221",
+        "Latitude": 40.689144,
+        "Longitude": -73.924103
+      },
+      "geometry": {
+        "x": -73.924103,
+        "y": 40.689144
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 250161,
+        "Store_Name": "Hatzlucha Appetizing Corp.-dba Flaum's Appetizing",
+        "Address": "40 Lee Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11211",
+        "Latitude": 40.706223,
+        "Longitude": -73.960892
+      },
+      "geometry": {
+        "x": -73.960892,
+        "y": 40.706223
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 185367,
+        "Store_Name": "W And Y Grocery Inc",
+        "Address": "6901 8th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11228",
+        "Latitude": 40.630203,
+        "Longitude": -74.014862
+      },
+      "geometry": {
+        "x": -74.014862,
+        "y": 40.630203
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 231858,
+        "Store_Name": "Fresh Bites Deli",
+        "Address": "235 Beach 20th St",
+        "City": "Far Rockaway",
+        "State": "NY",
+        "Zip5": "11691",
+        "Latitude": 40.596489,
+        "Longitude": -73.754623
+      },
+      "geometry": {
+        "x": -73.754623,
+        "y": 40.596489
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 10126,
+        "Store_Name": "FTI PHIL AM FOODS INC",
+        "Address": "527 Tompkins Ave",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10305",
+        "Latitude": 40.612911,
+        "Longitude": -74.071411
+      },
+      "geometry": {
+        "x": -74.071411,
+        "y": 40.612911
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 239227,
+        "Store_Name": "La Economica Meat Market Inc.",
+        "Address": "1717 University Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10453",
+        "Latitude": 40.849689,
+        "Longitude": -73.91703
+      },
+      "geometry": {
+        "x": -73.91703,
+        "y": 40.849689
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 96751,
+        "Store_Name": "European Meat Boutique",
+        "Address": "4212 43rd Ave",
+        "City": "Sunnyside",
+        "State": "NY",
+        "Zip5": "11104",
+        "Latitude": 40.745163,
+        "Longitude": -73.921692
+      },
+      "geometry": {
+        "x": -73.921692,
+        "y": 40.745163
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 191537,
+        "Store_Name": "Tree Of Life Rx Inc",
+        "Address": "2472 Coney Island Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11223",
+        "Latitude": 40.596523,
+        "Longitude": -73.961128
+      },
+      "geometry": {
+        "x": -73.961128,
+        "y": 40.596523
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 102019,
+        "Store_Name": "Food Bazaar 11",
+        "Address": "1759 Ridgewood Place",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11237",
+        "Latitude": 40.69812,
+        "Longitude": -73.910629
+      },
+      "geometry": {
+        "x": -73.910629,
+        "y": 40.69812
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 17962,
+        "Store_Name": "Net Cost Market",
+        "Address": "2339 65th St",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11204",
+        "Latitude": 40.612095,
+        "Longitude": -73.977974
+      },
+      "geometry": {
+        "x": -73.977974,
+        "y": 40.612095
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 251232,
+        "Store_Name": "H Express Deli Inc.",
+        "Address": "2181 Nostrand Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11210",
+        "Latitude": 40.631744,
+        "Longitude": -73.947395
+      },
+      "geometry": {
+        "x": -73.947395,
+        "y": 40.631744
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 8029,
+        "Store_Name": "16th Street Cooperative Corp.",
+        "Address": "1415 Cortelyou Rd",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11226",
+        "Latitude": 40.641136,
+        "Longitude": -73.964676
+      },
+      "geometry": {
+        "x": -73.964676,
+        "y": 40.641136
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 190538,
+        "Store_Name": "K.A.N.Z. DELI GROCERY INC.",
+        "Address": "510 Clarkson Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11203",
+        "Latitude": 40.655766,
+        "Longitude": -73.942528
+      },
+      "geometry": {
+        "x": -73.942528,
+        "y": 40.655766
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 223854,
+        "Store_Name": "Jc New Deli & Grocery Corp",
+        "Address": "4802 108th St",
+        "City": "Corona",
+        "State": "NY",
+        "Zip5": "11368",
+        "Latitude": 40.74575,
+        "Longitude": -73.856529
+      },
+      "geometry": {
+        "x": -73.856529,
+        "y": 40.74575
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 12815,
+        "Store_Name": "Greenfeld's LLC",
+        "Address": "128 Lee Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11211",
+        "Latitude": 40.703869,
+        "Longitude": -73.958054
+      },
+      "geometry": {
+        "x": -73.958054,
+        "y": 40.703869
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 127878,
+        "Store_Name": "153 Deli Grocery Inc",
+        "Address": "153 E 149th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10451",
+        "Latitude": 40.81871,
+        "Longitude": -73.927734
+      },
+      "geometry": {
+        "x": -73.927734,
+        "y": 40.81871
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 148907,
+        "Store_Name": "6119 Cstore Inc - 7 Eleven 34139C",
+        "Address": "6119 Northern Blvd",
+        "City": "Woodside",
+        "State": "NY",
+        "Zip5": "11377",
+        "Latitude": 40.754204,
+        "Longitude": -73.900681
+      },
+      "geometry": {
+        "x": -73.900681,
+        "y": 40.754204
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 205881,
+        "Store_Name": "Cash & Carry Wholesale Corp",
+        "Address": "97-08 Springfield Bvld",
+        "City": "Queens Village",
+        "State": "NY",
+        "Zip5": "11429",
+        "Latitude": 40.716808,
+        "Longitude": -73.735825
+      },
+      "geometry": {
+        "x": -73.735825,
+        "y": 40.716808
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 119212,
+        "Store_Name": "Mocha Deli Grocery Corp",
+        "Address": "2 E 132nd St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10037",
+        "Latitude": 40.810795,
+        "Longitude": -73.938934
+      },
+      "geometry": {
+        "x": -73.938934,
+        "y": 40.810795
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 35035,
+        "Store_Name": "ALANWAR FOOD CORP",
+        "Address": "7128 5TH AVE",
+        "City": "BROOKLYN",
+        "State": "NY",
+        "Zip5": "11209",
+        "Latitude": 40.631924,
+        "Longitude": -74.02166
+      },
+      "geometry": {
+        "x": -74.02166,
+        "y": 40.631924
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 180228,
+        "Store_Name": "Mayflower Deli & Grocery Corp",
+        "Address": "1869 Mayflower Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10461",
+        "Latitude": 40.849361,
+        "Longitude": -73.834152
+      },
+      "geometry": {
+        "x": -73.834152,
+        "y": 40.849361
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 233666,
+        "Store_Name": "Healthy Choice Gourmet IV Inc",
+        "Address": "1776 Madison Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10035",
+        "Latitude": 40.8004,
+        "Longitude": -73.944633
+      },
+      "geometry": {
+        "x": -73.944633,
+        "y": 40.8004
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 45184,
+        "Store_Name": "DUANE READE 14184",
+        "Address": "724 Flatbush Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11226",
+        "Latitude": 40.655441,
+        "Longitude": -73.959869
+      },
+      "geometry": {
+        "x": -73.959869,
+        "y": 40.655441
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 169981,
+        "Store_Name": "AMG Retail LLC 20",
+        "Address": "466 10th Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10018",
+        "Latitude": 40.75605,
+        "Longitude": -73.997688
+      },
+      "geometry": {
+        "x": -73.997688,
+        "y": 40.75605
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 154648,
+        "Store_Name": "Wilson Food Market Place Corp",
+        "Address": "625 Wilson Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11207",
+        "Latitude": 40.689816,
+        "Longitude": -73.906349
+      },
+      "geometry": {
+        "x": -73.906349,
+        "y": 40.689816
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 217620,
+        "Store_Name": "Emad Deli Grocery Inc.",
+        "Address": "424 E 149th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10455",
+        "Latitude": 40.815445,
+        "Longitude": -73.91655
+      },
+      "geometry": {
+        "x": -73.91655,
+        "y": 40.815445
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 255108,
+        "Store_Name": "186 New Way Mini Market Corp.",
+        "Address": "186 Scholes St",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11206",
+        "Latitude": 40.70887,
+        "Longitude": -73.941574
+      },
+      "geometry": {
+        "x": -73.941574,
+        "y": 40.70887
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 225212,
+        "Store_Name": "Catracho Deli Grocery Inc",
+        "Address": "6823 20th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11204",
+        "Latitude": 40.614304,
+        "Longitude": -73.988121
+      },
+      "geometry": {
+        "x": -73.988121,
+        "y": 40.614304
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 247201,
+        "Store_Name": "Kingdome Fish Market Corp",
+        "Address": "29 Lenox Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10026",
+        "Latitude": 40.799351,
+        "Longitude": -73.951981
+      },
+      "geometry": {
+        "x": -73.951981,
+        "y": 40.799351
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 8996,
+        "Store_Name": "JSMD FOOD CORP",
+        "Address": "100 Hugh J Grant Cir",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10472",
+        "Latitude": 40.832634,
+        "Longitude": -73.861153
+      },
+      "geometry": {
+        "x": -73.861153,
+        "y": 40.832634
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 225597,
+        "Store_Name": "7 Eleven Store 35621A",
+        "Address": "368 8th Avenue",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10001",
+        "Latitude": 40.74865,
+        "Longitude": -73.996002
+      },
+      "geometry": {
+        "x": -73.996002,
+        "y": 40.74865
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 45914,
+        "Store_Name": "Walgreens 14354",
+        "Address": "194 E 2nd St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10009",
+        "Latitude": 40.722343,
+        "Longitude": -73.983932
+      },
+      "geometry": {
+        "x": -73.983932,
+        "y": 40.722343
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 246771,
+        "Store_Name": "Harbor Deli & Grocery Corp",
+        "Address": "201 Harbor Rd",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10303",
+        "Latitude": 40.631706,
+        "Longitude": -74.160271
+      },
+      "geometry": {
+        "x": -74.160271,
+        "y": 40.631706
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 255162,
+        "Store_Name": "City Fresh Market",
+        "Address": "10116 77th St",
+        "City": "Ozone Park",
+        "State": "NY",
+        "Zip5": "11416",
+        "Latitude": 40.67963,
+        "Longitude": -73.860985
+      },
+      "geometry": {
+        "x": -73.860985,
+        "y": 40.67963
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 62428,
+        "Store_Name": "Popeye's #11038",
+        "Address": "4006 Main St",
+        "City": "Flushing",
+        "State": "NY",
+        "Zip5": "11354",
+        "Latitude": 40.759335,
+        "Longitude": -73.830223
+      },
+      "geometry": {
+        "x": -73.830223,
+        "y": 40.759335
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 180633,
+        "Store_Name": "Fine Deli Corp",
+        "Address": "315 Pleasant Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10035",
+        "Latitude": 40.7957,
+        "Longitude": -73.932915
+      },
+      "geometry": {
+        "x": -73.932915,
+        "y": 40.7957
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 182103,
+        "Store_Name": "Nadia African Market Llc",
+        "Address": "259 E 172nd St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10457",
+        "Latitude": 40.840424,
+        "Longitude": -73.910507
+      },
+      "geometry": {
+        "x": -73.910507,
+        "y": 40.840424
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 222079,
+        "Store_Name": "Mediterranean Foods",
+        "Address": "19615 Northern Blvd",
+        "City": "Flushing",
+        "State": "NY",
+        "Zip5": "11358",
+        "Latitude": 40.758007,
+        "Longitude": -73.785278
+      },
+      "geometry": {
+        "x": -73.785278,
+        "y": 40.758007
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 71489,
+        "Store_Name": "Whole Foods Market 10517",
+        "Address": "100 W 15th St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10011",
+        "Latitude": 40.738071,
+        "Longitude": -73.99646
+      },
+      "geometry": {
+        "x": -73.99646,
+        "y": 40.738071
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 115033,
+        "Store_Name": "Dollar Tree 5069",
+        "Address": "250 E 144th St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10451",
+        "Latitude": 40.815586,
+        "Longitude": -73.924667
+      },
+      "geometry": {
+        "x": -73.924667,
+        "y": 40.815586
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 200536,
+        "Store_Name": "Wegmans Food Markets 156",
+        "Address": "770 Broadway",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10003",
+        "Latitude": 40.73085,
+        "Longitude": -73.991402
+      },
+      "geometry": {
+        "x": -73.991402,
+        "y": 40.73085
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 182963,
+        "Store_Name": "Mela Mini Market Inc",
+        "Address": "273 W 131st St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10027",
+        "Latitude": 40.813942,
+        "Longitude": -73.948067
+      },
+      "geometry": {
+        "x": -73.948067,
+        "y": 40.813942
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 227077,
+        "Store_Name": "A & M Deli NY",
+        "Address": "92 Malcolm X Blvd",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11221",
+        "Latitude": 40.690628,
+        "Longitude": -73.930771
+      },
+      "geometry": {
+        "x": -73.930771,
+        "y": 40.690628
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 190308,
+        "Store_Name": "Adelay Deli Grocery Inc",
+        "Address": "1861 Pitkin Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.670811,
+        "Longitude": -73.904091
+      },
+      "geometry": {
+        "x": -73.904091,
+        "y": 40.670811
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 115769,
+        "Store_Name": "Fatima Discount Store Corporation",
+        "Address": "1970 3rd Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10029",
+        "Latitude": 40.793175,
+        "Longitude": -73.943726
+      },
+      "geometry": {
+        "x": -73.943726,
+        "y": 40.793175
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 121089,
+        "Store_Name": "Cuevas Deli Food Corp",
+        "Address": "940 Utica Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11203",
+        "Latitude": 40.649971,
+        "Longitude": -73.930389
+      },
+      "geometry": {
+        "x": -73.930389,
+        "y": 40.649971
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 113642,
+        "Store_Name": "7-Eleven 36100H",
+        "Address": "79-37 Metropolitan Ave",
+        "City": "Middle Village",
+        "State": "NY",
+        "Zip5": "11379",
+        "Latitude": 40.713291,
+        "Longitude": -73.87281
+      },
+      "geometry": {
+        "x": -73.87281,
+        "y": 40.713291
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 29363,
+        "Store_Name": "DOUBLE S PRODUCE",
+        "Address": "330 Albany Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11213",
+        "Latitude": 40.668594,
+        "Longitude": -73.939529
+      },
+      "geometry": {
+        "x": -73.939529,
+        "y": 40.668594
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 217381,
+        "Store_Name": "Mannix Family Market at Hylan Blvd 110",
+        "Address": "2656 Hylan Blvd",
+        "City": "Staten Island",
+        "State": "NY",
+        "Zip5": "10306",
+        "Latitude": 40.567093,
+        "Longitude": -74.112953
+      },
+      "geometry": {
+        "x": -74.112953,
+        "y": 40.567093
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 43372,
+        "Store_Name": "Sunrise Pharmacy",
+        "Address": "6725 Bay Pkwy",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11204",
+        "Latitude": 40.612045,
+        "Longitude": -73.983055
+      },
+      "geometry": {
+        "x": -73.983055,
+        "y": 40.612045
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 52710,
+        "Store_Name": "Nadine Food Corp",
+        "Address": "9910 Astoria Blvd",
+        "City": "East Elmhurst",
+        "State": "NY",
+        "Zip5": "11369",
+        "Latitude": 40.761936,
+        "Longitude": -73.870071
+      },
+      "geometry": {
+        "x": -73.870071,
+        "y": 40.761936
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 188010,
+        "Store_Name": "Brownsville Market Corp.",
+        "Address": "245 Riverdale Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.66119,
+        "Longitude": -73.90818
+      },
+      "geometry": {
+        "x": -73.90818,
+        "y": 40.66119
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 131820,
+        "Store_Name": "The Heights Deli Foods Inc",
+        "Address": "1649 Amsterdam Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10031",
+        "Latitude": 40.822922,
+        "Longitude": -73.949081
+      },
+      "geometry": {
+        "x": -73.949081,
+        "y": 40.822922
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 34162,
+        "Store_Name": "Nordomi #2 Deli Corp",
+        "Address": "13901 89th Ave",
+        "City": "Jamaica",
+        "State": "NY",
+        "Zip5": "11435",
+        "Latitude": 40.702675,
+        "Longitude": -73.813133
+      },
+      "geometry": {
+        "x": -73.813133,
+        "y": 40.702675
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 113388,
+        "Store_Name": "Hoe Candy Grocery Corp",
+        "Address": "937 E 172nd St",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10460",
+        "Latitude": 40.833923,
+        "Longitude": -73.889008
+      },
+      "geometry": {
+        "x": -73.889008,
+        "y": 40.833923
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 63961,
+        "Store_Name": "Family Dollar 5364",
+        "Address": "2105 Clinton Ave",
+        "City": "Bronx",
+        "State": "NY",
+        "Zip5": "10457",
+        "Latitude": 40.847927,
+        "Longitude": -73.887711
+      },
+      "geometry": {
+        "x": -73.887711,
+        "y": 40.847927
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 240257,
+        "Store_Name": "Delicacy Haven Corp.",
+        "Address": "6949 Grand Ave",
+        "City": "Maspeth",
+        "State": "NY",
+        "Zip5": "11378",
+        "Latitude": 40.726944,
+        "Longitude": -73.893929
+      },
+      "geometry": {
+        "x": -73.893929,
+        "y": 40.726944
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 197862,
+        "Store_Name": "Z & H Grill Corp",
+        "Address": "1955 1st Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10029",
+        "Latitude": 40.786209,
+        "Longitude": -73.942795
+      },
+      "geometry": {
+        "x": -73.942795,
+        "y": 40.786209
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 213457,
+        "Store_Name": "Happy Mart",
+        "Address": "10438 Corona Ave",
+        "City": "Corona",
+        "State": "NY",
+        "Zip5": "11368",
+        "Latitude": 40.743893,
+        "Longitude": -73.857346
+      },
+      "geometry": {
+        "x": -73.857346,
+        "y": 40.743893
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 223746,
+        "Store_Name": "Bello's American Corp",
+        "Address": "1445 Rockaway Pkwy",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11236",
+        "Latitude": 40.644928,
+        "Longitude": -73.901886
+      },
+      "geometry": {
+        "x": -73.901886,
+        "y": 40.644928
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 97425,
+        "Store_Name": "Speedway 7813",
+        "Address": "914 Coney Island Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11230",
+        "Latitude": 40.634827,
+        "Longitude": -73.967896
+      },
+      "geometry": {
+        "x": -73.967896,
+        "y": 40.634827
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 218008,
+        "Store_Name": "Sonny's 10th Avenue Meat Market",
+        "Address": "758 10th Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10019",
+        "Latitude": 40.765671,
+        "Longitude": -73.991035
+      },
+      "geometry": {
+        "x": -73.991035,
+        "y": 40.765671
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 185842,
+        "Store_Name": "Sal Wholesome Bites Corp",
+        "Address": "344 Graham Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11211",
+        "Latitude": 40.714706,
+        "Longitude": -73.94426
+      },
+      "geometry": {
+        "x": -73.94426,
+        "y": 40.714706
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 56103,
+        "Store_Name": "SORIBEL FRUIT & GROCERY Inc",
+        "Address": "9742 Cresskill Pl",
+        "City": "Jamaica",
+        "State": "NY",
+        "Zip5": "11435",
+        "Latitude": 40.694855,
+        "Longitude": -73.809303
+      },
+      "geometry": {
+        "x": -73.809303,
+        "y": 40.694855
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 226551,
+        "Store_Name": "Mehudar Meats And Deli",
+        "Address": "4013 13th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11218",
+        "Latitude": 40.639698,
+        "Longitude": -73.987198
+      },
+      "geometry": {
+        "x": -73.987198,
+        "y": 40.639698
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 17426,
+        "Store_Name": "C & S MEATS INC",
+        "Address": "344 Utica Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11213",
+        "Latitude": 40.666317,
+        "Longitude": -73.93161
+      },
+      "geometry": {
+        "x": -73.93161,
+        "y": 40.666317
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 91586,
+        "Store_Name": "Fresh Pond Deli Grocery Corp.",
+        "Address": "60-02 Fresh Pond Rd",
+        "City": "Maspeth",
+        "State": "NY",
+        "Zip5": "11378",
+        "Latitude": 40.716881,
+        "Longitude": -73.901955
+      },
+      "geometry": {
+        "x": -73.901955,
+        "y": 40.716881
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 45185,
+        "Store_Name": "DUANE READE 14185",
+        "Address": "100 Delancey St",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10002",
+        "Latitude": 40.718857,
+        "Longitude": -73.988831
+      },
+      "geometry": {
+        "x": -73.988831,
+        "y": 40.718857
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 85934,
+        "Store_Name": "Isabahlia Farmers Market",
+        "Address": "Livonia Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11212",
+        "Latitude": 40.662384,
+        "Longitude": -73.91011
+      },
+      "geometry": {
+        "x": -73.91011,
+        "y": 40.662384
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 247385,
+        "Store_Name": "Popeyes Louisiana Kitchen",
+        "Address": "3764 Nostrand Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11235",
+        "Latitude": 40.592091,
+        "Longitude": -73.940483
+      },
+      "geometry": {
+        "x": -73.940483,
+        "y": 40.592091
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 31171,
+        "Store_Name": "Weber's Real Kosher Meats LLC",
+        "Address": "5114 12th Ave",
         "City": "Brooklyn",
         "State": "NY",
         "Zip5": "11219",
-        "Latitude": 40.6362,
-        "Longitude": -73.9942
+        "Latitude": 40.634972,
+        "Longitude": -73.995964
       },
-      "geometry": { "x": -73.9942, "y": 40.6362 }
+      "geometry": {
+        "x": -73.995964,
+        "y": 40.634972
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1009,
-        "Store_Name": "Top Tomato Super Store",
-        "Address": "1780 Forest Avenue",
-        "City": "Staten Island",
+        "OBJECTID": 118517,
+        "Store_Name": "ALDI 73153",
+        "Address": "4720 3rd Ave",
+        "City": "Bronx",
         "State": "NY",
-        "Zip5": "10302",
-        "Latitude": 40.6367,
-        "Longitude": -74.1439
+        "Zip5": "10458",
+        "Latitude": 40.859455,
+        "Longitude": -73.890968
       },
-      "geometry": { "x": -74.1439, "y": 40.6367 }
+      "geometry": {
+        "x": -73.890968,
+        "y": 40.859455
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1010,
-        "Store_Name": "Food Dynasty Supermarket",
-        "Address": "3350 Park Avenue",
-        "City": "Wantagh",
+        "OBJECTID": 250978,
+        "Store_Name": "McDonald's #15315",
+        "Address": "59-60 55th Rd",
+        "City": "Maspeth",
         "State": "NY",
-        "Zip5": "11793",
-        "Latitude": 40.6770,
-        "Longitude": -73.5099
+        "Zip5": "11378",
+        "Latitude": 40.726414,
+        "Longitude": -73.9067
       },
-      "geometry": { "x": -73.5099, "y": 40.6770 }
+      "geometry": {
+        "x": -73.9067,
+        "y": 40.726414
+      }
     },
     {
       "attributes": {
-        "OBJECTID": 1011,
-        "Store_Name": "Farmingdale Kosher Market",
-        "Address": "180 Main Street",
-        "City": "Farmingdale",
+        "OBJECTID": 181938,
+        "Store_Name": "110 Corona Deli Inc",
+        "Address": "11062 Corona Ave",
+        "City": "Corona",
         "State": "NY",
-        "Zip5": "11735",
-        "Latitude": 40.7327,
-        "Longitude": -73.4454
+        "Zip5": "11368",
+        "Latitude": 40.740753,
+        "Longitude": -73.850769
       },
-      "geometry": { "x": -73.4454, "y": 40.7327 }
+      "geometry": {
+        "x": -73.850769,
+        "y": 40.740753
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 133282,
+        "Store_Name": "8343 Grocery Store Inc.",
+        "Address": "8343 Dongan Ave",
+        "City": "Elmhurst",
+        "State": "NY",
+        "Zip5": "11373",
+        "Latitude": 40.740494,
+        "Longitude": -73.879646
+      },
+      "geometry": {
+        "x": -73.879646,
+        "y": 40.740494
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 136568,
+        "Store_Name": "Target 3276",
+        "Address": "6401 18th Ave",
+        "City": "Brooklyn",
+        "State": "NY",
+        "Zip5": "11204",
+        "Latitude": 40.619534,
+        "Longitude": -73.989731
+      },
+      "geometry": {
+        "x": -73.989731,
+        "y": 40.619534
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 246997,
+        "Store_Name": "Paras New York Inc",
+        "Address": "708 9th Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10019",
+        "Latitude": 40.762444,
+        "Longitude": -73.989502
+      },
+      "geometry": {
+        "x": -73.989502,
+        "y": 40.762444
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 236307,
+        "Store_Name": "Max Deals",
+        "Address": "4280 Broadway",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10033",
+        "Latitude": 40.850857,
+        "Longitude": -73.935181
+      },
+      "geometry": {
+        "x": -73.935181,
+        "y": 40.850857
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 240097,
+        "Store_Name": "Pitkin Super Deals Inc",
+        "Address": "441 2nd Ave",
+        "City": "New York",
+        "State": "NY",
+        "Zip5": "10010",
+        "Latitude": 40.739433,
+        "Longitude": -73.980011
+      },
+      "geometry": {
+        "x": -73.980011,
+        "y": 40.739433
+      }
     }
   ]
 }

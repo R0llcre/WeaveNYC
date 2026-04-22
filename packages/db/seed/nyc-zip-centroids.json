@@ -1,0 +1,1442 @@
+[
+  {
+    "zip": "10001",
+    "lat": 40.748638,
+    "lng": -73.994559,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10002",
+    "lat": 40.716278,
+    "lng": -73.989357,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10003",
+    "lat": 40.730771,
+    "lng": -73.988343,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10004",
+    "lat": 40.704211,
+    "lng": -74.011655,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10005",
+    "lat": 40.706289,
+    "lng": -74.00893,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10006",
+    "lat": 40.707184,
+    "lng": -74.013357,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10007",
+    "lat": 40.713621,
+    "lng": -74.008406,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10009",
+    "lat": 40.723815,
+    "lng": -73.980598,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10010",
+    "lat": 40.736972,
+    "lng": -73.983128,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10011",
+    "lat": 40.741104,
+    "lng": -73.999001,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10012",
+    "lat": 40.724441,
+    "lng": -73.996486,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10013",
+    "lat": 40.718456,
+    "lng": -73.998811,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10014",
+    "lat": 40.733242,
+    "lng": -74.004563,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10016",
+    "lat": 40.743169,
+    "lng": -73.979521,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10017",
+    "lat": 40.752941,
+    "lng": -73.973198,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10018",
+    "lat": 40.754937,
+    "lng": -73.992022,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10019",
+    "lat": 40.765164,
+    "lng": -73.986755,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10020",
+    "lat": 40.759624,
+    "lng": -73.980652,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10021",
+    "lat": 40.768758,
+    "lng": -73.957844,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10022",
+    "lat": 40.751187,
+    "lng": -73.964447,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10023",
+    "lat": 40.776241,
+    "lng": -73.983478,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10024",
+    "lat": 40.786453,
+    "lng": -73.974937,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10025",
+    "lat": 40.797883,
+    "lng": -73.967167,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10026",
+    "lat": 40.802384,
+    "lng": -73.952114,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10027",
+    "lat": 40.811589,
+    "lng": -73.951058,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10028",
+    "lat": 40.776514,
+    "lng": -73.951616,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10029",
+    "lat": 40.792776,
+    "lng": -73.943674,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10030",
+    "lat": 40.81903,
+    "lng": -73.942906,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10031",
+    "lat": 40.823523,
+    "lng": -73.950388,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10032",
+    "lat": 40.836911,
+    "lng": -73.939678,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10033",
+    "lat": 40.848673,
+    "lng": -73.935111,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10034",
+    "lat": 40.865188,
+    "lng": -73.92112,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10035",
+    "lat": 40.80092,
+    "lng": -73.937144,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10036",
+    "lat": 40.759372,
+    "lng": -73.991251,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10037",
+    "lat": 40.813666,
+    "lng": -73.939199,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10038",
+    "lat": 40.710518,
+    "lng": -74.001994,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10039",
+    "lat": 40.826014,
+    "lng": -73.938358,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10040",
+    "lat": 40.85938,
+    "lng": -73.928296,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10044",
+    "lat": 40.761872,
+    "lng": -73.949905,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10065",
+    "lat": 40.764411,
+    "lng": -73.962665,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10069",
+    "lat": 40.7774,
+    "lng": -73.9887,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10075",
+    "lat": 40.771831,
+    "lng": -73.954026,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10119",
+    "lat": 40.750946,
+    "lng": -73.991592,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10120",
+    "lat": 40.750088,
+    "lng": -73.988571,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10123",
+    "lat": 40.751427,
+    "lng": -73.990547,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10128",
+    "lat": 40.78279,
+    "lng": -73.951156,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10280",
+    "lat": 40.71048,
+    "lng": -74.016266,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10282",
+    "lat": 40.71611,
+    "lng": -74.015816,
+    "borough": "Manhattan"
+  },
+  {
+    "zip": "10301",
+    "lat": 40.637629,
+    "lng": -74.084417,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10302",
+    "lat": 40.63228,
+    "lng": -74.135538,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10303",
+    "lat": 40.629799,
+    "lng": -74.159551,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10304",
+    "lat": 40.616861,
+    "lng": -74.083381,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10305",
+    "lat": 40.600068,
+    "lng": -74.075522,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10306",
+    "lat": 40.571451,
+    "lng": -74.112991,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10307",
+    "lat": 40.514947,
+    "lng": -74.239656,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10308",
+    "lat": 40.549573,
+    "lng": -74.15029,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10309",
+    "lat": 40.530461,
+    "lng": -74.221334,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10310",
+    "lat": 40.633587,
+    "lng": -74.118901,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10311",
+    "lat": 40.6054,
+    "lng": -74.1835,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10312",
+    "lat": 40.551105,
+    "lng": -74.17464,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10314",
+    "lat": 40.602149,
+    "lng": -74.147205,
+    "borough": "Staten Island"
+  },
+  {
+    "zip": "10451",
+    "lat": 40.821049,
+    "lng": -73.920437,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10452",
+    "lat": 40.838045,
+    "lng": -73.920944,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10453",
+    "lat": 40.853251,
+    "lng": -73.908927,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10454",
+    "lat": 40.808517,
+    "lng": -73.919263,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10455",
+    "lat": 40.815217,
+    "lng": -73.909817,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10456",
+    "lat": 40.831257,
+    "lng": -73.908663,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10457",
+    "lat": 40.847454,
+    "lng": -73.898708,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10458",
+    "lat": 40.860728,
+    "lng": -73.889571,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10459",
+    "lat": 40.823687,
+    "lng": -73.894718,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10460",
+    "lat": 40.840268,
+    "lng": -73.881798,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10461",
+    "lat": 40.845429,
+    "lng": -73.840685,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10462",
+    "lat": 40.842795,
+    "lng": -73.859636,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10463",
+    "lat": 40.879184,
+    "lng": -73.904612,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10464",
+    "lat": 40.846396,
+    "lng": -73.786127,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10465",
+    "lat": 40.825956,
+    "lng": -73.822962,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10466",
+    "lat": 40.89049,
+    "lng": -73.852736,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10467",
+    "lat": 40.874775,
+    "lng": -73.871455,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10468",
+    "lat": 40.86608,
+    "lng": -73.898901,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10469",
+    "lat": 40.871334,
+    "lng": -73.849641,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10470",
+    "lat": 40.900498,
+    "lng": -73.857102,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10471",
+    "lat": 40.902988,
+    "lng": -73.901669,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10472",
+    "lat": 40.829899,
+    "lng": -73.870844,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10473",
+    "lat": 40.819551,
+    "lng": -73.859579,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10474",
+    "lat": 40.816125,
+    "lng": -73.888019,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "10475",
+    "lat": 40.87425,
+    "lng": -73.82812,
+    "borough": "Bronx"
+  },
+  {
+    "zip": "11001",
+    "lat": 40.726591,
+    "lng": -73.704073,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11003",
+    "lat": 40.699741,
+    "lng": -73.710463,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11004",
+    "lat": 40.74182,
+    "lng": -73.713715,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11005",
+    "lat": 40.758,
+    "lng": -73.7152,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11010",
+    "lat": 40.698581,
+    "lng": -73.677525,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11020",
+    "lat": 40.768826,
+    "lng": -73.721916,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11021",
+    "lat": 40.786169,
+    "lng": -73.727789,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11023",
+    "lat": 40.801112,
+    "lng": -73.734978,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11024",
+    "lat": 40.808447,
+    "lng": -73.740738,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11030",
+    "lat": 40.795523,
+    "lng": -73.68841,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11040",
+    "lat": 40.743688,
+    "lng": -73.685047,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11042",
+    "lat": 40.756731,
+    "lng": -73.688369,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11050",
+    "lat": 40.838098,
+    "lng": -73.70108,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11096",
+    "lat": 40.620924,
+    "lng": -73.744177,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11101",
+    "lat": 40.750278,
+    "lng": -73.938976,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11102",
+    "lat": 40.770592,
+    "lng": -73.924785,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11103",
+    "lat": 40.762287,
+    "lng": -73.914517,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11104",
+    "lat": 40.743754,
+    "lng": -73.921916,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11105",
+    "lat": 40.775492,
+    "lng": -73.909903,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11106",
+    "lat": 40.761156,
+    "lng": -73.930332,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11109",
+    "lat": 40.7472,
+    "lng": -73.9565,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11200",
+    "lat": 40.638869,
+    "lng": -74.015137,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11201",
+    "lat": 40.692357,
+    "lng": -73.987616,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11203",
+    "lat": 40.651414,
+    "lng": -73.934513,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11204",
+    "lat": 40.619111,
+    "lng": -73.986143,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11205",
+    "lat": 40.69405,
+    "lng": -73.963224,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11206",
+    "lat": 40.701251,
+    "lng": -73.942259,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11207",
+    "lat": 40.671708,
+    "lng": -73.895163,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11208",
+    "lat": 40.67743,
+    "lng": -73.873706,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11209",
+    "lat": 40.625874,
+    "lng": -74.02706,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11210",
+    "lat": 40.631286,
+    "lng": -73.945802,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11211",
+    "lat": 40.709869,
+    "lng": -73.953416,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11212",
+    "lat": 40.663886,
+    "lng": -73.913049,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11213",
+    "lat": 40.670638,
+    "lng": -73.935313,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11214",
+    "lat": 40.60323,
+    "lng": -73.997146,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11215",
+    "lat": 40.666568,
+    "lng": -73.985652,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11216",
+    "lat": 40.681084,
+    "lng": -73.949082,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11217",
+    "lat": 40.683192,
+    "lng": -73.980096,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11218",
+    "lat": 40.641245,
+    "lng": -73.977681,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11219",
+    "lat": 40.633401,
+    "lng": -73.997207,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11220",
+    "lat": 40.640817,
+    "lng": -74.01114,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11221",
+    "lat": 40.691434,
+    "lng": -73.927032,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11222",
+    "lat": 40.728361,
+    "lng": -73.951466,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11223",
+    "lat": 40.600018,
+    "lng": -73.973276,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11224",
+    "lat": 40.576303,
+    "lng": -73.988735,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11225",
+    "lat": 40.664124,
+    "lng": -73.952832,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11226",
+    "lat": 40.646835,
+    "lng": -73.956425,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11228",
+    "lat": 40.620188,
+    "lng": -74.00786,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11229",
+    "lat": 40.602157,
+    "lng": -73.951186,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11230",
+    "lat": 40.624056,
+    "lng": -73.96453,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11231",
+    "lat": 40.678091,
+    "lng": -74.003838,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11232",
+    "lat": 40.653363,
+    "lng": -74.002068,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11233",
+    "lat": 40.677752,
+    "lng": -73.919385,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11234",
+    "lat": 40.621329,
+    "lng": -73.924854,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11235",
+    "lat": 40.582737,
+    "lng": -73.95562,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11236",
+    "lat": 40.641194,
+    "lng": -73.90513,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11237",
+    "lat": 40.701274,
+    "lng": -73.918944,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11238",
+    "lat": 40.679793,
+    "lng": -73.962196,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11239",
+    "lat": 40.651492,
+    "lng": -73.875702,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11249",
+    "lat": 40.708851,
+    "lng": -73.962663,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11252",
+    "lat": 40.610241,
+    "lng": -74.029144,
+    "borough": "Brooklyn"
+  },
+  {
+    "zip": "11354",
+    "lat": 40.762342,
+    "lng": -73.827927,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11355",
+    "lat": 40.753591,
+    "lng": -73.825529,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11356",
+    "lat": 40.784087,
+    "lng": -73.843096,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11357",
+    "lat": 40.785791,
+    "lng": -73.809412,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11358",
+    "lat": 40.759393,
+    "lng": -73.79774,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11360",
+    "lat": 40.778589,
+    "lng": -73.77954,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11361",
+    "lat": 40.760936,
+    "lng": -73.772015,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11362",
+    "lat": 40.762983,
+    "lng": -73.733275,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11363",
+    "lat": 40.762386,
+    "lng": -73.756355,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11364",
+    "lat": 40.745396,
+    "lng": -73.760146,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11365",
+    "lat": 40.736489,
+    "lng": -73.794401,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11366",
+    "lat": 40.725167,
+    "lng": -73.797748,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11367",
+    "lat": 40.727295,
+    "lng": -73.81847,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11368",
+    "lat": 40.749221,
+    "lng": -73.862104,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11369",
+    "lat": 40.761554,
+    "lng": -73.872448,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11370",
+    "lat": 40.759062,
+    "lng": -73.889335,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11371",
+    "lat": 40.768864,
+    "lng": -73.886078,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11372",
+    "lat": 40.750451,
+    "lng": -73.882864,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11373",
+    "lat": 40.742321,
+    "lng": -73.879239,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11374",
+    "lat": 40.728234,
+    "lng": -73.862695,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11375",
+    "lat": 40.724305,
+    "lng": -73.847407,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11377",
+    "lat": 40.74579,
+    "lng": -73.905438,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11378",
+    "lat": 40.724214,
+    "lng": -73.899813,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11379",
+    "lat": 40.716178,
+    "lng": -73.880087,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11385",
+    "lat": 40.70352,
+    "lng": -73.898747,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11411",
+    "lat": 40.696179,
+    "lng": -73.740486,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11412",
+    "lat": 40.697884,
+    "lng": -73.759153,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11413",
+    "lat": 40.675858,
+    "lng": -73.74835,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11414",
+    "lat": 40.660359,
+    "lng": -73.841485,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11415",
+    "lat": 40.708927,
+    "lng": -73.830511,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11416",
+    "lat": 40.68407,
+    "lng": -73.851595,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11417",
+    "lat": 40.679576,
+    "lng": -73.841011,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11418",
+    "lat": 40.698673,
+    "lng": -73.832204,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11419",
+    "lat": 40.687718,
+    "lng": -73.824978,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11420",
+    "lat": 40.675805,
+    "lng": -73.813802,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11421",
+    "lat": 40.691798,
+    "lng": -73.858403,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11422",
+    "lat": 40.663924,
+    "lng": -73.73744,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11423",
+    "lat": 40.71341,
+    "lng": -73.768181,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11426",
+    "lat": 40.735076,
+    "lng": -73.720589,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11427",
+    "lat": 40.728633,
+    "lng": -73.746461,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11428",
+    "lat": 40.718276,
+    "lng": -73.740422,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11429",
+    "lat": 40.710637,
+    "lng": -73.738321,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11430",
+    "lat": 40.663498,
+    "lng": -73.792175,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11432",
+    "lat": 40.709527,
+    "lng": -73.79433,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11433",
+    "lat": 40.698075,
+    "lng": -73.790367,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11434",
+    "lat": 40.679401,
+    "lng": -73.77818,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11435",
+    "lat": 40.699384,
+    "lng": -73.807233,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11436",
+    "lat": 40.674364,
+    "lng": -73.794798,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11501",
+    "lat": 40.749,
+    "lng": -73.6431,
+    "borough": null
+  },
+  {
+    "zip": "11530",
+    "lat": 40.7274,
+    "lng": -73.6342,
+    "borough": null
+  },
+  {
+    "zip": "11550",
+    "lat": 40.7081,
+    "lng": -73.6167,
+    "borough": null
+  },
+  {
+    "zip": "11561",
+    "lat": 40.5875,
+    "lng": -73.6569,
+    "borough": null
+  },
+  {
+    "zip": "11572",
+    "lat": 40.6446,
+    "lng": -73.6483,
+    "borough": null
+  },
+  {
+    "zip": "11580",
+    "lat": 40.6594,
+    "lng": -73.715,
+    "borough": null
+  },
+  {
+    "zip": "11691",
+    "lat": 40.601306,
+    "lng": -73.755254,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11692",
+    "lat": 40.593586,
+    "lng": -73.789904,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11693",
+    "lat": 40.588678,
+    "lng": -73.813563,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11694",
+    "lat": 40.58112,
+    "lng": -73.834594,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11697",
+    "lat": 40.5589,
+    "lng": -73.8973,
+    "borough": "Queens"
+  },
+  {
+    "zip": "11701",
+    "lat": 40.6785,
+    "lng": -73.414,
+    "borough": null
+  },
+  {
+    "zip": "11706",
+    "lat": 40.7232,
+    "lng": -73.2466,
+    "borough": null
+  },
+  {
+    "zip": "11714",
+    "lat": 40.7443,
+    "lng": -73.4821,
+    "borough": null
+  },
+  {
+    "zip": "11716",
+    "lat": 40.7672,
+    "lng": -73.1017,
+    "borough": null
+  },
+  {
+    "zip": "11717",
+    "lat": 40.7957,
+    "lng": -73.247,
+    "borough": null
+  },
+  {
+    "zip": "11719",
+    "lat": 40.806,
+    "lng": -72.9075,
+    "borough": null
+  },
+  {
+    "zip": "11722",
+    "lat": 40.8081,
+    "lng": -73.2871,
+    "borough": null
+  },
+  {
+    "zip": "11725",
+    "lat": 40.8495,
+    "lng": -73.3257,
+    "borough": null
+  },
+  {
+    "zip": "11726",
+    "lat": 40.6737,
+    "lng": -73.3958,
+    "borough": null
+  },
+  {
+    "zip": "11733",
+    "lat": 40.9187,
+    "lng": -73.1213,
+    "borough": null
+  },
+  {
+    "zip": "11735",
+    "lat": 40.7326,
+    "lng": -73.4454,
+    "borough": null
+  },
+  {
+    "zip": "11741",
+    "lat": 40.7774,
+    "lng": -73.0673,
+    "borough": null
+  },
+  {
+    "zip": "11746",
+    "lat": 40.8285,
+    "lng": -73.3802,
+    "borough": null
+  },
+  {
+    "zip": "11753",
+    "lat": 40.7879,
+    "lng": -73.5131,
+    "borough": null
+  },
+  {
+    "zip": "11756",
+    "lat": 40.7259,
+    "lng": -73.5143,
+    "borough": null
+  },
+  {
+    "zip": "11758",
+    "lat": 40.6807,
+    "lng": -73.4576,
+    "borough": null
+  },
+  {
+    "zip": "11763",
+    "lat": 40.8151,
+    "lng": -72.8401,
+    "borough": null
+  },
+  {
+    "zip": "11764",
+    "lat": 40.9315,
+    "lng": -73.0174,
+    "borough": null
+  },
+  {
+    "zip": "11768",
+    "lat": 40.914,
+    "lng": -73.339,
+    "borough": null
+  },
+  {
+    "zip": "11772",
+    "lat": 40.7667,
+    "lng": -72.9779,
+    "borough": null
+  },
+  {
+    "zip": "11776",
+    "lat": 40.9221,
+    "lng": -73.046,
+    "borough": null
+  },
+  {
+    "zip": "11777",
+    "lat": 40.9476,
+    "lng": -73.0621,
+    "borough": null
+  },
+  {
+    "zip": "11779",
+    "lat": 40.8173,
+    "lng": -73.1346,
+    "borough": null
+  },
+  {
+    "zip": "11780",
+    "lat": 40.8506,
+    "lng": -73.1451,
+    "borough": null
+  },
+  {
+    "zip": "11782",
+    "lat": 40.7447,
+    "lng": -73.0048,
+    "borough": null
+  },
+  {
+    "zip": "11784",
+    "lat": 40.8546,
+    "lng": -73.0707,
+    "borough": null
+  },
+  {
+    "zip": "11787",
+    "lat": 40.8535,
+    "lng": -73.1997,
+    "borough": null
+  },
+  {
+    "zip": "11788",
+    "lat": 40.8323,
+    "lng": -73.1285,
+    "borough": null
+  },
+  {
+    "zip": "11791",
+    "lat": 40.8087,
+    "lng": -73.5094,
+    "borough": null
+  },
+  {
+    "zip": "11793",
+    "lat": 40.6661,
+    "lng": -73.5506,
+    "borough": null
+  },
+  {
+    "zip": "11795",
+    "lat": 40.7075,
+    "lng": -73.3278,
+    "borough": null
+  },
+  {
+    "zip": "11796",
+    "lat": 40.7226,
+    "lng": -73.3157,
+    "borough": null
+  },
+  {
+    "zip": "11797",
+    "lat": 40.8158,
+    "lng": -73.5017,
+    "borough": null
+  },
+  {
+    "zip": "11798",
+    "lat": 40.7562,
+    "lng": -73.36,
+    "borough": null
+  }
+]

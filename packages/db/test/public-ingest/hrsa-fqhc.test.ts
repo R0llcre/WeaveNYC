@@ -62,7 +62,7 @@ describe("hrsa-fqhc source", () => {
     expect(first.source).toBe("hrsa_fqhc");
     expect(first.type).toBe("fqhc");
     expect(first.zip).toBe("10474");
-    expect(first.sourceLabel).toBe("HRSA Find a Health Center");
+    expect(first.sourceLabel).toBe("HRSA Health Center Service Delivery Sites");
     expect(first.state).toBe("NY");
     expect(first.eligibilityNotes).toContain("Federally Qualified Health Center");
   });
@@ -83,7 +83,7 @@ describe("hrsa-fqhc source", () => {
 
   it("advertises attribution", () => {
     const attribution = hrsaFqhc.attribution();
-    expect(attribution.sourceLabel).toBe("HRSA Find a Health Center");
+    expect(attribution.sourceLabel).toBe("HRSA Health Center Service Delivery Sites");
     expect(attribution.datasetVersion).toMatch(/^hrsa_fqhc_\d{4}-W\d{2}$/);
   });
 

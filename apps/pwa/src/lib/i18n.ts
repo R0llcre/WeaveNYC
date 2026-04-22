@@ -616,6 +616,10 @@ type ChromeMessages = {
   needDoctorSubtitle: string;
   needSleep: string;
   needSleepSubtitle: string;
+  // V2-A — radius-widening banner. Rendered above the results list when the
+  // backend widened past the default 5mi tier. `{zip}` is interpolated with
+  // the user's ZIP; `{miles}` with the effective radius.
+  homeRadiusWidenedBanner: string;
   // M8.5 PWA Redesign — Me hub (aggregates settings + verify + language + danger)
   meTitle: string;
   meSignedInAs: string;
@@ -1391,6 +1395,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     needDoctorSubtitle: 'Sliding-scale clinics, no insurance needed',
     needSleep: 'A safe place to sleep',
     needSleepSubtitle: 'Shelters and emergency housing',
+    homeRadiusWidenedBanner: 'No results within 5 mi of {zip} — showing results within {miles} mi.',
     // M8.5 redesign — Me hub
     meTitle: 'Me',
     meSignedInAs: 'Verified as {name}',
@@ -2142,6 +2147,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     needDoctorSubtitle: 'Clínicas de escala móvil, sin seguro',
     needSleep: 'Un lugar seguro para dormir',
     needSleepSubtitle: 'Refugios y vivienda de emergencia',
+    homeRadiusWidenedBanner: 'Sin resultados a menos de 5 millas de {zip} — mostrando resultados a menos de {miles} millas.',
     // M8.5 redesign — Me hub
     meTitle: 'Yo',
     meSignedInAs: 'Verificado como {name}',
@@ -2893,6 +2899,7 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     needDoctorSubtitle: '按收入收费的诊所，无需保险',
     needSleep: '安全的过夜地方',
     needSleepSubtitle: '庇护所和紧急住所',
+    homeRadiusWidenedBanner: '{zip} 附近 5 英里内暂无结果 — 显示 {miles} 英里内的结果。',
     // M8.5 redesign — Me hub
     meTitle: '我',
     meSignedInAs: '你是 {name}',
