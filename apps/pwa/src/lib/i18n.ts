@@ -592,6 +592,11 @@ type ChromeMessages = {
   homeSparseSubtitle: string;
   homeSparseCta: string;
   homeResultsCount: string;
+  // V2-E — freshness footer at the bottom of Home. Sourced from the
+  // public-ingest snapshot (`packages/db/seed/generated/public-resources.snapshot.json`),
+  // surfaced at build time via `NEXT_PUBLIC_DATA_SNAPSHOT_DATE` / `_COUNT`.
+  // Placeholders: `{date}` (locale-formatted) and `{count}`.
+  homeFreshnessFooter: string;
   // M8.5 PWA Redesign — Me hub (aggregates settings + verify + language + danger)
   meTitle: string;
   meSignedInAs: string;
@@ -1221,7 +1226,15 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     obTrustSubtitle: 'Three promises before you go any further.',
     trustBullet1Title: 'No ID, no SSN \u2014 never',
     trustBullet2Title: 'Found services near you',
-    trustBullet3Title: 'Neighbors vouch for neighbors',
+    // V2-E — was "Neighbors vouch for neighbors". The anchor-model is real
+    // in the backend, but the PWA shows zero anchor signal on cards /
+    // detail pages / home, so the bullet promised a social differentiator
+    // we don't currently deliver. Replaced with a claim the app DOES keep:
+    // all preferences and bookmarks live in on-device storage (Redux +
+    // IndexedDB), no server round-trip. Restore the anchor copy when a
+    // user-facing anchor signal (e.g. "anchor confirmed open tonight"
+    // badges) actually ships.
+    trustBullet3Title: 'Your info stays on this phone',
     obTrustCta: 'Got it \u2014 find help',
     obTrustLearnMore: 'Tell me more',
     // V1-B Task 6 — sample-neighborhood replacement for the skip dead-end
@@ -1316,6 +1329,8 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeSparseSubtitle: 'Only {count} within your ZIP. Try a nearby ZIP or see all NYC options.',
     homeSparseCta: 'Try a nearby ZIP',
     homeResultsCount: '{count} nearby',
+    // V2-E — Home freshness footer
+    homeFreshnessFooter: 'Last updated {date} \u00b7 Covering {count} places',
     // M8.5 redesign — Me hub
     meTitle: 'Me',
     meSignedInAs: 'Verified as {name}',
@@ -1936,7 +1951,9 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     obTrustSubtitle: 'Tres promesas antes de seguir.',
     trustBullet1Title: 'Sin ID, sin n\u00famero SSN \u2014 nunca',
     trustBullet2Title: 'Servicios cerca de ti',
-    trustBullet3Title: 'Vecinos dan fe por vecinos',
+    // V2-E — reemplaza "Vecinos dan fe por vecinos" mientras el modelo
+    // anchor no tenga presencia visible en la app.
+    trustBullet3Title: 'Tu informaci\u00f3n se queda en este tel\u00e9fono',
     obTrustCta: 'Entendido \u2014 buscar ayuda',
     obTrustLearnMore: 'Dime m\u00e1s',
     // V1-B Task 6 — sample-neighborhood replacement for the skip dead-end
@@ -2028,6 +2045,8 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeSparseSubtitle: 'Solo {count} en tu ZIP. Prueba un ZIP cercano o revisa todas las opciones de NYC.',
     homeSparseCta: 'Probar un ZIP cercano',
     homeResultsCount: '{count} cerca',
+    // V2-E — pie de p\u00e1gina de frescura en Inicio
+    homeFreshnessFooter: '\u00daltima actualizaci\u00f3n {date} \u00b7 Cubriendo {count} lugares',
     // M8.5 redesign — Me hub
     meTitle: 'Yo',
     meSignedInAs: 'Verificado como {name}',
@@ -2644,7 +2663,10 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     obTrustSubtitle: '\u5f00\u59cb\u4e4b\u524d\u7684\u4e09\u4e2a\u627f\u8bfa\u3002',
     trustBullet1Title: '\u4e0d\u8981\u8bc1\u4ef6\u3001\u4e0d\u8981\u8eab\u4efd\u8bc1\u53f7',
     trustBullet2Title: '\u627e\u5230\u4f60\u9644\u8fd1\u7684\u5e2e\u52a9',
-    trustBullet3Title: '\u90bb\u5c45\u4e3a\u90bb\u5c45\u4f5c\u4fdd',
+    // V2-E — 原为"邻居为邻居作保"。锚点模型在后端真实存在，
+    // 但 PWA 目前没有任何锚点的前端信号，保留此话等于过度承诺。
+    // 改为一个我们真正兑现的承诺：所有偏好都只留在本机。
+    trustBullet3Title: '\u4f60\u7684\u4fe1\u606f\u53ea\u7559\u5728\u8fd9\u53f0\u624b\u673a\u4e0a',
     obTrustCta: '\u660e\u767d\u4e86 \u2014 \u53bb\u627e\u5e2e\u52a9',
     obTrustLearnMore: '\u8be6\u7ec6\u4e86\u89e3',
     // V1-B Task 6 — sample-neighborhood replacement for the skip dead-end
@@ -2735,6 +2757,8 @@ export const messages: Record<SupportedLanguage, ChromeMessages> = {
     homeSparseSubtitle: '邮编内只有 {count} 个。试试附近的邮编或查看全纽约。',
     homeSparseCta: '换个邮编',
     homeResultsCount: '附近 {count} 个',
+    // V2-E — Home 页脚数据时效
+    homeFreshnessFooter: '最后更新 {date} · 覆盖 {count} 个地点',
     // M8.5 redesign — Me hub
     meTitle: '我',
     meSignedInAs: '你是 {name}',

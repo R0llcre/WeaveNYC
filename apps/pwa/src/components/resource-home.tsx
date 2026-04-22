@@ -124,6 +124,15 @@ const SITUATIONAL_FILTERS: Array<{
 // where a list stops reading as a failure and starts reading as "choice".
 const SPARSE_RESULTS_THRESHOLD = 3;
 
+// V2-E — freshness footer source. Injected at build time by `next.config.ts`
+// from `packages/db/seed/generated/public-resources.snapshot.json`. When the
+// API starts returning `snapshot_date` on every `ResourcesResponse` we can
+// prefer the response value over these constants, but shipping both would
+// blur the signal so we keep it single-sourced. Empty strings -> footer
+// hides (never renders "Last updated ").
+const DATA_SNAPSHOT_DATE = process.env.NEXT_PUBLIC_DATA_SNAPSHOT_DATE ?? '';
+const DATA_SNAPSHOT_COUNT = process.env.NEXT_PUBLIC_DATA_SNAPSHOT_COUNT ?? '';
+
 /**
  * Suggest up to 3 adjacent ZIPs by flexing the last digit of the current
  * ZIP. This is a deliberately cheap client-side heuristic — the V1-D
@@ -249,6 +258,35 @@ export function ResourceHome() {
       return new Date(raw).toLocaleString();
     }
   }, [preferences.language, resourceQuery.dataUpdatedAt]);
+
+  // V2-E — freshness footer. Format the build-time snapshot date into the
+  // user's current locale so a ZH visitor sees `2026年4月21日` rather than
+  // the raw ISO string. Guards: if either token is empty (contributor ran
+  // the PWA without running the public-ingest step), hide the footer. If
+  // the ISO parses invalid we surface the raw date rather than "Invalid
+  // Date" — it's still more truthful than silence.
+  const freshnessLabel = useMemo(() => {
+    if (!DATA_SNAPSHOT_DATE || !DATA_SNAPSHOT_COUNT) {
+      return null;
+    }
+    const parsed = new Date(DATA_SNAPSHOT_DATE);
+    let dateLabel: string = DATA_SNAPSHOT_DATE;
+    if (Number.isFinite(parsed.getTime())) {
+      try {
+        dateLabel = parsed.toLocaleDateString(preferences.language, {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+      } catch {
+        dateLabel = parsed.toLocaleDateString();
+      }
+    }
+    return t('homeFreshnessFooter', {
+      date: dateLabel,
+      count: DATA_SNAPSHOT_COUNT,
+    });
+  }, [preferences.language, t]);
 
   // Wave 6B pull-to-refresh. The hook binds to the inner page-content wrapper
   // rather than the outermost fragment so any future framer-motion
@@ -578,6 +616,21 @@ export function ResourceHome() {
           >
             {renderResults()}
           </section>
+
+          {/* V2-E — freshness footer. Sourced from the public-ingest
+              snapshot (`packages/db/seed/generated/public-resources.snapshot.json`)
+              and injected at build time via `next.config.ts`. Renders a
+              small, muted line so the user knows how current the list is
+              ("43 places · updated 2026-04-21"). Hidden entirely when the
+              build-time env vars are empty (dev without ingest run). */}
+          {freshnessLabel ? (
+            <footer
+              className="home__freshness muted"
+              data-testid="home-freshness-footer"
+            >
+              {freshnessLabel}
+            </footer>
+          ) : null}
         </Stack>
       </div>
     </>
