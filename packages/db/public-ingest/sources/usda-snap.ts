@@ -13,10 +13,19 @@ import type {
 
 const SOURCE_ID = "usda_snap";
 const SOURCE_LABEL = "USDA FNS SNAP Retailer Locator";
-const SOURCE_URL = "https://usda-fns.maps.arcgis.com/apps/webappviewer/index.html?id=b41c1aaadbb44ea986cc8eeaa19e3f2f";
-// Public ArcGIS FeatureServer for the SNAP Retailer Locator dataset.
-const ARCGIS_QUERY_URL =
-  "https://services1.arcgis.com/RLQu0rK7h4kbsBq5/ArcGIS/rest/services/Store_Locations/FeatureServer/0/query?where=State%3D%27NY%27&outFields=*&f=json&resultRecordCount=2000";
+const SOURCE_URL =
+  "https://usda-snap-retailers-usda-fns.hub.arcgis.com/datasets/USDA-FNS::snap-retailer-location-data";
+// V2-A 2026-04-22 — the previous ArcGIS FeatureServer
+// (services1.arcgis.com/RLQu0rK7h4kbsBq5/.../Store_Locations/FeatureServer/0)
+// now responds with "Token Required" (USDA rotated to an authenticated
+// layer). Switch to the public ArcGIS-hub CSV mirror which is token-free
+// and refreshed by USDA on the same cadence (~16,890 NY rows at the time
+// of this write, ~8,685 in the five boroughs). The hub endpoint returns
+// HTTP 202 + a pending job on first hit, so the live path may need a short
+// poll; the `fetchLive` helper retries a few times before giving up and
+// letting the ingest orchestrator fall back to the committed fixture.
+const USDA_CSV_URL =
+  "https://usda-snap-retailers-usda-fns.hub.arcgis.com/datasets/USDA-FNS::snap-retailer-location-data.csv?where=State%3D%27NY%27";
 const FIXTURE_PATH = path.resolve(
   __dirname,
   "..",
@@ -34,25 +43,25 @@ function currentDatasetVersion(): string {
   return `${SOURCE_ID}_${date.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
-const rateLimiter = createRateLimiter({ rps: 2, burst: 2 });
+const rateLimiter = createRateLimiter({ rps: 1, burst: 1 });
 
 export interface UsdaSnapAttributes {
-  OBJECTID?: number;
-  Store_Name?: string;
-  Address?: string;
-  Address_Line__2?: string;
-  City?: string;
-  State?: string;
-  Zip5?: string | number;
-  Zip4?: string | number;
-  County?: string;
-  Latitude?: number;
-  Longitude?: number;
+  OBJECTID?: number | null;
+  Store_Name?: string | null;
+  Address?: string | null;
+  Address_Line__2?: string | null;
+  City?: string | null;
+  State?: string | null;
+  Zip5?: string | number | null;
+  Zip4?: string | number | null;
+  County?: string | null;
+  Latitude?: number | null;
+  Longitude?: number | null;
 }
 
 export interface UsdaSnapFeature {
   attributes: UsdaSnapAttributes;
-  geometry?: { x?: number; y?: number };
+  geometry?: { x?: number | null; y?: number | null };
 }
 
 export interface UsdaSnapRaw {
@@ -79,24 +88,129 @@ async function readFixture(): Promise<UsdaSnapFeature[]> {
   return parsed.features ?? [];
 }
 
-async function fetchLive(opts?: FetchOptions): Promise<UsdaSnapFeature[]> {
-  await rateLimiter();
-  const response = await fetchWithRetry(ARCGIS_QUERY_URL, {
-    signal: opts?.signal,
-    accept: "application/json",
-  });
-  if (!response.ok) {
-    throw new Error(`usda_snap HTTP ${response.status}`);
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let cur: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  // Strip UTF-8 BOM
+  let start = 0;
+  if (text.charCodeAt(0) === 0xfeff) start = 1;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      cur.push(cell);
+      cell = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i += 1;
+      cur.push(cell);
+      rows.push(cur);
+      cur = [];
+      cell = "";
+    } else {
+      cell += ch;
+    }
   }
-  const json = (await response.json()) as UsdaSnapRaw;
-  return json.features ?? [];
+  if (cell.length > 0 || cur.length > 0) {
+    cur.push(cell);
+    rows.push(cur);
+  }
+  return rows.filter((r) => r.length > 1 || (r[0] ?? "").trim() !== "");
+}
+
+function toNumber(value: string | undefined): number | null {
+  if (value === undefined) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const num = Number.parseFloat(trimmed);
+  return Number.isFinite(num) ? num : null;
+}
+
+async function fetchLive(opts?: FetchOptions): Promise<UsdaSnapFeature[]> {
+  // ArcGIS hub CSV downloads return 202 Accepted with a pending-job payload
+  // on the first request while the export is generated. Poll up to 5 times
+  // (~60s total) before we give up and let the caller fall back to the
+  // checked-in fixture.
+  let attempt = 0;
+  for (;;) {
+    attempt += 1;
+    await rateLimiter();
+    const response = await fetchWithRetry(USDA_CSV_URL, {
+      signal: opts?.signal,
+      accept: "text/csv",
+    });
+    if (response.status === 202) {
+      if (attempt >= 5) {
+        throw new Error(`usda_snap HTTP 202 (export pending) after ${attempt} tries`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      continue;
+    }
+    if (!response.ok) {
+      throw new Error(`usda_snap HTTP ${response.status}`);
+    }
+    const text = await response.text();
+    const rows = parseCsv(text);
+    if (rows.length <= 1) return [];
+    const header = rows[0]!.map((h) => h.trim());
+    const idx = (name: string) => header.indexOf(name);
+    const iStore = idx("Store_Name");
+    const iAddr = idx("Store_Street_Address");
+    const iAddr2 = idx("Additonal_Address");
+    const iCity = idx("City");
+    const iState = idx("State");
+    const iZip = idx("Zip_Code");
+    const iZip4 = idx("Zip4");
+    const iCounty = idx("County");
+    const iLat = idx("Latitude");
+    const iLng = idx("Longitude");
+    const iObj = idx("ObjectId");
+    const out: UsdaSnapFeature[] = [];
+    for (let r = 1; r < rows.length; r += 1) {
+      const row = rows[r]!;
+      const state = (row[iState] ?? "").trim();
+      if (state && state !== "NY") continue;
+      const lat = toNumber(row[iLat]);
+      const lng = toNumber(row[iLng]);
+      out.push({
+        attributes: {
+          OBJECTID: Number.parseInt(row[iObj] ?? "0", 10) || null,
+          Store_Name: row[iStore] ?? null,
+          Address: row[iAddr] ?? null,
+          Address_Line__2: row[iAddr2] ?? null,
+          City: row[iCity] ?? null,
+          State: "NY",
+          Zip5: (row[iZip] ?? "").slice(0, 5),
+          Zip4: row[iZip4] ?? null,
+          County: row[iCounty] ?? null,
+          Latitude: lat,
+          Longitude: lng,
+        },
+        geometry: { x: lng, y: lat },
+      });
+    }
+    return out;
+  }
 }
 
 export const usdaSnap: PublicSourceModule<UsdaSnapFeature> = {
   id: SOURCE_ID,
   sourceLabel: SOURCE_LABEL,
   sourceUrl: SOURCE_URL,
-  rateLimit: { rps: 2, burst: 2 },
+  rateLimit: { rps: 1, burst: 1 },
 
   async fetch(opts: FetchOptions = {}): Promise<UsdaSnapFeature[]> {
     if (opts.fromCache) {

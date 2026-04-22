@@ -112,4 +112,13 @@ export interface ResourceSearchResult {
    * backwards compatibility.
    */
   noResultsInArea?: boolean;
+  /**
+   * V2-A — the effective radius (in miles) used to populate `items`. The
+   * repository tries progressive tiers (5 → 10 → 25 → 100 mi) and stops at
+   * the smallest tier with ≥3 results (or the last tier, whichever comes
+   * first). `null` when no geocoded center is available (so radius was
+   * not applied) and on zero-result responses. PWA uses values > 5 to
+   * render a "showing results within N mi" banner.
+   */
+  widenedToMiles?: number | null;
 }

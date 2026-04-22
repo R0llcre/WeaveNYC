@@ -12,17 +12,28 @@ import type {
 } from "../types";
 
 const SOURCE_ID = "nyc_dfta_senior_meals";
-const SOURCE_LABEL = "NYC Department for the Aging (DFTA) Senior Meal Sites";
-const SOURCE_URL = "https://data.cityofnewyork.us/resource/6j6t-3ixh.json";
+const SOURCE_LABEL = "NYC Department for the Aging (DFTA) Older Adult Centers";
+// V2-A 2026-04-22 — the original Socrata dataset 6j6t-3ixh now returns HTTP 403
+// (DFTA reorganized Older Adult Centers in 2025). Switch to
+// `u7wp-np5k` — "List of NYC Aging Providers with Sites Open to the Public" —
+// which is the canonical live feed (~417 rows, ~337 NYC Older Adult Centers
+// spanning ~139 NYC ZIPs at the time of this write).
+const SOURCE_URL = "https://data.cityofnewyork.us/resource/u7wp-np5k.json";
 
-const ACCEPTED_PROGRAM_TYPES = new Set<string>([
+// Row-type values we keep. DFTA's `u7wp-np5k` schema tags each provider with
+// a `provider_type` string; only these three surface as "somewhere a senior
+// can go for a meal / activity" to the PWA. Case-insensitive match.
+const ACCEPTED_PROVIDER_TYPES = new Set<string>([
+  "older adult center",
+  "naturally occurring retirement community (norc)",
+  // Legacy rows pulled from the 2023 dataset used these labels; keep them
+  // so the committed fixture (stratified sample from 2023 fiscal-year data)
+  // still normalizes cleanly when the live fetch is unavailable.
   "senior center",
   "home delivered meal",
-  "older adult center",
 ]);
 
-const SOCRATA_URL =
-  "https://data.cityofnewyork.us/resource/6j6t-3ixh.json?$limit=5000";
+const SOCRATA_URL = `${SOURCE_URL}?$limit=5000`;
 const FIXTURE_PATH = path.resolve(
   __dirname,
   "..",
@@ -43,10 +54,16 @@ function currentDatasetVersion(): string {
 const rateLimiter = createRateLimiter({ rps: 1, burst: 1 });
 
 export interface DftaSeniorMealsRaw {
+  // u7wp-np5k live schema (2025-present). Fields also tolerate the legacy
+  // 6j6t-3ixh shape in case the fixture is exported from an older snapshot.
+  dfta_id?: string;
   program_id?: string;
+  site_name?: string;
   program_name?: string;
   name?: string;
+  provider_type?: string;
   program_type?: string;
+  site_address?: string;
   address?: string;
   street_address?: string;
   city?: string;
@@ -61,6 +78,8 @@ export interface DftaSeniorMealsRaw {
   meal_type?: string;
   eligibility?: string;
   languages_spoken?: string;
+  sponsor_vendor?: string;
+  site_type?: string;
 }
 
 function hashContent(row: ResourceProviderSeed): string {
@@ -143,18 +162,22 @@ export const dftaSeniorMeals: PublicSourceModule<DftaSeniorMealsRaw> = {
     const datasetVersion = currentDatasetVersion();
     const out: ResourceProviderSeed[] = [];
     for (const entry of raw) {
-      const programType = (entry.program_type ?? "").trim().toLowerCase();
-      if (!ACCEPTED_PROGRAM_TYPES.has(programType)) continue;
-      const name = (entry.program_name ?? entry.name ?? "").trim();
+      const providerType = (entry.provider_type ?? entry.program_type ?? "").trim().toLowerCase();
+      if (!ACCEPTED_PROVIDER_TYPES.has(providerType)) continue;
+      const name = (entry.site_name ?? entry.program_name ?? entry.name ?? "").trim();
       const zip = String(entry.zip_code ?? entry.zipcode ?? "").slice(0, 5);
-      const address = entry.address ?? entry.street_address ?? "";
+      const address = entry.site_address ?? entry.address ?? entry.street_address ?? "";
       if (!name || !zip || !address) continue;
       const lat = parseNumber(entry.latitude);
       const lng = parseNumber(entry.longitude);
       const city = (entry.city ?? entry.borough ?? null)?.trim() || null;
+      const stableRef =
+        entry.dfta_id ??
+        entry.program_id ??
+        `${name}-${zip}`;
       const seed: ResourceProviderSeed = {
         source: SOURCE_ID,
-        sourceRef: `${SOURCE_ID}:${entry.program_id ?? `${name}-${zip}`}`,
+        sourceRef: `${SOURCE_ID}:${stableRef}`,
         name,
         type: "senior_meal_site",
         addressText: `${address}${city ? `, ${city}` : ""}, NY ${zip}`,
@@ -166,7 +189,7 @@ export const dftaSeniorMeals: PublicSourceModule<DftaSeniorMealsRaw> = {
         languages: normalizeLanguages(entry.languages_spoken),
         eligibilityNotes:
           entry.eligibility?.trim() ||
-          "Older Adult Center / senior meal program. Typically ages 60+.",
+          "NYC Aging Older Adult Center. Typically ages 60+; drop-in lunch and activities.",
         lat,
         lng,
         geoPrecision: lat !== null && lng !== null ? "street" : "zip_centroid",

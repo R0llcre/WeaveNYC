@@ -113,6 +113,13 @@ export type ResourcesResponse = {
   items: ResourceSummary[];
   next_cursor: string | null;
   source_mode: "api" | "fixture";
+  // A5 P0 bonus — optional hint that the geocoder could not resolve the ZIP.
+  no_results_in_area?: boolean;
+  // V2-A — optional effective search radius in miles. Null when the
+  // geocoder couldn't resolve the ZIP (no radius walk happened). When > 5,
+  // the PWA renders a "no results within 5 mi — showing within N mi"
+  // banner above the results list.
+  widened_to_miles?: number | null;
 };
 
 export type ResourceQueryInput = {

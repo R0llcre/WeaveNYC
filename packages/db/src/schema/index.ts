@@ -681,6 +681,19 @@ export const communitySyncEvents = pgTable("community_sync_events", {
   )
 }));
 
+/**
+ * V2-A precomputed NYC ZIP centroids. See migration 0021 and seed file
+ * packages/db/seed/nyc-zip-centroids.json. Consulted by the resource-directory
+ * geocoder BEFORE any Nominatim round-trip so the hot path for NYC ZIPs is a
+ * single PK read.
+ */
+export const nycZipCentroids = pgTable("nyc_zip_centroids", {
+  zip: varchar("zip", { length: 5 }).primaryKey(),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  borough: varchar("borough", { length: 20 })
+});
+
 export const analyticsEvents = pgTable(
   "analytics_events",
   {
@@ -726,5 +739,6 @@ export const schema = {
   moderationActions,
   communitySyncEvents,
   analyticsEvents,
-  idempotencyKeys
+  idempotencyKeys,
+  nycZipCentroids
 };

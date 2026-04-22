@@ -18,6 +18,7 @@ import {
   matchSuggestions,
   messages,
   moderationActions,
+  nycZipCentroids,
   posts,
   reports,
   resourceChangeLogs,
@@ -689,6 +690,14 @@ export async function seedDatabase(db: Database) {
   if (process.env.SEED_PUBLIC_SOURCES === "1") {
     await seedPublicSources(db);
   }
+
+  // V2-A — seed the NYC ZIP centroids lookup table (migration 0021) from
+  // the committed JSON. Runs unconditionally because the table is small
+  // (~240 rows), the seed is idempotent via `on conflict do update`, and
+  // the geocoder REQUIRES the table to be populated for the NYC hot-path
+  // fix to work (otherwise every Midtown/Bushwick/Williamsburg search
+  // still falls through to Nominatim).
+  await seedNycZipCentroids(db);
 
   const seededUser = await db.query.users.findFirst({
     where: eq(users.userId, seedIds.anonymousUserId)
@@ -1421,3 +1430,57 @@ const bronxPilot: PilotCommunitySeed = {
     "Preparing extra meals at the community kitchen on Friday. Message me for a portion.",
   offerPostLanguage: "en"
 };
+
+interface NycZipCentroidRow {
+  zip: string;
+  lat: number;
+  lng: number;
+  borough?: string | null;
+}
+
+/**
+ * V2-A — seed the `nyc_zip_centroids` lookup table from the committed JSON
+ * (packages/db/seed/nyc-zip-centroids.json, ~240 rows covering all NYC ZIPs
+ * + commonly-requested Nassau/Suffolk). Idempotent via ON CONFLICT so it's
+ * safe to run on every `pnpm db:seed` invocation.
+ */
+async function seedNycZipCentroids(db: Database): Promise<void> {
+  const seedFile = path.resolve(__dirname, "nyc-zip-centroids.json");
+  if (!existsSync(seedFile)) {
+    process.stderr.write(
+      `[seed] nyc-zip-centroids.json not found at ${seedFile}; skipping centroid seed\n`,
+    );
+    return;
+  }
+  const rows = JSON.parse(readFileSync(seedFile, "utf8")) as NycZipCentroidRow[];
+  if (!Array.isArray(rows) || rows.length === 0) {
+    process.stderr.write(
+      `[seed] nyc-zip-centroids.json parsed empty; skipping centroid seed\n`,
+    );
+    return;
+  }
+
+  // Insert in chunks to avoid stressing pg's bind-parameter limit. With 3
+  // parameters per row and Postgres' 65535 ceiling, ~20k rows per batch is
+  // fine, but we keep it conservative since the dataset is tiny.
+  const chunkSize = 500;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const slice = rows.slice(i, i + chunkSize).map((row) => ({
+      zip: row.zip,
+      lat: row.lat,
+      lng: row.lng,
+      borough: row.borough ?? null,
+    }));
+    await db
+      .insert(nycZipCentroids)
+      .values(slice)
+      .onConflictDoUpdate({
+        target: nycZipCentroids.zip,
+        set: {
+          lat: sql`excluded.lat`,
+          lng: sql`excluded.lng`,
+          borough: sql`excluded.borough`,
+        },
+      });
+  }
+}

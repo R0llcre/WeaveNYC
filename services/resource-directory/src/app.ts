@@ -128,7 +128,11 @@ export async function buildResourceDirectoryApp(
   // e.g. a Farmingdale (11735) user to never see a Bethpage (11714) pantry
   // 2 miles away. We now geocode the caller's ZIP the same way the monolith
   // path does (see services/api-gateway/src/lib/resource-directory.ts).
-  const geocoder: Geocoder = options.geocoder ?? new NominatimGeocoder();
+  // V2-A — pass the pool to NominatimGeocoder so the new `nyc_zip_centroids`
+  // lookup runs FIRST for any NYC ZIP, avoiding the Nominatim round-trip
+  // that was the root cause of false "no_results_in_area" on Midtown /
+  // Bushwick / Williamsburg ZIPs.
+  const geocoder: Geocoder = options.geocoder ?? new NominatimGeocoder(fetch, undefined, pool);
   const service: ResourceDirectoryService = {
     searchResources: async (input) => {
       const zipCenter = await geocoder.geocodeZip(input.zip);
