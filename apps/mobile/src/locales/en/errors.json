@@ -1,0 +1,13 @@
+{
+  "errorGeneric": "Something did not work. Please wait a moment and try again.",
+  "errorNetwork": "Couldn't connect. Check your Wi-Fi or signal.",
+  "errorUnauthorized": "You have been signed out. Please sign in again to keep going.",
+  "errorRateLimit": "Too many tries. Please wait a minute and try again.",
+  "errorRateLimited": "Too many tries. Please wait a moment and try again.",
+  "errorAuth": "Please sign in again to continue.",
+  "errorForbidden": "You don't have permission to do that.",
+  "errorServer": "We couldn't reach the listings. Your saved places still work — try again in a minute.",
+  "errorValidation": "Please check the information and try again.",
+  "errorConflict": "That was already done. Please refresh and try again.",
+  "errorNotFound": "We couldn't find that."
+}
