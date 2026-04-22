@@ -1,0 +1,13 @@
+{
+  "errorGeneric": "出了点问题。等一下，再试一次。",
+  "errorNetwork": "连不上。检查一下 Wi-Fi 或手机信号。",
+  "errorUnauthorized": "你被登出了。再登录一次就能继续。",
+  "errorRateLimit": "试得次数太多。等一分钟再试。",
+  "errorRateLimited": "请求太多。请稍等一下再试。",
+  "errorAuth": "请重新登录以继续。",
+  "errorForbidden": "你没有权限这样做。",
+  "errorServer": "暂时连不上。已保存的地方还能看 —— 一分钟后再试。",
+  "errorValidation": "请检查信息后再试。",
+  "errorConflict": "这件事已经做过了。请刷新后再试。",
+  "errorNotFound": "找不到这个内容。"
+}

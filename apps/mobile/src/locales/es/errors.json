@@ -1,0 +1,13 @@
+{
+  "errorGeneric": "Algo no funcionó. Espera un momento y prueba de nuevo.",
+  "errorNetwork": "Sin conexión. Revisa tu Wi-Fi o señal.",
+  "errorUnauthorized": "Te sacamos de tu cuenta. Inicia sesión de nuevo para seguir.",
+  "errorRateLimit": "Muchos intentos. Espera un minuto y prueba de nuevo.",
+  "errorRateLimited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+  "errorAuth": "Inicia sesión de nuevo para continuar.",
+  "errorForbidden": "No tienes permiso para hacer eso.",
+  "errorServer": "No pudimos conectar. Tus lugares guardados siguen ahí — intenta en un minuto.",
+  "errorValidation": "Revisa la información e inténtalo de nuevo.",
+  "errorConflict": "Eso ya se hizo. Actualiza e inténtalo de nuevo.",
+  "errorNotFound": "No encontramos eso."
+}
