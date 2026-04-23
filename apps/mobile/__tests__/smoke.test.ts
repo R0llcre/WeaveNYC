@@ -26,8 +26,11 @@ describe('M1 scaffold smoke', () => {
 
   test('theme spacing + radii present', () => {
     const { theme } = require('../src/theme/tokens');
-    expect(theme.spacing.l).toBe(16);
-    expect(theme.spacing.xxl).toBe(24);
+    // Scale revised in M7 to match the PWA's `--space-*` tokens:
+    //   m = 16 (--space-4), l = 24 (--space-6), xxl = 32 (--space-8).
+    expect(theme.spacing.m).toBe(16);
+    expect(theme.spacing.l).toBe(24);
+    expect(theme.spacing.xxl).toBe(32);
     expect(theme.borderRadii.pill).toBe(9999);
   });
 
