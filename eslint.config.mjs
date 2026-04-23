@@ -37,13 +37,19 @@ export default [
   },
   {
     // Mobile's Metro/Babel/Jest config files MUST be CJS (Expo contract),
-    // and jest tests legitimately require() modules. Scoping the override
-    // to just these paths keeps the rule enforced everywhere else.
+    // and jest tests legitimately require() modules so a single failed
+    // import surfaces as a per-test failure rather than taking down the
+    // whole file at ES import resolution time. Scoping the override to
+    // just these paths keeps the rule enforced everywhere else. The
+    // nested `src/**/__tests__` glob covers co-located jest specs like
+    // `src/lib/__tests__/imports.test.ts` (M2) which follows the same
+    // require-per-module pattern as the top-level smoke suite.
     files: [
       "apps/mobile/babel.config.js",
       "apps/mobile/metro.config.js",
       "apps/mobile/jest.config.js",
-      "apps/mobile/__tests__/**/*.{js,ts}"
+      "apps/mobile/__tests__/**/*.{js,ts}",
+      "apps/mobile/src/**/__tests__/**/*.{js,ts}"
     ],
     rules: {
       "@typescript-eslint/no-require-imports": "off"

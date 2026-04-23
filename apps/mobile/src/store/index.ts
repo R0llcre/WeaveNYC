@@ -1,37 +1,24 @@
 /**
- * Redux store for mobile.
+ * Redux store for mobile — re-export shim.
  *
- * SCOPE (M1): scaffold only. The PWA's store composes four slices (auth,
- * community, postDraft, preferences) whose code lives in
- * apps/pwa/src/lib/slices/. Wave B ports those slices to shared once
- * they've been verified to run in both RN and Next.js. Until then, the
- * mobile store mounts a placeholder reducer so `<Provider store={store}>`
- * works and downstream consumers compile.
+ * SCOPE (M2): this module has been promoted from the M1 placeholder to a
+ * thin re-export of the real store at `@/lib/store`, which composes the
+ * four slices ported verbatim from the PWA (auth, community, postDraft,
+ * preferences).
  *
- * When the real slices arrive, swap the placeholder for the shared
- * bundle — no other file needs to change (the `RootState` type flows
- * automatically).
+ * Why keep the alias split? Chrome code (providers, `app/_layout.tsx`)
+ * references `@/store`, while the ported lib code (hooks.ts,
+ * selectors.ts, the session-bootstrap + sign-out hooks) references
+ * `@/lib/store`. Re-exporting instead of duplicating keeps both paths
+ * pointed at a single `configureStore` call — otherwise a mounted
+ * `<Provider>` and a `useSelector` inside a lib hook would talk to two
+ * different stores and every mutation dispatched via one would appear
+ * invisible to the other.
+ *
+ * The M1 placeholder slice (`markReady`) is gone — the smoke test was
+ * updated in lockstep to assert the four real slice keys instead. See
+ * `__tests__/smoke.test.ts`.
  */
 
-import { configureStore, createSlice } from '@reduxjs/toolkit';
-
-const placeholderSlice = createSlice({
-  name: 'placeholder',
-  initialState: { ready: false },
-  reducers: {
-    markReady: (state) => {
-      state.ready = true;
-    },
-  },
-});
-
-export const { markReady } = placeholderSlice.actions;
-
-export const store = configureStore({
-  reducer: {
-    placeholder: placeholderSlice.reducer,
-  },
-});
-
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+export { store } from '@/lib/store';
+export type { RootState, AppDispatch } from '@/lib/store';
