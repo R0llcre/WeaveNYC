@@ -9,6 +9,8 @@
  *   I18nextProvider          — via ./src/i18n/index side-effect init
  *   GestureHandlerRootView   — required by react-native-gesture-handler
  *     and any Reanimated-based atom (wave B adds plenty)
+ *   OnboardingGuard          — first-run redirect (S6). See component
+ *                              docblock below for the funnel contract.
  *   Slot                     — Expo Router renders the matching route here
  *
  * Sentry: deferred init fires as soon as the first interaction settles.
@@ -17,22 +19,111 @@
 
 import { ThemeProvider } from '@shopify/restyle';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Slot } from 'expo-router';
+import { router, Slot, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider as ReduxProvider } from 'react-redux';
+import { Provider as ReduxProvider, useDispatch, useSelector } from 'react-redux';
 
 // Side-effect import: initialize i18next ASAP so the first render already
 // has the right locale. Keep this import BEFORE any component uses
 // useTranslation().
 import '@/i18n';
 
+import { loadPreferences } from '@/lib/persistence';
+import { hydratePreferences } from '@/lib/slices/preferences-slice';
 import { initSentryDeferred, Sentry } from '@/observability/sentry';
 import { queryClient } from '@/providers/query-client';
-import { store } from '@/store';
+import { store, type AppDispatch, type RootState } from '@/store';
 import { useAppTheme } from '@/theme';
+
+/**
+ * OnboardingGuard — first-run redirect (S6).
+ *
+ * On every navigation (tracked via `useSegments`) we inspect the
+ * preferences slice and nudge the user to the right step of the
+ * onboarding funnel when they haven't completed it yet:
+ *
+ *   - `onboardingComplete === false` AND `hasUserChosenLanguage === false`
+ *     → `/onboarding/language`
+ *   - `onboardingComplete === false` AND `hasUserChosenLanguage === true`
+ *     (browser locale was auto-detected, user hasn't seen the flow yet)
+ *     → `/onboarding/trust` — skipping the picker matches the PWA's
+ *     V1-B fast-forward behaviour.
+ *
+ * The guard never interrupts a user who is already inside the
+ * onboarding stack (segments[0] === 'onboarding') — that would create
+ * a redirect loop the moment the user lands on /onboarding/language.
+ * It also only fires after the store has hydrated, otherwise the very
+ * first frame could bounce a returning user who's already completed
+ * onboarding to the picker while Redux reads back the persisted flag.
+ *
+ * The guard renders nothing; it sits above `<Slot />` so every tab /
+ * nested stack sees the same redirect contract without copy-pasting
+ * `useEffect(() => router.replace…)` into every screen.
+ */
+function OnboardingGuard() {
+  const segments = useSegments();
+  const dispatch = useDispatch<AppDispatch>();
+  const preferences = useSelector((state: RootState) => state.preferences);
+
+  // One-shot hydration — pull the persisted preferences row and dispatch
+  // `hydratePreferences` so `hydrationComplete` flips to `true`. A
+  // missing row (first install) or a corrupt row still flips the flag
+  // via the reducer's `...initialPreferencesState` spread, which means
+  // the guard never blocks indefinitely on a clean install.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const persisted = await loadPreferences();
+      if (cancelled) return;
+      dispatch(hydratePreferences(persisted ?? {}));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    // If hydrationComplete is still false the persisted flags haven't
+    // been read yet — wait, otherwise we'd bounce returning users into
+    // the funnel on every cold start before Redux settles.
+    if (!preferences.hydrationComplete) {
+      return;
+    }
+
+    const inOnboardingStack = segments[0] === 'onboarding';
+
+    if (preferences.onboardingComplete) {
+      // Already completed — nothing to do; the user owns their nav.
+      return;
+    }
+
+    if (inOnboardingStack) {
+      // Already in the funnel; let each step advance on its own.
+      return;
+    }
+
+    // User hasn't completed onboarding and isn't inside the stack yet:
+    // fast-forward to the right step. When a language has already been
+    // auto-detected (hasUserChosenLanguage === true after an explicit
+    // settings change, or after the PWA's applyDetectedLanguage path)
+    // we skip to trust so a first-time visitor doesn't have to confirm
+    // the picker.
+    const firstStep = preferences.hasUserChosenLanguage
+      ? '/onboarding/trust'
+      : '/onboarding/language';
+    router.replace(firstStep);
+  }, [
+    preferences.hydrationComplete,
+    preferences.onboardingComplete,
+    preferences.hasUserChosenLanguage,
+    segments,
+  ]);
+
+  return null;
+}
 
 function RootLayout() {
   const theme = useAppTheme();
@@ -48,6 +139,7 @@ function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <ReduxProvider store={store}>
               <StatusBar style="auto" />
+              <OnboardingGuard />
               <Slot />
             </ReduxProvider>
           </QueryClientProvider>

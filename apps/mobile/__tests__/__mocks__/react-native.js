@@ -44,7 +44,65 @@ const SafeAreaView = hostStub('SafeAreaView');
 // naming. Atoms don't render a Modal directly today, but if the stub
 // omits it, RNTL throws before a single atom test gets to render.
 const Modal = hostStub('Modal');
-const FlatList = hostStub('FlatList');
+// FlatList — test-friendly renderer. The real component virtualises
+// off-screen rows, but for RNTL tests we need `ListHeaderComponent`,
+// `ListEmptyComponent`, `ListFooterComponent`, and `renderItem` output
+// to be walkable in the tree. This stub composes them explicitly so
+// `screen.getByTestId(...)` can reach into the header/empty/footer
+// subtree like the real renderer would.
+const FlatList = React.forwardRef(function FlatList(props, ref) {
+  const {
+    data,
+    renderItem,
+    keyExtractor,
+    ListHeaderComponent,
+    ListEmptyComponent,
+    ListFooterComponent,
+    refreshControl,
+    ...rest
+  } = props;
+  const header =
+    typeof ListHeaderComponent === 'function'
+      ? React.createElement(ListHeaderComponent)
+      : ListHeaderComponent ?? null;
+  const footer =
+    typeof ListFooterComponent === 'function'
+      ? React.createElement(ListFooterComponent)
+      : ListFooterComponent ?? null;
+  const empty =
+    typeof ListEmptyComponent === 'function'
+      ? React.createElement(ListEmptyComponent)
+      : ListEmptyComponent ?? null;
+  const hasRows =
+    Array.isArray(data) && data.length > 0 && typeof renderItem === 'function';
+  const rows = hasRows
+    ? data.map((item, index) => {
+        const key =
+          typeof keyExtractor === 'function'
+            ? keyExtractor(item, index)
+            : String(index);
+        return React.createElement(
+          React.Fragment,
+          { key },
+          renderItem({ item, index, separators: {} }),
+        );
+      })
+    : null;
+  return React.createElement(
+    'FlatList',
+    { ...rest, ref },
+    header,
+    rows,
+    !hasRows ? empty : null,
+    footer,
+    refreshControl ?? null,
+  );
+});
+FlatList.displayName = 'FlatList';
+// RefreshControl — used by list screens (Home directory) for pull-to-
+// refresh. Kept as a host stub so tests can assert presence via a
+// `testID`-style query without executing the native refresh loop.
+const RefreshControl = hostStub('RefreshControl');
 
 // Pressable — RN's touch handler. Resolve the function-style
 // `style={({ pressed }) => …}` and `children={({ pressed }) => …}` forms
@@ -98,6 +156,34 @@ const InteractionManager = {
   runAfterInteractions: (cb) => {
     if (typeof cb === 'function') cb();
     return { cancel: () => {} };
+  },
+};
+
+// AppState — RN lifecycle bridge. S4 chat screens subscribe to
+// `change` events so a backgrounded → foregrounded transition can
+// kick the WebSocket reconnect. The stub exposes a spy-able
+// `addEventListener` that returns a remove-handle matching the real
+// `EmitterSubscription` shape so tests can invoke the handler and
+// assert on the reconnect path without a real lifecycle bus.
+const AppState = {
+  currentState: 'active',
+  _listeners: [],
+  addEventListener: jest.fn(function addEventListener(type, handler) {
+    AppState._listeners.push({ type, handler });
+    return {
+      remove: () => {
+        AppState._listeners = AppState._listeners.filter(
+          (l) => l.handler !== handler,
+        );
+      },
+    };
+  }),
+  // Test helper: push a state change through every registered listener.
+  __emit(nextState) {
+    AppState.currentState = nextState;
+    for (const l of AppState._listeners) {
+      if (l.type === 'change') l.handler(nextState);
+    }
   },
 };
 
@@ -158,6 +244,7 @@ module.exports = {
   },
   I18nManager: { isRTL: false, getConstants: () => ({ isRTL: false }) },
   AccessibilityInfo,
+  AppState,
   Linking,
   Vibration,
   InteractionManager,
@@ -175,4 +262,5 @@ module.exports = {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
+  RefreshControl,
 };
