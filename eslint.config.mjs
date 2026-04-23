@@ -48,5 +48,30 @@ export default [
     rules: {
       "@typescript-eslint/no-require-imports": "off"
     }
+  },
+  {
+    // Jest-land — mocks and atom unit tests reference `jest.fn()` etc.
+    // without a module import. Without the `jest` global the linter flags
+    // every spy call as `no-undef`. Scoped to the mocks + atom tests so
+    // everywhere else still catches real undefined refs.
+    files: [
+      "apps/mobile/__tests__/__mocks__/**/*.{js,ts}",
+      "apps/mobile/src/**/*.test.{ts,tsx}"
+    ],
+    languageOptions: {
+      globals: {
+        ...globals.jest
+      }
+    }
+  },
+  {
+    // Expo's font loader has to `require(...ttf)` so Metro's static asset
+    // resolver wires the binary — there's no ES-module equivalent and
+    // switching to `import` here would break the loader at runtime. Allow
+    // require() only in this one module.
+    files: ["apps/mobile/src/theme/fonts.ts"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off"
+    }
   }
 ];
