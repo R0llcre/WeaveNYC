@@ -134,11 +134,17 @@ describe('M2 lib ports module-load cleanly', () => {
     expect(typeof mod.getChatWebSocketUrl).toBe('function');
   });
 
-  test('db.ts stub is import-safe', () => {
+  test('db.ts is import-safe', () => {
     const mod = require('../db');
     expect(typeof mod.getPwaDb).toBe('function');
-    // Stub returns null on mobile until M6 wires expo-sqlite.
-    expect(mod.getPwaDb()).toBeNull();
+    // M6 (Wave B consolidation) replaced the M2 stub (null facade) with
+    // the expo-sqlite + MMKV + SecureStore backed Dexie-shaped facade.
+    // `getPwaDb()` now always returns a non-null handle. See
+    // `apps/mobile/src/lib/__tests__/persistence.test.ts` for the
+    // behavioural suite.
+    const db = mod.getPwaDb();
+    expect(db).not.toBeNull();
+    expect(typeof db.kv.get).toBe('function');
   });
 
   test('persistence.ts stub is import-safe', () => {
