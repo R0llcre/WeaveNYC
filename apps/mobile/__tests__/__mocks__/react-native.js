@@ -101,6 +101,34 @@ const InteractionManager = {
   },
 };
 
+// AppState — RN lifecycle bridge. S4 chat screens subscribe to
+// `change` events so a backgrounded → foregrounded transition can
+// kick the WebSocket reconnect. The stub exposes a spy-able
+// `addEventListener` that returns a remove-handle matching the real
+// `EmitterSubscription` shape so tests can invoke the handler and
+// assert on the reconnect path without a real lifecycle bus.
+const AppState = {
+  currentState: 'active',
+  _listeners: [],
+  addEventListener: jest.fn(function addEventListener(type, handler) {
+    AppState._listeners.push({ type, handler });
+    return {
+      remove: () => {
+        AppState._listeners = AppState._listeners.filter(
+          (l) => l.handler !== handler,
+        );
+      },
+    };
+  }),
+  // Test helper: push a state change through every registered listener.
+  __emit(nextState) {
+    AppState.currentState = nextState;
+    for (const l of AppState._listeners) {
+      if (l.type === 'change') l.handler(nextState);
+    }
+  },
+};
+
 function makeAnimatedValue(initial) {
   return {
     setValue: jest.fn(),
@@ -158,6 +186,7 @@ module.exports = {
   },
   I18nManager: { isRTL: false, getConstants: () => ({ isRTL: false }) },
   AccessibilityInfo,
+  AppState,
   Linking,
   Vibration,
   InteractionManager,
