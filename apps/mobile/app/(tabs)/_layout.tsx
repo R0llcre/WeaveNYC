@@ -12,8 +12,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { InboxTabBadge } from '@/components/InboxTabBadge';
 import { useAppTheme } from '@/theme';
 
 export default function TabLayout() {
@@ -76,7 +78,14 @@ export default function TabLayout() {
         options={{
           title: t('tabInbox'),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="mail-outline" size={size} color={color} />
+            // Icon + overlaid pending-requests badge. The outer View
+            // gives the absolutely-positioned badge a positioning
+            // context that lines up with the Ionicons glyph instead of
+            // the tab button bounds (which vary by RN / Expo version).
+            <View>
+              <Ionicons name="mail-outline" size={size} color={color} />
+              <InboxTabBadge color={color} />
+            </View>
           ),
         }}
       />

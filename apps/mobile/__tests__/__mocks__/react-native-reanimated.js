@@ -44,6 +44,27 @@ function withTiming(toValue) {
   return toValue;
 }
 
+// `withSequence` / `withRepeat` / `withDelay` mirror the worklet
+// composition API. For tests we collapse them to the last target value
+// (matching the behaviour `withTiming` already has) — enough for the
+// Skeleton atom's `opacity.value = withRepeat(withSequence(...))` call
+// chain to resolve to a deterministic final opacity.
+function withSequence(...steps) {
+  return steps[steps.length - 1];
+}
+
+function withRepeat(toValue) {
+  return toValue;
+}
+
+function withDelay(_delay, toValue) {
+  return toValue;
+}
+
+function cancelAnimation() {
+  // no-op
+}
+
 const Easing = {
   linear: (t) => t,
   ease: (t) => t,
@@ -69,5 +90,9 @@ module.exports = {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSequence,
+  withRepeat,
+  withDelay,
+  cancelAnimation,
   Easing,
 };
