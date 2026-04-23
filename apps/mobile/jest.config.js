@@ -42,6 +42,12 @@ module.exports = {
     '^react-native-reanimated$': '<rootDir>/__tests__/__mocks__/react-native-reanimated.js',
     // Safe-area context used by PageHeader / route scaffolding.
     '^react-native-safe-area-context$': '<rootDir>/__tests__/__mocks__/react-native-safe-area-context.js',
+    // Expo Router — S6 onboarding screens import `router` / `useSegments`
+    // / `Slot` / `Stack`. The real package wires a deep-linking
+    // navigator that needs the full Expo runtime (Metro + file-based
+    // routing) which we don't want at Node test time. The stub re-
+    // exports a spy-able `router` so tests can assert `.push`, `.replace`.
+    '^expo-router$': '<rootDir>/__tests__/__mocks__/expo-router.js',
     // Haptic feedback — Button, IconButton, Pill, Banner, Checkbox, Radio
     // call `selectionAsync` / `impactAsync`. Stub to spy-able jest.fn so
     // tests can assert on press intent.
