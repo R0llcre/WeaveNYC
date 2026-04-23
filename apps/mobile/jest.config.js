@@ -42,6 +42,11 @@ module.exports = {
     '^react-native-reanimated$': '<rootDir>/__tests__/__mocks__/react-native-reanimated.js',
     // Safe-area context used by PageHeader / route scaffolding.
     '^react-native-safe-area-context$': '<rootDir>/__tests__/__mocks__/react-native-safe-area-context.js',
+    // Expo Router — Home screen's directory view calls `useRouter()` to
+    // route to the Me tab on empty-state CTAs. The real package pulls in
+    // the expo-router runtime; the stub exposes just the hooks the
+    // screens touch.
+    '^expo-router$': '<rootDir>/__tests__/__mocks__/expo-router.js',
     // Haptic feedback — Button, IconButton, Pill, Banner, Checkbox, Radio
     // call `selectionAsync` / `impactAsync`. Stub to spy-able jest.fn so
     // tests can assert on press intent.
