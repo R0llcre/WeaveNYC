@@ -51,8 +51,32 @@ export default [
       "apps/mobile/__tests__/**/*.{js,ts}",
       "apps/mobile/src/**/__tests__/**/*.{js,ts}"
     ],
+    languageOptions: {
+      // Jest injects `jest`, `describe`, `test`, `expect`, etc. as
+      // globals at runtime. The top-level override above only pulls in
+      // `node` + `browser` globals; opt into the jest globals here so
+      // mocks (e.g. `__tests__/__mocks__/expo-haptics.js`) can call
+      // `jest.fn()` without a `no-undef` from the flat config. Co-located
+      // `.test.tsx` specs outside `__tests__/` get the globals via jest's
+      // own environment contract — this override is only needed because
+      // plain-JS mocks don't inherit that.
+      globals: {
+        ...globals.jest
+      }
+    },
     rules: {
       "@typescript-eslint/no-require-imports": "off"
+    }
+  },
+  {
+    // `.test.tsx` atom specs sit next to the component (not in a
+    // `__tests__/` folder), so the override above doesn't pick them up.
+    // They need jest globals too.
+    files: ["apps/mobile/src/**/*.{test,spec}.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.jest
+      }
     }
   }
 ];
