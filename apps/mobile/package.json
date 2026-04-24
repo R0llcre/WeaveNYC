@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "jest --passWithNoTests",
-    "prebuild:ios": "expo prebuild --no-install --platform ios"
+    "prebuild:ios": "expo prebuild --no-install --platform ios",
+    "eas-build-pre-install": "echo \"EAS pre-install: pinning CocoaPods 1.15.2 to avoid pathname-null-byte bug in 1.16.2 with pnpm monorepo\" && sudo gem install -n /Users/expo/.gems/arm64/bin cocoapods -v 1.15.2 --no-document || gem install --user-install cocoapods -v 1.15.2 --no-document || echo \"(gem install failed but may be pre-installed)\""
   },
   "dependencies": {
     "@babel/runtime": "^7.29.2",
