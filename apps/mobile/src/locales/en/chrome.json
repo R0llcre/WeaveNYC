@@ -58,5 +58,13 @@
   "pullToRefreshRelease": "Release to refresh",
   "pullToRefreshLoading": "Refreshing",
   "shellLoading": "Loading…",
-  "commonDismiss": "Dismiss"
+  "commonDismiss": "Dismiss",
+  "tabHome": "Home",
+  "tabCommunity": "Community",
+  "tabShare": "Share",
+  "tabInbox": "Inbox",
+  "tabMe": "Me",
+  "comingSoon": "Coming soon",
+  "placeholderBody": "This screen is still being built. Check back shortly.",
+  "loading": "Loading…"
 }

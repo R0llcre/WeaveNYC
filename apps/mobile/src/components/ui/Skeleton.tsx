@@ -87,7 +87,10 @@ export function Skeleton({
   const theme = useAppTheme();
   const colors = theme.colors as Record<string, string>;
   const borderRadii = theme.borderRadii as Record<string, number>;
-  const bodyVariant = theme.textVariants.body as Record<string, number>;
+  const bodyVariant = theme.textVariants.body as Record<
+    string,
+    number | string | undefined
+  >;
   const [reduceMotion, setReduceMotion] = useState(false);
 
   // Subscribe to reduced-motion preference. The initial read is async,
@@ -146,7 +149,7 @@ export function Skeleton({
   const resolvedHeight =
     height ??
     (variant === 'text'
-      ? bodyVariant.fontSize
+      ? (bodyVariant.fontSize as number | undefined) ?? 16
       : variant === 'circle'
         ? 40
         : 16);

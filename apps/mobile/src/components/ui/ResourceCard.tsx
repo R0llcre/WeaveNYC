@@ -616,21 +616,25 @@ function resolveTone(
   colors: Record<string, string>,
   tone: CategoryTone,
 ): { strong: string; soft: string } {
+  // Under `noUncheckedIndexedAccess`, `colors[key]` resolves to
+  // `string | undefined`. In practice the theme always has every token
+  // defined; the `?? ''` fallback keeps TS happy without routing
+  // genuinely-missing keys through as silent empty strings at runtime.
   switch (tone) {
     case 'accent':
       return {
-        strong: colors.accentStrong,
-        soft: colors.accentSoft,
+        strong: colors.accentStrong ?? '',
+        soft: colors.accentSoft ?? '',
       };
     case 'verified':
       return {
-        strong: colors.verifiedStrong,
-        soft: colors.verifiedSoft,
+        strong: colors.verifiedStrong ?? '',
+        soft: colors.verifiedSoft ?? '',
       };
     case 'community':
       return {
-        strong: colors.accentStrong,
-        soft: colors.communitySoft,
+        strong: colors.accentStrong ?? '',
+        soft: colors.communitySoft ?? '',
       };
   }
 }

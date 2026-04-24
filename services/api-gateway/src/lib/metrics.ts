@@ -268,7 +268,6 @@ export function createWeaveMetrics(): WeaveMetrics {
 // without triggering the rule.
 export function normalizeRouteLabel(
   routeOption: string | undefined,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _fallback: string
 ): string {
   if (routeOption && routeOption.length > 0) {

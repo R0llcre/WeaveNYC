@@ -35,12 +35,17 @@ export type ErrorKey =
  */
 function extractBusinessCode(message: string): string | null {
   const match = message.match(/"(?:error|code)"\s*:\s*"([a-z_][a-z0-9_]*)"/i);
-  return match ? match[1].toLowerCase() : null;
+  // `match[1]` under `noUncheckedIndexedAccess` is `string | undefined`
+  // even when `match` is truthy — guard explicitly so the return type
+  // stays `string | null`.
+  if (!match || match[1] === undefined) return null;
+  return match[1].toLowerCase();
 }
 
 function extractHttpStatus(message: string): number | null {
   const match = message.match(/HTTP\s+(\d{3})/);
-  return match ? Number.parseInt(match[1], 10) : null;
+  if (!match || match[1] === undefined) return null;
+  return Number.parseInt(match[1], 10);
 }
 
 function isNetworkError(err: unknown): boolean {

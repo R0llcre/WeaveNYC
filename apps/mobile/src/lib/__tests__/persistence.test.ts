@@ -158,7 +158,6 @@ jest.mock('expo-secure-store', () => ({
  */
 jest.mock('react-native-mmkv', () => ({
   MMKV: class MockMMKV {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(_opts?: unknown) {}
     getString() {
       return undefined;

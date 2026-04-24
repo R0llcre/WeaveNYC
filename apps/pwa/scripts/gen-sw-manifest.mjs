@@ -67,7 +67,7 @@ function toPublicPath(absolutePath) {
 function collectAssets() {
   // Static `_next` assets: chunks, css, media (fonts). These are the
   // expensive long-pole resources for first-visit TTI on slow 3G.
-  let files = [];
+  let files;
   try {
     files = walk(staticRoot);
   } catch (error) {
