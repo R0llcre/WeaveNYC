@@ -38,16 +38,14 @@ tags:
     id: "compose-next"
 - assertVisible:
     id: "preview-card"
-- setAirplaneMode:
-    value: true
+- setAirplaneMode: enabled
 - tapOn:
     id: "publish-post"
 - extendedWaitUntil:
     visible:
       text: ".*[Ss]aved.*|.*[Oo]utbox.*"
     timeout: 6000
-- setAirplaneMode:
-    value: false
+- setAirplaneMode: disabled
 - waitForAnimationToEnd:
     timeout: 5000
 - tapOn:
