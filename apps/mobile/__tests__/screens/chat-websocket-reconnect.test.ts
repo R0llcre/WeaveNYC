@@ -36,9 +36,7 @@ describe('chat WebSocket reconnect bridge', () => {
     const handler = jest.fn();
     const sub = AppState.addEventListener('change', handler);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (AppState as any).__emit('background');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (AppState as any).__emit('active');
 
     expect(handler).toHaveBeenCalledTimes(2);
@@ -47,7 +45,6 @@ describe('chat WebSocket reconnect bridge', () => {
 
     sub.remove();
     // After removal, further emissions don't hit the handler.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (AppState as any).__emit('background');
     expect(handler).toHaveBeenCalledTimes(2);
   });

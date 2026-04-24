@@ -32,8 +32,6 @@
  *     queries below expect.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {

@@ -46,13 +46,21 @@ import { createTheme } from '@shopify/restyle';
 // Palette — raw, named colour primitives. Every semantic token downstream
 // references this object so we can retune a hue without touching consumers.
 //
-// Typed as `Record<string, string>` (NOT `as const`) on purpose: downstream,
-// `darkTheme` overrides values that shared `theme.colors` keys, and if the
-// palette kept literal types TS would reject "'#1a1511' is not assignable
-// to '#f4ece0'". Widening to `string` here is the cleanest fix; the palette
-// is still single-sourced and IDE autocomplete still resolves every name.
+// Typing is done via `widenPalette` rather than `Record<string, string>` on
+// purpose. Under `noUncheckedIndexedAccess`, a plain `Record<string, string>`
+// makes every lookup `string | undefined`, which then cascades into `theme`
+// / `darkTheme` assignments — Restyle's generic sees `string | undefined`
+// and rejects `string`-only color tokens. `widenPalette` preserves the
+// *known keys* (so IDE autocomplete still lights up every name) AND widens
+// each value to `string`, so `darkTheme` can override `inkPaper` with a
+// different literal than the light palette. We can't get both properties
+// from `Record<string, string>` alone. The object below is still the single
+// source of truth — only the type flow changed.
 // ---------------------------------------------------------------------------
-const palette: Record<string, string> = {
+const widenPalette = <T extends Record<string, string>>(
+  p: T,
+): { [K in keyof T]: string } => p;
+const palette = widenPalette({
   // Warm paper-cream surfaces (light)
   cream: '#f4ece0', //           --color-bg light
   creamSoft: '#faf6ed', //       --color-surface light
@@ -138,7 +146,7 @@ const palette: Record<string, string> = {
 
   // Transparent (explicit token so consumers don't hardcode)
   transparent: 'transparent',
-};
+});
 
 // ---------------------------------------------------------------------------
 // Font stacks. RN uses a single font family name; the PWA's `font-family`

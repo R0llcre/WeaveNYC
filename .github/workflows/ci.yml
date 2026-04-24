@@ -116,11 +116,16 @@ jobs:
       - name: Validate Prometheus rules
         # `prom/prometheus:latest` has `prometheus` as its ENTRYPOINT, so the
         # positional args get forwarded as prometheus subcommands, not
-        # promtool. Override the entrypoint explicitly so the args land on
-        # the right binary.
+        # promtool. We also need shell glob expansion for `/rules/*.yaml`
+        # — promtool does NOT expand globs itself, so passing that literal
+        # string errors with "path '/rules/*.yaml' does not exist" (this
+        # was the actual root cause of the permanent-red prom-rules check
+        # on every PR since #78ish). Use `sh -c` as entrypoint so the
+        # container shell expands the glob, then invokes promtool on the
+        # concrete paths.
         run: |
           docker run --rm \
-            --entrypoint promtool \
+            --entrypoint sh \
             -v "${{ github.workspace }}/infra/prometheus/rules:/rules" \
             prom/prometheus:latest \
-            check rules /rules/*.yaml
+            -c "promtool check rules /rules/*.yaml"

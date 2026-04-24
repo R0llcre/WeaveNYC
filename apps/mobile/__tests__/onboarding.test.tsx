@@ -18,7 +18,6 @@
  */
 
 import React from 'react';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import TestRenderer from 'react-test-renderer';
 import { configureStore } from '@reduxjs/toolkit';
 import { Provider as ReduxProvider } from 'react-redux';
@@ -86,7 +85,6 @@ function renderScreen(ui: React.ReactElement, store = buildStore()) {
 // type import (the `react-test-renderer` package ships no types under
 // the current monorepo pnpm layout; atom tests already work around this
 // by treating the renderer as untyped).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TestInstance = any;
 
 function findPressableByTestID(

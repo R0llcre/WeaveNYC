@@ -255,7 +255,7 @@ export default function CommunityJoinScreen() {
                     aspectRatio: 1,
                     borderRadius: theme.borderRadii!.md as number,
                     overflow: 'hidden',
-                    backgroundColor: theme.colors.surfaceStrong as string,
+                    backgroundColor: theme.colors.surfaceRaised as string,
                   }}
                   testID="qr-camera-viewport"
                 >

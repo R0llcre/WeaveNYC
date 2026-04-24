@@ -350,10 +350,12 @@ export default function ConversationScreen() {
     if (session?.access_token && conversationId) {
       void messagesQuery.refetch();
     }
-    // Intentional one-shot mount effect; subsequent refetches are
-    // driven by WebSocket events above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, session?.access_token]);
+    // Intentional one-shot-per-conversation mount effect; subsequent
+    // refetches are driven by WebSocket events above. `messagesQuery`
+    // is included in deps so the eslint-plugin-react-hooks rule is
+    // satisfied genuinely (the query object is stable across renders
+    // when inputs don't change, so this is still effectively one-shot).
+  }, [conversationId, session?.access_token, messagesQuery]);
 
   async function handleSend() {
     const body = composer.trim();

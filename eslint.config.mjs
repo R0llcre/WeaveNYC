@@ -17,7 +17,8 @@ export default [
       "apps/mobile/expo-env.d.ts",
       "**/migrations/*.sql",
       "archive/**",
-      "diagrams/rendered/**"
+      "diagrams/rendered/**",
+      ".claude/**"
     ]
   },
   js.configs.recommended,
@@ -32,7 +33,15 @@ export default [
       }
     },
     rules: {
-      "@typescript-eslint/no-explicit-any": "off"
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_"
+        }
+      ]
     }
   },
   {

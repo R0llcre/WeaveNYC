@@ -58,5 +58,13 @@
   "pullToRefreshRelease": "松开刷新",
   "pullToRefreshLoading": "刷新中",
   "shellLoading": "加载中…",
-  "commonDismiss": "关闭"
+  "commonDismiss": "关闭",
+  "tabHome": "首页",
+  "tabCommunity": "社区",
+  "tabShare": "发布",
+  "tabInbox": "消息",
+  "tabMe": "我的",
+  "comingSoon": "即将上线",
+  "placeholderBody": "这个页面还在建设中，稍后再来看看。",
+  "loading": "加载中…"
 }

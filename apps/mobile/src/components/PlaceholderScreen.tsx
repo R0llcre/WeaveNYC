@@ -23,8 +23,8 @@ export function PlaceholderScreen({ titleKey }: { titleKey: string }) {
         styles.container,
         {
           backgroundColor: theme.colors.bg,
-          paddingTop: insets.top + theme.spacing.xl,
-          paddingHorizontal: theme.spacing.l,
+          paddingTop: insets.top + (theme.spacing.xl as number),
+          paddingHorizontal: theme.spacing.l as number,
         },
       ]}
     >
@@ -33,17 +33,17 @@ export function PlaceholderScreen({ titleKey }: { titleKey: string }) {
           styles.title,
           {
             color: theme.colors.inkPrimary,
-            fontSize: theme.textVariants.h1.fontSize,
-            lineHeight: theme.textVariants.h1.lineHeight,
+            fontSize: theme.textVariants.h1.fontSize as number,
+            lineHeight: theme.textVariants.h1.lineHeight as number,
           },
         ]}
       >
-        {t(titleKey)}
+        {(t as (k: string) => string)(titleKey)}
       </Text>
       <Text
         style={[
           styles.eyebrow,
-          { color: theme.colors.accent, marginTop: theme.spacing.m },
+          { color: theme.colors.accent, marginTop: theme.spacing.m as number },
         ]}
       >
         {t('comingSoon')}
@@ -53,9 +53,9 @@ export function PlaceholderScreen({ titleKey }: { titleKey: string }) {
           styles.body,
           {
             color: theme.colors.inkSecondary,
-            marginTop: theme.spacing.l,
-            fontSize: theme.textVariants.body.fontSize,
-            lineHeight: theme.textVariants.body.lineHeight,
+            marginTop: theme.spacing.l as number,
+            fontSize: theme.textVariants.body.fontSize as number,
+            lineHeight: theme.textVariants.body.lineHeight as number,
           },
         ]}
       >

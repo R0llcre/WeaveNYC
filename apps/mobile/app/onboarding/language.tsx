@@ -126,7 +126,6 @@ export default function OnboardingLanguageScreen() {
   // is still pending on the very first frame.
   const spaceXs = (theme.spacing.xs as number | undefined) ?? 4;
   const spaceS = (theme.spacing.s as number | undefined) ?? 8;
-  const spaceSm = (theme.spacing.sm as number | undefined) ?? 12;
   const spaceL = (theme.spacing.l as number | undefined) ?? 24;
 
   return (

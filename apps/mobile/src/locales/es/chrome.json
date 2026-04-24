@@ -58,5 +58,13 @@
   "pullToRefreshRelease": "Suelta para actualizar",
   "pullToRefreshLoading": "Actualizando",
   "shellLoading": "Cargando…",
-  "commonDismiss": "Descartar"
+  "commonDismiss": "Descartar",
+  "tabHome": "Inicio",
+  "tabCommunity": "Comunidad",
+  "tabShare": "Compartir",
+  "tabInbox": "Bandeja",
+  "tabMe": "Yo",
+  "comingSoon": "Próximamente",
+  "placeholderBody": "Esta pantalla aún está en construcción. Vuelve pronto.",
+  "loading": "Cargando…"
 }
