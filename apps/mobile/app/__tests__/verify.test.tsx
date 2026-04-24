@@ -59,6 +59,14 @@ jest.mock('@/lib/use-session-bootstrap', () => ({
   useSessionBootstrap: () => undefined,
 }));
 
+// Push-notifications pipeline is exercised in its own test file. Stub
+// the two functions the screen calls so the Node test env doesn't try
+// to load the native expo-notifications module.
+jest.mock('@/lib/push-notifications', () => ({
+  getPushPermissionStatus: jest.fn(async () => 'granted'),
+  registerForPushNotifications: jest.fn(async () => 'ExponentPushToken[t]'),
+}));
+
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -125,6 +133,7 @@ jest.mock('@/lib/api', () => ({
 
 import { AppThemeProvider } from '@/theme';
 import { authReducer, setSession } from '@/lib/slices/auth-slice';
+import { preferencesReducer } from '@/lib/slices/preferences-slice';
 import { VerifyScreen } from '@/components/VerifyScreen';
 
 /**
@@ -133,7 +142,9 @@ import { VerifyScreen } from '@/components/VerifyScreen';
  * session so the Send buttons aren't disabled on mount.
  */
 function renderVerify() {
-  const store = configureStore({ reducer: { auth: authReducer } });
+  const store = configureStore({
+    reducer: { auth: authReducer, preferences: preferencesReducer },
+  });
   store.dispatch(
     setSession({
       access_token: 'anon',

@@ -64,7 +64,11 @@ import {
   useOtpStart,
   useOtpVerify,
 } from '@/lib/hooks';
-import { selectSession } from '@/lib/selectors';
+import {
+  getPushPermissionStatus,
+  registerForPushNotifications,
+} from '@/lib/push-notifications';
+import { selectPreferences, selectSession } from '@/lib/selectors';
 import { setSession } from '@/lib/slices/auth-slice';
 import { useSessionBootstrap } from '@/lib/use-session-bootstrap';
 import type { AuthSession } from '@/lib/types';
@@ -141,6 +145,7 @@ export function VerifyScreen({ onBack, backLabel, onVerified }: VerifyScreenProp
   const { t: tErrors } = useTranslation('errors');
   const dispatch = useAppDispatch();
   const session = useAppSelector(selectSession);
+  const preferences = useAppSelector(selectPreferences);
 
   const [mode, setMode] = useState<Mode>('otp');
   const [phone, setPhone] = useState('');
@@ -154,6 +159,16 @@ export function VerifyScreen({ onBack, backLabel, onVerified }: VerifyScreenProp
   const [pendingMagicLink, setPendingMagicLink] = useState<
     { challengeId: string; token: string } | null
   >(null);
+
+  // Push-primer state (P3-A). `showPushPrimer` flips to true after a
+  // verify success when the permission is still `undetermined` — the
+  // psychologically right moment to ask. `pushPrimerPending` tracks the
+  // in-flight register call so the button disables while APNs is doing
+  // its thing. Captured here (rather than in a sibling hook) so the
+  // banner can live inside the existing card stack.
+  const [showPushPrimer, setShowPushPrimer] = useState(false);
+  const [pushPrimerPending, setPushPrimerPending] = useState(false);
+  const [pushPrimerError, setPushPrimerError] = useState<string | null>(null);
 
   // Keep the session fresh. See lib/use-session-bootstrap.ts — no-op when
   // the access_token is already populated; refresh → anon mint fallback
@@ -179,6 +194,20 @@ export function VerifyScreen({ onBack, backLabel, onVerified }: VerifyScreenProp
       magicLinkVerify.reset();
       dispatch(setSession(nextSession));
       setSuccessToast(t('verifySuccessTitle'));
+
+      // P3-A — post-verify is the psychologically right moment to ask
+      // for APNs permission. We probe the current status first (silent;
+      // no prompt) so we only surface the primer when it's actually
+      // `undetermined` — users who already granted / denied don't see
+      // the banner again. The hard prompt only fires on the "Turn on"
+      // button inside the primer.
+      void (async () => {
+        const status = await getPushPermissionStatus();
+        if (status === 'undetermined') {
+          setShowPushPrimer(true);
+        }
+      })();
+
       onVerified?.(nextSession);
     },
     [
@@ -191,6 +220,29 @@ export function VerifyScreen({ onBack, backLabel, onVerified }: VerifyScreenProp
       t,
     ],
   );
+
+  // Handler for the "Turn on notifications" CTA inside the primer. Runs
+  // the atomic register pipeline (permission → Expo token → backend
+  // POST → persist). Any failure renders as an inline error — the rest
+  // of the verified session stays usable.
+  const handleEnablePush = useCallback(async () => {
+    if (!session?.access_token) return;
+    setPushPrimerPending(true);
+    setPushPrimerError(null);
+    try {
+      await registerForPushNotifications(session.access_token, {
+        deviceId: session.user.user_id,
+        locale: preferences.language,
+      });
+      setShowPushPrimer(false);
+    } catch (error) {
+      setPushPrimerError(
+        error instanceof Error ? error.message : 'Could not register push',
+      );
+    } finally {
+      setPushPrimerPending(false);
+    }
+  }, [preferences.language, session?.access_token, session?.user.user_id]);
 
   /**
    * Universal-link intake. When the app is launched (or foregrounded)
@@ -373,6 +425,44 @@ export function VerifyScreen({ onBack, backLabel, onVerified }: VerifyScreenProp
                 title={t('verifySuccessTitle')}
               />
               <Banner tone="info" title={t('verifySuccessSubtitle')} />
+              {showPushPrimer ? (
+                <Stack gap="s">
+                  <Banner
+                    tone="info"
+                    title={t('pushPrimerTitle')}
+                  >
+                    {t('pushPrimerBody')}
+                  </Banner>
+                  {pushPrimerError ? (
+                    <Banner tone="danger" title={t('verifyError')}>
+                      {pushPrimerError}
+                    </Banner>
+                  ) : null}
+                  <Inline gap="s" wrap>
+                    <Button
+                      testID="verify-push-primer-enable"
+                      variant="primary"
+                      size="md"
+                      loading={pushPrimerPending}
+                      disabled={pushPrimerPending}
+                      onPress={() => {
+                        void handleEnablePush();
+                      }}
+                    >
+                      {t('pushPrimerEnable')}
+                    </Button>
+                    <Button
+                      testID="verify-push-primer-skip"
+                      variant="secondary"
+                      size="md"
+                      disabled={pushPrimerPending}
+                      onPress={() => setShowPushPrimer(false)}
+                    >
+                      {t('pushPrimerSkip')}
+                    </Button>
+                  </Inline>
+                </Stack>
+              ) : null}
             </Stack>
           </Card>
         ) : (
