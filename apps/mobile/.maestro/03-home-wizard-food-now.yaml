@@ -1,0 +1,23 @@
+# Flow 03 — Home wizard food-now intent opens the resource directory.
+#
+# "I'm hungry right now" is the single highest-conversion card in the
+# pilot — food pantries are the entry drug for civic trust. We assert
+# the "Open now" filter pill because that's how the wizard differentiates
+# food-now from food-this-week, and we assert at least one ResourceCard
+# renders so we catch empty-state regressions in the filter logic.
+appId: org.weavenyc.app
+tags:
+  - home
+  - pilot-critical-path
+---
+- runFlow: 02-onboarding-trust-location.yaml
+- assertVisible:
+    id: "home-wizard"
+- tapOn:
+    id: "need-food-now"
+- assertVisible:
+    id: "resource-directory"
+- assertVisible:
+    id: "home-filter-open-now"
+- assertVisible:
+    id: ".*resource-card-.*"

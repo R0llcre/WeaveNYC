@@ -1,0 +1,40 @@
+# Flow 10 — Danger: delete-my-data → OTP confirm → 30-day undo notice.
+#
+# Privacy-delete is the legal bright line: users MUST be able to purge
+# their data, and MUST see the "30 days to undo" message before they
+# commit. If this flow regresses, we've shipped a dark-pattern —
+# worth failing CI for every time.
+#
+# Reuses reviewer_primary's OTP bypass (code 246810). After success we
+# assert on the "can undo within 30 days" text because that's the
+# contractual promise the privacy policy makes.
+appId: org.weavenyc.app
+tags:
+  - danger
+  - privacy
+  - pilot-critical-path
+  - requires-backend-bypass
+---
+- runFlow: 05-verify-otp.yaml
+- tapOn:
+    text: "Me"
+- assertVisible:
+    id: "me-hub"
+- tapOn:
+    id: "me-row-privacy"
+- assertVisible:
+    id: "danger-screen"
+- tapOn:
+    id: "danger-start"
+- assertVisible:
+    id: "danger-step-otp"
+- tapOn:
+    id: "danger-otp-input"
+- inputText: "246810"
+- tapOn:
+    id: "danger-confirm"
+- assertVisible:
+    id: "danger-step-done"
+    timeout: 8000
+- assertVisible:
+    text: ".*30 days.*|.*undo.*"

@@ -1,0 +1,130 @@
+# Maestro E2E suite — iOS Simulator.
+#
+# Why macOS-14 and not macOS-latest:
+#   Apple's Simulator runtime bundled with macos-14 is Xcode 15.x,
+#   which matches the deploymentTarget in apps/mobile/app.json (16.0).
+#   If you bump the iOS target, bump this runner too and verify the
+#   Simulator device name still exists in `xcrun simctl list`.
+#
+# Why the ~15 min job SLO:
+#   macOS runners are single-tenant VMs on Apple silicon, and booting
+#   an iOS Simulator from cold takes ~60s. The full 10-flow suite
+#   adds ~8 min on top, plus 2 min of Metro bundle warm-up. If this
+#   creeps past 20 min, split the suite by tag (see matrix example
+#   commented out below).
+#
+# Maestro Cloud:
+#   On merges to `main` we upload the same flows to Maestro Cloud
+#   (https://cloud.mobile.dev) which runs them in parallel against a
+#   device farm. Secrets.MAESTRO_CLOUD_API_KEY must be configured at
+#   the org level — see ops runbook `docs/ops/maestro-cloud.md`.
+name: Maestro E2E
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/maestro-e2e.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/maestro-e2e.yml"
+
+# Cancel stale runs on the same PR — macOS minutes are expensive.
+concurrency:
+  group: maestro-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maestro-ios-sim:
+    name: iOS Simulator (iPhone 15)
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      EXPO_PUBLIC_API_MODE: mock
+      AUTH_REVIEWER_BYPASS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Install app deps
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Prebuild iOS project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Boot iPhone 15 simulator
+        run: |
+          xcrun simctl boot "iPhone 15" || true
+          xcrun simctl bootstatus "iPhone 15" -b
+
+      - name: Build & install dev client
+        working-directory: apps/mobile
+        run: |
+          npx expo run:ios --configuration Debug --device "iPhone 15" --no-bundler &
+          METRO_PID=$!
+          sleep 60
+          # expo run:ios blocks until bundle done; we spawn in bg for Maestro step
+          echo "METRO_PID=$METRO_PID" >> "$GITHUB_ENV"
+
+      - name: Run Maestro flows
+        working-directory: apps/mobile
+        run: maestro test .maestro/ --format junit --output maestro-report.xml
+
+      - name: Upload Maestro report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: apps/mobile/maestro-report.xml
+          retention-days: 14
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-failure-screens
+          path: ~/.maestro/tests/
+          retention-days: 14
+
+  # On main-merge we re-run via Maestro Cloud for cross-device coverage.
+  # This job is additive — CI does not block on it, but failures page
+  # the on-call via the cloud-side Slack hook.
+  maestro-cloud:
+    name: Maestro Cloud (prod)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: maestro-ios-sim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload flows to Maestro Cloud
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          app-file: apps/mobile/ios/build/WeaveNYC.app
+          workspace: apps/mobile/.maestro/
+          name: "weavenyc-ios-${{ github.sha }}"
+  # ---
+  # Matrix split (uncomment when suite exceeds ~20 min):
+  #
+  # strategy:
+  #   matrix:
+  #     tag: [onboarding, home, chat, posts]
+  # steps:
+  #   ...
+  #   - run: maestro test .maestro/ --include-tags ${{ matrix.tag }}

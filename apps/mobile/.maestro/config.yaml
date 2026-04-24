@@ -1,0 +1,24 @@
+# Shared Maestro configuration for the WeaveNYC iOS E2E suite.
+#
+# This file is NOT a flow — Maestro's CLI reads `appId` from individual
+# flow headers, but we keep the canonical values here so every YAML in
+# this directory references the same identifiers. Maintainers editing a
+# flow should copy from this file rather than re-typing strings.
+#
+# Fields:
+#   appId          org.weavenyc.app (matches apps/mobile/app.json > ios.bundleIdentifier)
+#   scheme         weavenyc:// (universal-link deep-link scheme for flow 09)
+#   device         Simulator device Maestro targets by default on CI
+#   iosVersion     Target Simulator runtime — pinned for reproducibility
+#
+# Run locally:
+#   maestro test apps/mobile/.maestro/
+#
+# See README.md in this directory for full instructions.
+appId: org.weavenyc.app
+scheme: weavenyc
+device:
+  model: iPhone 15
+  iosVersion: "17.5"
+tags:
+  - pilot-critical-path

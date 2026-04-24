@@ -1,0 +1,53 @@
+# Demo user fixtures for the WeaveNYC Maestro E2E suite.
+#
+# These are NOT real users. The phone numbers are reserved ITU-T
+# documentation ranges (555-01xx prefix) and never route to a real
+# carrier. The OTP code `246810` only succeeds when the backend is
+# started with AUTH_REVIEWER_BYPASS=1 (see README.md, "Demo OTP
+# bypass"). For local Simulator runs against a mock API, the client
+# short-circuits the network call entirely.
+#
+# If you need to add a new demo user, use the next free 555-01xx
+# number below and document the community/role so reviewers (and Apple
+# App Review) can reproduce flows end-to-end.
+
+reviewer_primary:
+  phone: "+15165550123"
+  zip: "11368"                # Corona, Queens — pilot neighborhood
+  language: "zh"              # Chinese — matches flow 01
+  role: "resident"
+  otp_bypass: "246810"
+
+reviewer_danger_actor:
+  phone: "+15165550124"
+  zip: "11368"
+  language: "en"
+  role: "resident"
+  otp_bypass: "246810"
+  note: "Used exclusively by flow 10 — its data gets scheduled for deletion."
+
+reviewer_chat_peer:
+  phone: "+15165550125"
+  zip: "11368"
+  language: "en"
+  role: "trusted-neighbor"
+  otp_bypass: "246810"
+  note: "Seed a conversation with reviewer_primary before running flow 08."
+
+demo_invite_codes:
+  - code: "DEMO-CORONA"
+    community: "Corona Mutual Aid"
+    zip: "11368"
+    note: "Resolves to a real community on the demo backend."
+  - code: "DEMO-SUNSET"
+    community: "Sunset Park Solidarity"
+    zip: "11220"
+    note: "Backup for parallel test runs."
+
+demo_deep_links:
+  - scheme: "weavenyc://posts/abc-123"
+    target: "Post detail screen"
+    note: "Flow 09 uses `maestro open` on this URL."
+  - scheme: "weavenyc://communities/DEMO-CORONA"
+    target: "Community preview"
+    note: "Unused by the 10-flow pilot suite; documented for future flows."
