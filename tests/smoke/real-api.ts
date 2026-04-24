@@ -1853,7 +1853,21 @@ async function resetAuthAbuseState() {
 
 async function openChatSocket(accessToken: string) {
   const socketUrl = apiBaseUrl.replace(/^http/i, 'ws') + `/v1/ws/chat?token=${encodeURIComponent(accessToken)}`;
-  const socket = new WebSocket(socketUrl);
+  // F4-A Fix #3 (PR #62) added a WS Origin allow-list. The `ws` client
+  // library does NOT set an Origin header by default, so the server
+  // rejected every smoke connection with code 1008 ("Invalid origin")
+  // right after `open` — the client saw open, then the immediate close,
+  // and then `waitForRealtimeEvent` timed out looking for the heartbeat
+  // that never came. That's the actual source of the permanent CI red
+  // on validate→Real API smoke for the past 3 days.
+  //
+  // Pass an Origin that matches the dev-mode allow-list
+  // (`http://localhost:*` / `http://127.0.0.1:*`) and the staging/prod
+  // list (weavenyc.org). The Node `ws` library accepts `origin` as a
+  // constructor option and stamps it onto the handshake's
+  // Sec-WebSocket-Origin header.
+  const wsOrigin = process.env.WEAVENYC_SMOKE_WS_ORIGIN ?? 'http://127.0.0.1:4000';
+  const socket = new WebSocket(socketUrl, { origin: wsOrigin });
 
   await new Promise<void>((resolve, reject) => {
     socket.once('open', () => resolve());

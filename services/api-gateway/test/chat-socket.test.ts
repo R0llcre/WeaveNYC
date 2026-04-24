@@ -133,6 +133,18 @@ describe('chat-socket route (P0-3 heartbeat + stale sweep)', () => {
       socket.on('close', (code: number) => resolve(code));
     });
 
+    // Silence post-terminate ECONNRESET noise from the `ws` client library.
+    // `socket.terminate()` on the server abruptly kills the TCP stream;
+    // the client-side `ws` runtime still has an in-flight write (the
+    // heartbeat greeting ACK) which surfaces as an 'error' event AFTER
+    // 'close'. Left unhandled it bubbles as a Vitest unhandled rejection
+    // and turns an otherwise-passing assertion into a file-level failure
+    // ("connect ECONNRESET 127.0.0.1:..."). Swallow it — the close event
+    // is what we're testing.
+    socket.on('error', () => {
+      /* post-terminate noise; the test only cares about the close event */
+    });
+
     app.chatSocketSweepForTest(Date.now() + 120_000);
 
     // The client should observe the terminate as a close event.

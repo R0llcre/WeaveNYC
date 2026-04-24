@@ -1266,8 +1266,21 @@ export const matchSuggestionSchema = {
       }
     },
     distance_miles: { type: ["number", "null"] },
-    neighbor_post: { anyOf: [postSummarySchema, { type: "null" }] },
-    official_resource: { anyOf: [resourceSummarySchema, { type: "null" }] }
+    // fast-json-stringify 6.x rejects both `anyOf: [schema, { type: "null" }]`
+    // AND the seemingly-correct `{ ...schema, type: ["object","null"] }`
+    // pattern when the referenced schema uses `required` + strict
+    // `additionalProperties`. The runtime chooses the wrong branch and
+    // throws a generic "does not match schema definition" — which was
+    // the actual source of the permanent CI red on validate→Real API
+    // smoke for the past 3 days. The safest serializer-friendly shape
+    // is to pass the nullable object through without per-field
+    // validation (Fastify's request-side ajv still validates inbound
+    // payloads; response-side only needs to describe the shape enough
+    // for fast-json-stringify to stringify it correctly). This keeps
+    // the contract documentation-grade without turning every harmless
+    // new field into a 500.
+    neighbor_post: { type: ["object", "null"] },
+    official_resource: { type: ["object", "null"] }
   }
 } as const;
 
