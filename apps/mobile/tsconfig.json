@@ -13,10 +13,7 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "react": ["./node_modules/@types/react"],
-      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"],
-      "react/jsx-dev-runtime": ["./node_modules/@types/react/jsx-dev-runtime"]
+      "@/*": ["./src/*"]
     },
     "typeRoots": ["./node_modules/@types"],
     "types": ["jest", "node", "react"],
