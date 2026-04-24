@@ -83,7 +83,15 @@ jobs:
     timeout-minutes: 60
     # Don't build for PRs from forks — EXPO_TOKEN isn't exposed to forks.
     # Maintainers can close/reopen the PR from a branch in this repo to run.
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    # Also skip if EXPO_TOKEN has not been provisioned yet — avoids "no
+    # Expo account" red every PR while the account + token are still being
+    # set up (outstanding user-action item in PR #108). When the secret
+    # is empty, the `vars.HAS_EXPO_TOKEN` gate is false and the whole job
+    # short-circuits cleanly rather than failing the PR.
+    if: >-
+      (github.event.pull_request.head.repo.full_name == github.repository ||
+       github.event_name == 'push')
+      && vars.HAS_EXPO_TOKEN == 'true'
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
