@@ -106,6 +106,16 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - name: Install system deps (poppler for CFC PDF parsing)
+        if: steps.gate.outputs.enabled == 'true'
+        # The CFC Active adapter (`services/resource-directory/src/adapters/
+        # cfc-active.ts`) shells out to `pdftotext` via node:child_process.
+        # Without poppler-utils the spawn errors with ENOENT. Pre-install so
+        # both the smoke step and the real import step have it.
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends poppler-utils
+
       - name: Install dependencies
         if: steps.gate.outputs.enabled == 'true'
         run: pnpm install --frozen-lockfile
