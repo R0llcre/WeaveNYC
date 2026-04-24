@@ -38,6 +38,18 @@ export default defineConfig({
       "apps/**/*.test.tsx",
       "tests/docs/**/*.test.ts",
     ],
+    // apps/mobile uses jest (not vitest) — mobile tests import via the
+    // `@/*` path alias which this root vitest resolver maps to
+    // apps/pwa/src, not apps/mobile/src, so co-collecting them here
+    // surfaces as "Cannot find module '@/theme'" in CI. Mobile runs its
+    // own `pnpm --filter @weavenyc/mobile test` step (already green in
+    // Mobile Build workflow), so excluding them from root vitest is the
+    // correct split — not a regression in coverage.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "apps/mobile/**",
+    ],
     environmentMatchGlobs: [
       ["apps/pwa/**/*.test.tsx", "jsdom"],
     ],
