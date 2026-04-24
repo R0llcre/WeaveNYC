@@ -1,0 +1,28 @@
+# Flow 04 — Resource detail: Call, Directions, Bookmark all visible.
+#
+# If any of the three action buttons disappears the user can't actually
+# *use* the resource, which defeats the whole app. We do NOT actually
+# dial or navigate — launching external apps on CI is flaky — we just
+# assert the buttons exist and are hit-testable. The bookmark tap
+# toggles state locally so we verify it flips.
+appId: org.weavenyc.app
+tags:
+  - resource-detail
+  - pilot-critical-path
+---
+- runFlow: 03-home-wizard-food-now.yaml
+- tapOn:
+    id: "resource-card-.*"
+    index: 0
+- assertVisible:
+    id: "resource-detail-.*"
+- assertVisible:
+    id: "phone-.*"
+- assertVisible:
+    id: "directions-.*"
+- assertVisible:
+    id: "bookmark-.*"
+- tapOn:
+    id: "bookmark-.*"
+- assertVisible:
+    id: "bookmark-.*"

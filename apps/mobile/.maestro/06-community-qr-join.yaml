@@ -1,0 +1,38 @@
+# Flow 06 — Community invite-code join: DEMO-CORONA.
+#
+# We use the invite-code path instead of actual QR scanning because
+# Maestro can't point a Simulator camera at a printed QR code. The
+# invite-code UI is the same backend endpoint, just a different input
+# affordance — if the resolver contract breaks, both paths fail.
+#
+# DEMO-CORONA resolves to the real "Corona Mutual Aid" community on
+# the demo backend (see fixtures/demo-users.yaml).
+appId: org.weavenyc.app
+tags:
+  - community
+  - pilot-critical-path
+---
+- runFlow: 02-onboarding-trust-location.yaml
+- tapOn:
+    text: "Community"
+- assertVisible:
+    id: "community-screen"
+- tapOn:
+    id: "join-community"
+- assertVisible:
+    id: "community-join-screen"
+- tapOn:
+    id: "join-mode-invite"
+- tapOn:
+    id: "invite-code-field"
+- inputText: "DEMO-CORONA"
+- tapOn:
+    id: "resolve-community"
+- assertVisible:
+    id: "join-preview-card"
+    timeout: 8000
+- tapOn:
+    id: "confirm-join"
+- assertVisible:
+    id: "current-community-card"
+    timeout: 8000

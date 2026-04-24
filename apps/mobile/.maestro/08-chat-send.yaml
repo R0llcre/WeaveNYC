@@ -1,0 +1,39 @@
+# Flow 08 — Chat: open conversation, send "Hello", assert bubble.
+#
+# Requires a seeded conversation between reviewer_primary and
+# reviewer_chat_peer (see fixtures/demo-users.yaml). If the inbox is
+# empty on a fresh backend, the flow fails fast at the assertVisible
+# on inbox-list — that's the signal for the backend team to seed.
+#
+# We assert the message bubble by looking up any chat-message- testid
+# after sending, because the new message ID is assigned server-side
+# and we don't want to race the websocket roundtrip for an exact match.
+appId: org.weavenyc.app
+tags:
+  - chat
+  - pilot-critical-path
+  - requires-seeded-data
+---
+- runFlow: 05-verify-otp.yaml
+- tapOn:
+    text: "Inbox"
+- assertVisible:
+    id: "inbox-screen"
+- assertVisible:
+    id: "inbox-list"
+    timeout: 8000
+- tapOn:
+    id: "inbox-conversation-.*"
+    index: 0
+- assertVisible:
+    id: "conversation-screen"
+- tapOn:
+    id: "chat-input"
+- inputText: "Hello"
+- tapOn:
+    id: "chat-send"
+- assertVisible:
+    id: "chat-message-.*"
+    timeout: 6000
+- assertVisible:
+    text: "Hello"

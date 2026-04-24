@@ -1,0 +1,32 @@
+# Flow 02 — Trust screen through ZIP entry to the home wizard.
+#
+# This is the "did onboarding actually complete?" flow. If the ZIP 11368
+# doesn't land the user on the home wizard, resource recs will be
+# empty and the pilot dies on day one. We submit manually rather than
+# auto-detecting because CI simulators return a San-Francisco-default
+# GPS fix that makes the auto path non-deterministic.
+appId: org.weavenyc.app
+tags:
+  - onboarding
+  - pilot-critical-path
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: deny
+      notifications: deny
+- tapOn:
+    id: "onboarding-language-en"
+- assertVisible:
+    id: "onboarding-trust-continue"
+- tapOn:
+    id: "onboarding-trust-continue"
+- assertVisible:
+    id: "onboarding-location-zip-input"
+- tapOn:
+    id: "onboarding-location-zip-input"
+- inputText: "11368"
+- tapOn:
+    id: "onboarding-location-submit"
+- assertVisible:
+    id: "home-wizard"

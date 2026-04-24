@@ -1,0 +1,56 @@
+# Flow 07 — Offline-first post compose: airplane-mode publish → outbox.
+#
+# The whole point of the outbox is "users with patchy subway WiFi can
+# still publish offers, and the post sends when signal returns". If
+# this flow regresses, we're no better than a naive synchronous API
+# client. We:
+#   1. Join a community (prerequisite for posting)
+#   2. Toggle airplane mode ON *before* tapping Publish
+#   3. Assert the outbox-saved toast appears (UI confirms local save)
+#   4. Toggle airplane mode OFF and let the drain run
+#   5. Navigate to the community feed and look for the post row
+#
+# We do NOT assert the exact row id because the backend assigns it —
+# we assert any post-row- testid renders, then trust Jest unit tests
+# to cover outbox-to-server ID reconciliation.
+appId: org.weavenyc.app
+tags:
+  - posts
+  - outbox
+  - pilot-critical-path
+---
+- runFlow: 06-community-qr-join.yaml
+- tapOn:
+    id: "new-post-cta"
+- assertVisible:
+    id: "post-composer-screen"
+- tapOn:
+    id: "select-offer"
+- tapOn:
+    id: "category-food"
+- tapOn:
+    id: "compose-title"
+- inputText: "Extra diapers"
+- tapOn:
+    id: "compose-body"
+- inputText: "Size 3 and 4, pickup in Corona this week."
+- tapOn:
+    id: "compose-next"
+- assertVisible:
+    id: "preview-card"
+- setAirplaneMode:
+    value: true
+- tapOn:
+    id: "publish-post"
+- assertVisible:
+    text: ".*[Ss]aved.*|.*[Oo]utbox.*"
+    timeout: 6000
+- setAirplaneMode:
+    value: false
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Community"
+- assertVisible:
+    id: "post-row-.*"
+    timeout: 15000

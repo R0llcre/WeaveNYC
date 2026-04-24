@@ -1,0 +1,26 @@
+# Flow 01 — Onboarding: pick Chinese, advance to trust screen.
+#
+# Critical because 40%+ of the Corona pilot cohort speaks Chinese at
+# home, and the language picker is the first trust-signal the app
+# sends: getting the right localization before trust copy appears is
+# the difference between "this app is for me" and a silent bounce.
+#
+# We do NOT assert the translated trust-screen copy here — language
+# swap is covered by jest/i18n tests. We only assert that the router
+# transitioned, because that's what Maestro can observe reliably.
+appId: org.weavenyc.app
+tags:
+  - onboarding
+  - pilot-critical-path
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: deny
+      notifications: deny
+- assertVisible:
+    id: "onboarding-language-zh"
+- tapOn:
+    id: "onboarding-language-zh"
+- assertVisible:
+    id: "onboarding-trust-continue"

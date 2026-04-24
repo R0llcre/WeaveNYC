@@ -1,0 +1,39 @@
+# Flow 05 — Verify screen: phone + OTP bypass.
+#
+# The OTP code `246810` only works when the backend is running with
+# AUTH_REVIEWER_BYPASS=1 (see README.md). Against a production build
+# without that flag this flow WILL fail — that's by design: Phase 3-D
+# reviewer notes tell Apple's reviewer to use this exact number+code,
+# and TestFlight builds wire the bypass for the review window.
+appId: org.weavenyc.app
+tags:
+  - verify
+  - pilot-critical-path
+  - requires-backend-bypass
+---
+- runFlow: 02-onboarding-trust-location.yaml
+- tapOn:
+    text: "Me"
+- assertVisible:
+    id: "me-hub"
+- tapOn:
+    id: "me-verify-cta"
+- assertVisible:
+    id: "verify-screen"
+- tapOn:
+    id: "verify-tab-otp"
+- tapOn:
+    id: "verify-phone-field"
+- inputText: "5165550123"
+- tapOn:
+    id: "verify-send-code"
+- assertVisible:
+    id: "verify-code-field"
+- tapOn:
+    id: "verify-code-field"
+- inputText: "246810"
+- tapOn:
+    id: "verify-code-submit"
+- assertVisible:
+    id: "verify-success-toast"
+    timeout: 8000

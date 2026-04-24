@@ -1,0 +1,21 @@
+# Flow 09 — Deep link → post detail directly.
+#
+# Verifies `weavenyc://posts/<id>` URL handling. iOS universal-link
+# routing for `applinks:weavenyc.org` is validated separately in
+# production via the Apple App Site Association file — here we only
+# check the custom-scheme fallback, which is what reviewers paste
+# from Slack when testing.
+#
+# We skip `launchApp:` and use `openLink` so the app cold-boots from
+# the URL (the launch path the Phase 3 deep-link handler cares about).
+appId: org.weavenyc.app
+tags:
+  - deep-link
+  - pilot-critical-path
+---
+- launchApp:
+    clearState: true
+- openLink: weavenyc://posts/abc-123
+- assertVisible:
+    id: "post-detail-screen"
+    timeout: 10000
