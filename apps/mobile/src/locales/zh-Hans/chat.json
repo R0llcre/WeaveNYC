@@ -104,5 +104,7 @@
   "chatSafetyCrypto": "这条消息提到加密货币。",
   "chatSafetyGiftCard": "这条消息提到礼品卡。",
   "chatSafetyShowAnyway": "仍然显示",
-  "chatSafetyHidden": "为了你的安全，这条消息已隐藏。"
+  "chatSafetyHidden": "为了你的安全，这条消息已隐藏。",
+  "unlockReason": "解锁以查看你的消息",
+  "inboxLocked": "轻点解锁"
 }

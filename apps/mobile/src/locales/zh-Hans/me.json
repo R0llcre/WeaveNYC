@@ -104,5 +104,10 @@
   "meSignOutHint": "帖子和消息都留着，只是这台手机忘记你。",
   "meSignOutAllDevicesAction": "登出所有设备",
   "meSignOutAllDevicesConfirm": "这会在你用过的每台手机和浏览器上都退出登录。要继续吗？",
-  "deleteRateLimitError": "最近一小时已经请求了 3 次删除。过一会儿再试，急事可以发邮件到 help@weavenyc.org。"
+  "deleteRateLimitError": "最近一小时已经请求了 3 次删除。过一会儿再试，急事可以发邮件到 help@weavenyc.org。",
+  "biometricLockTitle": "用 Face ID 锁定你的消息",
+  "biometricLockBody": "手机借给别人或者丢了也更安全。",
+  "biometricLockFaceId": "Face ID",
+  "biometricLockTouchId": "Touch ID",
+  "dangerUnlockReason": "验证身份以删除账户"
 }

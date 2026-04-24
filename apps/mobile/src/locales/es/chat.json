@@ -104,5 +104,7 @@
   "chatSafetyCrypto": "Este mensaje menciona criptomonedas.",
   "chatSafetyGiftCard": "Este mensaje menciona tarjetas de regalo.",
   "chatSafetyShowAnyway": "Mostrar de todos modos",
-  "chatSafetyHidden": "Mensaje oculto por tu seguridad."
+  "chatSafetyHidden": "Mensaje oculto por tu seguridad.",
+  "unlockReason": "Desbloquea para ver tus mensajes",
+  "inboxLocked": "Toca para desbloquear"
 }

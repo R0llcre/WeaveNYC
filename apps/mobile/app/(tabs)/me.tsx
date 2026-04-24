@@ -15,9 +15,9 @@
  */
 
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -33,10 +33,15 @@ import { loadNamespace } from '@/i18n';
 import type { Resources } from '@/i18n/types';
 import { useAppSelector } from '@/lib/hooks';
 import {
+  getBiometricLockEnabled,
+  setBiometricLockEnabled,
+} from '@/lib/persistence';
+import {
   selectIsVerified,
   selectPreferences,
   selectSession,
 } from '@/lib/selectors';
+import { useBiometricSupport } from '@/lib/use-biometric-unlock';
 import { useSignOut } from '@/lib/use-sign-out';
 import { useAppTheme } from '@/theme';
 import type { SupportedLanguage, UserLevel } from '@/lib/types';
@@ -63,10 +68,36 @@ export default function MeTab() {
   const isVerified = useAppSelector(selectIsVerified);
   const session = useAppSelector(selectSession);
   const signOut = useSignOut();
+  const biometric = useBiometricSupport();
+  const [biometricLockEnabled, setBiometricLockEnabledState] = useState(false);
 
   useEffect(() => {
     void loadNamespace('me');
   }, []);
+
+  // Hydrate the toggle from persistence on mount so the Switch reflects
+  // whatever the user flipped on a prior session.
+  useEffect(() => {
+    let cancelled = false;
+    void getBiometricLockEnabled().then((enabled) => {
+      if (!cancelled) setBiometricLockEnabledState(enabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleToggleBiometricLock = useCallback(
+    (next: boolean) => {
+      // Optimistic — write-through to MMKV but don't block the UI on the
+      // async call. A failure is silently swallowed inside setBiometric-
+      // LockEnabled so the worst case is the toggle snapping back on the
+      // next mount when hydrate reads the unchanged row.
+      setBiometricLockEnabledState(next);
+      void setBiometricLockEnabled(next);
+    },
+    [],
+  );
 
   const level: UserLevel = session?.user.level ?? 'anonymous';
   const levelLabel = t(LEVEL_KEY[level]);
@@ -165,6 +196,38 @@ export default function MeTab() {
             ) : null}
           </Stack>
         </Card>
+
+        {/* Biometric lock toggle — only surfaced to verified users on a
+            device that (a) has the sensor and (b) the user has enrolled a
+            biometric. Unverified users have no inbox to lock; unenrolled
+            users can't flip the switch without going through Settings
+            first, so hiding the row avoids a dead-end. */}
+        {isVerified && biometric.supported !== 'none' && biometric.enrolled ? (
+          <Card testID="me-biometric-lock-card">
+            <Inline gap="s" justify="between" align="center">
+              <Stack gap="xs" style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: colors.inkPrimary,
+                    fontSize: 16,
+                    fontWeight: '600',
+                  }}
+                >
+                  {t('biometricLockTitle')}
+                </Text>
+                <Text style={[styles.caption, { color: colors.inkMuted }]}>
+                  {t('biometricLockBody')}
+                </Text>
+              </Stack>
+              <Switch
+                testID="me-biometric-lock-toggle"
+                accessibilityLabel={t('biometricLockTitle')}
+                value={biometricLockEnabled}
+                onValueChange={handleToggleBiometricLock}
+              />
+            </Inline>
+          </Card>
+        ) : null}
 
         {session ? (
           <Card testID="me-signout-card">

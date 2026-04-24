@@ -104,5 +104,10 @@
   "meSignOutHint": "Tus publicaciones y mensajes se quedan. Solo este teléfono te olvida.",
   "meSignOutAllDevicesAction": "Cerrar sesión en todos los dispositivos",
   "meSignOutAllDevicesConfirm": "Esto cerrará tu sesión en todos los teléfonos y navegadores que has usado. ¿Continuar?",
-  "deleteRateLimitError": "Pediste eliminar 3 veces en la última hora. Intenta en un rato, o escribe a help@weavenyc.org si es urgente."
+  "deleteRateLimitError": "Pediste eliminar 3 veces en la última hora. Intenta en un rato, o escribe a help@weavenyc.org si es urgente.",
+  "biometricLockTitle": "Bloquea tu bandeja con Face ID",
+  "biometricLockBody": "Más privacidad si tu teléfono se comparte o se pierde.",
+  "biometricLockFaceId": "Face ID",
+  "biometricLockTouchId": "Touch ID",
+  "dangerUnlockReason": "Confirma tu identidad para eliminar tu cuenta"
 }

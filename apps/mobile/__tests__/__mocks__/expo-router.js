@@ -62,6 +62,16 @@ Stack.Screen = function StackScreen() {
   return null;
 };
 
+// Focus-effect shim — real expo-router fires the callback on screen
+// focus/blur. Under Node test env we fire it once on mount and invoke
+// the cleanup on unmount, which is the shape every test relies on.
+function useFocusEffect(callback) {
+  React.useEffect(() => {
+    const cleanup = callback();
+    return typeof cleanup === 'function' ? cleanup : undefined;
+  }, [callback]);
+}
+
 module.exports = {
   __esModule: true,
   router: routerSpy,
@@ -70,6 +80,7 @@ module.exports = {
   useSearchParams: useLocalSearchParams,
   useSegments,
   usePathname,
+  useFocusEffect,
   Slot,
   Link,
   Tabs,

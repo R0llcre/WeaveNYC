@@ -38,8 +38,13 @@ import { loadNamespace } from '@/i18n';
 import type { Resources } from '@/i18n/types';
 import { confirmAccountDeletion, requestAccountDeletion } from '@/lib/api';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { getBiometricLockEnabled } from '@/lib/persistence';
 import { selectSession } from '@/lib/selectors';
 import { clearSession } from '@/lib/slices/auth-slice';
+import {
+  authenticateBiometric,
+  useBiometricSupport,
+} from '@/lib/use-biometric-unlock';
 import { useAppTheme } from '@/theme';
 
 type MeKey = keyof Resources['me'];
@@ -95,6 +100,7 @@ export default function DangerScreen() {
 
   const [step, setStep] = useState<Step>({ kind: 'confirm' });
   const [otpCode, setOtpCode] = useState('');
+  const biometric = useBiometricSupport();
 
   useEffect(() => {
     void loadNamespace('me');
@@ -109,6 +115,27 @@ export default function DangerScreen() {
       });
       return;
     }
+
+    // Gate the destructive OTP request behind Face ID / Touch ID when the
+    // user has both (a) turned the biometric lock on and (b) enrolled a
+    // biometric on this device. Unenrolled users fall through to the
+    // existing OTP-only flow so we don't lock them out of their own
+    // deletion path.
+    if (biometric.enrolled) {
+      const enabled = await getBiometricLockEnabled();
+      if (enabled) {
+        const ok = await authenticateBiometric(t('dangerUnlockReason'));
+        if (!ok) {
+          setStep({
+            kind: 'error',
+            previous: 'confirm',
+            messageKey: 'deleteAuthError',
+          });
+          return;
+        }
+      }
+    }
+
     setStep({ kind: 'requesting' });
     try {
       const challenge = await requestAccountDeletion(session.access_token);
@@ -124,7 +151,7 @@ export default function DangerScreen() {
         messageKey: mapDeleteError(error),
       });
     }
-  }, [session?.access_token]);
+  }, [biometric.enrolled, session?.access_token, t]);
 
   const handleConfirm = useCallback(async () => {
     if (step.kind !== 'otp' && step.kind !== 'error') return;
