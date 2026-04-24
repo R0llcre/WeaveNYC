@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appIDs": ["<TEAM_ID>.org.weavenyc.app"],
+        "appIDs": ["P42VU73CW3.org.weavenyc.app"],
         "components": [
           {
             "/": "/posts/*",
@@ -30,9 +30,9 @@
     ]
   },
   "webcredentials": {
-    "apps": ["<TEAM_ID>.org.weavenyc.app"]
+    "apps": ["P42VU73CW3.org.weavenyc.app"]
   },
   "activitycontinuation": {
-    "apps": ["<TEAM_ID>.org.weavenyc.app"]
+    "apps": ["P42VU73CW3.org.weavenyc.app"]
   }
 }

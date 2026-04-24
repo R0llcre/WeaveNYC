@@ -7,7 +7,7 @@ URL). Zero-friction, no custom scheme. This is **required** for the App Store
 reviewer flow (see `REVIEWER_NOTES.md` §5).
 
 **Status of the AASA file**: checked in at
-`apps/pwa/public/.well-known/apple-app-site-association` with `<TEAM_ID>`
+`apps/pwa/public/.well-known/apple-app-site-association` with `P42VU73CW3`
 placeholder. Fill the placeholder in the same commit that bumps the app to
 version `1.0.0` for submission (week 9).
 
@@ -22,7 +22,7 @@ version `1.0.0` for submission (week 9).
 3. Apple's CDN caches the AASA per-device for ~24h.
 4. When the user taps an HTTPS link to `weavenyc.org`, iOS checks the cached
    AASA. If the path matches a declared component and the `appIDs` entry
-   includes our `<TEAM_ID>.org.weavenyc.app`, the app opens directly.
+   includes our `P42VU73CW3.org.weavenyc.app`, the app opens directly.
 5. If the app isn't installed: Safari opens the URL. The PWA already renders
    that path, so the user lands in the right place either way.
 
@@ -98,7 +98,7 @@ Check in at `apps/pwa/public/.well-known/apple-app-site-association`:
     "apps": [],
     "details": [
       {
-        "appIDs": ["<TEAM_ID>.org.weavenyc.app"],
+        "appIDs": ["P42VU73CW3.org.weavenyc.app"],
         "components": [
           { "/": "/posts/*",       "comment": "Deep link to a specific post" },
           { "/": "/resources/*",   "comment": "Deep link to a provider" },
@@ -110,10 +110,10 @@ Check in at `apps/pwa/public/.well-known/apple-app-site-association`:
     ]
   },
   "webcredentials": {
-    "apps": ["<TEAM_ID>.org.weavenyc.app"]
+    "apps": ["P42VU73CW3.org.weavenyc.app"]
   },
   "activitycontinuation": {
-    "apps": ["<TEAM_ID>.org.weavenyc.app"]
+    "apps": ["P42VU73CW3.org.weavenyc.app"]
   }
 }
 ```
@@ -145,15 +145,15 @@ Check in at `apps/pwa/public/.well-known/apple-app-site-association`:
 
 ---
 
-## 4. Filling the `<TEAM_ID>` placeholder
+## 4. Filling the `P42VU73CW3` placeholder
 
-The `appIDs` entries currently read `<TEAM_ID>.org.weavenyc.app`. The
+The `appIDs` entries currently read `P42VU73CW3.org.weavenyc.app`. The
 placeholder must be replaced with the 10-char Team ID from
 `APPLE_ENROLLMENT.md` step 4.
 
 ```bash
 # From repo root, on the release branch:
-sed -i '' "s/<TEAM_ID>/ABCD123456/g" apps/pwa/public/.well-known/apple-app-site-association
+sed -i '' "s/P42VU73CW3/ABCD123456/g" apps/pwa/public/.well-known/apple-app-site-association
 # (replace ABCD123456 with the real Team ID)
 ```
 
