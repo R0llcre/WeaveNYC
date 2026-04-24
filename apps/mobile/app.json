@@ -8,12 +8,16 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "jsEngine": "hermes",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "org.weavenyc.app",
       "supportsTablet": true,
       "deploymentTarget": "16.0",
-      "associatedDomains": ["applinks:weavenyc.org"],
+      "associatedDomains": [
+        "applinks:weavenyc.org"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "WeaveNYC uses the camera to scan QR codes for verified anchors and to attach photos to posts.",
@@ -25,7 +29,16 @@
       }
     },
     "android": {
-      "package": "org.weavenyc.app"
+      "package": "org.weavenyc.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -53,7 +66,11 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "e010a495-e484-4d3c-994a-fb7a21007f67"
       }
-    }
+    },
+    "owner": "r0llcre"
   }
 }

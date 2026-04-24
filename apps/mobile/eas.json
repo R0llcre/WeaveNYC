@@ -33,8 +33,7 @@
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.weavenyc.org",
-        "EXPO_PUBLIC_SENTRY_DSN": "<PROD_SENTRY_DSN>",
+        "EXPO_PUBLIC_API_BASE_URL": "https://hykmfmcf58.us-east-1.awsapprunner.com",
         "EXPO_PUBLIC_ENV": "production"
       },
       "ios": {
@@ -47,8 +46,8 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "<APPLE_ID>",
-        "ascAppId": "<ASC_APP_ID>",
+        "appleId": "skr174426@icloud.com",
+        "ascAppId": "6763614740",
         "appleTeamId": "P42VU73CW3"
       }
     }
