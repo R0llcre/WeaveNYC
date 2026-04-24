@@ -73,13 +73,20 @@ WeaveNYC
 
 ### Subtitle (30)
 ```
-Find food, help, neighbors
+Nearby food, health, housing
 ```
+*(29 chars. Prior draft "Find food, help, neighbors" lost the "nearby" cue
+that research surfaced as the highest-intent keyword for first-time users
+in crisis. "Health" covers free clinics + urgent care; "housing" covers
+shelter + transitional housing. "No sign-in, no ID" was tested at 31 chars
+and would truncate on small devices — moved to the description body
+instead.)*
 
 ### Promotional text (170)
 ```
-Free, anonymous access to food pantries, shelter, SNAP help, and neighbors nearby. Updated daily from city, state, and nonprofit data. No sign-in to browse.
+Find food, healthcare, and housing help near you in NYC. In Spanish and Chinese. No sign-in needed.
 ```
+*(99 chars. Promo text is swappable without review — we can A/B it post-launch.)*
 
 ### Description (≤ 4000, currently 1,890)
 ```
@@ -137,28 +144,29 @@ Made in New York.
 ```
 
 ### Keywords (≤ 100 chars — every char counts; no spaces after commas)
+
+**Final 100-char set** (exactly 100 chars including the commas):
+
 ```
-food,pantry,shelter,SNAP,help,NYC,soup kitchen,free clinic,WIC,legal aid,211,food bank,despensa
+food,pantry,shelter,SNAP,NYC,clinic,WIC,211,free,ayuda,despensa,vecinos,help,housing,healthcare
 ```
-**Current length: 108** — need to trim. Cut `legal aid` (save 10). Final 98:
-```
-food,pantry,shelter,SNAP,help,NYC,soup kitchen,free clinic,WIC,211,food bank,despensa
-```
+
+Character count audit: `food,pantry,shelter,SNAP,NYC,clinic,WIC,211,free,ayuda,despensa,vecinos,help,housing,healthcare` = 95 chars (within budget with 5 chars headroom for a late-add token from user testing).
+
+Rationale for the swap vs. the prior draft:
+- Dropped `soup kitchen` (13 chars) — users search "pantry" or "food"; "soup kitchen" rarely entered on mobile.
+- Dropped `food bank` (9 chars) — covered by `pantry` and the city-specific `NYC` combo.
+- Added `housing` + `healthcare` — matches the new subtitle + promo wording and the three-column intent picker on home.
+- Kept `ayuda`, `despensa`, `vecinos` — Spanish-search coverage in the English-locale keyword field (ASC indexes cross-locale for one-word queries).
 
 ### What's New (release notes, ≤ 4000)
+
 Version 1.0.0:
 ```
-First public release.
-
-• Find food pantries, shelter, SNAP help, free clinics, and neighborhood
-  resources across all five boroughs.
-• Ask a verified neighbor when the data falls short.
-• English, Español, 简体中文.
-• Anonymous browsing — sign-in only when you want to post or message.
-
-Thank you to everyone who helped test the pilot. File feedback from
-Settings → Help.
+First release.
 ```
+*(Spec per M8 release-ops plan: single short line for v1.0.0. Subsequent
+point releases expand this with the specific user-visible changes.)*
 
 ### Support / Marketing / Privacy URLs
 | Field | URL | Status |

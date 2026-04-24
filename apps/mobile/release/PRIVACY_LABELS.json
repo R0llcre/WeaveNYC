@@ -1,0 +1,180 @@
+{
+  "$comment": "Privacy nutrition label — machine-readable mirror of APP_STORE_LISTING.md §5. Submit via App Store Connect API (POST /v1/apps/{id}/appPrivacyConfig) or paste into Manage Data Collection. Keys follow Apple's Data Types taxonomy as of App Store Connect API v3.7.",
+  "bundleId": "org.weavenyc.app",
+  "teamId": "P42VU73CW3",
+  "version": "1.0.0",
+  "lastUpdated": "2026-04-22",
+  "privacyChoices": {
+    "dataCollection": true,
+    "tracking": false,
+    "comment": "We collect data but do NOT use it for tracking per Apple's definition (no linking with other apps/sites for advertising, no sale to data brokers). ATT prompt is therefore not shown."
+  },
+  "dataTypes": [
+    {
+      "category": "Contact Info",
+      "dataType": "Phone Number",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Collected only if the user chooses phone-OTP sign-in. Stored on the user's account record; used for OTP verification and as an optional handle in neighbor chat. Never shared with third parties."
+    },
+    {
+      "category": "Contact Info",
+      "dataType": "Email Address",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Collected only if the user chooses magic-link sign-in or Sign in with Apple without Hide-My-Email. Used for magic-link delivery and anchor support contact. SIWA private-relay addresses are accepted as first-class."
+    },
+    {
+      "category": "Contact Info",
+      "dataType": "Name",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Display name is optional; default is 'Anonymous neighbor'. Used for post attribution only."
+    },
+    {
+      "category": "Location",
+      "dataType": "Coarse Location",
+      "collected": true,
+      "linkedToUser": false,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "ZIP-code granularity (reducedAccuracy) only. Used in-memory for the current search. Not written to disk; not sent to server. ZIP-picker fallback always available. Anonymous browsers are not linked to the value."
+    },
+    {
+      "category": "Location",
+      "dataType": "Precise Location",
+      "collected": false
+    },
+    {
+      "category": "User Content",
+      "dataType": "Other User Content",
+      "subtype": "Posts",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "The anonymous-post feature is the app's core; posts are linked to the authoring account server-side, displayed publicly per the user's chosen visibility."
+    },
+    {
+      "category": "User Content",
+      "dataType": "Other User Content",
+      "subtype": "Messages",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Neighbor chat messages between an anchor and a post author. Linked to the two participating accounts server-side; end-to-end transport over TLS 1.3."
+    },
+    {
+      "category": "User Content",
+      "dataType": "Photos or Videos",
+      "collected": false,
+      "notes": "v1 post composer is text-only; no photo attachments, no Photos permission requested."
+    },
+    {
+      "category": "Contacts",
+      "dataType": "Contacts",
+      "collected": false,
+      "notes": "Contacts permission is never requested."
+    },
+    {
+      "category": "Identifiers",
+      "dataType": "Device ID",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "APNs push token, bound to the user's account after sign-in for notification delivery. Not linked for anonymous browsers."
+    },
+    {
+      "category": "Identifiers",
+      "dataType": "User ID",
+      "collected": true,
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Internal UUID per authenticated account. Never exposed to third parties, never used for advertising."
+    },
+    {
+      "category": "Diagnostics",
+      "dataType": "Crash Data",
+      "collected": true,
+      "linkedToUser": false,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Sentry crash reports. PII is scrubbed client-side before upload via Sentry beforeSend hook (see apps/mobile/sentry.config.ts)."
+    },
+    {
+      "category": "Diagnostics",
+      "dataType": "Performance Data",
+      "collected": true,
+      "linkedToUser": false,
+      "usedForTracking": false,
+      "purposes": ["App Functionality"],
+      "notes": "Sentry performance traces (transaction names, durations). No PII, no URL query strings."
+    },
+    {
+      "category": "Diagnostics",
+      "dataType": "Other Diagnostic Data",
+      "collected": false
+    },
+    {
+      "category": "Usage Data",
+      "dataType": "Product Interaction",
+      "collected": true,
+      "linkedToUser": false,
+      "usedForTracking": false,
+      "purposes": ["Analytics"],
+      "notes": "Aggregate page-view counters and funnel metrics. No individual user attribution."
+    },
+    {
+      "category": "Usage Data",
+      "dataType": "Advertising Data",
+      "collected": false
+    },
+    {
+      "category": "Health & Fitness",
+      "dataType": "Health",
+      "collected": false
+    },
+    {
+      "category": "Financial Info",
+      "dataType": "Payment Info",
+      "collected": false
+    },
+    {
+      "category": "Financial Info",
+      "dataType": "Credit Info",
+      "collected": false
+    },
+    {
+      "category": "Sensitive Info",
+      "dataType": "Sensitive Info",
+      "collected": false
+    },
+    {
+      "category": "Browsing History",
+      "dataType": "Browsing History",
+      "collected": false
+    },
+    {
+      "category": "Search History",
+      "dataType": "Search History",
+      "collected": false,
+      "notes": "Resource-directory search queries are processed in-memory only; we do not persist a per-user search log."
+    }
+  ],
+  "privacyPolicyUrl": "https://weavenyc.org/privacy",
+  "dataRetention": {
+    "policy": "Accounts: until user deletes. Posts: retained 1 year after account deletion for abuse-investigation purposes, then purged. Diagnostics: 30 days rolling window in Sentry.",
+    "userCanDelete": true,
+    "userCanExport": true,
+    "deletionEndpoint": "https://weavenyc.org/privacy/delete"
+  }
+}

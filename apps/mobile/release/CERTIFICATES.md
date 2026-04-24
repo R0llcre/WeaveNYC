@@ -1,9 +1,57 @@
 # Bundle ID, Certificates & Provisioning — WeaveNYC iOS
 
 **Bundle ID**: `org.weavenyc.app`
-**Team ID**: `<TEAM_ID>` (populated after `APPLE_ENROLLMENT.md` step 4).
+**Team ID**: `P42VU73CW3` (individual Apple Developer Program membership, enrolled 2026-04).
 **Credentials host**: EAS (Expo Application Services) managed credentials —
 primary path. Manual Keychain-based flow documented as fallback.
+
+---
+
+## 0. Required GitHub Actions secrets (CI)
+
+`.github/workflows/mobile-build.yml` consumes exactly three repository secrets.
+Configure at **Settings → Secrets and variables → Actions → New repository secret**.
+
+| Secret | Source | Scope | Rotation |
+|---|---|---|---|
+| `EXPO_TOKEN` | <https://expo.dev/accounts/weavenyc/settings/access-tokens> → **Create** → name `github-actions-ci` | EAS build + credentials (service-account style; don't use a human token) | 180 days |
+| `APPLE_APP_SPECIFIC_PASSWORD` | <https://appleid.apple.com/account/manage> → Sign-In and Security → App-Specific Passwords → **+** → label `weavenyc-eas-submit` | `eas submit` auto-upload to ASC (production profile only); bypasses 2FA in non-interactive CI | Immediately on Team Agent (individual account holder) offboarding |
+| `SENTRY_AUTH_TOKEN` | <https://weavenyc.sentry.io/settings/account/api/auth-tokens/> → **Create New Token** → scopes `project:releases`, `org:read` | Upload source maps + mark release in Sentry | 180 days |
+
+### Individual-account specifics (what's different vs. an org account)
+
+Because enrollment is under an individual (not an organization), a few flows
+diverge from the org-account instructions Apple's docs assume:
+
+- **No "Team Agent" vs. "Admin" split**: on an individual account the single
+  Apple ID is both. When rotating secrets, there's no second human who can
+  un-brick access. Store the Apple ID password + recovery key in 1Password
+  `WeaveNYC / Apple` under two separate items so a compromised session can
+  still recover.
+- **App-Specific Password label must be unique per integration**. Reuse is
+  easy to fat-finger since only the last 4 chars are visible after creation
+  — label exactly `weavenyc-eas-submit` so rotation is unambiguous.
+- **ASC API Key vs. App-Specific Password**: for `eas submit --non-interactive`
+  either works. We're using App-Specific Password because (a) it's simpler to
+  rotate on an individual account, and (b) the ASC API Key path requires
+  creating a "user" in App Store Connect, which on an individual account
+  overlaps with the account owner role in ways Apple's UI makes confusing.
+- **No "Transfer App" escape hatch**: if the individual account becomes
+  unreachable, the app record on ASC can't be transferred out without 30+
+  days of Apple Support escalation. Mitigate by converting to a Company
+  account via Apple's upgrade path once the nonprofit entity is formed —
+  tracked separately in `docs/11_Ops_Runbook.md`.
+
+### Not secrets (but commonly confused)
+
+These live in `eas.json` / `app.config.ts` and are committed:
+
+| Public value | Where |
+|---|---|
+| `P42VU73CW3` (Team ID) | `apps/mobile/eas.json` submit block + `apps/pwa/public/.well-known/apple-app-site-association` |
+| `org.weavenyc.app` (Bundle ID) | `apps/mobile/app.config.ts`, `eas.json` |
+| `<ASC_APP_ID>` (numeric ASC record ID) | `apps/mobile/eas.json` submit block — fill on first submit |
+| `<APPLE_ID>` (account email) | `apps/mobile/eas.json` submit block — fill on first submit |
 
 ---
 
@@ -197,7 +245,7 @@ Until `APPLE_ENROLLMENT.md` is complete, all of these are `TBD`:
 
 | Placeholder | Source | Used by |
 |---|---|---|
-| `<TEAM_ID>` | Membership details page | `eas.json`, AASA, app.config |
+| ~~`<TEAM_ID>`~~ → `P42VU73CW3` | Membership details page (captured 2026-04) | `eas.json`, AASA, app.config |
 | `<ASC_APP_ID>` | App Store Connect app record URL | `eas.json` submit.production.ios |
 | `<APPLE_ID>` | Team Agent's Apple ID email | `eas.json` submit.production.ios |
 | `<APNS_KEY_ID>` | Keys section, developer.apple.com | `app.config.ts` (week 9) |

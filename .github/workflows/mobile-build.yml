@@ -107,8 +107,10 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - run: pnpm install --frozen-lockfile
 
-      # PR: preview build, internal distribution, posts install URL as PR comment.
-      # main push: production build, EAS submits to App Store Connect after build.
+      # PR: preview build, internal distribution (ad-hoc style), posts install
+      # URL as a PR comment. We use --non-interactive --no-wait so the GH job
+      # doesn't hold a 20-minute slot; the preview action (below) resolves the
+      # in-flight build by the branch head SHA and comments when ready.
       - name: EAS Build (preview — PRs)
         if: github.event_name == 'pull_request'
         working-directory: apps/mobile
@@ -117,6 +119,10 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: eas build --platform ios --profile preview --non-interactive --no-wait
 
+      # main push: production build, EAS auto-submits to App Store Connect
+      # after the build finishes. --auto-submit reads the submit.production
+      # block in eas.json and uses the APPLE_APP_SPECIFIC_PASSWORD to bypass
+      # 2FA for the non-interactive upload to ASC.
       - name: EAS Build (production — main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: apps/mobile
@@ -126,19 +132,17 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: eas build --platform ios --profile production --non-interactive --auto-submit
 
-      # Install-URL comment on the PR. `expo/expo-github-action/preview-build`
+      # Install-URL comment on the PR. `expo/expo-github-action/preview`
       # resolves the most recent in-flight build for this branch and posts
-      # its EAS install URL + QR code.
+      # its EAS install URL + QR code back to the PR as a comment.
       - name: Comment PR with install URL
         if: github.event_name == 'pull_request'
-        uses: expo/expo-github-action/preview-build@v8
+        uses: expo/expo-github-action/preview@v8
         with:
-          profile: preview
-          platform: ios
-          message: |
-            EAS preview build for this PR is ready.
-            Install: {projectLink}
-            Build logs: {buildLink}
+          command: eas build:list --platform ios --profile preview --limit 1 --json --non-interactive
+          working-directory: apps/mobile
+          comment: true
+          comment-id: eas-preview-${{ github.event.pull_request.number }}
 
 # Required repository secrets
 # ---------------------------

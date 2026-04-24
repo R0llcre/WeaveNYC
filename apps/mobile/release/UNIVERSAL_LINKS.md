@@ -184,6 +184,60 @@ Before submitting to TestFlight:
       long-press. Expect **Open in WeaveNYC** as an action sheet option.
 - [ ] Tap the link. Expect the native Resource Detail screen, *not* Safari.
 
+### Post-deploy AASA propagation check
+
+After the PR that bumps AASA to the real Team ID (`P42VU73CW3`) merges to
+main and Cloudflare Pages finishes propagating (usually < 2 minutes from
+merge), run this exact sequence from a terminal:
+
+```bash
+# 1. Status + headers — 200 OK and application/json are both mandatory.
+curl -sI https://weavenyc.org/.well-known/apple-app-site-association
+# Expected prefix:
+#   HTTP/2 200
+#   content-type: application/json
+#   cache-control: public, max-age=3600
+
+# 2. Payload — Team ID must be prefixed to the bundle ID with a literal dot.
+curl -s https://weavenyc.org/.well-known/apple-app-site-association \
+  | jq '.applinks.details[0].appIDs'
+# Expected:
+#   [
+#     "P42VU73CW3.org.weavenyc.app"
+#   ]
+
+# 3. Path coverage — all 5 declared components must be present.
+curl -s https://weavenyc.org/.well-known/apple-app-site-association \
+  | jq '.applinks.details[0].components | map(."/")'
+# Expected (order may vary):
+#   [
+#     "/posts/*",
+#     "/resources/*",
+#     "/communities/*",
+#     "/verify/*",
+#     "/open/*"
+#   ]
+
+# 4. Webcredentials + activitycontinuation — both must list the same appID.
+curl -s https://weavenyc.org/.well-known/apple-app-site-association \
+  | jq '{webcreds: .webcredentials.apps, handoff: .activitycontinuation.apps}'
+# Expected:
+#   {
+#     "webcreds":  ["P42VU73CW3.org.weavenyc.app"],
+#     "handoff":   ["P42VU73CW3.org.weavenyc.app"]
+#   }
+```
+
+**All four checks must pass** before running the device-side Universal Link
+tests in `DEEP_LINK_TESTING.md` §2. If any fail:
+
+- 404 or wrong content-type → fix `apps/pwa/public/_headers` and redeploy.
+- Empty `appIDs` or missing dot → placeholder wasn't swapped; `sed` the
+  `<TEAM_ID>` to `P42VU73CW3` in `apps/pwa/public/.well-known/apple-app-site-association`
+  and redeploy.
+- Apple CDN caching old AASA on a device → uninstall + reinstall the app
+  (app-side cache is per-install).
+
 ### Common failure modes
 
 | Symptom | Fix |
