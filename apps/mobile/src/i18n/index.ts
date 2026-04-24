@@ -24,6 +24,59 @@ import esErrors from '../locales/es/errors.json';
 import zhChrome from '../locales/zh-Hans/chrome.json';
 import zhErrors from '../locales/zh-Hans/errors.json';
 
+// Metro doesn't support dynamic `import(\`./path/${variable}.json\`)` —
+// the bundler needs static imports so it can include each JSON blob in
+// the iOS archive. Originally `loadNamespace()` lazy-loaded non-eager
+// bundles via a template-string import, but the ~12KB × 9 deferred JSON
+// files fit in the app budget, so we just eager-import everything and
+// register the bundles on i18n init. The public `loadNamespace()` shim
+// below keeps its promise-returning signature so existing callers
+// (screens that await before rendering translated strings) work
+// unchanged; every namespace is already mounted when init completes.
+import enAccessibility from '../locales/en/accessibility.json';
+import esAccessibility from '../locales/es/accessibility.json';
+import zhAccessibility from '../locales/zh-Hans/accessibility.json';
+import enChat from '../locales/en/chat.json';
+import esChat from '../locales/es/chat.json';
+import zhChat from '../locales/zh-Hans/chat.json';
+import enCommunity from '../locales/en/community.json';
+import esCommunity from '../locales/es/community.json';
+import zhCommunity from '../locales/zh-Hans/community.json';
+import enHome from '../locales/en/home.json';
+import esHome from '../locales/es/home.json';
+import zhHome from '../locales/zh-Hans/home.json';
+import enMe from '../locales/en/me.json';
+import esMe from '../locales/es/me.json';
+import zhMe from '../locales/zh-Hans/me.json';
+import enOnboarding from '../locales/en/onboarding.json';
+import esOnboarding from '../locales/es/onboarding.json';
+import zhOnboarding from '../locales/zh-Hans/onboarding.json';
+import enPosts from '../locales/en/posts.json';
+import esPosts from '../locales/es/posts.json';
+import zhPosts from '../locales/zh-Hans/posts.json';
+import enPrivacy from '../locales/en/privacy.json';
+import esPrivacy from '../locales/es/privacy.json';
+import zhPrivacy from '../locales/zh-Hans/privacy.json';
+import enTickers from '../locales/en/tickers.json';
+import esTickers from '../locales/es/tickers.json';
+import zhTickers from '../locales/zh-Hans/tickers.json';
+import enVerify from '../locales/en/verify.json';
+import esVerify from '../locales/es/verify.json';
+import zhVerify from '../locales/zh-Hans/verify.json';
+
+const ALL_BUNDLES: Record<string, Record<'en' | 'es' | 'zh-Hans', unknown>> = {
+  accessibility: { en: enAccessibility, es: esAccessibility, 'zh-Hans': zhAccessibility },
+  chat: { en: enChat, es: esChat, 'zh-Hans': zhChat },
+  community: { en: enCommunity, es: esCommunity, 'zh-Hans': zhCommunity },
+  home: { en: enHome, es: esHome, 'zh-Hans': zhHome },
+  me: { en: enMe, es: esMe, 'zh-Hans': zhMe },
+  onboarding: { en: enOnboarding, es: esOnboarding, 'zh-Hans': zhOnboarding },
+  posts: { en: enPosts, es: esPosts, 'zh-Hans': zhPosts },
+  privacy: { en: enPrivacy, es: esPrivacy, 'zh-Hans': zhPrivacy },
+  tickers: { en: enTickers, es: esTickers, 'zh-Hans': zhTickers },
+  verify: { en: enVerify, es: esVerify, 'zh-Hans': zhVerify },
+};
+
 export type AppLocale = 'en' | 'es' | 'zh-Hans';
 
 // Every namespace JSON file that lives under `src/locales/<locale>/`.
@@ -163,14 +216,12 @@ const loaded = new Set<string>();
 export async function loadNamespace(namespace: Namespace): Promise<void> {
   if (EAGER_NAMESPACES.includes(namespace)) return;
   if (loaded.has(namespace)) return;
-  const [en, es, zh] = await Promise.all([
-    import(`../locales/en/${namespace}.json`),
-    import(`../locales/es/${namespace}.json`),
-    import(`../locales/zh-Hans/${namespace}.json`),
-  ]);
-  i18n.addResourceBundle('en', namespace, en.default ?? en, true, false);
-  i18n.addResourceBundle('es', namespace, es.default ?? es, true, false);
-  i18n.addResourceBundle('zh-Hans', namespace, zh.default ?? zh, true, false);
+  const bundles = ALL_BUNDLES[namespace];
+  if (bundles) {
+    i18n.addResourceBundle('en', namespace, bundles.en, true, false);
+    i18n.addResourceBundle('es', namespace, bundles.es, true, false);
+    i18n.addResourceBundle('zh-Hans', namespace, bundles['zh-Hans'], true, false);
+  }
   loaded.add(namespace);
 }
 
