@@ -77,6 +77,7 @@ const AUTH_SESSION_STORAGE_KEY = "auth-session";
 const CURRENT_COMMUNITY_STORAGE_KEY = "community-current";
 const POST_DRAFT_STORAGE_KEY = "post-draft";
 const P2P_EVENT_LOG_PREFIX = "p2p-event-log:";
+const BIOMETRIC_LOCK_STORAGE_KEY = "biometric-lock-enabled";
 
 /**
  * SecureStore adapters for the hardware-encrypted secrets. Kept at
@@ -1260,6 +1261,53 @@ export async function removePendingPost(clientId: string): Promise<void> {
   try {
     const db = getPwaDb();
     await db.pendingPosts.delete(clientId);
+  } catch {
+    return;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Biometric lock flag — Phase 3-B.                                          */
+/*                                                                           */
+/* When the user flips the "Lock inbox with Face ID" toggle in the Me hub,  */
+/* we persist a single boolean in MMKV so the inbox / danger-zone screens    */
+/* can read it synchronously on focus. Stored in the same `kv` table as the  */
+/* other one-off preferences (preferences, auth-session metadata,            */
+/* community-current) — one namespaced key, no schema migration needed.     */
+/*                                                                           */
+/* Security: the flag is intentionally NOT in SecureStore. The gate is a UX  */
+/* convenience layered over the already-encrypted refresh_token; a user who  */
+/* disables the toggle in the file system still needs the passcode-protected */
+/* Keychain token to impersonate the session. Keeping it in MMKV matches the */
+/* pattern we use for other preference rows and avoids a Keychain dialog on  */
+/* toggle.                                                                   */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Synchronous reader so screens can branch on the flag before the first
+ * render without an async gate. The underlying MMKV read is synchronous
+ * (JSI) but we go through the Dexie-shaped `kv.get()` to keep the facade
+ * consistent. Callers on the hot path (inbox focus) use the async variant
+ * below; the sync one is used only where we need a pre-render decision.
+ */
+export async function getBiometricLockEnabled(): Promise<boolean> {
+  try {
+    const db = getPwaDb();
+    const row = await db.kv.get(BIOMETRIC_LOCK_STORAGE_KEY);
+    const value = (row?.value as unknown) ?? null;
+    return value === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function setBiometricLockEnabled(enabled: boolean): Promise<void> {
+  try {
+    const db = getPwaDb();
+    await db.kv.put({
+      key: BIOMETRIC_LOCK_STORAGE_KEY,
+      value: enabled === true,
+    });
   } catch {
     return;
   }

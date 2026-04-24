@@ -104,5 +104,10 @@
   "meSignOutHint": "Your posts and messages stay. Just this phone forgets you.",
   "meSignOutAllDevicesAction": "Sign out of every device",
   "meSignOutAllDevicesConfirm": "This will sign you out on every phone and browser you’ve used. Continue?",
-  "deleteRateLimitError": "You've asked to delete 3 times in the last hour. Try again in a bit, or email help@weavenyc.org for urgent removal."
+  "deleteRateLimitError": "You've asked to delete 3 times in the last hour. Try again in a bit, or email help@weavenyc.org for urgent removal.",
+  "biometricLockTitle": "Lock your inbox with Face ID",
+  "biometricLockBody": "Extra privacy when your phone is shared or lost.",
+  "biometricLockFaceId": "Face ID",
+  "biometricLockTouchId": "Touch ID",
+  "dangerUnlockReason": "Confirm your identity to delete your account"
 }

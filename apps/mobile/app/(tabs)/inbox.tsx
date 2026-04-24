@@ -21,8 +21,8 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -37,6 +37,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Banner,
+  Button,
   EmptyState,
   PageHeader,
   Skeleton,
@@ -48,12 +49,14 @@ import {
   useContactRequestsInbox,
   useConversations,
 } from '@/lib/hooks';
+import { getBiometricLockEnabled } from '@/lib/persistence';
 import {
   selectIsVerified,
   selectPreferencesLanguage,
   selectSession,
 } from '@/lib/selectors';
 import type { ConversationSummary } from '@/lib/types';
+import { authenticateBiometric } from '@/lib/use-biometric-unlock';
 import { useAppTheme } from '@/theme';
 
 /**
@@ -107,10 +110,55 @@ export default function InboxTab() {
   const language = useAppSelector(selectPreferencesLanguage);
   const locale = resolveIntlLocale(language);
 
+  // Biometric lock state — `null` while we check the persisted flag; once
+  // we know the user has opted in, `locked=true` blocks the conversation
+  // list until `authenticateBiometric` resolves true. Tapping the unlock
+  // button retries the prompt. If the OS prompt is declined we keep the
+  // locked state so the list never flashes.
+  const [locked, setLocked] = useState<boolean | null>(null);
+  const authInFlight = useRef(false);
+
+  const tryUnlock = useCallback(async () => {
+    if (authInFlight.current) return;
+    authInFlight.current = true;
+    try {
+      const ok = await authenticateBiometric(t('unlockReason'));
+      setLocked(!ok);
+    } finally {
+      authInFlight.current = false;
+    }
+  }, [t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        if (!isVerified || !session?.access_token) {
+          // Gate is only meaningful for verified, signed-in users.
+          if (!cancelled) setLocked(false);
+          return;
+        }
+        const enabled = await getBiometricLockEnabled();
+        if (cancelled) return;
+        if (!enabled) {
+          setLocked(false);
+          return;
+        }
+        setLocked(true);
+        const ok = await authenticateBiometric(t('unlockReason'));
+        if (cancelled) return;
+        setLocked(!ok);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [isVerified, session?.access_token, t]),
+  );
+
   const conversationsQuery = useConversations(
     session?.access_token,
     { limit: 20 },
-    isVerified && Boolean(session?.access_token),
+    isVerified && Boolean(session?.access_token) && locked === false,
   );
   // Pull requests too so the header badge / CTA row reads the correct
   // pending count without a second round-trip. Cheap — same short
@@ -118,7 +166,7 @@ export default function InboxTab() {
   const requestsQuery = useContactRequestsInbox(
     session?.access_token,
     { limit: 20 },
-    isVerified && Boolean(session?.access_token),
+    isVerified && Boolean(session?.access_token) && locked === false,
     15_000,
   );
 
@@ -251,6 +299,62 @@ export default function InboxTab() {
           }}
           testID="inbox-unverified"
         />
+      </View>
+    );
+  }
+
+  // --- Biometric lock gate ----------------------------------------------
+  // While we're still checking the persisted flag (`locked === null`) we
+  // render a quiet skeleton so the list doesn't flash unlocked. When we
+  // know the inbox is locked we show a "Tap to unlock" CTA that re-prompts
+  // the OS biometric sheet.
+  if (locked === true) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.bg as string,
+            paddingTop: (insets.top as number) + (theme.spacing.l as number),
+            paddingHorizontal: theme.spacing.m as number,
+          },
+        ]}
+        testID="inbox-screen"
+      >
+        <PageHeader title={t('inboxTitle')} testID="inbox-header" />
+        <View
+          style={{ alignItems: 'center', paddingTop: theme.spacing.xl as number }}
+          testID="inbox-locked"
+        >
+          <Button
+            testID="inbox-unlock-cta"
+            variant="primary"
+            size="lg"
+            onPress={() => {
+              void tryUnlock();
+            }}
+          >
+            {t('inboxLocked')}
+          </Button>
+        </View>
+      </View>
+    );
+  }
+
+  if (locked === null) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.bg as string,
+            paddingTop: (insets.top as number) + (theme.spacing.l as number),
+            paddingHorizontal: theme.spacing.m as number,
+          },
+        ]}
+        testID="inbox-screen"
+      >
+        <PageHeader title={t('inboxTitle')} testID="inbox-header" />
       </View>
     );
   }
