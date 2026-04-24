@@ -297,7 +297,16 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   await page.getByTestId('see-nearby').click();
   await expect(page.locator('article').first()).toContainText('St. Kilian');
 
-  await page.locator('[data-testid^="bookmark-"]').first().click();
+  // Wait for at least one bookmark control to actually render before
+  // clicking — the resource list hydrates after the `see-nearby` filter
+  // tap in a React effect, so a click fired in the same microtask
+  // sometimes races ahead of the article render on slow CI runners
+  // (reproduces on GHA ubuntu-latest ~1-in-4 runs; never on local).
+  // `toBeVisible` waits up to the default 5s which is plenty for the
+  // client-side filter to settle.
+  const firstBookmark = page.locator('[data-testid^="bookmark-"]').first();
+  await expect(firstBookmark).toBeVisible();
+  await firstBookmark.click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
 
