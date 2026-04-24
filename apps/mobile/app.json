@@ -45,7 +45,6 @@
       "expo-secure-store",
       "expo-notifications",
       "expo-camera",
-      "expo-barcode-scanner",
       "expo-local-authentication",
       "expo-contacts",
       "expo-av",
