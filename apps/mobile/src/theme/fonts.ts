@@ -54,34 +54,33 @@ import * as Font from 'expo-font';
  * Font-key → asset-module map. Keys MUST match the `fontFamily` strings
  * used in `./tokens.ts` `textVariants` and `fontFamilies`.
  */
-const FONT_ASSETS = {
-  // Display — Fraunces (variable font). iOS renders variable axis
-  // correctly; Android 9+ also supports it. We request 'Fraunces' as the
-  // single family so `fontWeight` resolution at the RN side picks the right
-  // weight along the axis.
-  Fraunces: require('../../assets/fonts/Fraunces-Variable.ttf'),
-  'Fraunces-Variable': require('../../assets/fonts/Fraunces-Variable.ttf'),
-
-  // Body — Inter, one file per weight. We deliberately ship 4 static files
-  // (not a variable Inter) because Android's variable-font support for
-  // weights < 9 is inconsistent. Static weights render crisply everywhere.
-  Inter: require('../../assets/fonts/Inter-Regular.ttf'),
-  'Inter-Medium': require('../../assets/fonts/Inter-Medium.ttf'),
-  'Inter-SemiBold': require('../../assets/fonts/Inter-SemiBold.ttf'),
-  'Inter-Bold': require('../../assets/fonts/Inter-Bold.ttf'),
-
-  // Mono — IBM Plex Mono is optional (no variants ship in M7). If not
-  // present, consumers of the mono variant fall back to OS mono (iOS Menlo,
-  // Android DroidSansMono). Leaving the key commented out signals intent
-  // without failing the bundle.
-  // IBMPlexMono: require('../../assets/fonts/IBMPlexMono-Regular.ttf'),
-} as const;
+// v1 TestFlight note: the .ttf binaries are NOT shipped yet (the M7
+// PR scaffolded the wiring, not the assets). Until a follow-up PR adds
+// apps/mobile/assets/fonts/{Fraunces-Variable,Inter-Regular,...}.ttf,
+// loadAppFonts() is a no-op and React Native falls back to iOS system
+// fonts (SF Pro for body, New York for display). The visual tokens in
+// `./tokens.ts` still reference `Fraunces` / `Inter` by name — when
+// the ttfs land, those names start resolving to the custom family
+// without any consumer-side code change. Keeping the keys as a const
+// so `listAppFontKeys()` still returns the intended contract for the
+// tokens→fonts parity test.
+const FONT_ASSETS: Record<string, unknown> = {};
+const FONT_KEYS = [
+  'Fraunces',
+  'Fraunces-Variable',
+  'Inter',
+  'Inter-Medium',
+  'Inter-SemiBold',
+  'Inter-Bold',
+] as const;
 
 /**
- * Load every app font via expo-font. Idempotent — `expo-font` caches by
- * key. Safe to call multiple times; subsequent calls are no-ops.
+ * Load every app font via expo-font. Currently a no-op because the .ttf
+ * binaries haven't been committed — RN falls back to the iOS system
+ * face. Idempotent; safe to call multiple times.
  */
 export async function loadAppFonts(): Promise<void> {
+  if (Object.keys(FONT_ASSETS).length === 0) return;
   await Font.loadAsync(FONT_ASSETS as Record<string, Font.FontSource>);
 }
 
@@ -90,5 +89,5 @@ export async function loadAppFonts(): Promise<void> {
  * tests / Storybook to assert that tokens.ts and fonts.ts stay in sync.
  */
 export function listAppFontKeys(): ReadonlyArray<string> {
-  return Object.keys(FONT_ASSETS);
+  return FONT_KEYS;
 }
