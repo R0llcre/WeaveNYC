@@ -1872,7 +1872,14 @@ async function openChatSocket(accessToken: string) {
 async function waitForRealtimeEvent<T extends ChatRealtimeSmokeEvent>(
   socket: RuntimeWebSocket,
   predicate: (event: ChatRealtimeSmokeEvent) => event is T,
-  timeoutMs = 5_000,
+  // Default bumped from 5s → 15s (override via REAL_API_REALTIME_TIMEOUT_MS)
+  // because 5s is too tight for the CI validate job — GH Actions runners
+  // cold-start Postgres / Redis / API gateway inside the same job, and the
+  // very first websocket subscription can take 5-8s before the broker
+  // publishes the first event. Local dev typically sees <200ms round-trip
+  // so this ceiling only bites on first-boot CI. If a regression makes
+  // realtime genuinely slow, adjust the env var rather than edit again.
+  timeoutMs = Number(process.env.REAL_API_REALTIME_TIMEOUT_MS ?? 15_000),
 ) {
   return new Promise<T>((resolve, reject) => {
     const timeout = setTimeout(() => {
