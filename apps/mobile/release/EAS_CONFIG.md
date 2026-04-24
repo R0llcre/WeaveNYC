@@ -87,7 +87,7 @@ The `submit.production.ios` block tells `eas submit` how to upload the built
 |---|---|---|---|
 | `appleId` | `<APPLE_ID>` | Team Agent email | After `APPLE_ENROLLMENT.md` step 4 |
 | `ascAppId` | `<ASC_APP_ID>` | Numeric App Store Connect record ID | After `CERTIFICATES.md` step 1 |
-| `appleTeamId` | `<TEAM_ID>` | Membership details page | After enrollment approval |
+| `appleTeamId` | `P42VU73CW3` | Membership details page | After enrollment approval |
 
 At submit time, `eas submit` will prompt for the App-Specific Password
 (stored as `APPLE_APP_SPECIFIC_PASSWORD` secret in CI, or typed interactively
