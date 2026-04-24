@@ -33,8 +33,9 @@ tags:
 - inputText: "246810"
 - tapOn:
     id: "danger-confirm"
-- assertVisible:
-    id: "danger-step-done"
+- extendedWaitUntil:
+    visible:
+      id: "danger-step-done"
     timeout: 8000
 - assertVisible:
     text: ".*30 days.*|.*undo.*"

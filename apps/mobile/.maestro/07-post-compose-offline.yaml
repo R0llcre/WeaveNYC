@@ -42,8 +42,9 @@ tags:
     value: true
 - tapOn:
     id: "publish-post"
-- assertVisible:
-    text: ".*[Ss]aved.*|.*[Oo]utbox.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*[Ss]aved.*|.*[Oo]utbox.*"
     timeout: 6000
 - setAirplaneMode:
     value: false
@@ -51,6 +52,7 @@ tags:
     timeout: 5000
 - tapOn:
     text: "Community"
-- assertVisible:
-    id: "post-row-.*"
+- extendedWaitUntil:
+    visible:
+      id: "post-row-.*"
     timeout: 15000

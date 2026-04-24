@@ -19,8 +19,9 @@ tags:
     text: "Inbox"
 - assertVisible:
     id: "inbox-screen"
-- assertVisible:
-    id: "inbox-list"
+- extendedWaitUntil:
+    visible:
+      id: "inbox-list"
     timeout: 8000
 - tapOn:
     id: "inbox-conversation-.*"
@@ -32,8 +33,9 @@ tags:
 - inputText: "Hello"
 - tapOn:
     id: "chat-send"
-- assertVisible:
-    id: "chat-message-.*"
+- extendedWaitUntil:
+    visible:
+      id: "chat-message-.*"
     timeout: 6000
 - assertVisible:
     text: "Hello"

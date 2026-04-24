@@ -16,6 +16,7 @@ tags:
 - launchApp:
     clearState: true
 - openLink: weavenyc://posts/abc-123
-- assertVisible:
-    id: "post-detail-screen"
+- extendedWaitUntil:
+    visible:
+      id: "post-detail-screen"
     timeout: 10000

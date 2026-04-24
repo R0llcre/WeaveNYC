@@ -34,6 +34,7 @@ tags:
 - inputText: "246810"
 - tapOn:
     id: "verify-code-submit"
-- assertVisible:
-    id: "verify-success-toast"
+- extendedWaitUntil:
+    visible:
+      id: "verify-success-toast"
     timeout: 8000

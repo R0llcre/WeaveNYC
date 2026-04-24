@@ -28,11 +28,13 @@ tags:
 - inputText: "DEMO-CORONA"
 - tapOn:
     id: "resolve-community"
-- assertVisible:
-    id: "join-preview-card"
+- extendedWaitUntil:
+    visible:
+      id: "join-preview-card"
     timeout: 8000
 - tapOn:
     id: "confirm-join"
-- assertVisible:
-    id: "current-community-card"
+- extendedWaitUntil:
+    visible:
+      id: "current-community-card"
     timeout: 8000
