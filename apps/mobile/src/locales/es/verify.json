@@ -42,5 +42,9 @@
   "recoveryCodeSuccess": "Código aceptado. Verificado de nuevo.",
   "pageTitleVerify": "Verificar",
   "demoSandboxNotice": "Solo demo — este no es un código de verificación real. Código: 246810",
-  "demoSandboxPill": "SANDBOX"
+  "demoSandboxPill": "SANDBOX",
+  "pushPrimerTitle": "¿Recibir avisos cuando alguien te ofrezca ayuda?",
+  "pushPrimerBody": "Solo te notificamos sobre mensajes y coincidencias. Puedes apagarlo en ajustes.",
+  "pushPrimerEnable": "Activar notificaciones",
+  "pushPrimerSkip": "Más tarde"
 }

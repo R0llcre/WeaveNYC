@@ -42,5 +42,9 @@
   "recoveryCodeSuccess": "备用码通过，你重新验证了。",
   "pageTitleVerify": "验证",
   "demoSandboxNotice": "仅供演示 — 这不是真实的验证码。验证码：246810",
-  "demoSandboxPill": "SANDBOX"
+  "demoSandboxPill": "SANDBOX",
+  "pushPrimerTitle": "有人想帮你时收到通知？",
+  "pushPrimerBody": "只提醒你消息和匹配结果。随时可以在设置里关闭。",
+  "pushPrimerEnable": "开启通知",
+  "pushPrimerSkip": "以后再说"
 }

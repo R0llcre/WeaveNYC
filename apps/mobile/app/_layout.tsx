@@ -19,6 +19,7 @@
 
 import { ThemeProvider } from '@shopify/restyle';
 import { QueryClientProvider } from '@tanstack/react-query';
+import * as Notifications from 'expo-notifications';
 import { router, Slot, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -32,6 +33,10 @@ import { Provider as ReduxProvider, useDispatch, useSelector } from 'react-redux
 import '@/i18n';
 
 import { loadPreferences } from '@/lib/persistence';
+import {
+  configureNotificationCategories,
+  onNotificationResponse,
+} from '@/lib/push-notifications';
 import { hydratePreferences } from '@/lib/slices/preferences-slice';
 import { initSentryDeferred, Sentry } from '@/observability/sentry';
 import { queryClient } from '@/providers/query-client';
@@ -130,6 +135,32 @@ function RootLayout() {
 
   useEffect(() => {
     initSentryDeferred();
+  }, []);
+
+  // Configure iOS notification categories on mount (P3-A). Idempotent —
+  // re-registering the same category identifier is a no-op; it just
+  // overwrites the action list. Runs before any notification arrives so
+  // the Reply / Mark read / Accept / Decline / View buttons are ready.
+  // Silently no-ops on Expo Go / simulator where the native module is
+  // not linked.
+  useEffect(() => {
+    void configureNotificationCategories();
+  }, []);
+
+  // Register the tap handler once at the root. When the user taps a
+  // notification (foreground or from a cold launch), expo-notifications
+  // fires `response.notification.request.content.data.route` back here
+  // and we `router.push` into the right screen. Kept at the root so
+  // deep routes stay reachable no matter what screen the app mounts to.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        onNotificationResponse(response, (route) => {
+          router.push(route as Parameters<typeof router.push>[0]);
+        });
+      },
+    );
+    return () => sub.remove?.();
   }, []);
 
   return (

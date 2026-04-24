@@ -29,6 +29,11 @@ import {
 import { loadNamespace, setLocale, type AppLocale } from '@/i18n';
 import type { Resources } from '@/i18n/types';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import {
+  disablePushLocally,
+  loadPersistedPushToken,
+  registerForPushNotifications,
+} from '@/lib/push-notifications';
 import { selectPreferences, selectSession } from '@/lib/selectors';
 import {
   setDefaultPostVisibility,
@@ -126,14 +131,86 @@ export default function SettingsScreen() {
   const [zipDraft, setZipDraft] = useState(prefs.zipCode ?? '');
   const [zipError, setZipError] = useState<string | null>(null);
 
-  // Push is a local-only preference in Phase 2 (APNs registration ships in
-  // Phase 3). We persist under a local state hook; wiring this into Redux
-  // would waste a slot that Phase 3 will rename to `pushRegistrationId`.
+  // P3-A — push toggle now wires through to the real APNs pipeline.
+  // We hydrate from the persisted MMKV row on mount so toggling off in
+  // one session stays off after a cold start.
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushPending, setPushPending] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadNamespace('me');
   }, []);
+
+  // Restore the persisted push state on mount so a returning user whose
+  // token is already registered sees the toggle in the right position.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const persisted = await loadPersistedPushToken();
+      if (cancelled) return;
+      setPushEnabled(
+        persisted?.pushPermissionStatus === 'granted' &&
+          persisted.pushToken.length > 0,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handlePushToggle = useCallback(
+    async (next: boolean) => {
+      if (pushPending) return;
+      if (!next) {
+        setPushPending(true);
+        setPushError(null);
+        try {
+          await disablePushLocally();
+          setPushEnabled(false);
+        } catch (error) {
+          setPushError(
+            error instanceof Error ? error.message : 'Could not disable push',
+          );
+        } finally {
+          setPushPending(false);
+        }
+        return;
+      }
+
+      if (!session?.access_token) {
+        setPushError('Sign in to enable notifications.');
+        return;
+      }
+
+      setPushPending(true);
+      setPushError(null);
+      try {
+        const token = await registerForPushNotifications(session.access_token, {
+          deviceId: session.user.user_id,
+          locale: prefs.language,
+        });
+        setPushEnabled(Boolean(token));
+        if (!token) {
+          // Permission denied or native module unavailable — leave the
+          // toggle off and tell the user they need to flip it in iOS
+          // Settings > Notifications. Hard-coded English here matches the
+          // rest of the push card (Phase 3-D will move these to a locale
+          // namespace).
+          setPushError(
+            'Notifications are off in iOS Settings. Open Settings > WeaveNYC > Notifications to allow.',
+          );
+        }
+      } catch (error) {
+        setPushError(
+          error instanceof Error ? error.message : 'Could not enable push',
+        );
+      } finally {
+        setPushPending(false);
+      }
+    },
+    [prefs.language, pushPending, session?.access_token, session?.user.user_id],
+  );
 
   // Re-sync the ZIP draft if the store value changes from elsewhere
   // (e.g. onboarding writes it back after we mount).
@@ -279,28 +356,37 @@ export default function SettingsScreen() {
           </Stack>
         </Card>
 
-        {/* Push notifications (Phase 2 stub) — the copy here is intentionally
-            inline English because Phase 3 renames this preference to
-            `pushRegistrationId` and will add the locale-tree keys alongside.
-            Adding keys now would leak a half-built i18n surface into the
-            shipped bundle. */}
+        {/* Push notifications (P3-A) — wired through to the real APNs
+            pipeline. Copy intentionally stays inline English; when the
+            Phase 3-D polish wave lands the rest of the settings copy in
+            `me.*`, these strings move into that namespace alongside. */}
         <Card testID="settings-push-card">
-          <Inline gap="s" justify="between" align="center">
-            <Stack gap="xs" style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.inkPrimary }]}>
-                Push notifications
-              </Text>
-              <Text style={[styles.caption, { color: colors.inkSecondary }]}>
-                Let WeaveNYC send you a buzz when a new post matches your needs.
-              </Text>
-            </Stack>
-            <Switch
-              testID="settings-push-toggle"
-              value={pushEnabled}
-              onValueChange={setPushEnabled}
-              thumbColor={colors.surface}
-            />
-          </Inline>
+          <Stack gap="s">
+            <Inline gap="s" justify="between" align="center">
+              <Stack gap="xs" style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: colors.inkPrimary }]}>
+                  Push notifications
+                </Text>
+                <Text style={[styles.caption, { color: colors.inkSecondary }]}>
+                  Let WeaveNYC send you a buzz when a new post matches your needs.
+                </Text>
+              </Stack>
+              <Switch
+                testID="settings-push-toggle"
+                value={pushEnabled}
+                disabled={pushPending}
+                onValueChange={(next) => {
+                  void handlePushToggle(next);
+                }}
+                thumbColor={colors.surface}
+              />
+            </Inline>
+            {pushError ? (
+              <Banner tone="warning" title="Push notifications">
+                {pushError}
+              </Banner>
+            ) : null}
+          </Stack>
         </Card>
 
         {/* Low bandwidth */}

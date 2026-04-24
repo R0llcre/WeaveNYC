@@ -71,6 +71,13 @@ module.exports = {
     '^expo-secure-store$': '<rootDir>/__tests__/__mocks__/expo-secure-store.js',
     '^expo-sqlite$': '<rootDir>/__tests__/__mocks__/expo-sqlite.js',
     '^react-native-mmkv$': '<rootDir>/__tests__/__mocks__/react-native-mmkv.js',
+    // expo-notifications — P3-A. The push-notifications lib calls
+    // `requestPermissionsAsync`, `getExpoPushTokenAsync`,
+    // `setNotificationCategoryAsync`, `setNotificationHandler`, and
+    // `addNotificationResponseReceivedListener`. Mock exposes spy-able
+    // jest.fns so tests can assert on call args and force-grant /
+    // force-deny without reaching the native module.
+    '^expo-notifications$': '<rootDir>/__tests__/__mocks__/expo-notifications.js',
     // Restyle's runtime references RN internals; a lightweight shim covers
     // `createTheme` / `ThemeProvider` / `useTheme` — enough for atoms.
     '^@shopify/restyle$': '<rootDir>/__tests__/__mocks__/shopify-restyle.js',

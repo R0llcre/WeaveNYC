@@ -42,5 +42,9 @@
   "recoveryCodeSuccess": "Backup code accepted. You are verified again.",
   "pageTitleVerify": "Verify",
   "demoSandboxNotice": "Demo only — this is not a real verification code. Code: 246810",
-  "demoSandboxPill": "SANDBOX"
+  "demoSandboxPill": "SANDBOX",
+  "pushPrimerTitle": "Get notified when someone offers help?",
+  "pushPrimerBody": "We only notify you about messages and matches. You can turn this off anytime in settings.",
+  "pushPrimerEnable": "Turn on notifications",
+  "pushPrimerSkip": "Not now"
 }
