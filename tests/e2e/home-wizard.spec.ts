@@ -166,7 +166,14 @@ test('home wizard — pick an intent, land on pre-filtered directory', async ({ 
       return;
     }
     const url = route.request().url();
-    if (url.includes('/v1/resources/search')) {
+    // The PWA's `searchResources()` helper hits `/v1/resources?zip=...`
+    // (no `/search` segment — that was a phantom path this test was
+    // filtering on, which is why `resourceSearchUrls.length` was always
+    // 0 and the "openNow filter forwarded" assertion could never run).
+    // Match on /v1/resources + a query string (GET-with-zip), and
+    // exclude the /v1/resources/<id> detail path so clicking a card
+    // doesn't fill the bucket.
+    if (/\/v1\/resources\?/.test(url)) {
       resourceSearchUrls.push(url);
     }
     await route.fulfill({
@@ -240,7 +247,11 @@ test('home wizard — pick an intent, land on pre-filtered directory', async ({ 
   // recent one and check its query string.
   expect(resourceSearchUrls.length).toBeGreaterThan(0);
   const latestSearch = new URL(resourceSearchUrls.at(-1) as string);
-  expect(latestSearch.searchParams.get('open_now')).toBe('1');
+  // `searchResources()` in apps/pwa/src/lib/api.ts stringifies booleans
+  // as the literal word "true" / "false" via URLSearchParams, not
+  // "1"/"0" — the prior assertion compared against "1" and had no
+  // chance of passing once the resource-search stub actually matched.
+  expect(latestSearch.searchParams.get('open_now')).toBe('true');
 
   // Fifth assertion: the "Change what I'm looking for" ghost button is
   // now visible on the directory hero so the user can return to the

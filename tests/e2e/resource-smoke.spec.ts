@@ -274,8 +274,15 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   // we first tap an intent card. "food_now" pre-applies openNow=true on
   // the directory; the `see-nearby` ("All" filter) testid then lets us
   // broaden to the full result set.
+  //
+  // `create-session` is rendered as an aria-hidden, visually-clipped
+  // `sr-only` button (`resource-home.tsx` keeps it for legacy E2E that
+  // still clicks it to refetch). Playwright's actionability gates reject
+  // a click on a 1x1 clipped button with `aria-hidden="true"`, so attach
+  // `{ force: true }` to bypass the visibility + interactability checks
+  // — the handler still runs and calls `resourceQuery.refetch()`.
   await expect(page.getByTestId('create-session')).toBeVisible();
-  await page.getByTestId('create-session').click();
+  await page.getByTestId('create-session').click({ force: true });
   // Use the `session-chip` testid rather than a raw text match: the Tag
   // component wraps the i18n value in a `<span class="tag__label">`, and
   // the visible label is localized. Assert on the stable testid + that it

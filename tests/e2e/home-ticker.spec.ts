@@ -53,6 +53,13 @@ test('anonymous visitor sees the neighbor banner + ticker on Home', async ({ pag
           locationPrecision: 'zip_only',
           hasUserChosenLanguage: true,
           trustBannerDismissed: true,
+          // V2-D — `/` is gated by `preferences.lastIntent !== null`.
+          // Without this key `<HomePage>` renders `<HomeWizard />`,
+          // which has no neighbor banner or activity ticker and makes
+          // this assertion fail with "element(s) not found" on
+          // `home-neighbor-banner`. Seed a valid intent so the route
+          // mounts `<ResourceHome />` directly.
+          lastIntent: 'food_now',
         },
       });
       tx.oncomplete = () => db.close();
