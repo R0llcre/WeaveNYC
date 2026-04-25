@@ -9,6 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'WeaveNYC community mutual-aid PWA with official resources, community join, posts, and lightweight verification.',
     start_url: '/',
     display: 'standalone',
+    orientation: 'portrait',
     background_color: '#f4ece0',
     theme_color: '#f4ece0',
     icons: [
@@ -16,6 +17,16 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/icons/app-icon.svg',
         type: 'image/svg+xml',
         sizes: 'any',
+      },
+      {
+        src: '/icons/icon-192.png',
+        type: 'image/png',
+        sizes: '192x192',
+      },
+      {
+        src: '/icons/icon-512.png',
+        type: 'image/png',
+        sizes: '512x512',
       },
       {
         src: '/icons/maskable-icon.svg',

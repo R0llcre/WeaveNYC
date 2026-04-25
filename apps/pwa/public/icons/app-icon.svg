@@ -1,5 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="128" fill="#f6efe3"/>
-  <path d="M120 172c0-28.7 23.3-52 52-52h168c28.7 0 52 23.3 52 52v168c0 28.7-23.3 52-52 52H172c-28.7 0-52-23.3-52-52V172Z" fill="#0e766e"/>
-  <path d="M179 210h38l38 58 38-58h40l-58 84 62 92h-39l-43-64-43 64h-39l62-91-58-85Z" fill="#f6efe3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">WeaveNYC app icon</title>
+  <desc id="desc">A vermillion map pin with a woven W thread on a warm paper background.</desc>
+  <defs>
+    <linearGradient id="paper" x1="80" y1="32" x2="432" y2="488" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff8ee"/>
+      <stop offset="1" stop-color="#f0dfc6"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="156" y1="96" x2="360" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d84a42"/>
+      <stop offset="1" stop-color="#9d2c2c"/>
+    </linearGradient>
+    <filter id="softShadow" x="88" y="68" width="336" height="392" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="10" flood-color="#1a1f24" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#paper)"/>
+  <path d="M88 136h336" stroke="#1a1f24" stroke-opacity="0.08" stroke-width="10" stroke-linecap="round"/>
+  <path d="M88 376h336" stroke="#1a1f24" stroke-opacity="0.08" stroke-width="10" stroke-linecap="round"/>
+  <path d="M136 88v336" stroke="#1a1f24" stroke-opacity="0.06" stroke-width="10" stroke-linecap="round"/>
+  <path d="M376 88v336" stroke="#1a1f24" stroke-opacity="0.06" stroke-width="10" stroke-linecap="round"/>
+
+  <g filter="url(#softShadow)">
+    <path
+      d="M256 76c-78.5 0-142 63.5-142 142 0 107.5 118 189.8 142 218 24-28.2 142-110.5 142-218 0-78.5-63.5-142-142-142Z"
+      fill="#1a1f24"
+    />
+    <path
+      d="M256 92c-69.6 0-126 56.4-126 126 0 91.5 93.3 165.4 126 202 32.7-36.6 126-110.5 126-202 0-69.6-56.4-126-126-126Z"
+      fill="url(#pin)"
+    />
+  </g>
+
+  <path
+    d="M169 209l43 106 44-101 44 101 43-106"
+    fill="none"
+    stroke="#fff6e8"
+    stroke-width="30"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M181 264c24-18 48-18 73 0 27 19 52 19 77 0"
+    fill="none"
+    stroke="#c8871f"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-opacity="0.95"
+  />
+  <circle cx="169" cy="209" r="16" fill="#fff6e8"/>
+  <circle cx="343" cy="209" r="16" fill="#fff6e8"/>
+  <circle cx="256" cy="214" r="15" fill="#4a7c5e"/>
+  <circle cx="256" cy="214" r="7" fill="#fff6e8"/>
 </svg>

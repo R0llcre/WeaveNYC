@@ -1,5 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="180" fill="#18212d"/>
-  <circle cx="256" cy="256" r="164" fill="#0e766e"/>
-  <path d="M180 206h36l40 60 40-60h36l-58 82 62 92h-36l-44-65-44 65h-36l62-92-58-82Z" fill="#f6efe3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">WeaveNYC maskable app icon</title>
+  <desc id="desc">A centered vermillion woven location mark with safe padding for adaptive icon masks.</desc>
+  <defs>
+    <linearGradient id="paper" x1="96" y1="0" x2="416" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff8ee"/>
+      <stop offset="1" stop-color="#f0dfc6"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="168" y1="112" x2="344" y2="398" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d84a42"/>
+      <stop offset="1" stop-color="#9d2c2c"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="160" fill="url(#paper)"/>
+  <circle cx="256" cy="256" r="180" fill="#1a1f24" fill-opacity="0.08"/>
+
+  <path
+    d="M256 103c-66.8 0-121 54.2-121 121 0 88.2 89.8 158.5 121 194 31.2-35.5 121-105.8 121-194 0-66.8-54.2-121-121-121Z"
+    fill="#1a1f24"
+  />
+  <path
+    d="M256 119c-57.9 0-105 47.1-105 105 0 73.5 72.8 132.1 105 169 32.2-36.9 105-95.5 105-169 0-57.9-47.1-105-105-105Z"
+    fill="url(#pin)"
+  />
+
+  <path
+    d="M184 215l35 87 37-84 37 84 35-87"
+    fill="none"
+    stroke="#fff6e8"
+    stroke-width="26"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M195 260c20-14 40-14 61 0 22 15 43 15 64 0"
+    fill="none"
+    stroke="#c8871f"
+    stroke-width="13"
+    stroke-linecap="round"
+  />
+  <circle cx="184" cy="215" r="13" fill="#fff6e8"/>
+  <circle cx="328" cy="215" r="13" fill="#fff6e8"/>
+  <circle cx="256" cy="218" r="13" fill="#4a7c5e"/>
+  <circle cx="256" cy="218" r="6" fill="#fff6e8"/>
 </svg>
