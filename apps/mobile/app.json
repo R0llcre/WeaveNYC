@@ -4,6 +4,7 @@
     "slug": "weavenyc",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "weavenyc",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,8 +13,9 @@
       "**/*"
     ],
     "ios": {
+      "icon": "./assets/icon.png",
       "bundleIdentifier": "org.weavenyc.app",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "associatedDomains": [
         "applinks:weavenyc.org"
       ],
