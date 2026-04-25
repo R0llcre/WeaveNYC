@@ -61,7 +61,8 @@
         }
       ],
       "@sentry/react-native",
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/with-complete-ios-icon.js"
     ],
     "experiments": {
       "typedRoutes": true
