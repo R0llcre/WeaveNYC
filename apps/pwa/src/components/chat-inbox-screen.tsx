@@ -2,7 +2,18 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+// Polyfill for React's experimental `useEffectEvent` — keeps the latest
+// callback reachable from inside an effect without participating in the
+// dependency array. Stable identity, always sees latest closure.
+function useEffectEvent<T extends (...args: never[]) => unknown>(handler: T): T {
+  const ref = useRef(handler);
+  useEffect(() => {
+    ref.current = handler;
+  });
+  return useCallback(((...args: never[]) => ref.current(...args)) as T, []);
+}
 
 import { TopBar } from '@/components/shell';
 import {
