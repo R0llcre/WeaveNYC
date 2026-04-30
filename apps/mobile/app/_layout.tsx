@@ -3,7 +3,7 @@
  *
  * Provider stack (outside-in):
  *   SafeAreaProvider         — safe-area insets (notch/home-indicator)
- *   ThemeProvider (Restyle)  — theme tokens from ./src/theme
+ *   AppThemeProvider         — Restyle theme tokens from ./src/theme
  *   QueryClientProvider      — TanStack Query cache
  *   Redux Provider           — placeholder store today, full slices wave B
  *   I18nextProvider          — via ./src/i18n/index side-effect init
@@ -17,7 +17,6 @@
  * `Sentry.wrap(RootLayout)` wires the error boundary + profiling.
  */
 
-import { ThemeProvider } from '@shopify/restyle';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { router, Slot, useSegments } from 'expo-router';
@@ -41,7 +40,7 @@ import { hydratePreferences } from '@/lib/slices/preferences-slice';
 import { initSentryDeferred, Sentry } from '@/observability/sentry';
 import { queryClient } from '@/providers/query-client';
 import { store, type AppDispatch, type RootState } from '@/store';
-import { useAppTheme } from '@/theme';
+import { AppThemeProvider } from '@/theme';
 
 /**
  * OnboardingGuard — first-run redirect (S6).
@@ -131,8 +130,6 @@ function OnboardingGuard() {
 }
 
 function RootLayout() {
-  const theme = useAppTheme();
-
   useEffect(() => {
     initSentryDeferred();
   }, []);
@@ -166,7 +163,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider theme={theme}>
+        <AppThemeProvider>
           <QueryClientProvider client={queryClient}>
             <ReduxProvider store={store}>
               <StatusBar style="auto" />
@@ -174,7 +171,7 @@ function RootLayout() {
               <Slot />
             </ReduxProvider>
           </QueryClientProvider>
-        </ThemeProvider>
+        </AppThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

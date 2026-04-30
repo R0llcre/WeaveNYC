@@ -23,7 +23,8 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://api.staging.weavenyc.org",
-        "EXPO_PUBLIC_ENV": "preview"
+        "EXPO_PUBLIC_ENV": "preview",
+        "NODE_OPTIONS": "--max-old-space-size=8192"
       },
       "ios": {
         "simulator": true,
@@ -36,6 +37,7 @@
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hykmfmcf58.us-east-1.awsapprunner.com",
         "EXPO_PUBLIC_ENV": "production",
+        "NODE_OPTIONS": "--max-old-space-size=8192",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SENTRY_ALLOW_FAILURE": "true"
       },

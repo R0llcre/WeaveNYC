@@ -184,16 +184,39 @@ export async function initI18n(overrideLocale?: AppLocale): Promise<typeof i18n>
 
   const chosen = overrideLocale ?? getPersistedLocale() ?? detectDeviceLocale();
 
-  await i18n.use(initReactI18next).init({
+  // Build full per-locale resource map up-front. Every namespace JSON is
+  // already statically imported above (Metro can't do the dynamic
+  // template-string variant), so the cost of bundling everything into the
+  // init call is just object construction — the bytes are already in
+  // memory. This sidesteps the previous lazy-load race where a screen's
+  // `useEffect` call to `loadNamespace()` could fire before `init()`
+  // resolved, leaving the bundle silently un-registered and
+  // `useTranslation()` returning the raw key.
+  const enResources: Record<string, unknown> = { chrome: enChrome, errors: enErrors };
+  const esResources: Record<string, unknown> = { chrome: esChrome, errors: esErrors };
+  const zhResources: Record<string, unknown> = { chrome: zhChrome, errors: zhErrors };
+  for (const ns of Object.keys(ALL_BUNDLES)) {
+    const triple = ALL_BUNDLES[ns];
+    if (triple) {
+      enResources[ns] = triple.en;
+      esResources[ns] = triple.es;
+      zhResources[ns] = triple['zh-Hans'];
+    }
+  }
+
+  // i18next's overloaded `init(options)` vs `init(callback)` confuses TS
+  // when the options object includes wider `string[]` namespaces; cast the
+  // whole options blob to bypass overload selection.
+  const initOptions = {
     compatibilityJSON: 'v4',
     lng: chosen,
     fallbackLng: 'en',
     defaultNS: 'chrome',
-    ns: EAGER_NAMESPACES,
+    ns: NAMESPACES as unknown as string[],
     resources: {
-      en: { chrome: enChrome, errors: enErrors },
-      es: { chrome: esChrome, errors: esErrors },
-      'zh-Hans': { chrome: zhChrome, errors: zhErrors },
+      en: enResources,
+      es: esResources,
+      'zh-Hans': zhResources,
     },
     interpolation: {
       // react-native escapes on render; i18next-level escaping is unwanted.
@@ -202,7 +225,8 @@ export async function initI18n(overrideLocale?: AppLocale): Promise<typeof i18n>
       suffix: '}',
     },
     returnNull: false,
-  });
+  } as Parameters<typeof i18n.init>[0];
+  await i18n.use(initReactI18next).init(initOptions);
 
   return i18n;
 }
@@ -233,5 +257,13 @@ export async function setLocale(locale: AppLocale): Promise<AppLocale> {
   await i18n.changeLanguage(locale);
   return locale;
 }
+
+// Fire-and-forget kickoff — `_layout.tsx` does `import '@/i18n'` as a
+// side-effect import expecting the instance to be registered by first
+// render. `i18n.use(initReactI18next)` registers synchronously even
+// though `.init()` is async, so `useTranslation()` finds the instance
+// from the first render; resource loading then resolves on the next
+// tick and react-i18next re-renders with the real strings.
+void initI18n();
 
 export default i18n;

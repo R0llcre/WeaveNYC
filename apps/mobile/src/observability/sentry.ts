@@ -47,7 +47,7 @@ function sanitizeUrl(url: unknown): unknown {
 
 let initialized = false;
 
-function doInit(): void {
+export function initSentrySync(): void {
   if (initialized || !dsn) {
     return;
   }
@@ -80,16 +80,28 @@ function doInit(): void {
 /**
  * Initialize Sentry after the first interaction settles.
  *
- * Called from app/_layout.tsx's top-level so that startup is not blocked.
- * No-ops if DSN is missing — keeps `expo start` friction-free locally.
+ * Used as a fallback when the synchronous module-level init is skipped
+ * (no DSN). Kept for API compat with prior call sites. No-ops if DSN is
+ * missing — keeps `expo start` friction-free locally.
  */
 export function initSentryDeferred(): void {
   if (!dsn) {
     return;
   }
   InteractionManager.runAfterInteractions(() => {
-    doInit();
+    initSentrySync();
   });
+}
+
+// Synchronous init at module-load time when DSN is set. This is what
+// satisfies `Sentry.wrap()` — wrap registers an error boundary that
+// expects the client to already be initialized when the wrapped tree
+// mounts. Previously init ran inside `useEffect` → `runAfterInteractions`
+// which fired AFTER `Sentry.wrap(RootLayout)` had already been called at
+// module eval, producing the "App Start Span could not be finished"
+// warning. The DSN gate keeps dev (no DSN) friction-free.
+if (dsn) {
+  initSentrySync();
 }
 
 export { Sentry };

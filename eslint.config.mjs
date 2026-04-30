@@ -59,6 +59,7 @@ export default [
       "apps/mobile/babel.config.js",
       "apps/mobile/metro.config.js",
       "apps/mobile/jest.config.js",
+      "apps/mobile/**/plugins/with-complete-ios-icon.js",
       "apps/mobile/__tests__/**/*.{js,ts}",
       "apps/mobile/src/**/__tests__/**/*.{js,ts}",
       "apps/mobile/src/**/*.test.{js,ts,tsx}"

@@ -45,7 +45,7 @@ import { setLanguage } from '@/lib/slices/preferences-slice';
 import type { SupportedLanguage } from '@/lib/types';
 import { useAppTheme } from '@/theme';
 
-import { OnboardingPressableRow } from './_components';
+import { OnboardingPressableRow } from '@/components/onboarding/internal';
 
 /**
  * Each option carries:

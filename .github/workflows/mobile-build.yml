@@ -121,15 +121,16 @@ jobs:
 
       # main push: production build, EAS auto-submits to App Store Connect
       # after the build finishes. --auto-submit reads the submit.production
-      # block in eas.json and uses the APPLE_APP_SPECIFIC_PASSWORD to bypass
-      # 2FA for the non-interactive upload to ASC.
+      # block in eas.json and uses the Expo-recognized
+      # EXPO_APPLE_APP_SPECIFIC_PASSWORD env var to bypass 2FA for the
+      # non-interactive upload to ASC.
       - name: EAS Build (production — main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: eas build --platform ios --profile production --non-interactive --auto-submit
 
       # Install-URL comment on the PR. `expo/expo-github-action/preview`

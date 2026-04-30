@@ -27,8 +27,8 @@ import { useAppSelector } from '@/lib/hooks';
 import { selectPreferences } from '@/lib/selectors';
 import { loadNamespace } from '@/i18n';
 
-import { HomeWizard } from './_home/HomeWizard';
-import { ResourceDirectory } from './_home/ResourceDirectory';
+import { HomeWizard } from '@/components/home/HomeWizard';
+import { ResourceDirectory } from '@/components/home/ResourceDirectory';
 
 export default function HomeTab() {
   const preferences = useAppSelector(selectPreferences);
