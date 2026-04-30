@@ -29,14 +29,18 @@ import { Provider as ReduxProvider, useDispatch, useSelector } from 'react-redux
 // Side-effect import: initialize i18next ASAP so the first render already
 // has the right locale. Keep this import BEFORE any component uses
 // useTranslation().
-import '@/i18n';
+import i18n from '@/i18n';
 
 import { loadPreferences } from '@/lib/persistence';
 import {
   configureNotificationCategories,
   onNotificationResponse,
 } from '@/lib/push-notifications';
-import { hydratePreferences } from '@/lib/slices/preferences-slice';
+import {
+  applyDetectedLanguage,
+  hydratePreferences,
+  setLanguage,
+} from '@/lib/slices/preferences-slice';
 import { initSentryDeferred, Sentry } from '@/observability/sentry';
 import { queryClient } from '@/providers/query-client';
 import { store, type AppDispatch, type RootState } from '@/store';
@@ -83,6 +87,47 @@ function OnboardingGuard() {
       const persisted = await loadPreferences();
       if (cancelled) return;
       dispatch(hydratePreferences(persisted ?? {}));
+
+      // Reconcile the i18n active locale with the persisted Redux
+      // preference. Three branches:
+      //
+      //   1. The user has already picked a language explicitly
+      //      (`hasUserChosenLanguage=true`): trust their pick and force
+      //      i18next over to that locale.
+      //   2. There is no explicit pick yet: i18next has already chosen a
+      //      device-detected locale during module init, so push that
+      //      detected locale BACK into Redux so every component that
+      //      reads `preferences.language` (and the funnel guard below)
+      //      sees the same answer as `useTranslation()`.
+      //   3. Anything else falls through to the english default.
+      //
+      // Without this reconciliation, the device-detected zh-Hans / es
+      // locale renders correctly on screens that read i18next directly
+      // but flips back to English on screens that branch on
+      // `preferences.language` (and on the next remount once Redux
+      // re-hydrates with its initialState default of `'en'`).
+      const i18nLang = i18n.language;
+      const reduxToI18n: Record<string, 'en' | 'es' | 'zh-Hans'> = {
+        en: 'en',
+        es: 'es',
+        zh: 'zh-Hans',
+      };
+      const i18nToRedux: Record<string, 'en' | 'es' | 'zh'> = {
+        en: 'en',
+        es: 'es',
+        'zh-Hans': 'zh',
+      };
+      if (persisted?.hasUserChosenLanguage && persisted.language) {
+        const target = reduxToI18n[persisted.language] ?? 'en';
+        if (i18nLang !== target) {
+          void i18n.changeLanguage(target);
+        }
+        // setLanguage flips hasUserChosenLanguage=true; idempotent.
+        dispatch(setLanguage(persisted.language));
+      } else {
+        const detected = i18nToRedux[i18nLang] ?? 'en';
+        dispatch(applyDetectedLanguage(detected));
+      }
     })();
     return () => {
       cancelled = true;
