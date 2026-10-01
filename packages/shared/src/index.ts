@@ -1,5 +1,48 @@
 export * from "./auth";
+// Node's ESM loader can statically detect these named exports in the
+// CommonJS build. Values forwarded only through `export *` are otherwise
+// unavailable to ESM consumers such as the API gateway and chat service.
+export {
+  userLevels,
+  anchorSessionIssuedViaValues,
+  accessTokenTtlSeconds,
+  refreshTokenTtlSeconds,
+  otpChallengeTtlSeconds,
+  magicLinkChallengeTtlSeconds,
+  anchorActivationChallengeTtlSeconds,
+  anchorSessionChallengeTtlSeconds,
+  anchorSessionIdleTtlSeconds,
+  communityJoinTokenTtlSeconds,
+  otpCodeLength,
+  otpMaxAttempts,
+  otpCooldownSeconds,
+  totpDigits,
+  totpMaxAttempts,
+  totpStepSeconds,
+  totpAllowedSkewWindows,
+  anonymousAuthWindowSeconds,
+  anonymousAuthBurstLimit,
+  refreshAuthWindowSeconds,
+  refreshAuthBurstLimit,
+  otpStartWindowSeconds,
+  otpStartBurstLimit,
+  accountDeleteWindowSeconds,
+  accountDeleteBurstLimit,
+  recoveryCodeWindowSeconds,
+  recoveryCodeBurstLimit,
+  anchorActivateWindowSeconds,
+  anchorActivateBurstLimit,
+  undeleteRequestWindowSeconds,
+  undeleteRequestBurstLimit,
+  communityAccessResolveWindowSeconds,
+  communityAccessResolveBurstLimit,
+  anchorMfaStepUpMaxAgeSeconds,
+  authIdentityHashPepperEnvVar,
+  anchorTotpEncryptionKeyEnvVar,
+  authLevelRank,
+} from "./auth";
 export * from "./contracts";
+export { healthcheckResponseSchema } from "./contracts";
 export {
   chatRealtimeEventTypes,
   conversationStatuses,
@@ -19,6 +62,7 @@ export {
   reportStatuses,
   reportTargetTypes,
   contactRequestStatuses,
+  devicePlatforms,
   postCategories,
   postScopes,
   postStatuses,
@@ -29,6 +73,7 @@ export {
   riskLevels,
   speechProviders,
   supportedLanguages,
+  verificationStates,
   type AnnouncementPinStrategy,
   type AnnouncementStatus,
   type P2PAggregateType,
@@ -47,6 +92,7 @@ export {
   type ReportStatus,
   type ReportTargetType,
   type ContactRequestStatus,
+  type DevicePlatform,
   type PostCategory,
   type PostScope,
   type PostStatus,
@@ -57,6 +103,7 @@ export {
   type RiskLevel,
   type SpeechProvider,
   type SupportedLanguage,
+  type VerificationState,
 } from "./enums";
 export type {
   AdminDashboardResponse,
@@ -97,6 +144,8 @@ export type {
   ConversationsListResponse,
   CreatePostRequest,
   CreatePostResponse,
+  DeviceRegisterRequest,
+  DeviceRegisterResponse,
   BlockUserRequest,
   BlockUserResponse,
   ConversationParticipantPreview,
@@ -329,6 +378,11 @@ export {
   resourceSummarySchema,
   resourceTypeSchema,
 } from "./validators/resources";
+export {
+  devicePlatformSchema,
+  deviceRegisterRequestSchema,
+  deviceRegisterResponseSchema,
+} from "./validators/devices";
 export {
   communityAccessEntrySchema,
   communityAccessResolveRequestSchema,
