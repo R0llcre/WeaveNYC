@@ -24,9 +24,9 @@ export interface CfcParseResult {
 
 export const cfcActiveSourceUrl = 'https://www.nyc.gov/assets/hra/downloads/pdf/services/efap/CFC_ACTIVE.pdf';
 
-const pantryCodes = new Set(["FP", "FPH", "FPK", "FPM", "FPV"]);
+const pantryCodes = new Set(["FP", "FPH", "FPHA", "FPK", "FPM", "FPV"]);
 const kitchenCodes = new Set(["SK", "SKK", "SKM"]);
-const supportedTypeCodePattern = "FPH|FPK|FPM|FPV|FP|SKK|SKM|SK";
+const supportedTypeCodePattern = "FPHA|FPH|FPK|FPM|FPV|FP|SKK|SKM|SK";
 const headerStartRegex = new RegExp(`^\\d{5}\\s+(${supportedTypeCodePattern})\\b`);
 const headerCaptureRegex = new RegExp(`^(\\d{5})\\s+(${supportedTypeCodePattern})\\b(?:\\s+(.*))?$`);
 const recordIdRegex = /^\d{5}$/;
@@ -92,15 +92,18 @@ function parseCfcText(content: string): CfcParseResult {
 }
 
 export function parseRecordBlock(block: string[]): NormalizedResourceRecord | null {
+  // For split-column output, positional parsing stops at the first ZIP and
+  // schedule. Do not globally remove heading words: PROGRAM can be part of
+  // a program name before the ZIP.
+  if (recordIdRegex.test(block[0] ?? "") && typeOnlyRegex.test(block[1] ?? "")) {
+    return parseSplitRecordBlock(block);
+  }
+
   const cleanedBlock = block.filter((line) => !isNoiseLine(line));
   const header = cleanedBlock[0] ?? "";
   const headerMatch = header.match(headerCaptureRegex);
   if (headerMatch) {
     return parseCombinedRecordBlock(cleanedBlock, headerMatch);
-  }
-
-  if (recordIdRegex.test(header) && typeOnlyRegex.test(cleanedBlock[1] ?? "")) {
-    return parseSplitRecordBlock(cleanedBlock);
   }
 
   return null;
@@ -201,7 +204,7 @@ function parseCombinedRecordBlock(
     state: "NY",
     zip: normalizeZip(zip),
     phone,
-    hoursJson: buildHoursFromSchedule(days, hoursLine),
+    hoursJson: buildCfcHours(days, hoursLine),
     languages: [],
     eligibilityNotes: "Official CFC Active listing. Call ahead to confirm hours.",
     lat: null,
@@ -216,51 +219,59 @@ function parseSplitRecordBlock(cleanedBlock: string[]): NormalizedResourceRecord
   const rawType = cleanedBlock[1] ?? "FP";
   const contentLines = cleanedBlock.slice(2);
 
-  let cursor = contentLines.length;
-  let hoursLine = "";
-  if (looksLikeHoursLine(contentLines[cursor - 1] ?? "")) {
-    hoursLine = contentLines[cursor - 1] ?? "";
-    cursor -= 1;
-  }
-
-  const days = normalizeNullable(contentLines[cursor - 1] ?? "");
-  if (!days || !looksLikeDayDescriptor(days)) {
+  // pdftotext puts each column on its own line, but appends page footers and
+  // the next page's headings after the last record on each page. Locate this
+  // record's ZIP and schedule instead of reading backwards from the block end.
+  const zipIndex = contentLines.findIndex((line, index) =>
+    recordIdRegex.test(line) && looksLikeDayDescriptor(contentLines[index + 1] ?? "")
+  );
+  if (zipIndex < 0) {
     return null;
   }
-  cursor -= 1;
 
-  const zipLine = contentLines[cursor - 1] ?? "";
-  if (!recordIdRegex.test(zipLine)) {
-    return null;
-  }
-  const zip = normalizeZip(zipLine);
-  cursor -= 1;
+  const zip = normalizeZip(contentLines[zipIndex]!);
+  const schedule = splitDaysAndHours(contentLines[zipIndex + 1]!);
+  const days = schedule.days;
+  const nextLine = contentLines[zipIndex + 2] ?? "";
+  const hoursLine = schedule.hours || (looksLikeTimeRange(nextLine) ? nextLine : "");
 
   let boroughCode: string | null = null;
-  const boroughLine = contentLines[cursor - 1] ?? "";
+  let regionIndex = zipIndex;
+  const boroughLine = contentLines[zipIndex - 1] ?? "";
   if (boroughCodeRegex.test(boroughLine)) {
     boroughCode = boroughLine.toUpperCase();
-    cursor -= 1;
+    regionIndex -= 1;
   }
 
-  const beforeRegionLines = contentLines.slice(0, cursor);
+  const beforeRegionLines = joinSplitPhone(contentLines.slice(0, regionIndex));
   const phoneIndex = beforeRegionLines.findIndex((line) => phoneRegex.test(line) || isNoPhoneMarker(line));
-  if (phoneIndex < 0) {
-    return null;
+  let phone: string | null = null;
+  let nameParts: string[];
+  let addressParts: string[];
+  if (phoneIndex >= 0) {
+    nameParts = normalizeTextParts(beforeRegionLines.slice(0, phoneIndex));
+    const extractedPhone = splitPhoneAndText(beforeRegionLines[phoneIndex]!);
+    phone = extractedPhone.phone;
+    if (extractedPhone.leadingText) {
+      nameParts.push(extractedPhone.leadingText);
+    }
+    addressParts = normalizeTextParts([
+      extractedPhone.trailingText,
+      ...beforeRegionLines.slice(phoneIndex + 1),
+    ]);
+  } else {
+    // Phone is optional in the source. Only infer an address boundary from a
+    // line that begins with a street number; otherwise reject the row.
+    const addressIndex = beforeRegionLines.findIndex((line, index) =>
+      index > 0 && /^\d+[-\w]*\s+/.test(line)
+    );
+    if (addressIndex < 0) {
+      return null;
+    }
+    nameParts = normalizeTextParts(beforeRegionLines.slice(0, addressIndex));
+    addressParts = normalizeTextParts(beforeRegionLines.slice(addressIndex));
   }
-
-  const nameParts = normalizeTextParts(beforeRegionLines.slice(0, phoneIndex));
-  const phoneLine = beforeRegionLines[phoneIndex] ?? "";
-  const extractedPhone = splitPhoneAndText(phoneLine);
-  const phone = extractedPhone.phone;
-  if (extractedPhone.leadingText) {
-    nameParts.push(extractedPhone.leadingText);
-  }
-
-  const addressParts = normalizeTextParts([
-    extractedPhone.trailingText,
-    ...beforeRegionLines.slice(phoneIndex + 1),
-  ]).map((value) => toTitleCase(stripNoPhoneMarker(value)));
+  addressParts = addressParts.map((value) => toTitleCase(stripNoPhoneMarker(value)));
 
   const name = normalizeNullable(nameParts.join(" "));
   const addressText = normalizeNullable(addressParts.join(" "));
@@ -278,7 +289,7 @@ function parseSplitRecordBlock(cleanedBlock: string[]): NormalizedResourceRecord
     state: "NY",
     zip,
     phone,
-    hoursJson: buildHoursFromSchedule(days, hoursLine),
+    hoursJson: buildCfcHours(days, hoursLine),
     languages: [],
     eligibilityNotes: "Official CFC Active listing. Call ahead to confirm hours.",
     lat: null,
@@ -286,6 +297,58 @@ function parseSplitRecordBlock(cleanedBlock: string[]): NormalizedResourceRecord
     geoPrecision: "unknown",
     sourceUrl: cfcActiveSourceUrl,
   });
+}
+
+function splitDaysAndHours(line: string): { days: string; hours: string } {
+  // The PDF occasionally folds HOURS into DAYS (including without a space).
+  // Keep the source's time text verbatim; an absent AM/PM cannot be inferred.
+  const timeRange = line.match(/(?<=[\s)])\d{1,2}(?::\d{1,2})?\s*(?:AM|PM|A|P)?\s*[-–]\s*\d/i);
+  if (timeRange?.index && looksLikeDayDescriptor(line.slice(0, timeRange.index))) {
+    return {
+      days: line.slice(0, timeRange.index).trim(),
+      hours: line.slice(timeRange.index).trim()
+    };
+  }
+  return { days: line, hours: "" };
+}
+
+function looksLikeTimeRange(line: string): boolean {
+  return /^\d{1,2}(?::\d{1,2})?\s*[-–]\s*\d/.test(line) || looksLikeHoursLine(line);
+}
+
+function joinSplitPhone(lines: string[]): string[] {
+  const joined: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    // One current PDF row places the final word of the name between area
+    // code and local number. Keep that word in the name while joining the
+    // phone fragments.
+    if (/\(\d{3}\)$/.test(line) && /^[A-Z ]+$/.test(lines[index + 1] ?? "") &&
+        /^\d{3}-\d{4}\b/.test(lines[index + 2] ?? "")) {
+      const continuation = lines[index + 1]!;
+      joined.push(`${line.slice(0, -5).trim()} ${continuation} ${line.slice(-5)} ${lines[index + 2]}`);
+      index += 2;
+      continue;
+    }
+    if (/\(\d{3}\)$/.test(line) && /^\d{3}-\d{4}\b/.test(lines[index + 1] ?? "")) {
+      joined.push(`${line} ${lines[index + 1]}`);
+      index += 1;
+    } else {
+      joined.push(line);
+    }
+  }
+  return joined;
+}
+
+function buildCfcHours(days: string, hours: string): NormalizedResourceRecord["hoursJson"] {
+  // Parentheses denote limited weeks or conditions. When several days have
+  // distinct slash-separated windows, their pairing is also ambiguous.
+  // Preserve the source schedule in notes rather than claiming weekly hours.
+  const dayCount = (days.match(/\b(?:MON|TUE|TUES|WED|TH|THU|THUR|THURS|FRI|SAT|SUN)\b/gi) ?? []).length;
+  if (/[()]/.test(days) || (dayCount > 1 && hours.includes("/"))) {
+    return { notes: `${days.trim()} ${hours.trim()}`.trim() };
+  }
+  return buildHoursFromSchedule(days, hours);
 }
 
 function buildRecord(record: NormalizedResourceRecord) {
