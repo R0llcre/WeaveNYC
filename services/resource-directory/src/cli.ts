@@ -88,10 +88,13 @@ async function main() {
   }
 
   const pool = new Pool({
-    connectionString: getDatabaseUrl()
+    connectionString: getDatabaseUrl(),
+    connectionTimeoutMillis: 10_000,
   });
 
   try {
+    // Fail before any external geocoding when the configured database is unreachable.
+    await pool.query('select 1');
     if (command === 'cfc-active') {
       console.log(await importCfcActiveDataset(pool, { mode, force }));
       return;

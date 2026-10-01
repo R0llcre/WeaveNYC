@@ -307,8 +307,30 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   const firstBookmark = page.locator('[data-testid^="bookmark-"]').first();
   await expect(firstBookmark).toBeVisible();
   await firstBookmark.click();
+  await expect(firstBookmark).toHaveAttribute('aria-pressed', 'true');
+  const bookmarkId = (await firstBookmark.getAttribute('data-testid'))?.slice('bookmark-'.length);
+  if (!bookmarkId) throw new Error('Bookmark button has no resource ID');
+
+  // Preferences persist to IndexedDB in an async React effect. Reloading
+  // before that write commits can discard the click on a slow CI runner.
+  await expect.poll(() => page.evaluate((id) => new Promise<boolean>((resolve) => {
+    const open = indexedDB.open('weavenyc-pwa');
+    open.onerror = () => resolve(false);
+    open.onsuccess = () => {
+      const db = open.result;
+      const request = db.transaction('kv', 'readonly').objectStore('kv').get('preferences');
+      request.onerror = () => { db.close(); resolve(false); };
+      request.onsuccess = () => {
+        const row = request.result as { value?: { bookmarks?: string[] } } | undefined;
+        db.close();
+        const bookmarks = row?.value?.bookmarks;
+        resolve(Array.isArray(bookmarks) && bookmarks.includes(id));
+      };
+    };
+  }), bookmarkId), { timeout: 15_000 }).toBe(true);
+
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible({ timeout: 10_000 });
 
   // Note: clicking resource-detail + asserting Horario/Notas removed from this
   // smoke flow because `/resources/[providerId]` is `dynamicParams: false`

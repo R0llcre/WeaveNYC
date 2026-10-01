@@ -112,7 +112,8 @@ export class NominatimGeocoder implements Geocoder {
         headers: {
           'user-agent': this.userAgent,
           accept: 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(5_000),
       });
     } catch {
       return {
