@@ -62,7 +62,6 @@ export {
   reportStatuses,
   reportTargetTypes,
   contactRequestStatuses,
-  devicePlatforms,
   postCategories,
   postScopes,
   postStatuses,
@@ -73,7 +72,6 @@ export {
   riskLevels,
   speechProviders,
   supportedLanguages,
-  verificationStates,
   type AnnouncementPinStrategy,
   type AnnouncementStatus,
   type P2PAggregateType,
@@ -92,7 +90,6 @@ export {
   type ReportStatus,
   type ReportTargetType,
   type ContactRequestStatus,
-  type DevicePlatform,
   type PostCategory,
   type PostScope,
   type PostStatus,
@@ -103,7 +100,6 @@ export {
   type RiskLevel,
   type SpeechProvider,
   type SupportedLanguage,
-  type VerificationState,
 } from "./enums";
 export type {
   AdminDashboardResponse,
@@ -144,8 +140,6 @@ export type {
   ConversationsListResponse,
   CreatePostRequest,
   CreatePostResponse,
-  DeviceRegisterRequest,
-  DeviceRegisterResponse,
   BlockUserRequest,
   BlockUserResponse,
   ConversationParticipantPreview,
@@ -378,11 +372,6 @@ export {
   resourceSummarySchema,
   resourceTypeSchema,
 } from "./validators/resources";
-export {
-  devicePlatformSchema,
-  deviceRegisterRequestSchema,
-  deviceRegisterResponseSchema,
-} from "./validators/devices";
 export {
   communityAccessEntrySchema,
   communityAccessResolveRequestSchema,
