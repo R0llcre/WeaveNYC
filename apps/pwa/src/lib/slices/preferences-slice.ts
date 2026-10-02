@@ -30,15 +30,18 @@ const preferencesSlice = createSlice({
   name: 'preferences',
   initialState: initialPreferencesState,
   reducers: {
-    hydratePreferences(_state, action: PayloadAction<Partial<PreferencesState> | null | undefined>) {
-      // `hydrationComplete` is derived here (always `true` after hydration
-      // runs) regardless of what the persisted payload contains, so the
-      // onboarding guard in ResourceHome can rely on this flag instead of
-      // a setTimeout race.
+    hydratePreferences(state, action: PayloadAction<Partial<PreferencesState> | null | undefined>) {
+      // A language choice made while IndexedDB is still loading is newer
+      // than the stored/browser fallback. Keep it when hydration completes.
+      // This can happen on the first language picker or a fast settings tap.
+      const pendingLanguageChoice = !state.hydrationComplete && state.hasUserChosenLanguage;
       return {
         ...initialPreferencesState,
         ...action.payload,
         bookmarks: uniqueBookmarks(action.payload?.bookmarks ?? []),
+        ...(pendingLanguageChoice
+          ? { language: state.language, hasUserChosenLanguage: true }
+          : {}),
         hydrationComplete: true,
       };
     },
@@ -78,7 +81,10 @@ const preferencesSlice = createSlice({
      * detected locale.
      */
     applyDetectedLanguage(state, action: PayloadAction<SupportedLanguage>) {
-      state.language = action.payload;
+      // The browser fallback may arrive after a user taps the picker.
+      if (!state.hasUserChosenLanguage) {
+        state.language = action.payload;
+      }
     },
     /**
      * V1-B Task 4 — persist the "user dismissed the first-visit trust
