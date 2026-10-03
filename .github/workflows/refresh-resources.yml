@@ -1,54 +1,30 @@
 name: Refresh Resource Directory
 
-# A5 P0.1 — scheduled resource-directory data refresh.
-# Runs `pnpm resources:sync` daily at 04:00 UTC (00:00 EDT / 23:00 EST),
-# which wraps `importCfcActiveDataset` + `importIslandHarvestDataset`.
-# Both adapters fetch the live source, geocode net-new rows, and commit
-# via ResourceImportRepository.importDataset — which enforces the A5 P0.2
-# completeness guard before wiping active rows.
-#
-# Safety rails (listed in priority order):
-#
-#   1. The job only fires when the repository secret `ENABLE_RESOURCE_IMPORTS`
-#      is literally "1". Until we flip that switch, scheduled runs short-
-#      circuit out before touching the database. Accidental merges of this
-#      workflow never trigger a production import.
-#
-#   2. The completeness guard (see services/resource-directory/src/lib/
-#      repository.ts `ImportCompletenessError`) refuses to wipe-and-replace
-#      when the incoming batch has < 50% of the previously-active row
-#      count. A transient upstream failure surfaces as a loud CI red, not
-#      silently inactivated pantries.
-#
-#   3. `concurrency: refresh-resources` serializes runs. A manually
-#      dispatched run while the scheduled run is in flight waits rather
-#      than overlapping and double-wiping the active set.
-#
-# Ad-hoc refresh: use the "workflow_dispatch" trigger in the GitHub UI
-# (requires `ENABLE_RESOURCE_IMPORTS=1` set as a repo secret). If a
-# source legitimately shrunk and the guard fires, run
-# `pnpm resources:sync --force` manually from a trusted operator box
-# and let this workflow pick up again the next morning.
-#
-# Required secrets:
-#   ENABLE_RESOURCE_IMPORTS           must equal "1" for the job to run
-#   WEAVENYC_RESOURCE_DATABASE_URL    Postgres DSN for the resource DB
-#                                     (reuse the Cloud Run secret or AWS
-#                                     RDS connection string that powers
-#                                     resource-directory in production)
-#   WEAVENYC_INTERNAL_SERVICE_JWT_SECRET  kept consistent with the
-#                                         resource-directory runtime so
-#                                         downstream services can verify
-
+# The GitHub runner fetches no database credentials. A short-lived ECS task
+# uses the approved production shared database through its existing VPC rule.
+# The task's default command is read-only; this workflow requests sync only
+# after the import gate is enabled. Pushes to the repair branch run preflight.
 on:
   schedule:
-    # 04:00 UTC daily — late night EST / early morning EDT, well before
-    # the PWA's peak usage window.
     - cron: '0 4 * * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Run a read-only preflight or import the official sources
+        type: choice
+        options:
+          - preflight
+          - sync
+        default: sync
+  push:
+    branches:
+      - fix/cfc-active-pdf-parsing-20261001
+    paths:
+      - .github/workflows/refresh-resources.yml
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: refresh-resources
@@ -57,79 +33,98 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Use the `staging` environment so the job can read the per-env
-    # secrets (`WEAVENYC_STAGING_DATABASE_URL`,
-    # `WEAVENYC_STAGING_INTERNAL_SERVICE_JWT_SECRET`) that already back
-    # the staging API Gateway. The repo-level
-    # `WEAVENYC_RESOURCE_DATABASE_URL` / `WEAVENYC_INTERNAL_SERVICE_JWT_SECRET`
-    # secrets were never set, which is why every scheduled run since
-    # deployment has silently short-circuited — and why pilot smoke has
-    # shown 0 items for NYC ZIPs (10001/11206/11211) despite merged data
-    # expansions like #82.
-    environment: staging
-
+    timeout-minutes: 40
     env:
-      NODE_ENV: production
-      # DATABASE_URL is the env var `services/resource-directory/src/cli.ts`
-      # reads via `process.env.DATABASE_URL`. The staging DB IS the
-      # resource-directory DB (monolithic Postgres); no separate
-      # `*_RESOURCE_*` URL exists.
-      DATABASE_URL: ${{ secrets.WEAVENYC_STAGING_DATABASE_URL }}
-      INTERNAL_SERVICE_JWT_SECRET: ${{ secrets.WEAVENYC_STAGING_INTERNAL_SERVICE_JWT_SECRET }}
+      AWS_REGION: us-east-1
+      ECS_CLUSTER: weavenyc-resource-import
+      ECS_TASK_DEFINITION: weavenyc-resource-importer
 
     steps:
-      - name: Short-circuit when imports are not yet enabled
+      - name: Select mode and enforce import gate
         id: gate
+        shell: bash
+        env:
+          ENABLE_RESOURCE_IMPORTS: ${{ secrets.ENABLE_RESOURCE_IMPORTS }}
+          REQUESTED_MODE: ${{ inputs.mode }}
         run: |
-          if [ "${{ secrets.ENABLE_RESOURCE_IMPORTS }}" != "1" ]; then
-            echo "ENABLE_RESOURCE_IMPORTS != 1 — skipping import."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            mode=preflight
+          else
+            mode="${REQUESTED_MODE:-sync}"
           fi
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if [[ "$mode" != preflight && "$mode" != sync ]]; then
+            echo "::error::Unsupported import mode"
+            exit 1
+          fi
+          if [[ "$ENABLE_RESOURCE_IMPORTS" == 1 ]]; then
+            echo "import_gate_enabled=true"
+          else
+            echo "import_gate_enabled=false"
+          fi
+          if [[ "$mode" == sync && "$ENABLE_RESOURCE_IMPORTS" != 1 ]]; then
+            echo "::error::ENABLE_RESOURCE_IMPORTS must equal 1 before a database import"
+            exit 1
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout
-        if: steps.gate.outputs.enabled == 'true'
-        uses: actions/checkout@v5
-
-      - name: Setup pnpm
-        if: steps.gate.outputs.enabled == 'true'
-        uses: pnpm/action-setup@v4
+      - name: Assume scoped resource import role
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          version: 10.33.0
+          role-to-assume: arn:aws:iam::590517422743:role/weavenyc-github-resource-import
+          aws-region: us-east-1
+          role-session-name: weavenyc-resource-import
 
-      - name: Setup Node
-        if: steps.gate.outputs.enabled == 'true'
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install system deps (poppler for CFC PDF parsing)
-        if: steps.gate.outputs.enabled == 'true'
-        # The CFC Active adapter (`services/resource-directory/src/adapters/
-        # cfc-active.ts`) shells out to `pdftotext` via node:child_process.
-        # Without poppler-utils the spawn errors with ENOENT. Pre-install so
-        # both the smoke step and the real import step have it.
+      - name: Run ECS import task and inspect final exit code
+        shell: bash
+        env:
+          IMPORT_MODE: ${{ steps.gate.outputs.mode }}
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends poppler-utils
+          set -euo pipefail
+          task_arn=""
+          cleanup() {
+            if [[ -z "$task_arn" ]]; then return; fi
+            status="$(aws ecs describe-tasks --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+              --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text 2>/dev/null || true)"
+            if [[ "$status" != STOPPED && "$status" != None ]]; then
+              aws ecs stop-task --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+                --task "$task_arn" --reason "Workflow finished before importer task" >/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
 
-      - name: Install dependencies
-        if: steps.gate.outputs.enabled == 'true'
-        run: pnpm install --frozen-lockfile
+          override=()
+          if [[ "$IMPORT_MODE" == sync ]]; then
+            override=(--overrides '{"containerOverrides":[{"name":"importer","command":["node","services/resource-directory/dist/src/cli.js","sync"]}]}')
+          fi
+          task_arn="$(aws ecs run-task --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+            --task-definition "$ECS_TASK_DEFINITION" --launch-type FARGATE \
+            --network-configuration 'awsvpcConfiguration={subnets=[subnet-0215d6c92eefc6835,subnet-023bf2bdb986a6201],securityGroups=[sg-067b3f6099eb8f5f5],assignPublicIp=ENABLED}' \
+            --started-by weavenyc-resource-refresh --propagate-tags TASK_DEFINITION \
+            "${override[@]}" --query 'tasks[0].taskArn' --output text)"
+          if [[ -z "$task_arn" || "$task_arn" == None ]]; then
+            echo "::error::ECS did not start an importer task"
+            exit 1
+          fi
+          echo "ECS task: $task_arn"
 
-      - name: Smoke sources before committing (live adapters, no writes)
-        if: steps.gate.outputs.enabled == 'true'
-        run: pnpm --filter @weavenyc/resource-directory exec tsx src/cli.ts sync --smoke
-
-      - name: Import CFC Active + Island Harvest
-        if: steps.gate.outputs.enabled == 'true'
-        run: pnpm --filter @weavenyc/resource-directory resources:sync
-
-      - name: Report skipped run
-        if: steps.gate.outputs.enabled == 'false'
-        run: |
-          echo "Resource import was NOT run because ENABLE_RESOURCE_IMPORTS is not set to '1'."
-          echo "Set the repo secret to enable scheduled refreshes."
+          deadline=$((SECONDS + 1800))
+          while (( SECONDS < deadline )); do
+            status="$(aws ecs describe-tasks --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+              --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)"
+            if [[ "$status" == STOPPED ]]; then
+              exit_code="$(aws ecs describe-tasks --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+                --tasks "$task_arn" --query 'tasks[0].containers[0].exitCode' --output text)"
+              if [[ "$exit_code" == 0 ]]; then
+                echo "Importer task completed successfully"
+                exit 0
+              fi
+              echo "::error::Importer task exited with code $exit_code"
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "::error::Importer task exceeded 30 minutes; stopping it"
+          exit 1
