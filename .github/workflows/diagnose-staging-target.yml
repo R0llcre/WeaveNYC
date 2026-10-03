@@ -1,0 +1,43 @@
+name: Diagnose staging DB target
+
+on:
+  push:
+    branches:
+      - diag/staging-target-20261003
+
+permissions:
+  contents: read
+
+jobs:
+  compare-target:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 5
+    env:
+      DATABASE_URL: ${{ secrets.WEAVENYC_STAGING_DATABASE_URL }}
+    steps:
+      - name: Compare target without revealing connection details
+        run: |
+          node <<'NODE'
+          const { createHash } = require('node:crypto');
+          const raw = process.env.DATABASE_URL;
+          if (!raw) {
+            console.log('staging_database_configured=false');
+            process.exit(1);
+          }
+          let target;
+          try {
+            target = new URL(raw);
+          } catch {
+            console.log('staging_database_parseable=false');
+            process.exit(1);
+          }
+          const hostHash = createHash('sha256').update(target.hostname.toLowerCase()).digest('hex');
+          const knownProductionHostHash = '429c22d8afcb9876e81a24475b766eecd4c23bd3bbc08c0af611b80981ad21f4';
+          const sameHost = hostHash === knownProductionHostHash;
+          const sameDatabase = decodeURIComponent(target.pathname.slice(1)).toLowerCase() === 'weavenyc_pilot';
+          console.log('staging_database_configured=true');
+          console.log('matches_documented_production_host=' + sameHost);
+          console.log('matches_documented_production_database=' + sameDatabase);
+          if (sameHost) process.exit(2);
+          NODE
