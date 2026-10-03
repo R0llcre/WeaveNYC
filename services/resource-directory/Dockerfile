@@ -101,3 +101,21 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 # tini handles PID 1 signal forwarding so Cloud Run can terminate cleanly.
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "services/resource-directory/dist/src/server.js"]
+
+# Opt-in ECS batch image. The existing Cloud Run build still selects the
+# final server stage below; only the dedicated importer build targets this.
+FROM runtime AS importer
+USER root
+COPY --from=build /repo/services/resource-directory/src/fixtures ./services/resource-directory/dist/src/fixtures
+RUN apk add --no-cache poppler-utils ca-certificates \
+ && curl --fail --silent --show-error --location \
+      https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+      --output /app/rds-ca.pem \
+ && chown node:node /app/rds-ca.pem
+USER node
+ENV PGSSLROOTCERT=/app/rds-ca.pem
+HEALTHCHECK NONE
+CMD ["node", "services/resource-directory/dist/src/cli.js", "sync"]
+
+# Keep the existing web-service image as Docker's default build target.
+FROM runtime AS server

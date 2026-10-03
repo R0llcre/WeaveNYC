@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Isolated WeaveNYC resource import task; no database ingress changes or app deployment.
+
+Parameters:
+  ImporterImage:
+    Type: String
+    Description: ECR image pinned by digest after importer tests pass.
+
+Resources:
+  ImportCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: weavenyc-resource-import
+      Tags:
+        - Key: Project
+          Value: WeaveNYC-ResourceImport
+
+  ImportLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /weavenyc/resource-import
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: WeaveNYC-ResourceImport
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: weavenyc-resource-import-execution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadExistingRdsPassword
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/rds-master-password-5Rtjmp
+      Tags:
+        - Key: Project
+          Value: WeaveNYC-ResourceImport
+
+  ImportTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: weavenyc-resource-importer
+      Cpu: '256'
+      Memory: '512'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: importer
+          Image: !Ref ImporterImage
+          Essential: true
+          StopTimeout: 120
+          # An accidental RunTask remains read-only; the scheduled workflow
+          # must explicitly request sync after its gate and source checks.
+          Command:
+            - node
+            - services/resource-directory/dist/src/cli.js
+            - preflight
+          Environment:
+            - Name: NODE_ENV
+              Value: production
+            - Name: PGHOST
+              Value: weavenyc-pilot.cyr6g2wi2nku.us-east-1.rds.amazonaws.com
+            - Name: PGPORT
+              Value: '5432'
+            - Name: PGUSER
+              Value: weavenyc
+            - Name: PGDATABASE
+              Value: weavenyc_pilot
+            - Name: RESOURCE_IMPORT_EXPECTED_DATABASE
+              Value: weavenyc_pilot
+            - Name: RESOURCE_IMPORT_REQUIRE_PREFLIGHT
+              Value: '1'
+          Secrets:
+            - Name: PGPASSWORD
+              ValueFrom: arn:aws:secretsmanager:us-east-1:590517422743:secret:weavenyc/pilot/rds-master-password-5Rtjmp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref ImportLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: importer
+      Tags:
+        - Key: Project
+          Value: WeaveNYC-ResourceImport
+
+  GitHubImportRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: weavenyc-github-resource-import
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: arn:aws:iam::590517422743:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - repo:R0llcre/WeaveNYC:ref:refs/heads/main
+                  - repo:R0llcre/WeaveNYC:ref:refs/heads/fix/cfc-active-pdf-parsing-20261001
+      Policies:
+        - PolicyName: RunOnlyResourceImportTask
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Ref ImportTask
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !GetAtt ImportCluster.Arn
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeTasks
+                  - ecs:StopTask
+                Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/weavenyc-resource-import/*
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt TaskExecutionRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+      Tags:
+        - Key: Project
+          Value: WeaveNYC-ResourceImport
+
+Outputs:
+  ClusterName:
+    Value: !Ref ImportCluster
+  TaskDefinitionArn:
+    Value: !Ref ImportTask
+  GitHubRoleArn:
+    Value: !GetAtt GitHubImportRole.Arn
+  LogGroupName:
+    Value: !Ref ImportLogGroup

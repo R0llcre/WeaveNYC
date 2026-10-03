@@ -73,6 +73,16 @@ export class ResourceImportRepository {
   ): Promise<DatasetImportSummary> {
     const minRecordFraction = options.minRecordFraction ?? DEFAULT_MIN_RECORD_FRACTION;
     const force = options.force ?? false;
+    // The pilot seed also uses source='cfc_active' for hand-curated entries
+    // with slug IDs. The official PDF only owns five-digit CFC IDs. Never
+    // deactivate or count the curated entries during a PDF refresh.
+    const managedRefPattern = input.source === 'cfc_active' ? '^cfc_active:[0-9]{5}$' : null;
+    if (
+      managedRefPattern &&
+      input.records.some((record) => !/^cfc_active:[0-9]{5}$/.test(record.sourceRef))
+    ) {
+      throw new Error('CFC import contains a non-official source reference');
+    }
 
     // A5 P0.2 — completeness guard. We run the count OUTSIDE the import
     // transaction on purpose: we want to fail BEFORE we wipe the source,
@@ -84,8 +94,9 @@ export class ResourceImportRepository {
         from resource_providers
         where source = $1
           and status = 'active'
+          and ($2::text is null or source_ref ~ $2)
       `,
-      [input.source],
+      [input.source, managedRefPattern],
     );
     const previousActiveCount = Number(previousCountResult.rows[0]?.count ?? 0);
     const incomingCount = input.records.length;
@@ -116,8 +127,9 @@ export class ResourceImportRepository {
           where source = $1
             and status = 'active'
             and dataset_version <> $2
+            and source_url = $3
         `,
-        [input.source, input.datasetVersion]
+        [input.source, input.datasetVersion, input.sourceUrl]
       );
 
       await client.query(
@@ -164,8 +176,9 @@ export class ResourceImportRepository {
           from resource_providers
           where source = $1
             and status = 'active'
+            and ($2::text is null or source_ref ~ $2)
         `,
-        [input.source]
+        [input.source, managedRefPattern]
       );
 
       const previousByRef = new Map<string, {
@@ -181,8 +194,9 @@ export class ResourceImportRepository {
               updated_at = now()
           where source = $1
             and status = 'active'
+            and ($2::text is null or source_ref ~ $2)
         `,
-        [input.source]
+        [input.source, managedRefPattern]
       );
 
       let added = 0;

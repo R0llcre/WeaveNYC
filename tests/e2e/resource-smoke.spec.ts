@@ -307,8 +307,74 @@ test('language -> zip -> list -> detail -> bookmark smoke flow', async ({ page }
   const firstBookmark = page.locator('[data-testid^="bookmark-"]').first();
   await expect(firstBookmark).toBeVisible();
   await firstBookmark.click();
+  await expect(firstBookmark).toHaveAttribute('aria-pressed', 'true');
+  const bookmarkId = (await firstBookmark.getAttribute('data-testid'))?.slice('bookmark-'.length);
+  if (!bookmarkId) throw new Error('Bookmark button has no resource ID');
+
+  // Preferences persist to IndexedDB in an async React effect. Reloading
+  // before that write commits can discard the click on a slow CI runner.
+  await expect.poll(() => page.evaluate((id) => new Promise<boolean>((resolve) => {
+    const open = indexedDB.open('weavenyc-pwa');
+    open.onerror = () => resolve(false);
+    open.onsuccess = () => {
+      const db = open.result;
+      const request = db.transaction('kv', 'readonly').objectStore('kv').get('preferences');
+      request.onerror = () => { db.close(); resolve(false); };
+      request.onsuccess = () => {
+        const row = request.result as { value?: { bookmarks?: string[] } } | undefined;
+        db.close();
+        const bookmarks = row?.value?.bookmarks;
+        resolve(Array.isArray(bookmarks) && bookmarks.includes(id));
+      };
+    };
+  }), bookmarkId), { timeout: 15_000 }).toBe(true);
+
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible();
+  try {
+    await expect(page.getByRole('button', { name: 'Guardado' }).first()).toBeVisible({ timeout: 10_000 });
+  } catch (error) {
+    // Keep the CI failure actionable: distinguish a lost IndexedDB write
+    // from an unrendered directory or a language reset after hydration.
+    const state = await page.evaluate((id) => new Promise((resolve) => {
+      const open = indexedDB.open('weavenyc-pwa');
+      open.onerror = () => resolve(null);
+      open.onsuccess = () => {
+        const db = open.result;
+        if (!db.objectStoreNames.contains('kv')) {
+          db.close();
+          resolve(null);
+          return;
+        }
+        const request = db.transaction('kv', 'readonly').objectStore('kv').get('preferences');
+        request.onerror = () => { db.close(); resolve(null); };
+        request.onsuccess = () => {
+          const row = request.result as {
+            value?: { bookmarks?: string[]; lastIntent?: string; onboardingComplete?: boolean; language?: string }
+          } | undefined;
+          db.close();
+          resolve({
+            url: window.location.href,
+            htmlLanguage: document.documentElement.lang,
+            storedLanguage: row?.value?.language,
+            onboardingComplete: row?.value?.onboardingComplete,
+            lastIntent: row?.value?.lastIntent,
+            bookmarkStored: row?.value?.bookmarks?.includes(id),
+            bookmarkButtons: [...document.querySelectorAll('[data-testid^="bookmark-"]')]
+              .map((button) => ({
+                id: button.getAttribute('data-testid'),
+                label: button.getAttribute('aria-label'),
+                pressed: button.getAttribute('aria-pressed'),
+              })),
+            wizardPresent: Boolean(document.querySelector('[data-testid="home-wizard"]')),
+            articleCount: document.querySelectorAll('article').length,
+            pageText: document.body.innerText.slice(0, 500),
+          });
+        };
+      };
+    }), bookmarkId);
+    console.error('Bookmark state after reload:', JSON.stringify(state));
+    throw error;
+  }
 
   // Note: clicking resource-detail + asserting Horario/Notas removed from this
   // smoke flow because `/resources/[providerId]` is `dynamicParams: false`

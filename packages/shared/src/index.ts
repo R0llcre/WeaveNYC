@@ -1,5 +1,48 @@
 export * from "./auth";
+// Node's ESM loader can statically detect these named exports in the
+// CommonJS build. Values forwarded only through `export *` are otherwise
+// unavailable to ESM consumers such as the API gateway and chat service.
+export {
+  userLevels,
+  anchorSessionIssuedViaValues,
+  accessTokenTtlSeconds,
+  refreshTokenTtlSeconds,
+  otpChallengeTtlSeconds,
+  magicLinkChallengeTtlSeconds,
+  anchorActivationChallengeTtlSeconds,
+  anchorSessionChallengeTtlSeconds,
+  anchorSessionIdleTtlSeconds,
+  communityJoinTokenTtlSeconds,
+  otpCodeLength,
+  otpMaxAttempts,
+  otpCooldownSeconds,
+  totpDigits,
+  totpMaxAttempts,
+  totpStepSeconds,
+  totpAllowedSkewWindows,
+  anonymousAuthWindowSeconds,
+  anonymousAuthBurstLimit,
+  refreshAuthWindowSeconds,
+  refreshAuthBurstLimit,
+  otpStartWindowSeconds,
+  otpStartBurstLimit,
+  accountDeleteWindowSeconds,
+  accountDeleteBurstLimit,
+  recoveryCodeWindowSeconds,
+  recoveryCodeBurstLimit,
+  anchorActivateWindowSeconds,
+  anchorActivateBurstLimit,
+  undeleteRequestWindowSeconds,
+  undeleteRequestBurstLimit,
+  communityAccessResolveWindowSeconds,
+  communityAccessResolveBurstLimit,
+  anchorMfaStepUpMaxAgeSeconds,
+  authIdentityHashPepperEnvVar,
+  anchorTotpEncryptionKeyEnvVar,
+  authLevelRank,
+} from "./auth";
 export * from "./contracts";
+export { healthcheckResponseSchema } from "./contracts";
 export {
   chatRealtimeEventTypes,
   conversationStatuses,
