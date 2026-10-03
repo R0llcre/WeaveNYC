@@ -11,10 +11,16 @@ type ActiveRow = {
   status: "active" | "inactive";
 };
 
+function isManagedActiveRow(row: ActiveRow, source: string, pattern: unknown): boolean {
+  return row.source === source && row.status === "active" &&
+    (typeof pattern !== "string" || new RegExp(pattern).test(row.source_ref));
+}
+
 class FakeImportClient {
   constructor(private readonly pool: FakeImportPool) {}
 
   async query(sql: string, params: unknown[] = []) {
+    this.pool.statements.push(sql);
     if (
       sql.includes("select provider_id, source_ref, content_hash") &&
       sql.includes("from resource_providers")
@@ -22,7 +28,7 @@ class FakeImportClient {
       const source = String(params[0]);
       return {
         rows: Array.from(this.pool.activeRows.values()).filter(
-          (row) => row.source === source && row.status === "active",
+          (row) => isManagedActiveRow(row, source, params[1]),
         ),
       };
     }
@@ -33,7 +39,7 @@ class FakeImportClient {
     ) {
       const source = String(params[0]);
       for (const [key, row] of this.pool.activeRows.entries()) {
-        if (row.source === source && row.status === "active") {
+        if (isManagedActiveRow(row, source, params[1])) {
           this.pool.activeRows.set(key, { ...row, status: "inactive" });
         }
       }
@@ -76,9 +82,11 @@ class FakeImportClient {
 class FakeImportPool {
   readonly activeRows = new Map<string, ActiveRow>();
   readonly datasetVersions = new Map<string, { source: string; datasetVersion: string }>();
+  readonly statements: string[] = [];
   readonly client = new FakeImportClient(this);
 
   async query(sql: string, params: unknown[] = []) {
+    this.statements.push(sql);
     // Top-level `pool.query(...)` is called by the completeness guard before
     // the transaction opens. Routes the same way as the client so tests share
     // a single source-of-truth for what "active rows exist for source X" means.
@@ -88,7 +96,7 @@ class FakeImportPool {
     ) {
       const source = String(params[0]);
       const count = Array.from(this.activeRows.values()).filter(
-        (row) => row.source === source && row.status === "active",
+        (row) => isManagedActiveRow(row, source, params[1]),
       ).length;
       return { rows: [{ count }] };
     }
@@ -105,7 +113,7 @@ class FakeImportPool {
 
 const baseRecord: NormalizedResourceRecord = {
   source: "cfc_active",
-  sourceRef: "cfc_active:stable-provider",
+  sourceRef: "cfc_active:12345",
   name: "Stable Pantry",
   type: "pantry",
   addressText: "1 Main St",
@@ -125,6 +133,47 @@ const baseRecord: NormalizedResourceRecord = {
 };
 
 describe("ResourceImportRepository", () => {
+  it("preserves seeded CFC resources with non-official source refs", async () => {
+    const pool = new FakeImportPool();
+    pool.activeRows.set("cfc_active:curated", {
+      provider_id: "curated-id",
+      source_ref: "cfc_active:st-kilian-farmingdale",
+      content_hash: "curated-hash",
+      source: "cfc_active",
+      status: "active",
+    });
+    const repository = new ResourceImportRepository(pool as never);
+
+    const summary = await repository.importDataset({
+      source: "cfc_active",
+      sourceLabel: "CFC",
+      sourceUrl: "https://example.com/cfc",
+      datasetVersion: "cfc_active_v1",
+      records: [baseRecord],
+    });
+
+    expect(summary.removed).toBe(0);
+    expect(pool.activeRows.get("cfc_active:curated")).toMatchObject({
+      provider_id: "curated-id",
+      status: "active",
+    });
+    expect(pool.statements.find((sql) => sql.includes("set status = 'inactive'"))).toContain("source_ref ~ $2");
+    expect(pool.statements.find((sql) => sql.includes("set status = 'superseded'"))).toContain("source_url = $3");
+  });
+
+  it("rejects a non-official CFC ref before any database write", async () => {
+    const pool = new FakeImportPool();
+    const repository = new ResourceImportRepository(pool as never);
+    await expect(repository.importDataset({
+      source: "cfc_active",
+      sourceLabel: "CFC",
+      sourceUrl: "https://example.com/cfc",
+      datasetVersion: "cfc_active_v1",
+      records: [{ ...baseRecord, sourceRef: "cfc_active:curated-pantry" }],
+    })).rejects.toThrow("non-official source reference");
+    expect(pool.activeRows.size).toBe(0);
+  });
+
   it("keeps provider IDs stable across new dataset versions for the same source_ref", async () => {
     const pool = new FakeImportPool();
     const repository = new ResourceImportRepository(pool as never);
@@ -137,7 +186,7 @@ describe("ResourceImportRepository", () => {
       records: [baseRecord]
     });
 
-    const firstProviderId = pool.activeRows.get("cfc_active:cfc_active:stable-provider")?.provider_id;
+    const firstProviderId = pool.activeRows.get("cfc_active:cfc_active:12345")?.provider_id;
 
     await repository.importDataset({
       source: "cfc_active",
@@ -152,7 +201,7 @@ describe("ResourceImportRepository", () => {
       ]
     });
 
-    const secondProviderId = pool.activeRows.get("cfc_active:cfc_active:stable-provider")?.provider_id;
+    const secondProviderId = pool.activeRows.get("cfc_active:cfc_active:12345")?.provider_id;
 
     expect(firstProviderId).toBeDefined();
     expect(secondProviderId).toBe(firstProviderId);
@@ -198,7 +247,7 @@ describe("ResourceImportRepository", () => {
 
     const records100: NormalizedResourceRecord[] = Array.from({ length: 100 }, (_, index) => ({
       ...baseRecord,
-      sourceRef: `cfc_active:stable-${index}`,
+      sourceRef: `cfc_active:${10000 + index}`,
     }));
 
     await repository.importDataset({
@@ -216,7 +265,7 @@ describe("ResourceImportRepository", () => {
 
     const records10: NormalizedResourceRecord[] = Array.from({ length: 10 }, (_, index) => ({
       ...baseRecord,
-      sourceRef: `cfc_active:stable-${index}`,
+      sourceRef: `cfc_active:${10000 + index}`,
     }));
 
     await expect(
@@ -244,7 +293,7 @@ describe("ResourceImportRepository", () => {
 
     const records100: NormalizedResourceRecord[] = Array.from({ length: 100 }, (_, index) => ({
       ...baseRecord,
-      sourceRef: `cfc_active:stable-${index}`,
+      sourceRef: `cfc_active:${10000 + index}`,
     }));
 
     await repository.importDataset({
@@ -257,7 +306,7 @@ describe("ResourceImportRepository", () => {
 
     const records10: NormalizedResourceRecord[] = Array.from({ length: 10 }, (_, index) => ({
       ...baseRecord,
-      sourceRef: `cfc_active:stable-${index}`,
+      sourceRef: `cfc_active:${10000 + index}`,
     }));
 
     const summary = await repository.importDataset(
