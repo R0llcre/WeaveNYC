@@ -1,5 +1,17 @@
 # WeaveNYC
 
+**English summary.** WeaveNYC is a privacy-first mutual-aid platform for underserved New York City communities. It combines an official resource directory (pantries, soup kitchens, benefits offices, cooling and warming centres; ZIP search and open-now filters), neighbour Request / Offer posts (food, goods, childcare, companionship, translation, transportation), matching that always returns an actionable plan (neighbour offers plus an official-resource fallback), chat between verified users, an Anchor admin for community moderators (review and report queues, rules, announcements) and a peer-to-peer sync overlay.
+
+Built solo, starting as a graduate course project at NYU in spring 2026, and developed through milestone M7 (staging rehearsal and multi-cloud deployment). M8 pilot readiness is pending; the platform is not live.
+
+- **Stack:** pnpm monorepo with a Next.js PWA and Anchor Admin, an Expo / React Native mobile app, Node services (`api-gateway`, `posts`, `match`, `chat`, `resource-directory`, `notifications`), PostgreSQL via Drizzle, Redis and Docker Compose. GitHub Actions run CI, Maestro mobile e2e and staging deploys to AWS App Runner (Terraform), Azure Container Apps and Google Cloud.
+- **Run locally:** `pnpm install && docker compose up -d && pnpm db:migrate && pnpm db:seed && pnpm dev`, then open the PWA at `http://localhost:3000`, Anchor Admin at `http://localhost:3001` and the API docs at `http://localhost:4000/docs`.
+- **Docs:** start with [docs/00_Execution_Baseline.md](docs/00_Execution_Baseline.md), [docs/02_PRD.md](docs/02_PRD.md) and [docs/28_M7_Closeout.md](docs/28_M7_Closeout.md); the full index is below (in Chinese).
+- **Security note:** `infra/dev/jwt-private.pem` and its public half are throwaway keys for local `docker-compose` only; staging and pilot environments read their signing keys from AWS Secrets Manager. Never reuse the dev key pair.
+
+---
+
+
 状态：`main = M7 completed (canonical baseline)` · `M8 = pending (next phase)`
 
 WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` 是唯一 canonical baseline，当前主线已经收口到 `M7 completed`。下一阶段固定为 `M8 Pilot Readiness`，聚焦试点上线准备，不新增产品功能线。
@@ -34,7 +46,7 @@ WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` �
 10. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
 11. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
 12. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
-13. [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
+13. [docs/13_Implementation_Plan.md](docs/13_Implementation_Plan.md)
 14. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
 15. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
 16. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
@@ -123,7 +135,7 @@ Current verification split:
 9. `M7` staging rehearsal / multi-cloud truth 收口（completed）
 10. `M8` pilot readiness（pending）
 
-详细内容见 [docs/13_Implementation_Plan.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)。
+详细内容见 [docs/13_Implementation_Plan.md](docs/13_Implementation_Plan.md)。
 
 ---
 

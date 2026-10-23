@@ -51,7 +51,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "skr174426@icloud.com",
+        "appleId": "<apple-id-email>",
         "ascAppId": "6763614740",
         "appleTeamId": "P42VU73CW3"
       }
