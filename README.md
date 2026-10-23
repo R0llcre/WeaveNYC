@@ -34,22 +34,22 @@ WeaveNYC 是一个面向纽约弱势社区的隐私优先互助平台。`main` �
 
 ## Start Here
 
-1. [docs/00_Execution_Baseline.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/00_Execution_Baseline.md)
-2. [docs/21_M0_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/21_M0_Closeout.md)
-3. [docs/22_M1_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/22_M1_Closeout.md)
-4. [docs/23_M2_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/23_M2_Closeout.md)
-5. [docs/24_M3_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/24_M3_Closeout.md)
-6. [docs/25_M4_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/25_M4_Closeout.md)
-7. [docs/28_M7_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/28_M7_Closeout.md)
-8. [docs/27_M6_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/27_M6_Closeout.md)
-9. [docs/26_M5_Closeout.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/26_M5_Closeout.md)
-10. [docs/01_Vision_And_Principles.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/01_Vision_And_Principles.md)
-11. [docs/02_PRD.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
-12. [docs/03_User_Flows_And_Screens.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
+1. [docs/00_Execution_Baseline.md](docs/00_Execution_Baseline.md)
+2. [docs/21_M0_Closeout.md](docs/21_M0_Closeout.md)
+3. [docs/22_M1_Closeout.md](docs/22_M1_Closeout.md)
+4. [docs/23_M2_Closeout.md](docs/23_M2_Closeout.md)
+5. [docs/24_M3_Closeout.md](docs/24_M3_Closeout.md)
+6. [docs/25_M4_Closeout.md](docs/25_M4_Closeout.md)
+7. [docs/28_M7_Closeout.md](docs/28_M7_Closeout.md)
+8. [docs/27_M6_Closeout.md](docs/27_M6_Closeout.md)
+9. [docs/26_M5_Closeout.md](docs/26_M5_Closeout.md)
+10. [docs/01_Vision_And_Principles.md](docs/01_Vision_And_Principles.md)
+11. [docs/02_PRD.md](docs/02_PRD.md)
+12. [docs/03_User_Flows_And_Screens.md](docs/03_User_Flows_And_Screens.md)
 13. [docs/13_Implementation_Plan.md](docs/13_Implementation_Plan.md)
-14. [docs/14_Backlog.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-15. [docs/16_Contribution_Guide.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/16_Contribution_Guide.md)
-16. [docs/18_Auth_Design.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md), [docs/09_API_Spec.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md), [docs/08_Data_Model.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](/Users/kairan/Documents/Spring26/WeaveNYC/docs/20_DB_Schema_Reference.md)
+14. [docs/14_Backlog.md](docs/14_Backlog.md)
+15. [docs/16_Contribution_Guide.md](docs/16_Contribution_Guide.md)
+16. [docs/18_Auth_Design.md](docs/18_Auth_Design.md), [docs/09_API_Spec.md](docs/09_API_Spec.md), [docs/08_Data_Model.md](docs/08_Data_Model.md), [docs/20_DB_Schema_Reference.md](docs/20_DB_Schema_Reference.md)
 
 ---
 
