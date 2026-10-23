@@ -128,7 +128,7 @@ pnpm dev
 - observability 仍是最小组合，不是 full ops stack
 - backup/restore 当前是 rehearsal 级验证，不是 production DR program
 - CFC live adapter 依赖上游 PDF 结构与本地 `pdftotext`
-- [`packages/db/test/db.integration.test.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/packages/db/test/db.integration.test.ts) 仍为 opt-in
+- [`packages/db/test/db.integration.test.ts`](<repo>/packages/db/test/db.integration.test.ts) 仍为 opt-in
 
 ---
 
@@ -278,7 +278,7 @@ pnpm dev
 当前主线已经承接 `M6 P2P sync overlay` 的已实现事实；相关细节分别记录在 `24_M3_Closeout.md`、`25_M4_Closeout.md`、`26_M5_Closeout.md` 与 `27_M6_Closeout.md`。
 main-first 口径下，`main` 当前以 `M7 completed` 为真；下一阶段入口固定为 `M8 Pilot Readiness`。
 
-1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
-2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-3. [`09_API_Spec.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md)
-4. [`03_User_Flows_And_Screens.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
+1. [`13_Implementation_Plan.md`](<repo>/docs/13_Implementation_Plan.md)
+2. [`14_Backlog.md`](<repo>/docs/14_Backlog.md)
+3. [`09_API_Spec.md`](<repo>/docs/09_API_Spec.md)
+4. [`03_User_Flows_And_Screens.md`](<repo>/docs/03_User_Flows_And_Screens.md)

@@ -88,7 +88,7 @@ pnpm test:e2e
 
 M2 现在统一从以下文档进入：
 
-1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
-2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-3. [`02_PRD.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/02_PRD.md)
-4. [`03_User_Flows_And_Screens.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md)
+1. [`13_Implementation_Plan.md`](<repo>/docs/13_Implementation_Plan.md)
+2. [`14_Backlog.md`](<repo>/docs/14_Backlog.md)
+3. [`02_PRD.md`](<repo>/docs/02_PRD.md)
+4. [`03_User_Flows_And_Screens.md`](<repo>/docs/03_User_Flows_And_Screens.md)

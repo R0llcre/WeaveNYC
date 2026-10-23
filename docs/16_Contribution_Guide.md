@@ -313,8 +313,8 @@ pnpm resources:import:island-harvest
 - 如改动前端主路径，运行 `pnpm test:e2e`
 - 如改动 live adapters，运行 `pnpm test:live-sources`
 - 如改动 DB schema，同步更新 migration / seed / 文档
-- 如改动 API 或数据模型，同步更新 [`08_Data_Model.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/08_Data_Model.md) / [`09_API_Spec.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md)
-- 如改动 community/posts/review/speech 契约，同步更新 [`03_User_Flows_And_Screens.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/03_User_Flows_And_Screens.md) / [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md) / [`18_Auth_Design.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/18_Auth_Design.md)
+- 如改动 API 或数据模型，同步更新 [`08_Data_Model.md`](<repo>/docs/08_Data_Model.md) / [`09_API_Spec.md`](<repo>/docs/09_API_Spec.md)
+- 如改动 community/posts/review/speech 契约，同步更新 [`03_User_Flows_And_Screens.md`](<repo>/docs/03_User_Flows_And_Screens.md) / [`14_Backlog.md`](<repo>/docs/14_Backlog.md) / [`18_Auth_Design.md`](<repo>/docs/18_Auth_Design.md)
 - 如新增环境变量，同步更新 `.env.example`
 
 ---
@@ -336,6 +336,6 @@ pnpm resources:import:island-harvest
 - CI 默认不跑 live-source smoke
 - Browser smoke 仍使用 fixture-backed tests
 - CFC live adapter 依赖上游 PDF 结构和本地 `pdftotext`
-- [`packages/db/test/db.integration.test.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/packages/db/test/db.integration.test.ts) 目前为 opt-in
+- [`packages/db/test/db.integration.test.ts`](<repo>/packages/db/test/db.integration.test.ts) 目前为 opt-in
 
 除此之外，不要再把“仓库还不能 `pnpm dev`”或“当前只有 docs 没有代码”写进文档。

@@ -25,12 +25,12 @@ M7 已完成并收口到 `main` 的范围：
   - `.github/workflows/smoke-staging.yml`
   - `.github/workflows/backup-restore-rehearsal.yml`
 - fail-fast staging env/runtime contract 已落地：
-  - [`deploy/runtime-contracts.json`](/Users/kairan/Documents/Spring26/WeaveNYC/deploy/runtime-contracts.json)
-  - [`deploy/env-profiles.json`](/Users/kairan/Documents/Spring26/WeaveNYC/deploy/env-profiles.json)
+  - [`deploy/runtime-contracts.json`](<repo>/deploy/runtime-contracts.json)
+  - [`deploy/env-profiles.json`](<repo>/deploy/env-profiles.json)
 - staging deploy / smoke / restore helper scripts 已落地：
-  - [`scripts/staging/deploy-staging.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/scripts/staging/deploy-staging.ts)
-  - [`scripts/staging/smoke-staging.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/scripts/staging/smoke-staging.ts)
-  - [`scripts/staging/backup-restore-rehearsal.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/scripts/staging/backup-restore-rehearsal.ts)
+  - [`scripts/staging/deploy-staging.ts`](<repo>/scripts/staging/deploy-staging.ts)
+  - [`scripts/staging/smoke-staging.ts`](<repo>/scripts/staging/smoke-staging.ts)
+  - [`scripts/staging/backup-restore-rehearsal.ts`](<repo>/scripts/staging/backup-restore-rehearsal.ts)
 - docs truth 已同步到 main-first 口径，不再把 branch-local `M7 in progress` 当成入口事实
 
 ---
@@ -41,18 +41,18 @@ M7 已完成并收口到 `main` 的范围：
 
 可直接从当前主线证明的验证基础：
 
-- repo 默认 validation 链已固定在 [`package.json`](/Users/kairan/Documents/Spring26/WeaveNYC/package.json) 和 [`ci.yml`](/Users/kairan/Documents/Spring26/WeaveNYC/.github/workflows/ci.yml)
+- repo 默认 validation 链已固定在 [`package.json`](<repo>/package.json) 和 [`ci.yml`](<repo>/.github/workflows/ci.yml)
   - `pnpm lint`
   - `pnpm typecheck`
   - `pnpm test`
   - `pnpm build`
 - staging rehearsal workflow / script contract 已合入主线：
-  - [`deploy-staging.yml`](/Users/kairan/Documents/Spring26/WeaveNYC/.github/workflows/deploy-staging.yml)
-  - [`smoke-staging.yml`](/Users/kairan/Documents/Spring26/WeaveNYC/.github/workflows/smoke-staging.yml)
-  - [`backup-restore-rehearsal.yml`](/Users/kairan/Documents/Spring26/WeaveNYC/.github/workflows/backup-restore-rehearsal.yml)
-  - [`scripts/staging/deploy-staging.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/scripts/staging/deploy-staging.ts)
-  - [`scripts/staging/smoke-staging.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/scripts/staging/smoke-staging.ts)
-  - [`scripts/staging/backup-restore-rehearsal.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/scripts/staging/backup-restore-rehearsal.ts)
+  - [`deploy-staging.yml`](<repo>/.github/workflows/deploy-staging.yml)
+  - [`smoke-staging.yml`](<repo>/.github/workflows/smoke-staging.yml)
+  - [`backup-restore-rehearsal.yml`](<repo>/.github/workflows/backup-restore-rehearsal.yml)
+  - [`scripts/staging/deploy-staging.ts`](<repo>/scripts/staging/deploy-staging.ts)
+  - [`scripts/staging/smoke-staging.ts`](<repo>/scripts/staging/smoke-staging.ts)
+  - [`scripts/staging/backup-restore-rehearsal.ts`](<repo>/scripts/staging/backup-restore-rehearsal.ts)
 - PR review comments 已处理，review threads 已 resolve
 
 当前明确不写成已通过事实的内容：

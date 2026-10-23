@@ -100,7 +100,7 @@ first-pass blockers 与收敛记录：
 ## 5) 唯一接受的剩余风险
 
 - CI 默认不跑 Docker-backed DB integration
-- [`packages/db/test/db.integration.test.ts`](/Users/kairan/Documents/Spring26/WeaveNYC/packages/db/test/db.integration.test.ts) 当前是 opt-in
+- [`packages/db/test/db.integration.test.ts`](<repo>/packages/db/test/db.integration.test.ts) 当前是 opt-in
 
 除这一项外，M0 不再保留“仓库未起盘”或“文档只是目标态”的剩余风险表述。
 
@@ -110,7 +110,7 @@ first-pass blockers 与收敛记录：
 
 M0 关闭后，M1 统一从以下文档进入：
 
-1. [`13_Implementation_Plan.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/13_Implementation_Plan.md)
-2. [`14_Backlog.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/14_Backlog.md)
-3. [`04_Data_Sources.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/04_Data_Sources.md)
-4. [`09_API_Spec.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/09_API_Spec.md)
+1. [`13_Implementation_Plan.md`](<repo>/docs/13_Implementation_Plan.md)
+2. [`14_Backlog.md`](<repo>/docs/14_Backlog.md)
+3. [`04_Data_Sources.md`](<repo>/docs/04_Data_Sources.md)
+4. [`09_API_Spec.md`](<repo>/docs/09_API_Spec.md)

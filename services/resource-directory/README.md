@@ -21,4 +21,4 @@ Important verification note:
 
 - default CI does **not** run live-source smoke
 - default CI now relies on real API smoke via `pnpm test:smoke:real`
-- formal `M1` closeout evidence lives in [`docs/22_M1_Closeout.md`](/Users/kairan/Documents/Spring26/WeaveNYC/docs/22_M1_Closeout.md)
+- formal `M1` closeout evidence lives in [`docs/22_M1_Closeout.md`](<repo>/docs/22_M1_Closeout.md)
